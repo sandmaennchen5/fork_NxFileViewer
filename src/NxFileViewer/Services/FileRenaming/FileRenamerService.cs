@@ -269,11 +269,15 @@ public class FileRenamerService : IFileRenamerService
                             break;
                         case PatternKeyword.OnlineTitleName:
                             var onlineTitleInfo = await _cachedOnlineTitleInfoService.GetTitleInfoAsync(content.TitleId);
-                            partValue = onlineTitleInfo != null ? onlineTitleInfo.Name : "NO_TITLE";
+                            partValue = onlineTitleInfo != null
+                                ? FileNameTextNormalizer.RestoreMissingWordSeparators(onlineTitleInfo.Name)
+                                : "NO_TITLE";
                             break;
                         case PatternKeyword.OnlineAppTitleName:
                             var onlineAppTitleInfo = await _cachedOnlineTitleInfoService.GetTitleInfoAsync(content.ApplicationTitleId);
-                            partValue = onlineAppTitleInfo != null ? onlineAppTitleInfo.Name : "NO_TITLE";
+                            partValue = onlineAppTitleInfo != null
+                                ? FileNameTextNormalizer.RestoreMissingWordSeparators(onlineAppTitleInfo.Name)
+                                : "NO_TITLE";
                             break;
                         default:
                             throw new NotSupportedException($"Unknown application keyword «{dynamicText.Keyword}».");

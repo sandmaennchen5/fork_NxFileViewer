@@ -20,6 +20,7 @@ using Emignatik.NxFileViewer.Services.KeysManagement;
 using Emignatik.NxFileViewer.Services.OnlineServices;
 using Emignatik.NxFileViewer.Services.Prompting;
 using Emignatik.NxFileViewer.Services.Selection;
+using Emignatik.NxFileViewer.Services.WindowPlacement;
 using Emignatik.NxFileViewer.Settings;
 using Emignatik.NxFileViewer.Styling.Theme;
 using Emignatik.NxFileViewer.Tools;
@@ -64,6 +65,7 @@ public partial class App : Application, IAppEvents
             .AddSingleton<ICloseFileCommand, CloseFileCommand>()
             .AddSingleton<IShowSettingsWindowCommand, ShowSettingsWindowCommand>()
             .AddSingleton<IVerifyNcasIntegrityCommand, VerifyNcasIntegrityCommand>()
+            .AddSingleton<IShowBatchIntegrityWindowCommand, ShowBatchIntegrityWindowCommand>()
             .AddSingleton<IShowItemErrorsWindowCommand, ShowItemErrorsWindowCommand>()
             .AddSingleton<ISaveTitleImageCommand, SaveTitleImageCommand>()
             .AddSingleton<ICopyImageCommand, CopyImageCommand>()
@@ -76,6 +78,7 @@ public partial class App : Application, IAppEvents
             .AddSingleton<IPackageTypeAnalyzer, PackageTypeAnalyzer>()
             .AddSingleton<MainWindowViewModel>()
             .AddSingleton<RenameToolWindowViewModel>()
+            .AddTransient<BatchIntegrityWindowViewModel>()
             .AddSingleton<AppSettings>()
             .AddSingleton<IAppSettings>(provider => provider.GetRequiredService<AppSettings>())
             .AddSingleton<IAppSettingsManager, AppSettingsManager>()
@@ -84,6 +87,8 @@ public partial class App : Application, IAppEvents
             .AddSingleton<IItemViewModelBuilder, ItemViewModelBuilder>()
             .AddSingleton<IFileLoader, FileLoader>()
             .AddSingleton<IBrushesProvider, BrushesProvider>()
+            .AddSingleton<IThemeService, ThemeService>()
+            .AddSingleton<IWindowPlacementService, WindowPlacementService>()
             .AddSingleton<ILocalizationFromSettingsSynchronizerService, LocalizationFromSettingsSynchronizerService>()
             .AddSingleton<IShallowCopier, ShallowCopier>()
             .AddSingleton<INcaHashService, NcaHashService>()
@@ -93,6 +98,7 @@ public partial class App : Application, IAppEvents
             .AddTransient<ISaveFileRunnable, SaveFileRunnable>()
             .AddTransient<ISaveDirectoryRunnable, SaveDirectoryRunnable>()
             .AddTransient<IVerifyNcasIntegrityRunnable, VerifyNcasIntegrityRunnable>()
+            .AddTransient<IVerifyDirectoryIntegrityRunnable, VerifyDirectoryIntegrityRunnable>()
             .AddTransient<IDownloadFileRunnable, DownloadFileRunnable>()
             .AddTransient<ISaveStorageRunnable, SaveStorageRunnable>()
             .AddTransient<IFilesRenamerRunnable, FilesRenamerRunnable>()
@@ -126,6 +132,7 @@ public partial class App : Application, IAppEvents
 
         // Initialize localization
         ServiceProvider.GetRequiredService<ILocalizationFromSettingsSynchronizerService>().Initialize();
+        ServiceProvider.GetRequiredService<IThemeService>().Initialize();
 
         LocalizationStringExtension.FormatException += OnLocalizationStringFormatException;
 
@@ -135,6 +142,8 @@ public partial class App : Application, IAppEvents
             DataContext = mainWindowViewModel
         };
         mainWindowViewModel.Window = mainWindow;
+        ServiceProvider.GetRequiredService<IThemeService>().RegisterWindow(mainWindow);
+        ServiceProvider.GetRequiredService<IWindowPlacementService>().Track(mainWindow);
 
         void MainWindowLoaded(object sender, RoutedEventArgs args)
         {

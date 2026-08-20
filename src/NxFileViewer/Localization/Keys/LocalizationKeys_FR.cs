@@ -20,6 +20,19 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
     public string MenuItem_Exit => "Q_uitter";
     public string MenuItem_Tools => "_Outils";
     public string MenuItem_CheckIntegrity => "Vérifier l'_intégrité";
+    public string MenuItem_CheckDirectoryIntegrity => "Vérifier l’intégrité du dossier…";
+    public string BatchIntegrity_Title => "Vérification d’intégrité par lot";
+    public string BatchIntegrity_SelectDirectory => "Sélectionner le dossier des fichiers Switch";
+    public string BatchIntegrity_Browse => "Parcourir…";
+    public string BatchIntegrity_IncludeSubdirectories => "Inclure les sous-dossiers";
+    public string BatchIntegrity_File => "Fichier";
+    public string BatchIntegrity_Path => "Chemin";
+    public string BatchIntegrity_Error => "Erreur";
+    public string BatchIntegrity_Export => "Exporter CSV…";
+    public string BatchIntegrity_Start => "Démarrer";
+    public string BatchIntegrity_MoveValid => "Déplacer les fichiers valides…";
+    public string BatchIntegrity_SelectMoveDestination => "Sélectionner la destination des fichiers valides";
+    public string BatchIntegrity_Moving => "Déplacement";
     public string MenuItem_Options => "_Options";
     public string MenuItem_Settings => "_Paramètres";
     public string MenuItem_ReloadKeys => "Recharger les clés";
@@ -96,6 +109,7 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
     public string SettingsView_CheckBox_AlwaysReloadKeysBeforeOpen => "Toujours recharger les clés avant l'ouverture d'un fichier";
     public string SettingsView_CheckBox_InjectTicketKeys => "Injecter les clés depuis les fichiers ticket (*.tik)";
     public string SettingsView_Title_Language => "Langue";
+    public string SettingsView_Title_Theme => "Thème";
     public string SettingsView_Title_NczOptions => "Paramètres NSZ/XCZ";
     public string SettingsView_ToolTip_NczBlockLessCompression => """
                                                                   Les fichiers NSZ ou XCZ sont composés de fichiers NCZ qui sont des fichiers NCA compressés.
@@ -287,6 +301,10 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
     public string ContextMenu_OpenFileLocation => "Ouvrir l'emplacement...";
     public string OpenFileLocation_Failed_Log => "Echec d'ouverture de l'emplacement du fichier «{0}»: {1}";
     public string SettingsView_TitlePageUrl => "URL du titre";
+    public string SettingsView_TitleInfoApiUrl => "URL de l’API des titres";
+    public string BatchIntegrity_FileType => "Type de fichier";
+    public string BatchIntegrity_PackageType => "Type de paquet";
+    public string BatchIntegrity_ShowOnlyErrors => "Afficher uniquement les fichiers défectueux";
     public string OpenTitleWebPage_Failed => "Echec d'ouverture de la page Web: {0}";
 
     public string Log_DownloadFileCanceled => "Téléchargement annulé.";

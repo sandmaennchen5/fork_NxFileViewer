@@ -20,6 +20,19 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
     public string MenuItem_Exit => "E_xit";
     public string MenuItem_Tools => "_Tools";
     public string MenuItem_CheckIntegrity => "Check _integrity";
+    public string MenuItem_CheckDirectoryIntegrity => "Check folder integrity…";
+    public string BatchIntegrity_Title => "Batch integrity check";
+    public string BatchIntegrity_SelectDirectory => "Select folder containing Switch files";
+    public string BatchIntegrity_Browse => "Browse…";
+    public string BatchIntegrity_IncludeSubdirectories => "Include subdirectories";
+    public string BatchIntegrity_File => "File";
+    public string BatchIntegrity_Path => "Path";
+    public string BatchIntegrity_Error => "Error";
+    public string BatchIntegrity_Export => "Export CSV…";
+    public string BatchIntegrity_Start => "Start check";
+    public string BatchIntegrity_MoveValid => "Move valid files…";
+    public string BatchIntegrity_SelectMoveDestination => "Select destination for valid files";
+    public string BatchIntegrity_Moving => "Moving";
     public string MenuItem_Options => "_Options";
     public string MenuItem_Settings => "_Settings";
     public string MenuItem_ReloadKeys => "Reload keys";
@@ -95,6 +108,7 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
     public string SettingsView_CheckBox_AlwaysReloadKeysBeforeOpen => "Always reload keys before opening a file";
     public string SettingsView_CheckBox_InjectTicketKeys => "Inject keys from ticket files (*.tik)";
     public string SettingsView_Title_Language => "Language";
+    public string SettingsView_Title_Theme => "Theme";
     public string SettingsView_Title_NczOptions => "NSZ/XCZ settings";
 
     public string SettingsView_ToolTip_NczBlockLessCompression => """
@@ -287,6 +301,10 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
     public string ContextMenu_OpenFileLocation => "Open location...";
     public string OpenFileLocation_Failed_Log => "Failed to open location of file «{0}»: {1}";
     public string SettingsView_TitlePageUrl => "Title page URL";
+    public string SettingsView_TitleInfoApiUrl => "Title information API URL";
+    public string BatchIntegrity_FileType => "File type";
+    public string BatchIntegrity_PackageType => "Package type";
+    public string BatchIntegrity_ShowOnlyErrors => "Show faulty files only";
     public string OpenTitleWebPage_Failed => "Failed to open title Web page: {0}";
 
     public string Log_DownloadFileCanceled => "Download canceled.";

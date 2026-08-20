@@ -38,6 +38,7 @@ public class MainWindowViewModel : WindowViewModelBase, IFilesDropped
         IExitAppCommand exitAppCommand,
         IShowSettingsWindowCommand showSettingsWindowCommand,
         IVerifyNcasIntegrityCommand verifyNcasIntegrityCommand,
+        IShowBatchIntegrityWindowCommand showBatchIntegrityWindowCommand,
         ILoadKeysCommand loadKeysCommand,
         IOpenTitleWebPageCommand openTitleWebPageCommand,
         IServiceProvider serviceProvider,
@@ -55,6 +56,7 @@ public class MainWindowViewModel : WindowViewModelBase, IFilesDropped
         ExitAppCommand = exitAppCommand ?? throw new ArgumentNullException(nameof(exitAppCommand));
         ShowSettingsWindowCommand = showSettingsWindowCommand ?? throw new ArgumentNullException(nameof(showSettingsWindowCommand));
         VerifyNcasIntegrityCommand = verifyNcasIntegrityCommand ?? throw new ArgumentNullException(nameof(verifyNcasIntegrityCommand));
+        ShowBatchIntegrityWindowCommand = showBatchIntegrityWindowCommand ?? throw new ArgumentNullException(nameof(showBatchIntegrityWindowCommand));
         LoadKeysCommand = loadKeysCommand ?? throw new ArgumentNullException(nameof(loadKeysCommand));
         ServiceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         LogSource = logSource ?? throw new ArgumentNullException(nameof(logSource));
@@ -83,6 +85,8 @@ public class MainWindowViewModel : WindowViewModelBase, IFilesDropped
     public IShowSettingsWindowCommand ShowSettingsWindowCommand { get; }
 
     public IVerifyNcasIntegrityCommand VerifyNcasIntegrityCommand { get; }
+
+    public IShowBatchIntegrityWindowCommand ShowBatchIntegrityWindowCommand { get; }
 
     public ILoadKeysCommand LoadKeysCommand { get; }
 

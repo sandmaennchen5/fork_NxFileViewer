@@ -24,11 +24,28 @@ Download latest version [here](https://github.com/Myster-Tee/NxFileViewer/releas
 - Single executable file
 - Do not write anything outside of the program directory
 - Verify integrity (hash and signature)
+- Batch integrity check for complete folders containing NSP, NSZ, XCI, and XCZ files
+- Live batch results with file type, package type, compression, integrity status, and error details
+- Preview the overview of the currently checked file directly in the batch window
+- Filter the batch list to show faulty files only and export the results as CSV
+- Move successfully verified files to a selected destination while preserving subdirectories
+- Existing destination files are never overwritten and faulty files are never deleted automatically
 - Displays missing keys
 - Opens title URL
-- Multiple languages (actually English and French, PR me for more ;))
+- Configurable Tinfoil title page and API URLs
+- Multiple interface languages (English, French, German, and Spanish)
+- Supports compressed NACP title blocks and up to 32 NACP title languages
 - Advanced files renaming
+- Improved online title normalization when renaming files
+- Dark, light, and system themes, including themed window title bars
+- Remembers the main window size, position, and the last batch directory
 - Full support of NSZ and XCZ files (compressed with [NSZ](https://github.com/nicoboss/nsz/) tool from **nicoboss**).
+
+### Batch integrity check
+
+Open **Tools → Check folder integrity** to verify all supported Switch files in a directory. Subdirectories can be included optionally. Results are added to the table as soon as each file has been checked, while the overview panel displays information about the file currently being processed.
+
+The batch window supports cancellation, live progress reporting, faulty-file filtering, and CSV export. After the check, files reported as original and valid can be moved to a selected destination. The original folder structure is retained, existing destination files are skipped, and invalid files remain untouched.
 
 ## Screenshots
 

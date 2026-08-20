@@ -16,6 +16,19 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string MenuItem_Exit { get; }
     string MenuItem_Tools { get; }
     string MenuItem_CheckIntegrity { get; }
+    string MenuItem_CheckDirectoryIntegrity { get; }
+    string BatchIntegrity_Title { get; }
+    string BatchIntegrity_SelectDirectory { get; }
+    string BatchIntegrity_Browse { get; }
+    string BatchIntegrity_IncludeSubdirectories { get; }
+    string BatchIntegrity_File { get; }
+    string BatchIntegrity_Path { get; }
+    string BatchIntegrity_Error { get; }
+    string BatchIntegrity_Export { get; }
+    string BatchIntegrity_Start { get; }
+    string BatchIntegrity_MoveValid { get; }
+    string BatchIntegrity_SelectMoveDestination { get; }
+    string BatchIntegrity_Moving { get; }
     string MenuItem_Options { get; }
     string MenuItem_Settings { get; }
     string MenuItem_ReloadKeys { get; }
@@ -64,6 +77,7 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string SettingsView_CheckBox_AlwaysReloadKeysBeforeOpen { get; }
     string SettingsView_CheckBox_InjectTicketKeys { get; }
     string SettingsView_Title_Language { get; }
+    string SettingsView_Title_Theme { get; }
 
     string SettingsView_Title_NczOptions { get; }
     string SettingsView_ToolTip_NczBlockLessCompression { get; }
@@ -234,6 +248,10 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string ContextMenu_OpenFileLocation { get; }
     string OpenFileLocation_Failed_Log { get; }
     string SettingsView_TitlePageUrl { get; }
+    string SettingsView_TitleInfoApiUrl { get; }
+    string BatchIntegrity_FileType { get; }
+    string BatchIntegrity_PackageType { get; }
+    string BatchIntegrity_ShowOnlyErrors { get; }
     string OpenTitleWebPage_Failed { get; }
 
     string Log_DownloadFileCanceled { get; }

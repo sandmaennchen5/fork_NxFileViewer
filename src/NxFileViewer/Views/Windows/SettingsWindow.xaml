@@ -136,6 +136,11 @@
                             </StackPanel>
 
                             <StackPanel>
+                                <TextBlock Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_Title_Theme}" />
+                                <ComboBox ItemsSource="{Binding Path=ThemeOptions}" SelectedValuePath="Value" SelectedValue="{Binding Path=EditedSettings.Theme}" DisplayMemberPath="DisplayName" MinWidth="100" HorizontalAlignment="Left"/>
+                            </StackPanel>
+
+                            <StackPanel>
                                 <StackPanel  Orientation="Horizontal">
                                     <TextBlock  Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_LogLevel}" />
                                     <customControls:TipLabel ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_ToolTip_LogLevel}"/>
@@ -145,7 +150,12 @@
 
                             <StackPanel>
                                 <TextBlock Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_TitlePageUrl}" />
-                                <TextBox Text="{Binding Path=EditedSettings.TitlePageUrl}" />
+                                <TextBox Text="{Binding Path=EditedSettings.TitlePageUrl, UpdateSourceTrigger=PropertyChanged}" />
+                            </StackPanel>
+
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_TitleInfoApiUrl}" />
+                                <TextBox Text="{Binding Path=EditedSettings.TitleInfoApiUrl, UpdateSourceTrigger=PropertyChanged}" />
                             </StackPanel>
 
                         </StackPanel>

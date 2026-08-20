@@ -71,6 +71,9 @@
                         <Image Source="/Styling/Icons/safe_16x16.png" />
                     </MenuItem.Icon>
                 </MenuItem>
+                <MenuItem Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.MenuItem_CheckDirectoryIntegrity}" Command="{Binding Path=ShowBatchIntegrityWindowCommand}">
+                    <MenuItem.Icon><Image Source="/Styling/Icons/safe_16x16.png" /></MenuItem.Icon>
+                </MenuItem>
                 <MenuItem Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.MenuItem_ReloadKeys}"
                           Command="{Binding Path=LoadKeysCommand}" InputGestureText="F10">
                     <MenuItem.Icon>

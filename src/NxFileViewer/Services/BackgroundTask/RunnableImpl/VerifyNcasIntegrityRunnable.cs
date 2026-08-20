@@ -48,7 +48,9 @@ public class VerifyNcasIntegrityRunnable : IVerifyNcasIntegrityRunnable
         _logger.LogInformation(LocalizationManager.Instance.Current.Keys.NcaHash_VerificationStart_Log);
         try
         {
-            Verify(progressReporter, _fileOverview, cancellationToken).Wait(cancellationToken);
+            // Wait until the asynchronous hash operation has actually observed cancellation.
+            // This is important for batch mode, which disposes each package after this call returns.
+            Verify(progressReporter, _fileOverview, cancellationToken).GetAwaiter().GetResult();
         }
         finally
         {

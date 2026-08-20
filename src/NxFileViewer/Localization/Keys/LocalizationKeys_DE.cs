@@ -20,6 +20,19 @@ public class LocalizationKeys_DE : LocalizationKeysBase, ILocalizationKeys
     public string MenuItem_Exit => "_Beenden";
     public string MenuItem_Tools => "_Werkzeuge";
     public string MenuItem_CheckIntegrity => "_Integrität prüfen";
+    public string MenuItem_CheckDirectoryIntegrity => "Ordnerintegrität prüfen…";
+    public string BatchIntegrity_Title => "Stapel-Integritätsprüfung";
+    public string BatchIntegrity_SelectDirectory => "Ordner mit Switch-Dateien auswählen";
+    public string BatchIntegrity_Browse => "Durchsuchen…";
+    public string BatchIntegrity_IncludeSubdirectories => "Unterordner einbeziehen";
+    public string BatchIntegrity_File => "Datei";
+    public string BatchIntegrity_Path => "Pfad";
+    public string BatchIntegrity_Error => "Fehler";
+    public string BatchIntegrity_Export => "CSV exportieren…";
+    public string BatchIntegrity_Start => "Prüfung starten";
+    public string BatchIntegrity_MoveValid => "Fehlerfreie verschieben…";
+    public string BatchIntegrity_SelectMoveDestination => "Zielordner für fehlerfreie Dateien auswählen";
+    public string BatchIntegrity_Moving => "Verschiebe";
     public string MenuItem_Options => "_Optionen";
     public string MenuItem_Settings => "_Einstellungen";
     public string MenuItem_ReloadKeys => "Keys Neuladen";
@@ -95,6 +108,7 @@ public class LocalizationKeys_DE : LocalizationKeysBase, ILocalizationKeys
     public string SettingsView_CheckBox_AlwaysReloadKeysBeforeOpen => "Keys immer neu laden bevor eine Datei geöffnet wird.";
     public string SettingsView_CheckBox_InjectTicketKeys => "Keys aus Ticket-Dateien (*.tik) injizieren";
     public string SettingsView_Title_Language => "Sprache";
+    public string SettingsView_Title_Theme => "Design";
     public string SettingsView_Title_NczOptions => "NSZ/XCZ Einstellungen";
 
     public string SettingsView_ToolTip_NczBlockLessCompression => """
@@ -287,6 +301,10 @@ public class LocalizationKeys_DE : LocalizationKeysBase, ILocalizationKeys
     public string ContextMenu_OpenFileLocation => "Verzeichnis öffnen...";
     public string OpenFileLocation_Failed_Log => "Fehler beim Öffnen des Speicherorts der Datei «{0}»: {1}";
     public string SettingsView_TitlePageUrl => "Titel Seiten-URL";
+    public string SettingsView_TitleInfoApiUrl => "Titelinfo-API-URL";
+    public string BatchIntegrity_FileType => "Dateityp";
+    public string BatchIntegrity_PackageType => "Pakettyp";
+    public string BatchIntegrity_ShowOnlyErrors => "Nur fehlerhafte anzeigen";
     public string OpenTitleWebPage_Failed => "Fehler beim Öffnen der Titel Webseite: {0}";
 
     public string Log_DownloadFileCanceled => "Herunterladen abgebrochen.";

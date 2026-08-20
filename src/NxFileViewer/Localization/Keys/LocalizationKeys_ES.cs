@@ -20,6 +20,19 @@ public class LocalizationKeys_ES : LocalizationKeysBase, ILocalizationKeys
     public string MenuItem_Exit => "_Salir";
     public string MenuItem_Tools => "_Herramientas";
     public string MenuItem_CheckIntegrity => "Verificar _integridad";
+    public string MenuItem_CheckDirectoryIntegrity => "Verificar integridad de carpeta…";
+    public string BatchIntegrity_Title => "Verificación de integridad por lotes";
+    public string BatchIntegrity_SelectDirectory => "Seleccionar carpeta con archivos de Switch";
+    public string BatchIntegrity_Browse => "Examinar…";
+    public string BatchIntegrity_IncludeSubdirectories => "Incluir subcarpetas";
+    public string BatchIntegrity_File => "Archivo";
+    public string BatchIntegrity_Path => "Ruta";
+    public string BatchIntegrity_Error => "Error";
+    public string BatchIntegrity_Export => "Exportar CSV…";
+    public string BatchIntegrity_Start => "Iniciar verificación";
+    public string BatchIntegrity_MoveValid => "Mover archivos válidos…";
+    public string BatchIntegrity_SelectMoveDestination => "Seleccionar destino para archivos válidos";
+    public string BatchIntegrity_Moving => "Moviendo";
     public string MenuItem_Options => "_Opciones";
     public string MenuItem_Settings => "_Configuraciones";
     public string MenuItem_ReloadKeys => "Recargar llaves";
@@ -95,6 +108,7 @@ public class LocalizationKeys_ES : LocalizationKeysBase, ILocalizationKeys
     public string SettingsView_CheckBox_AlwaysReloadKeysBeforeOpen => "Siempre recargar las llaves antes de abrir un archivo";
     public string SettingsView_CheckBox_InjectTicketKeys => "Inyectar llaves desde los archivos de tiquetes (*.tik)";
     public string SettingsView_Title_Language => "Idioma";
+    public string SettingsView_Title_Theme => "Tema";
     public string SettingsView_Title_NczOptions => "Configuraciones NSZ/XCZ";
 
     public string SettingsView_ToolTip_NczBlockLessCompression => """
@@ -287,6 +301,10 @@ public class LocalizationKeys_ES : LocalizationKeysBase, ILocalizationKeys
     public string ContextMenu_OpenFileLocation => "Abrir ubicación del archivo...";
     public string OpenFileLocation_Failed_Log => "Error al abrir la ubicación del archivo «{0}»: {1}";
     public string SettingsView_TitlePageUrl => "URL de la página de Títulos";
+    public string SettingsView_TitleInfoApiUrl => "URL de API de información de títulos";
+    public string BatchIntegrity_FileType => "Tipo de archivo";
+    public string BatchIntegrity_PackageType => "Tipo de paquete";
+    public string BatchIntegrity_ShowOnlyErrors => "Mostrar solo archivos defectuosos";
     public string OpenTitleWebPage_Failed => "Error al abrir la página Web de títulos: {0}";
 
     public string Log_DownloadFileCanceled => "Descarga cancelada.";
