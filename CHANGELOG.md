@@ -24,6 +24,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Added parsing of `main.npdm` from program NCAs.
 - Added a program-security assessment based on signed ACID file-system permissions, including safe, unsafe, and dangerous classifications.
 - Added the ACID signature state, raw permission mask, and authorized service list to the program details.
+- Added base title ID, required master-key revision/key generation, minimum application version for DLC, and NCA distribution type to the title overview.
 
 ### Fixed
 
@@ -33,6 +34,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Batch preview errors no longer replace otherwise valid package and integrity results with `Unknown`.
 - Exception details and stack traces are now included in the application log for actionable diagnostics.
 - Fixed a crash when the program-security fields were displayed by explicitly using one-way WPF bindings for read-only values.
+- Batch integrity results now include the underlying NCA error and identify broken NSZ/NCZ Zstandard streams as corrupted or incomplete compressed data.
 
 ### Notes
 

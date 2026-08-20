@@ -23,6 +23,8 @@
                     <RowDefinition />
                     <RowDefinition />
                     <RowDefinition />
+                    <RowDefinition />
+                    <RowDefinition />
                 </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition />
@@ -50,7 +52,27 @@
                     <TextBox Style="{StaticResource ReadOnlyTextBox}" Text="{Binding Path=MinimumSystemVersion, Mode=OneWay}" />
                 </StackPanel>
 
-                <Grid Grid.Row="2" Grid.ColumnSpan="3" Grid.Column="0">
+                <StackPanel Grid.Row="2" Grid.Column="0">
+                    <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.CnmtOverview_BaseTitleId}" Style="{StaticResource Title2}"/>
+                    <TextBox Style="{StaticResource ReadOnlyTextBox}" Text="{Binding Path=BaseTitleId, Mode=OneWay}" />
+                </StackPanel>
+
+                <StackPanel Grid.Row="2" Grid.Column="2">
+                    <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.CnmtOverview_MasterKey}" Style="{StaticResource Title2}"/>
+                    <TextBox Style="{StaticResource ReadOnlyTextBox}" Text="{Binding Path=MasterKey, Mode=OneWay}" />
+                </StackPanel>
+
+                <StackPanel Grid.Row="3" Grid.Column="0">
+                    <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.CnmtOverview_MinimumApplicationVersion}" Style="{StaticResource Title2}"/>
+                    <TextBox Style="{StaticResource ReadOnlyTextBox}" Text="{Binding Path=MinimumApplicationVersion, Mode=OneWay}" />
+                </StackPanel>
+
+                <StackPanel Grid.Row="3" Grid.Column="2">
+                    <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.CnmtOverview_Distribution}" Style="{StaticResource Title2}"/>
+                    <TextBox Style="{StaticResource ReadOnlyTextBox}" Text="{Binding Path=Distribution, Mode=OneWay}" />
+                </StackPanel>
+
+                <Grid Grid.Row="4" Grid.ColumnSpan="3" Grid.Column="0">
                     <Grid.RowDefinitions>
                         <RowDefinition />
                         <RowDefinition />

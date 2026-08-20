@@ -6,6 +6,8 @@ using System.Threading;
 using Emignatik.NxFileViewer.FileLoading;
 using Emignatik.NxFileViewer.Models.Overview;
 using Emignatik.NxFileViewer.Models;
+using Emignatik.NxFileViewer.Models.TreeItems;
+using Emignatik.NxFileViewer.Localization;
 using Emignatik.NxFileViewer.Services.Integrity;
 using Emignatik.NxFileViewer.Settings;
 using Microsoft.Extensions.DependencyInjection;
@@ -82,13 +84,14 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
                 var verifier = _serviceProvider.GetRequiredService<IVerifyNcasIntegrityRunnable>();
                 verifier.Setup(nxFile.Overview, _appSettings.IgnoreMissingDeltaFragments);
                 verifier.Run(new ScaledProgressReporter(progressReporter, index, files.Length), cancellationToken);
+                var integrityError = BuildIntegrityError(nxFile.Overview);
                 results.Add(new BatchIntegrityResult(
                     file,
                     Path.GetExtension(file).TrimStart('.').ToUpperInvariant(),
                     nxFile.Overview.FileType.ToString(),
                     nxFile.Overview.NcaCompressionType.ToString(),
                     nxFile.Overview.NcasIntegrity,
-                    null));
+                    integrityError));
             }
             catch (OperationCanceledException)
             {
@@ -114,6 +117,28 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
         if (files.Length == 0)
             progressReporter.SetPercentage(1);
         return results;
+    }
+
+    private static string? BuildIntegrityError(FileOverview overview)
+    {
+        if (overview.NcasIntegrity == NcasIntegrity.Original)
+            return null;
+
+        var messages = overview.RootItem.FindChildrenOfType<IItem>(includeItem: true)
+            .SelectMany(item => item.Errors)
+            .Where(error => error.Category == Category.IntegrityCheck)
+            .Select(error => error.Message)
+            .Where(message => !string.IsNullOrWhiteSpace(message))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+        if (overview.NcaCompressionType != NcaCompressionType.None &&
+            messages.Any(message => message.Contains("Data corruption detected", StringComparison.OrdinalIgnoreCase)))
+            return LocalizationManager.Instance.Current.Keys.BatchIntegrity_NszDataCorrupted;
+
+        return messages.Length > 0
+            ? string.Join(" | ", messages)
+            : LocalizationManager.Instance.Current.Keys.BatchIntegrity_IntegrityFailed;
     }
 
     private sealed class ScaledProgressReporter : IProgressReporter

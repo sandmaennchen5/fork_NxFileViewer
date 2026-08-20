@@ -24,6 +24,8 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string BatchIntegrity_File { get; }
     string BatchIntegrity_Path { get; }
     string BatchIntegrity_Error { get; }
+    string BatchIntegrity_NszDataCorrupted { get; }
+    string BatchIntegrity_IntegrityFailed { get; }
     string BatchIntegrity_Export { get; }
     string BatchIntegrity_Start { get; }
     string BatchIntegrity_MoveValid { get; }
@@ -81,6 +83,10 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string KeysValidation_MissingFile { get; }
     string KeysValidation_ValidEntries { get; }
     string KeysValidation_MissingMasterKeys { get; }
+    string CnmtOverview_BaseTitleId { get; }
+    string CnmtOverview_MasterKey { get; }
+    string CnmtOverview_MinimumApplicationVersion { get; }
+    string CnmtOverview_Distribution { get; }
     string KeysValidation_InvalidMasterKeys { get; }
     string KeysValidation_InvalidLines { get; }
     string KeysValidation_EmptyFile { get; }

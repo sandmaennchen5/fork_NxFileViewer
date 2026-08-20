@@ -28,6 +28,8 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
     public string BatchIntegrity_File => "Fichier";
     public string BatchIntegrity_Path => "Chemin";
     public string BatchIntegrity_Error => "Erreur";
+    public string BatchIntegrity_NszDataCorrupted => "Le flux de données NSZ/NCZ compressé est endommagé ou incomplet (échec de la décompression Zstandard).";
+    public string BatchIntegrity_IntegrityFailed => "La vérification d'intégrité n'a pas pu être terminée. Consultez le journal pour plus de détails.";
     public string BatchIntegrity_Export => "Exporter CSV…";
     public string BatchIntegrity_Start => "Démarrer";
     public string BatchIntegrity_MoveValid => "Déplacer les fichiers valides…";
@@ -85,6 +87,10 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
     public string KeysValidation_MissingFile => "Aucun fichier trouvé.";
     public string KeysValidation_ValidEntries => "Valide ({0} entrées).";
     public string KeysValidation_MissingMasterKeys => "Clés principales manquantes : {0}.";
+    public string CnmtOverview_BaseTitleId => "ID du titre de base";
+    public string CnmtOverview_MasterKey => "Clé principale requise";
+    public string CnmtOverview_MinimumApplicationVersion => "Version minimale de l'application (DLC)";
+    public string CnmtOverview_Distribution => "Distribution";
     public string KeysValidation_InvalidMasterKeys => "Clés principales non valides : {0}.";
     public string KeysValidation_InvalidLines => "Lignes mal formées : {0}.";
     public string KeysValidation_EmptyFile => "Le fichier ne contient aucune entrée valide.";

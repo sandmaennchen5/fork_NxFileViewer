@@ -28,6 +28,8 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
     public string BatchIntegrity_File => "File";
     public string BatchIntegrity_Path => "Path";
     public string BatchIntegrity_Error => "Error";
+    public string BatchIntegrity_NszDataCorrupted => "The compressed NSZ/NCZ data stream is corrupted or incomplete (Zstandard decompression failed).";
+    public string BatchIntegrity_IntegrityFailed => "The integrity check could not be completed. See the log for details.";
     public string BatchIntegrity_Export => "Export CSV…";
     public string BatchIntegrity_Start => "Start check";
     public string BatchIntegrity_MoveValid => "Move valid files…";
@@ -85,6 +87,10 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
     public string KeysValidation_MissingFile => "No file found.";
     public string KeysValidation_ValidEntries => "Valid ({0} entries).";
     public string KeysValidation_MissingMasterKeys => "Missing master keys: {0}.";
+    public string CnmtOverview_BaseTitleId => "Base title ID";
+    public string CnmtOverview_MasterKey => "Required master key";
+    public string CnmtOverview_MinimumApplicationVersion => "Minimum application version (DLC)";
+    public string CnmtOverview_Distribution => "Distribution";
     public string KeysValidation_InvalidMasterKeys => "Invalid master keys: {0}.";
     public string KeysValidation_InvalidLines => "Malformed lines: {0}.";
     public string KeysValidation_EmptyFile => "The file contains no valid entries.";

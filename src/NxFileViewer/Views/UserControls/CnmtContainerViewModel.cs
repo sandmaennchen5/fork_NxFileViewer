@@ -10,6 +10,7 @@ using Emignatik.NxFileViewer.Models.Overview;
 using Emignatik.NxFileViewer.Services.Security;
 using Emignatik.NxFileViewer.Styling.Theme;
 using Emignatik.NxFileViewer.Utils.MVVM;
+using Emignatik.NxFileViewer.Models.TreeItems.Impl;
 using LibHac.Ns;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -55,6 +56,8 @@ public class CnmtContainerViewModel : ViewModelBase
 
     public string TitleId => _cnmtContainer.CnmtItem.TitleId;
 
+    public string BaseTitleId => _cnmtContainer.CnmtItem.ApplicationTitleId;
+
     public ObservableCollection<TitleInfoViewModel> Titles { get; } = new();
 
     public TitleInfoViewModel? SelectedTitle
@@ -93,6 +96,20 @@ public class CnmtContainerViewModel : ViewModelBase
     /// The minimum system version
     /// </summary>
     public string? MinimumSystemVersion => _cnmtContainer.CnmtItem.MinimumSystemVersion?.ToString();
+
+    public string? MinimumApplicationVersion => _cnmtContainer.CnmtItem.MinimumApplicationVersion?.ToString();
+
+    public string MasterKey
+    {
+        get
+        {
+            var keyGeneration = _cnmtContainer.CnmtItem.ParentItem.ParentItem.KeyGeneration;
+            var revision = Math.Max(keyGeneration, (byte)1) - 1;
+            return $"MasterKey {revision} (master_key_{revision:x2}, Key Generation {keyGeneration})";
+        }
+    }
+
+    public string Distribution => _cnmtContainer.CnmtItem.ParentItem.ParentItem.DistributionType.ToString();
 
     /// <summary>
     /// End user displayed version
