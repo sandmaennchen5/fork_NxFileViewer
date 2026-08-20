@@ -69,6 +69,14 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string SettingsView_Title_KeysEffectiveFilePath { get; }
     string SettingsView_Title_KeysCustomFilePath { get; }
     string SettingsView_Title_KeysDownloadUrl { get; }
+    string KeysValidation_MissingFile { get; }
+    string KeysValidation_ValidEntries { get; }
+    string KeysValidation_MissingMasterKeys { get; }
+    string KeysValidation_InvalidMasterKeys { get; }
+    string KeysValidation_InvalidLines { get; }
+    string KeysValidation_EmptyFile { get; }
+    string KeysValidation_FirmwareEstimate { get; }
+    string KeysValidation_UnsupportedMasterKeys { get; }
     string SettingsView_ToolTip_Keys { get; }
     string SettingsView_ToolTip_ProdKeys { get; }
     string SettingsView_ToolTip_TitleKeys { get; }

@@ -68,6 +68,17 @@ public class SettingsWindowViewModel : WindowViewModelBase
                 NotifyPropertyChanged(nameof(ActualProdKeysFilePath));
             else if (args.PropertyName == nameof(IKeySetProviderService.ActualTitleKeysFilePath))
                 NotifyPropertyChanged(nameof(ActualTitleKeysFilePath));
+            else if (args.PropertyName == nameof(IKeySetProviderService.ProdKeysValidation))
+            {
+                NotifyPropertyChanged(nameof(ProdKeysValidationSummary));
+                NotifyPropertyChanged(nameof(AreProdKeysValid));
+                NotifyPropertyChanged(nameof(HasProdKeysWarnings));
+            }
+            else if (args.PropertyName == nameof(IKeySetProviderService.TitleKeysValidation))
+            {
+                NotifyPropertyChanged(nameof(TitleKeysValidationSummary));
+                NotifyPropertyChanged(nameof(AreTitleKeysValid));
+            }
         };
     }
 
@@ -113,6 +124,16 @@ public class SettingsWindowViewModel : WindowViewModelBase
     public string ActualProdKeysFilePath => _keySetProviderService.ActualProdKeysFilePath ?? LocalizationManager.Instance.Current.Keys.NoneKeysFile;
 
     public string ActualTitleKeysFilePath => _keySetProviderService.ActualTitleKeysFilePath ?? LocalizationManager.Instance.Current.Keys.NoneKeysFile;
+
+    public bool AreProdKeysValid => _keySetProviderService.ProdKeysValidation.IsValid;
+
+    public bool HasProdKeysWarnings => _keySetProviderService.ProdKeysValidation.HasWarnings;
+
+    public bool AreTitleKeysValid => _keySetProviderService.TitleKeysValidation.IsValid;
+
+    public string ProdKeysValidationSummary => BuildValidationSummary(_keySetProviderService.ProdKeysValidation);
+
+    public string TitleKeysValidationSummary => BuildValidationSummary(_keySetProviderService.TitleKeysValidation);
 
     public IEnumerable<ILocalization<ILocalizationKeys>> AvailableLanguages => LocalizationManager.Instance.AvailableLocalizations;
 
@@ -215,6 +236,35 @@ public class SettingsWindowViewModel : WindowViewModelBase
         {
             return false;
         }
+    }
+
+    private static string BuildValidationSummary(KeyFileValidationResult result)
+    {
+        var keys = LocalizationManager.Instance.Current.Keys;
+        if (!result.FileExists)
+            return keys.KeysValidation_MissingFile;
+
+        var messages = new List<string>();
+        if (result.UnsupportedMasterKeys is { Count: > 0 })
+            messages.Add(keys.KeysValidation_UnsupportedMasterKeys.SafeFormat(string.Join(", ", result.UnsupportedMasterKeys)));
+        if (result.HighestValidMasterKeyRevision is { } revision &&
+            MasterKeyFirmwareMap.GetSupportedFirmware(revision) is { } firmware)
+        {
+            messages.Add(keys.KeysValidation_FirmwareEstimate.SafeFormat(
+                $"master_key_{revision:x2}", firmware));
+        }
+        if (result.MissingKeys.Count > 0)
+            messages.Add(keys.KeysValidation_MissingMasterKeys.SafeFormat(string.Join(", ", result.MissingKeys)));
+        if (result.InvalidKeys.Count > 0)
+            messages.Add(keys.KeysValidation_InvalidMasterKeys.SafeFormat(string.Join(", ", result.InvalidKeys)));
+        if (result.InvalidLineNumbers.Count > 0)
+            messages.Add(keys.KeysValidation_InvalidLines.SafeFormat(string.Join(", ", result.InvalidLineNumbers)));
+        if (result.ValidEntryCount == 0 && messages.Count == 0)
+            messages.Add(keys.KeysValidation_EmptyFile);
+        if (messages.Count == 0)
+            messages.Add(keys.KeysValidation_ValidEntries.SafeFormat(result.ValidEntryCount));
+
+        return string.Join(Environment.NewLine, messages);
     }
 
     private static bool BrowseKeysFilePath(string initialFilePath, string title, [NotNullWhen(true)] out string? selectedFilePath)

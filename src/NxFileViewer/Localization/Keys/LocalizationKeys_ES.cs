@@ -73,6 +73,14 @@ public class LocalizationKeys_ES : LocalizationKeysBase, ILocalizationKeys
     public string SettingsView_Title_KeysEffectiveFilePath => "Ruta Actual";
     public string SettingsView_Title_KeysCustomFilePath => "Ruta personalizada";
     public string SettingsView_Title_KeysDownloadUrl => "URL de descarga";
+    public string KeysValidation_MissingFile => "No se encontró ningún archivo.";
+    public string KeysValidation_ValidEntries => "Válido ({0} entradas).";
+    public string KeysValidation_MissingMasterKeys => "Claves maestras que faltan: {0}.";
+    public string KeysValidation_InvalidMasterKeys => "Claves maestras no válidas: {0}.";
+    public string KeysValidation_InvalidLines => "Líneas con formato incorrecto: {0}.";
+    public string KeysValidation_EmptyFile => "El archivo no contiene entradas válidas.";
+    public string KeysValidation_FirmwareEstimate => "Revisión válida más alta: {0} — admite contenido hasta el firmware {1}.";
+    public string KeysValidation_UnsupportedMasterKeys => "Se detectó una nueva revisión de clave maestra: {0}. Esta versión del programa aún no puede validarla ni asociarla a un firmware; es necesario actualizar la aplicación.";
     public string SettingsView_ToolTip_Keys => """
                                                Las llaves son necesarias para poder abrir archivos del formato Nintendo Switch encriptados (XCI, NSP, ...).
                                                Cada archivo oficial con formato Nintendo Switch está encriptado con las llaves específicas del firmware con que fueron construidos.

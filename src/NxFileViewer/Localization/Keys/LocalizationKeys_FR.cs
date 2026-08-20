@@ -73,6 +73,14 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
     public string SettingsView_Title_KeysEffectiveFilePath => "Chemin effectif";
     public string SettingsView_Title_KeysCustomFilePath => "Chemin personnalisé";
     public string SettingsView_Title_KeysDownloadUrl => "URL de téléchargement";
+    public string KeysValidation_MissingFile => "Aucun fichier trouvé.";
+    public string KeysValidation_ValidEntries => "Valide ({0} entrées).";
+    public string KeysValidation_MissingMasterKeys => "Clés principales manquantes : {0}.";
+    public string KeysValidation_InvalidMasterKeys => "Clés principales non valides : {0}.";
+    public string KeysValidation_InvalidLines => "Lignes mal formées : {0}.";
+    public string KeysValidation_EmptyFile => "Le fichier ne contient aucune entrée valide.";
+    public string KeysValidation_FirmwareEstimate => "Révision valide la plus élevée : {0} — prend en charge les contenus jusqu'au firmware {1}.";
+    public string KeysValidation_UnsupportedMasterKeys => "Nouvelle révision de clé principale détectée : {0}. Cette version du programme ne peut pas encore la valider ni l'associer à un firmware ; une mise à jour est nécessaire.";
     public string SettingsView_ToolTip_Keys => """
                                                Les clés sont obligatoires pour pouvoir ouvrir des fichiers Nintendo Switch chiffrés (XCI, NSP, ...).
                                                Chaque fichier Nintendo Switch officiel est chiffré avec des clés spéciques à la version du firmware pour lequel il a été construit.

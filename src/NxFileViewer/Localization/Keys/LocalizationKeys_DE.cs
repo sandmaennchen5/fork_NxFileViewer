@@ -73,6 +73,14 @@ public class LocalizationKeys_DE : LocalizationKeysBase, ILocalizationKeys
     public string SettingsView_Title_KeysEffectiveFilePath => "Effektiver Pfad";
     public string SettingsView_Title_KeysCustomFilePath => "Benutzerdefinierter Pfad";
     public string SettingsView_Title_KeysDownloadUrl => "Download URL";
+    public string KeysValidation_MissingFile => "Keine Datei gefunden.";
+    public string KeysValidation_ValidEntries => "Gültig ({0} Einträge).";
+    public string KeysValidation_MissingMasterKeys => "Fehlende Master-Keys: {0}.";
+    public string KeysValidation_InvalidMasterKeys => "Ungültige Master-Keys: {0}.";
+    public string KeysValidation_InvalidLines => "Fehlerhafte Zeilen: {0}.";
+    public string KeysValidation_EmptyFile => "Die Datei enthält keine gültigen Einträge.";
+    public string KeysValidation_FirmwareEstimate => "Höchste gültige Revision: {0} — unterstützt Inhalte bis Firmware {1}.";
+    public string KeysValidation_UnsupportedMasterKeys => "Neue Master-Key-Revision erkannt: {0}. Diese Programmversion kann sie noch nicht prüfen oder einer Firmware zuordnen; ein Programm-Update ist erforderlich.";
     public string SettingsView_ToolTip_Keys => """
                                                Keys sind erforderlich, um verschlüsselte Nintendo-Switch-Dateien (XCI, NSP, ...) zu öffnen.
                                                Jede offizielle Nintendo-Switch-Datei ist mit Keys verschlüsselt, die spezifisch für die Switch-Firmware-Version sind, für die sie erstellt wurde.

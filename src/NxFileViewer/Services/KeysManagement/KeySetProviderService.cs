@@ -22,6 +22,8 @@ public class KeySetProviderService : NotifyPropertyChangedBase, IKeySetProviderS
     private readonly ILogger _logger;
     private string? _actualProdKeysFilePath;
     private string? _actualTitleKeysFilePath;
+    private KeyFileValidationResult _prodKeysValidation = KeyFileValidator.ValidateProdKeys(null);
+    private KeyFileValidationResult _titleKeysValidation = KeyFileValidator.ValidateTitleKeys(null);
 
     public KeySetProviderService(IAppSettings appSettings, ILoggerFactory loggerFactory)
     {
@@ -60,6 +62,26 @@ public class KeySetProviderService : NotifyPropertyChangedBase, IKeySetProviderS
         }
     }
 
+    public KeyFileValidationResult ProdKeysValidation
+    {
+        get => _prodKeysValidation;
+        private set
+        {
+            _prodKeysValidation = value;
+            NotifyPropertyChanged();
+        }
+    }
+
+    public KeyFileValidationResult TitleKeysValidation
+    {
+        get => _titleKeysValidation;
+        private set
+        {
+            _titleKeysValidation = value;
+            NotifyPropertyChanged();
+        }
+    }
+
     public KeySet GetKeySet(bool forceReload = false)
     {
         lock (_lock)
@@ -87,6 +109,30 @@ public class KeySetProviderService : NotifyPropertyChangedBase, IKeySetProviderS
         UnloadCurrentKeySet();
         UpdateActualProdKeysFilePath();
         UpdateActualTitleKeysFilePath();
+        ValidateKeyFiles();
+    }
+
+    private void ValidateKeyFiles()
+    {
+        try
+        {
+            ProdKeysValidation = KeyFileValidator.ValidateProdKeys(ActualProdKeysFilePath);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Unable to validate prod.keys.");
+            ProdKeysValidation = new KeyFileValidationResult(true, 0, [], [], [0]);
+        }
+
+        try
+        {
+            TitleKeysValidation = KeyFileValidator.ValidateTitleKeys(ActualTitleKeysFilePath);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Unable to validate title.keys.");
+            TitleKeysValidation = new KeyFileValidationResult(true, 0, [], [], [0]);
+        }
     }
 
     private void UnloadCurrentKeySet()

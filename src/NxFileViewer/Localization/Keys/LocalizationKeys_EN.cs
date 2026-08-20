@@ -73,6 +73,14 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
     public string SettingsView_Title_KeysEffectiveFilePath => "Effective path";
     public string SettingsView_Title_KeysCustomFilePath => "Custom path";
     public string SettingsView_Title_KeysDownloadUrl => "Download URL";
+    public string KeysValidation_MissingFile => "No file found.";
+    public string KeysValidation_ValidEntries => "Valid ({0} entries).";
+    public string KeysValidation_MissingMasterKeys => "Missing master keys: {0}.";
+    public string KeysValidation_InvalidMasterKeys => "Invalid master keys: {0}.";
+    public string KeysValidation_InvalidLines => "Malformed lines: {0}.";
+    public string KeysValidation_EmptyFile => "The file contains no valid entries.";
+    public string KeysValidation_FirmwareEstimate => "Highest valid revision: {0} — supports content up to firmware {1}.";
+    public string KeysValidation_UnsupportedMasterKeys => "New master-key revision detected: {0}. This program version cannot validate it or map it to a firmware yet; an application update is required.";
     public string SettingsView_ToolTip_Keys => """
                                                Keys are mandatory to open encrypted Nintendo Switch files (XCI, NSP, ...).
                                                Each official Nintendo Switch file is encrypted with keys specific to the Switch firmware version it was built for.
