@@ -50,6 +50,11 @@ public class FileOverviewLoader : IFileOverviewLoader
 
             var fileOverview = new FileOverview(xciItem);
 
+            var updatePartitionItem = xciItem.ChildItems.FirstOrDefault(partition => partition.XciPartitionType == XciPartitionType.Update);
+            var systemUpdateCnmt = updatePartitionItem?.FindAllCnmtItems()
+                .FirstOrDefault(cnmt => cnmt.ContentType == LibHac.Ncm.ContentMetaType.SystemUpdate);
+            fileOverview.SystemUpdateVersion = systemUpdateCnmt?.TitleVersion;
+
             if (securePartitionItem == null)
             {
                 _logger.LogError(LocalizationManager.Instance.Current.Keys.LoadingError_XciSecurePartitionNotFound_Log);

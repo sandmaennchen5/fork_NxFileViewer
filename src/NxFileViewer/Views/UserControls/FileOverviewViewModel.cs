@@ -11,6 +11,8 @@ using Emignatik.NxFileViewer.Models.Overview;
 using Emignatik.NxFileViewer.Styling.Theme;
 using Emignatik.NxFileViewer.Utils.MVVM;
 using Emignatik.NxFileViewer.Utils.MVVM.Commands;
+using Emignatik.NxFileViewer.Services.PackageAnalysis;
+using Emignatik.NxFileViewer.Utils;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Emignatik.NxFileViewer.Views.UserControls;
@@ -69,6 +71,28 @@ public class FileOverviewViewModel : ViewModelBase
     public string FileType => _fileOverview.FileType.ToString();
 
     public string CompressionType => _fileOverview.NcaCompressionType.ToString();
+
+    public string PackageStructure => _fileOverview.PackageStructure switch
+    {
+        Services.PackageAnalysis.PackageStructure.Scene => LocalizationManager.Instance.Current.Keys.PackageStructure_Scene,
+        Services.PackageAnalysis.PackageStructure.Cdn => LocalizationManager.Instance.Current.Keys.PackageStructure_Cdn,
+        Services.PackageAnalysis.PackageStructure.Converted => LocalizationManager.Instance.Current.Keys.PackageStructure_Converted,
+        Services.PackageAnalysis.PackageStructure.Homebrew => LocalizationManager.Instance.Current.Keys.PackageStructure_Homebrew,
+        Services.PackageAnalysis.PackageStructure.Incomplete => LocalizationManager.Instance.Current.Keys.PackageStructure_Incomplete,
+        _ => LocalizationManager.Instance.Current.Keys.PackageStructure_Unknown
+    };
+
+    public string FileSize => _fileOverview.FileSize.ToFileSize();
+
+    public string CompressionRatio => _fileOverview.CompressionRatio is { } ratio
+        ? $"{ratio:P1} ({_fileOverview.EstimatedUncompressedSize.ToFileSize()} {LocalizationManager.Instance.Current.Keys.FileInfo_Uncompressed})"
+        : "—";
+
+    public string? SystemUpdateVersion => _fileOverview.SystemUpdateVersion;
+
+    public Visibility SystemUpdateVisibility => string.IsNullOrWhiteSpace(SystemUpdateVersion)
+        ? Visibility.Collapsed
+        : Visibility.Visible;
 
     public bool IsSuperPackage => _fileOverview.IsSuperPackage;
 

@@ -25,6 +25,9 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Added a program-security assessment based on signed ACID file-system permissions, including safe, unsafe, and dangerous classifications.
 - Added the ACID signature state, raw permission mask, and authorized service list to the program details.
 - Added base title ID, required master-key revision/key generation, minimum application version for DLC, and NCA distribution type to the title overview.
+- Added package-structure detection for Scene releases, CDN rips, converted packages, Homebrew packages, and incomplete NSP/NSZ/XCI/XCZ files.
+- Added package file size and an estimated NSZ/XCZ compression ratio with reconstructed uncompressed size.
+- Added detection of the system-update version contained in an XCI/XCZ update partition.
 
 ### Fixed
 
@@ -35,6 +38,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Exception details and stack traces are now included in the application log for actionable diagnostics.
 - Fixed a crash when the program-security fields were displayed by explicitly using one-way WPF bindings for read-only values.
 - Batch integrity results now include the underlying NCA error and identify broken NSZ/NCZ Zstandard streams as corrupted or incomplete compressed data.
+- Batch integrity results and CSV exports now include the detected package structure.
 
 ### Notes
 

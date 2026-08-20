@@ -192,11 +192,12 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
     {
         var path = _promptService.PromptSaveFile("integrity-results.csv", "Export integrity results", "CSV files (*.csv)|*.csv");
         if (path == null) return;
-        var csv = new StringBuilder("File;FileType;PackageType;Compression;Integrity;Error\r\n");
+        var csv = new StringBuilder("File;FileType;PackageType;Structure;Compression;Integrity;Error\r\n");
         foreach (var result in Results)
             csv.Append(Escape(result.FilePath)).Append(';')
                 .Append(Escape(result.FileType)).Append(';')
                 .Append(Escape(result.PackageType)).Append(';')
+                .Append(Escape(result.Structure)).Append(';')
                 .Append(Escape(result.Compression)).Append(';')
                 .Append(Escape(result.Integrity.ToString())).Append(';')
                 .Append(Escape(result.Error ?? "")).Append("\r\n");

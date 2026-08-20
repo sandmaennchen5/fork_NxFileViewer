@@ -26,6 +26,17 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string BatchIntegrity_Error { get; }
     string BatchIntegrity_NszDataCorrupted { get; }
     string BatchIntegrity_IntegrityFailed { get; }
+    string PackageStructure_Title { get; }
+    string PackageStructure_Scene { get; }
+    string PackageStructure_Cdn { get; }
+    string PackageStructure_Converted { get; }
+    string PackageStructure_Homebrew { get; }
+    string PackageStructure_Incomplete { get; }
+    string PackageStructure_Unknown { get; }
+    string FileInfo_FileSize { get; }
+    string FileInfo_CompressionRatio { get; }
+    string FileInfo_Uncompressed { get; }
+    string FileInfo_SystemUpdate { get; }
     string BatchIntegrity_Export { get; }
     string BatchIntegrity_Start { get; }
     string BatchIntegrity_MoveValid { get; }

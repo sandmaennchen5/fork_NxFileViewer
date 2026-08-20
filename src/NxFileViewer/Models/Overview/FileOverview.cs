@@ -5,6 +5,7 @@ using System.Linq;
 using Emignatik.NxFileViewer.Models.TreeItems;
 using Emignatik.NxFileViewer.Models.TreeItems.Impl;
 using Emignatik.NxFileViewer.Utils.MVVM;
+using Emignatik.NxFileViewer.Services.PackageAnalysis;
 
 namespace Emignatik.NxFileViewer.Models.Overview;
 
@@ -33,6 +34,26 @@ public class FileOverview : NotifyPropertyChangedBase
     public NxFileType FileType => _packageType ??= DeterminePackageType();
 
     public NcaCompressionType NcaCompressionType => _ncaCompressionType ??= DetermineNcaCompressionType();
+
+    public PackageStructure PackageStructure => PackageStructureAnalyzer.Analyze(RootItem);
+
+    public long FileSize { get; set; }
+
+    public long EstimatedUncompressedSize
+    {
+        get
+        {
+            var restoredBytes = RootItem.FindChildrenOfType<NczItem>(includeItem: true)
+                .Sum(item => Math.Max(0, item.Ncz.NczHeader.NcaSize - item.Size));
+            return FileSize + restoredBytes;
+        }
+    }
+
+    public double? CompressionRatio => NcaCompressionType == NcaCompressionType.None || EstimatedUncompressedSize <= 0
+        ? null
+        : (double)FileSize / EstimatedUncompressedSize;
+
+    public string? SystemUpdateVersion { get; set; }
 
     private NcaCompressionType DetermineNcaCompressionType()
     {

@@ -89,6 +89,7 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
                     file,
                     Path.GetExtension(file).TrimStart('.').ToUpperInvariant(),
                     nxFile.Overview.FileType.ToString(),
+                    nxFile.Overview.PackageStructure.ToString(),
                     nxFile.Overview.NcaCompressionType.ToString(),
                     nxFile.Overview.NcasIntegrity,
                     integrityError));
@@ -104,6 +105,7 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
                     file,
                     Path.GetExtension(file).TrimStart('.').ToUpperInvariant(),
                     NxFileType.Unknown.ToString(),
+                    "Unknown",
                     "Unknown",
                     NcasIntegrity.Error,
                     ex.Message));

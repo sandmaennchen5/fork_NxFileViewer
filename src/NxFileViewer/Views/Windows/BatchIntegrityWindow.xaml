@@ -26,6 +26,7 @@
                     <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_File}" Binding="{Binding FileName}" Width="2*"/>
                     <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_FileType}" Binding="{Binding FileType}" Width="*"/>
                     <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_PackageType}" Binding="{Binding PackageType}" Width="*"/>
+                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.PackageStructure_Title}" Binding="{Binding Structure}" Width="*"/>
                     <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Title_FileInfo_Compression}" Binding="{Binding Compression}" Width="*"/>
                     <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Title_FileInfo_Integrity}" Binding="{Binding Integrity}" Width="*"/>
                     <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_Path}" Binding="{Binding FilePath}" Width="3*"/>

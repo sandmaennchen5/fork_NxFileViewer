@@ -30,6 +30,17 @@ public class LocalizationKeys_ES : LocalizationKeysBase, ILocalizationKeys
     public string BatchIntegrity_Error => "Error";
     public string BatchIntegrity_NszDataCorrupted => "El flujo de datos NSZ/NCZ comprimido está dañado o incompleto (falló la descompresión Zstandard).";
     public string BatchIntegrity_IntegrityFailed => "No se pudo completar la comprobación de integridad. Consulte el registro para obtener más detalles.";
+    public string PackageStructure_Title => "Estructura del paquete";
+    public string PackageStructure_Scene => "Lanzamiento Scene";
+    public string PackageStructure_Cdn => "Copia CDN";
+    public string PackageStructure_Converted => "Convertido";
+    public string PackageStructure_Homebrew => "Homebrew";
+    public string PackageStructure_Incomplete => "Incompleto";
+    public string PackageStructure_Unknown => "Desconocido";
+    public string FileInfo_FileSize => "Tamaño del archivo";
+    public string FileInfo_CompressionRatio => "Relación de compresión";
+    public string FileInfo_Uncompressed => "sin comprimir";
+    public string FileInfo_SystemUpdate => "Actualización del sistema incluida (XCI)";
     public string BatchIntegrity_Export => "Exportar CSV…";
     public string BatchIntegrity_Start => "Iniciar verificación";
     public string BatchIntegrity_MoveValid => "Mover archivos válidos…";
