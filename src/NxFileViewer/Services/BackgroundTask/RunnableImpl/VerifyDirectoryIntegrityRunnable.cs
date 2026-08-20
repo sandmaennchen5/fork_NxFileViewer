@@ -70,7 +70,15 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
             try
             {
                 var nxFile = _fileLoader.Load(file);
-                _fileLoaded?.Invoke(nxFile);
+                try
+                {
+                    _fileLoaded?.Invoke(nxFile);
+                }
+                catch (Exception previewException)
+                {
+                    // A UI preview failure must not invalidate the package analysis.
+                    _logger.LogWarning(previewException, "Failed to display preview for {FilePath}", file);
+                }
                 var verifier = _serviceProvider.GetRequiredService<IVerifyNcasIntegrityRunnable>();
                 verifier.Setup(nxFile.Overview, _appSettings.IgnoreMissingDeltaFragments);
                 verifier.Run(new ScaledProgressReporter(progressReporter, index, files.Length), cancellationToken);

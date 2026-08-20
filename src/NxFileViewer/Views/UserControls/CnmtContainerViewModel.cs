@@ -7,6 +7,8 @@ using System.Windows.Media.Imaging;
 using Emignatik.NxFileViewer.Commands;
 using Emignatik.NxFileViewer.Localization;
 using Emignatik.NxFileViewer.Models.Overview;
+using Emignatik.NxFileViewer.Services.Security;
+using Emignatik.NxFileViewer.Styling.Theme;
 using Emignatik.NxFileViewer.Utils.MVVM;
 using LibHac.Ns;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,12 +21,14 @@ public class CnmtContainerViewModel : ViewModelBase
     private readonly CnmtContainer _cnmtContainer;
     private readonly int _containerNumber;
     private TitleInfoViewModel? _selectedTitle;
+    private readonly IBrushesProvider _brushesProvider;
 
     public CnmtContainerViewModel(CnmtContainer cnmtContainer, int containerNumber, IServiceProvider serviceProvider)
     {
         _containerNumber = containerNumber;
         _cnmtContainer = cnmtContainer ?? throw new ArgumentNullException(nameof(cnmtContainer));
         ServiceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+        _brushesProvider = serviceProvider.GetRequiredService<IBrushesProvider>();
 
         SaveSelectedImageCommand = serviceProvider.GetRequiredService<ISaveTitleImageCommand>();
         CopySelectedImageCommand = serviceProvider.GetRequiredService<ICopyImageCommand>();
@@ -115,6 +119,34 @@ public class CnmtContainerViewModel : ViewModelBase
                 return "";
         }
     }
+
+    public Visibility SecurityVisibility => _cnmtContainer.NpdmItem == null ? Visibility.Collapsed : Visibility.Visible;
+
+    public string SecurityLevel => _cnmtContainer.NpdmItem?.SecurityLevel switch
+    {
+        ProgramSecurityLevel.Safe => LocalizationManager.Instance.Current.Keys.Security_Safe,
+        ProgramSecurityLevel.Unsafe => LocalizationManager.Instance.Current.Keys.Security_Unsafe,
+        ProgramSecurityLevel.Dangerous => LocalizationManager.Instance.Current.Keys.Security_Dangerous,
+        _ => LocalizationManager.Instance.Current.Keys.Security_Unavailable,
+    };
+
+    public System.Windows.Media.Brush SecurityColor => _cnmtContainer.NpdmItem?.SecurityLevel switch
+    {
+        ProgramSecurityLevel.Safe => _brushesProvider.FontBrushSuccess,
+        ProgramSecurityLevel.Unsafe => _brushesProvider.FontBrushWarning,
+        ProgramSecurityLevel.Dangerous => _brushesProvider.FontBrushError,
+        _ => _brushesProvider.FontBrushDefault,
+    };
+
+    public string FileSystemPermissions => _cnmtContainer.NpdmItem is { } npdm
+        ? $"0x{npdm.FileSystemPermissions:x16}"
+        : "";
+
+    public string AcidSignatureValidity => _cnmtContainer.NpdmItem?.AcidSignatureValidity.ToString() ?? "";
+
+    public string SecurityDetails => _cnmtContainer.NpdmItem is { } npdm
+        ? LocalizationManager.Instance.Current.Keys.Security_Details.SafeFormat(npdm.Services.Count, string.Join(", ", npdm.Services))
+        : "";
 
     public Visibility PresentationGroupBoxVisibility => _cnmtContainer.NacpContainer == null ? Visibility.Collapsed : Visibility.Visible;
 

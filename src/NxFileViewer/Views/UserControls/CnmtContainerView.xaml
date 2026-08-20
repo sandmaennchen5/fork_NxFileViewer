@@ -73,6 +73,31 @@
 
         </GroupBox>
 
+        <GroupBox Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Security_Title}"
+                  DockPanel.Dock="Top" Visibility="{Binding SecurityVisibility}">
+            <Grid ToolTip="{Binding SecurityDetails}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="5"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="5"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Security_Level}" Style="{StaticResource Title2}"/>
+                    <TextBox Style="{StaticResource ReadOnlyTextBox}" Text="{Binding Path=SecurityLevel, Mode=OneWay}" Foreground="{Binding Path=SecurityColor, Mode=OneWay}"/>
+                </StackPanel>
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Security_FileSystemPermissions}" Style="{StaticResource Title2}"/>
+                    <TextBox Style="{StaticResource ReadOnlyTextBox}" Text="{Binding Path=FileSystemPermissions, Mode=OneWay}"/>
+                </StackPanel>
+                <StackPanel Grid.Column="4">
+                    <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Security_AcidSignature}" Style="{StaticResource Title2}"/>
+                    <TextBox Style="{StaticResource ReadOnlyTextBox}" Text="{Binding Path=AcidSignatureValidity, Mode=OneWay}"/>
+                </StackPanel>
+            </Grid>
+        </GroupBox>
+
         <GroupBox Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Presentation_Title}" Visibility="{Binding Path=PresentationGroupBoxVisibility}">
             <Grid>
                 <Grid.RowDefinitions>

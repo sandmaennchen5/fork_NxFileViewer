@@ -21,6 +21,18 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Added anonymous FTP support to the existing HTTP/HTTPS key downloader.
 - Added editable default Sphaira FTP locations for `prod.keys` and `title.keys`; customized addresses continue to be stored in the application settings.
 - Downloads now use a temporary file and only replace the destination after a successful transfer.
+- Added parsing of `main.npdm` from program NCAs.
+- Added a program-security assessment based on signed ACID file-system permissions, including safe, unsafe, and dangerous classifications.
+- Added the ACID signature state, raw permission mask, and authorized service list to the program details.
+
+### Fixed
+
+- Prevented a double release of the LibHac `main.npdm` file while loading program-security information.
+- Added a defensive size limit so malformed NPDM files fail safely instead of destabilizing file loading.
+- Snapshot NPDM security data inside the protected parser block so UI bindings cannot trigger delayed parser failures.
+- Batch preview errors no longer replace otherwise valid package and integrity results with `Unknown`.
+- Exception details and stack traces are now included in the application log for actionable diagnostics.
+- Fixed a crash when the program-security fields were displayed by explicitly using one-way WPF bindings for read-only values.
 
 ### Notes
 

@@ -118,6 +118,7 @@ public class FileOverviewLoader : IFileOverviewLoader
                             {
                                 var mainItem = programSection.FindChildrenOfType<MainItem>(includeItem: false).FirstOrDefault();
                                 cnmtContainer.MainItem = mainItem;
+                                cnmtContainer.NpdmItem = programSection.FindChildrenOfType<NpdmItem>(includeItem: false).FirstOrDefault();
 
                                 if (mainItem == null)
                                     _logger.LogError(LocalizationManager.Instance.Current.Keys.LoadingError_MainFileMissing_Log.SafeFormat(MainItem.MAIN_FILE_NAME));

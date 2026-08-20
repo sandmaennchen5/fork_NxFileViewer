@@ -42,6 +42,15 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string AvailableLanguages { get; }
     string AppTitle { get; }
     string Publisher { get; }
+    string Security_Title { get; }
+    string Security_Level { get; }
+    string Security_FileSystemPermissions { get; }
+    string Security_AcidSignature { get; }
+    string Security_Safe { get; }
+    string Security_Unsafe { get; }
+    string Security_Dangerous { get; }
+    string Security_Unavailable { get; }
+    string Security_Details { get; }
 
     string Lng_AmericanEnglish { get; }
     string Lng_BritishEnglish { get; }
@@ -173,6 +182,8 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string LoadingError_FailedToGetNcaSectionFsHeader { get; }
     string LoadingError_FailedToOpenMainFile { get; }
     string LoadingError_FailedToLoadMainFile { get; }
+    string LoadingError_FailedToOpenNpdmFile { get; }
+    string LoadingError_FailedToLoadNpdmFile { get; }
     string LoadingError_FailedToLoadTicketFile { get; }
     string LoadingError_FailedToLoadTitleIdKey { get; }
     string LoadingError_NczBlocklessCompressionDisabled { get; }

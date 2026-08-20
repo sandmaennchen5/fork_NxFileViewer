@@ -24,6 +24,7 @@ using LibHac.Tools.Fs;
 using LibHac.Tools.FsSystem;
 using LibHac.Tools.FsSystem.NcaUtils;
 using LibHac.Tools.Ncm;
+using LibHac.Tools.Npdm;
 using Microsoft.Extensions.Logging;
 using NcaFsHeader = LibHac.Tools.FsSystem.NcaUtils.NcaFsHeader;
 
@@ -478,6 +479,47 @@ public class FileItemLoader : IFileItemLoader
                     {
                         var cnmtContentEntry = cnmt.ContentEntries[index];
                         _ = new CnmtContentEntryItem(cnmtContentEntry, cnmtItem, index);
+                    }
+                }
+                // NPDM file containing the program's signed permissions and service access descriptors
+                else if (parentItem.ParentItem.ContentType == NcaContentType.Program && string.Equals(entryName, NpdmItem.NpdmFileName, StringComparison.OrdinalIgnoreCase) && directoryEntry.Type == DirectoryEntryType.File)
+                {
+                    IFile npdmFile;
+                    try
+                    {
+                        using var uniqueRefFile = new UniqueRef<IFile>();
+                        fileSystem.OpenFile(ref uniqueRefFile.Ref, entryPath.ToU8Span(), OpenMode.Read).ThrowIfFailure();
+                        npdmFile = uniqueRefFile.Release();
+                    }
+                    catch (Exception ex)
+                    {
+                        OnLoadingException(ex, parentItem);
+                        var directoryEntryItem = new DirectoryEntryItem(parentItem, directoryEntry);
+                        var message = LocalizationManager.Instance.Current.Keys.LoadingError_FailedToOpenNpdmFile.SafeFormat(ex.Message);
+                        directoryEntryItem.Errors.Add(Category.Loading, message);
+                        _logger.LogError(ex, message);
+                        continue;
+                    }
+
+                    try
+                    {
+                        npdmFile.GetSize(out var npdmSize).ThrowIfFailure();
+                        if (npdmSize is < 0x80 or > 1024 * 1024)
+                            throw new InvalidDataException($"Unexpected main.npdm size: {npdmSize} bytes.");
+
+                        // AsStream owns the IFile. Disposing both objects would release the same
+                        // LibHac file twice and can terminate the loading process.
+                        using var npdmStream = npdmFile.AsStream();
+                        var npdm = new NpdmBinary(npdmStream, parentItem.ParentItem.ParentItem.KeySet);
+                        _ = new NpdmItem(npdm, parentItem, directoryEntry);
+                    }
+                    catch (Exception ex)
+                    {
+                        OnLoadingException(ex, parentItem);
+                        var directoryEntryItem = new DirectoryEntryItem(parentItem, directoryEntry);
+                        var message = LocalizationManager.Instance.Current.Keys.LoadingError_FailedToLoadNpdmFile.SafeFormat(ex.Message);
+                        directoryEntryItem.Errors.Add(Category.Loading, message);
+                        _logger.LogError(ex, message);
                     }
                 }
                 // MAIN file

@@ -54,6 +54,9 @@ public class ItemViewModelBuilder : IItemViewModelBuilder
             case MainItem mainItem:
                 itemViewModel = new MainItemViewModel(mainItem, _serviceProvider);
                 break;
+            case NpdmItem npdmItem:
+                itemViewModel = new NpdmItemViewModel(npdmItem, _serviceProvider);
+                break;
             case DirectoryEntryItem directoryEntryItem:
                 itemViewModel = new DirectoryEntryItemViewModel(directoryEntryItem, _serviceProvider);
                 break;

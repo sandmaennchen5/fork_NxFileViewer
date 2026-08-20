@@ -46,6 +46,15 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
     public string AvailableLanguages => "Languages";
     public string AppTitle => "Title";
     public string Publisher => "Publisher";
+    public string Security_Title => "Program security";
+    public string Security_Level => "Assessment";
+    public string Security_FileSystemPermissions => "File-system permissions";
+    public string Security_AcidSignature => "ACID signature";
+    public string Security_Safe => "Safe";
+    public string Security_Unsafe => "Unsafe";
+    public string Security_Dangerous => "Dangerous";
+    public string Security_Unavailable => "Unavailable";
+    public string Security_Details => "Authorized services ({0}): {1}";
 
     public string Lng_AmericanEnglish => "American";
     public string Lng_BritishEnglish => "English";
@@ -214,6 +223,8 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
     public string LoadingError_FailedToGetNcaSectionFsHeader => "Failed to get NCA file system header of section «{0}»: {1}";
     public string LoadingError_FailedToOpenMainFile => "Failed to open Main file: {0}";
     public string LoadingError_FailedToLoadMainFile => "Failed to load Main file: {0}";
+    public string LoadingError_FailedToOpenNpdmFile => "Failed to open main.npdm: {0}";
+    public string LoadingError_FailedToLoadNpdmFile => "Failed to parse main.npdm: {0}";
     public string LoadingError_FailedToLoadTicketFile => "Failed to load ticket file: {0}";
     public string LoadingError_FailedToLoadTitleIdKey => "Failed to load Title ID key from ticket file «{0}»: {1}";
     public string LoadingError_NczBlocklessCompressionDisabled => "Opening of NCZ with blockless compression is disabled in the settings.";

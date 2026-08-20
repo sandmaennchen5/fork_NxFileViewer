@@ -46,6 +46,15 @@ public class LocalizationKeys_ES : LocalizationKeysBase, ILocalizationKeys
     public string AvailableLanguages => "Idiomas";
     public string AppTitle => "Título";
     public string Publisher => "Editor";
+    public string Security_Title => "Seguridad del programa";
+    public string Security_Level => "Evaluación";
+    public string Security_FileSystemPermissions => "Permisos del sistema de archivos";
+    public string Security_AcidSignature => "Firma ACID";
+    public string Security_Safe => "Seguro";
+    public string Security_Unsafe => "No seguro";
+    public string Security_Dangerous => "Peligroso";
+    public string Security_Unavailable => "No disponible";
+    public string Security_Details => "Servicios autorizados ({0}): {1}";
 
     public string Lng_AmericanEnglish => "Inglés EE.UU.A.";
     public string Lng_BritishEnglish => "Inglés";
@@ -214,6 +223,8 @@ public class LocalizationKeys_ES : LocalizationKeysBase, ILocalizationKeys
     public string LoadingError_FailedToGetNcaSectionFsHeader => "Error al obtener el encabezado de sistema NCA para la sección «{0}»: {1}";
     public string LoadingError_FailedToOpenMainFile => "Error al abrir el Archivo Principal: {0}";
     public string LoadingError_FailedToLoadMainFile => "Error al cargar el Archivo Principal: {0}";
+    public string LoadingError_FailedToOpenNpdmFile => "No se pudo abrir main.npdm: {0}";
+    public string LoadingError_FailedToLoadNpdmFile => "No se pudo analizar main.npdm: {0}";
     public string LoadingError_FailedToLoadTicketFile => "Error al cargar el archivo de tiquete: {0}";
     public string LoadingError_FailedToLoadTitleIdKey => "Error al cargar el ID de Título desde el archivo de tiquete «{0}»: {1}";
     public string LoadingError_NczBlocklessCompressionDisabled => "La apertura de archivos NCZ con compresión sin bloques está deshabilitada en las configuraciones.";

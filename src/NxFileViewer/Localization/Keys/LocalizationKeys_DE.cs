@@ -46,6 +46,15 @@ public class LocalizationKeys_DE : LocalizationKeysBase, ILocalizationKeys
     public string AvailableLanguages => "Sprachen";
     public string AppTitle => "Titel";
     public string Publisher => "Publisher";
+    public string Security_Title => "Programmsicherheit";
+    public string Security_Level => "Bewertung";
+    public string Security_FileSystemPermissions => "Dateisystemrechte";
+    public string Security_AcidSignature => "ACID-Signatur";
+    public string Security_Safe => "Sicher";
+    public string Security_Unsafe => "Unsicher";
+    public string Security_Dangerous => "Gefährlich";
+    public string Security_Unavailable => "Nicht verfügbar";
+    public string Security_Details => "Erlaubte Dienste ({0}): {1}";
 
     public string Lng_AmericanEnglish => "Englisch (US)";
     public string Lng_BritishEnglish => "Englisch (UK)";
@@ -214,6 +223,8 @@ public class LocalizationKeys_DE : LocalizationKeysBase, ILocalizationKeys
     public string LoadingError_FailedToGetNcaSectionFsHeader => "Fehler beim Abrufen des NCA-Dateisystem-Headers von Sektion «{0}»: {1}";
     public string LoadingError_FailedToOpenMainFile => "Fehler beim öffnen der Hauptdatei: {0}";
     public string LoadingError_FailedToLoadMainFile => "Fehler beim laden der Hauptdatei: {0}";
+    public string LoadingError_FailedToOpenNpdmFile => "main.npdm konnte nicht geöffnet werden: {0}";
+    public string LoadingError_FailedToLoadNpdmFile => "main.npdm konnte nicht ausgewertet werden: {0}";
     public string LoadingError_FailedToLoadTicketFile => "Fehler beim laden der Ticket Datei: {0}";
     public string LoadingError_FailedToLoadTitleIdKey => "Failed to load TitleID key from ticket file «{0}»: {1}";
     public string LoadingError_NczBlocklessCompressionDisabled => "Das Öffnen von NCZ Dateien ohne Blockkompression ist in den Einstellungen deaktiviert.";
