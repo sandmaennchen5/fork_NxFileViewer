@@ -738,6 +738,17 @@
       "slug": "22.5.0",
       "zip_sha256": "19095be81a871f09c821ce3b37fd688572dbe0e73709f8343bb7f0eee0aac31b"
     },
+    "23.0.0": {
+      "asset_name": "Firmware.23.0.0.zip",
+      "asset_size": 340421224,
+      "display_name": "23.0.0",
+      "file_count": 238,
+      "prerelease": false,
+      "release_name": "Firmware 23.0.0",
+      "release_url": "https://github.com/THZoria/NX_Firmware/releases/tag/23.0.0",
+      "slug": "23.0.0",
+      "zip_sha256": "0d60b48630352b6b83cf48b49a5a063d6b1334cd14d2170028df602992e31755"
+    },
     "3.0.0": {
       "asset_name": "Firmware.3.0.0.zip",
       "asset_size": 264888606,
