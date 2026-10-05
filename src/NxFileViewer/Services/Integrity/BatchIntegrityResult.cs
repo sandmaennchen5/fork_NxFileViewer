@@ -7,6 +7,7 @@ public sealed record BatchIntegrityResult(
     string FilePath,
     string FileType,
     string PackageType,
+    string Structure,
     string Compression,
     NcasIntegrity Integrity,
     string? Error)

@@ -28,6 +28,19 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
     public string BatchIntegrity_File => "File";
     public string BatchIntegrity_Path => "Path";
     public string BatchIntegrity_Error => "Error";
+    public string BatchIntegrity_NszDataCorrupted => "The compressed NSZ/NCZ data stream is corrupted or incomplete (Zstandard decompression failed).";
+    public string BatchIntegrity_IntegrityFailed => "The integrity check could not be completed. See the log for details.";
+    public string PackageStructure_Title => "Package structure";
+    public string PackageStructure_Scene => "Scene release";
+    public string PackageStructure_Cdn => "CDN rip";
+    public string PackageStructure_Converted => "Converted";
+    public string PackageStructure_Homebrew => "Homebrew";
+    public string PackageStructure_Incomplete => "Incomplete";
+    public string PackageStructure_Unknown => "Unknown";
+    public string FileInfo_FileSize => "File size";
+    public string FileInfo_CompressionRatio => "Compression ratio";
+    public string FileInfo_Uncompressed => "uncompressed";
+    public string FileInfo_SystemUpdate => "Included system update (XCI)";
     public string BatchIntegrity_Export => "Export CSV…";
     public string BatchIntegrity_Start => "Start check";
     public string BatchIntegrity_MoveValid => "Move valid files…";
@@ -46,6 +59,15 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
     public string AvailableLanguages => "Languages";
     public string AppTitle => "Title";
     public string Publisher => "Publisher";
+    public string Security_Title => "Program security";
+    public string Security_Level => "Assessment";
+    public string Security_FileSystemPermissions => "File-system permissions";
+    public string Security_AcidSignature => "ACID signature";
+    public string Security_Safe => "Safe";
+    public string Security_Unsafe => "Unsafe";
+    public string Security_Dangerous => "Dangerous";
+    public string Security_Unavailable => "Unavailable";
+    public string Security_Details => "Authorized services ({0}): {1}";
 
     public string Lng_AmericanEnglish => "American";
     public string Lng_BritishEnglish => "English";
@@ -73,6 +95,18 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
     public string SettingsView_Title_KeysEffectiveFilePath => "Effective path";
     public string SettingsView_Title_KeysCustomFilePath => "Custom path";
     public string SettingsView_Title_KeysDownloadUrl => "Download URL";
+    public string KeysValidation_MissingFile => "No file found.";
+    public string KeysValidation_ValidEntries => "Valid ({0} entries).";
+    public string KeysValidation_MissingMasterKeys => "Missing master keys: {0}.";
+    public string CnmtOverview_BaseTitleId => "Base title ID";
+    public string CnmtOverview_MasterKey => "Required master key";
+    public string CnmtOverview_MinimumApplicationVersion => "Minimum application version (DLC)";
+    public string CnmtOverview_Distribution => "Distribution";
+    public string KeysValidation_InvalidMasterKeys => "Invalid master keys: {0}.";
+    public string KeysValidation_InvalidLines => "Malformed lines: {0}.";
+    public string KeysValidation_EmptyFile => "The file contains no valid entries.";
+    public string KeysValidation_FirmwareEstimate => "Highest valid revision: {0} — supports content up to firmware {1}.";
+    public string KeysValidation_UnsupportedMasterKeys => "New master-key revision detected: {0}. This program version cannot validate it or map it to a firmware yet; an application update is required.";
     public string SettingsView_ToolTip_Keys => """
                                                Keys are mandatory to open encrypted Nintendo Switch files (XCI, NSP, ...).
                                                Each official Nintendo Switch file is encrypted with keys specific to the Switch firmware version it was built for.
@@ -206,6 +240,8 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
     public string LoadingError_FailedToGetNcaSectionFsHeader => "Failed to get NCA file system header of section «{0}»: {1}";
     public string LoadingError_FailedToOpenMainFile => "Failed to open Main file: {0}";
     public string LoadingError_FailedToLoadMainFile => "Failed to load Main file: {0}";
+    public string LoadingError_FailedToOpenNpdmFile => "Failed to open main.npdm: {0}";
+    public string LoadingError_FailedToLoadNpdmFile => "Failed to parse main.npdm: {0}";
     public string LoadingError_FailedToLoadTicketFile => "Failed to load ticket file: {0}";
     public string LoadingError_FailedToLoadTitleIdKey => "Failed to load Title ID key from ticket file «{0}»: {1}";
     public string LoadingError_NczBlocklessCompressionDisabled => "Opening of NCZ with blockless compression is disabled in the settings.";

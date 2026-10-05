@@ -28,6 +28,19 @@ public class LocalizationKeys_DE : LocalizationKeysBase, ILocalizationKeys
     public string BatchIntegrity_File => "Datei";
     public string BatchIntegrity_Path => "Pfad";
     public string BatchIntegrity_Error => "Fehler";
+    public string BatchIntegrity_NszDataCorrupted => "Der komprimierte NSZ/NCZ-Datenstrom ist beschädigt oder unvollständig (Zstandard-Dekomprimierung fehlgeschlagen).";
+    public string BatchIntegrity_IntegrityFailed => "Die Integritätsprüfung konnte nicht vollständig ausgeführt werden. Details stehen im Protokoll.";
+    public string PackageStructure_Title => "Paketstruktur";
+    public string PackageStructure_Scene => "Scene-Release";
+    public string PackageStructure_Cdn => "CDN-Rip";
+    public string PackageStructure_Converted => "Konvertiert";
+    public string PackageStructure_Homebrew => "Homebrew";
+    public string PackageStructure_Incomplete => "Unvollständig";
+    public string PackageStructure_Unknown => "Unbekannt";
+    public string FileInfo_FileSize => "Dateigröße";
+    public string FileInfo_CompressionRatio => "Kompressionsverhältnis";
+    public string FileInfo_Uncompressed => "unkomprimiert";
+    public string FileInfo_SystemUpdate => "Enthaltenes System-Update (XCI)";
     public string BatchIntegrity_Export => "CSV exportieren…";
     public string BatchIntegrity_Start => "Prüfung starten";
     public string BatchIntegrity_MoveValid => "Fehlerfreie verschieben…";
@@ -46,6 +59,15 @@ public class LocalizationKeys_DE : LocalizationKeysBase, ILocalizationKeys
     public string AvailableLanguages => "Sprachen";
     public string AppTitle => "Titel";
     public string Publisher => "Publisher";
+    public string Security_Title => "Programmsicherheit";
+    public string Security_Level => "Bewertung";
+    public string Security_FileSystemPermissions => "Dateisystemrechte";
+    public string Security_AcidSignature => "ACID-Signatur";
+    public string Security_Safe => "Sicher";
+    public string Security_Unsafe => "Unsicher";
+    public string Security_Dangerous => "Gefährlich";
+    public string Security_Unavailable => "Nicht verfügbar";
+    public string Security_Details => "Erlaubte Dienste ({0}): {1}";
 
     public string Lng_AmericanEnglish => "Englisch (US)";
     public string Lng_BritishEnglish => "Englisch (UK)";
@@ -73,6 +95,18 @@ public class LocalizationKeys_DE : LocalizationKeysBase, ILocalizationKeys
     public string SettingsView_Title_KeysEffectiveFilePath => "Effektiver Pfad";
     public string SettingsView_Title_KeysCustomFilePath => "Benutzerdefinierter Pfad";
     public string SettingsView_Title_KeysDownloadUrl => "Download URL";
+    public string KeysValidation_MissingFile => "Keine Datei gefunden.";
+    public string KeysValidation_ValidEntries => "Gültig ({0} Einträge).";
+    public string KeysValidation_MissingMasterKeys => "Fehlende Master-Keys: {0}.";
+    public string CnmtOverview_BaseTitleId => "Basis-Titel-ID";
+    public string CnmtOverview_MasterKey => "Benötigter Master-Key";
+    public string CnmtOverview_MinimumApplicationVersion => "Minimale Anwendungsversion (DLC)";
+    public string CnmtOverview_Distribution => "Distribution";
+    public string KeysValidation_InvalidMasterKeys => "Ungültige Master-Keys: {0}.";
+    public string KeysValidation_InvalidLines => "Fehlerhafte Zeilen: {0}.";
+    public string KeysValidation_EmptyFile => "Die Datei enthält keine gültigen Einträge.";
+    public string KeysValidation_FirmwareEstimate => "Höchste gültige Revision: {0} — unterstützt Inhalte bis Firmware {1}.";
+    public string KeysValidation_UnsupportedMasterKeys => "Neue Master-Key-Revision erkannt: {0}. Diese Programmversion kann sie noch nicht prüfen oder einer Firmware zuordnen; ein Programm-Update ist erforderlich.";
     public string SettingsView_ToolTip_Keys => """
                                                Keys sind erforderlich, um verschlüsselte Nintendo-Switch-Dateien (XCI, NSP, ...) zu öffnen.
                                                Jede offizielle Nintendo-Switch-Datei ist mit Keys verschlüsselt, die spezifisch für die Switch-Firmware-Version sind, für die sie erstellt wurde.
@@ -206,6 +240,8 @@ public class LocalizationKeys_DE : LocalizationKeysBase, ILocalizationKeys
     public string LoadingError_FailedToGetNcaSectionFsHeader => "Fehler beim Abrufen des NCA-Dateisystem-Headers von Sektion «{0}»: {1}";
     public string LoadingError_FailedToOpenMainFile => "Fehler beim öffnen der Hauptdatei: {0}";
     public string LoadingError_FailedToLoadMainFile => "Fehler beim laden der Hauptdatei: {0}";
+    public string LoadingError_FailedToOpenNpdmFile => "main.npdm konnte nicht geöffnet werden: {0}";
+    public string LoadingError_FailedToLoadNpdmFile => "main.npdm konnte nicht ausgewertet werden: {0}";
     public string LoadingError_FailedToLoadTicketFile => "Fehler beim laden der Ticket Datei: {0}";
     public string LoadingError_FailedToLoadTitleIdKey => "Failed to load TitleID key from ticket file «{0}»: {1}";
     public string LoadingError_NczBlocklessCompressionDisabled => "Das Öffnen von NCZ Dateien ohne Blockkompression ist in den Einstellungen deaktiviert.";

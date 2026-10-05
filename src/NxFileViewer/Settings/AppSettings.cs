@@ -14,8 +14,8 @@ public class AppSettings : NotifyPropertyChangedBase, IAppSettings
     private string _prodKeysFilePath = "";
     private string _titleKeysFilePath = "";
     private LogLevel _logLevel = LogLevel.Information;
-    private string _prodKeysDownloadUrl = "";
-    private string _titleKeysDownloadUrl = "";
+    private string _prodKeysDownloadUrl = "ftp://192.168.178.100:5000/sdmc:/switch/prod.keys";
+    private string _titleKeysDownloadUrl = "ftp://192.168.178.100:5000/sdmc:/switch/title.keys";
     private bool _alwaysReloadKeysBeforeOpen = false;
 
     private string _titlePageUrl = "https://tinfoil.io/Title/{TitleId}";

@@ -49,10 +49,25 @@
                                 <StackPanel>
                                     <TextBlock Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_Title_KeysEffectiveFilePath}" />
                                     <DockPanel LastChildFill="true">
-                                        <Button Command="{Binding Path=EditProdKeysCommand}" Style="{StaticResource EditButton}" DockPanel.Dock="Right" 
+                                        <Button Command="{Binding Path=EditProdKeysCommand}" Style="{StaticResource EditButton}" DockPanel.Dock="Right"
                                                 ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_ToolTip_OpenKeysLocation}"/>
                                         <TextBox Style="{StaticResource ReadOnlyTextBoxShaded}" Text="{Binding Path=ActualProdKeysFilePath, Mode=OneWay}" />
                                     </DockPanel>
+                                    <TextBlock Text="{Binding ProdKeysValidationSummary}" TextWrapping="Wrap" Margin="0,4,0,6">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Foreground" Value="{DynamicResource FontBrush.Error}"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding AreProdKeysValid}" Value="True">
+                                                        <Setter Property="Foreground" Value="{DynamicResource FontBrush.Success}"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding HasProdKeysWarnings}" Value="True">
+                                                        <Setter Property="Foreground" Value="{DynamicResource FontBrush.Warning}"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
 
                                     <TextBlock Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_Title_KeysCustomFilePath}" />
                                     <DockPanel LastChildFill="true">
@@ -85,6 +100,18 @@
                                                 ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_ToolTip_OpenKeysLocation}"/>
                                         <TextBox Style="{StaticResource ReadOnlyTextBoxShaded}" Text="{Binding Path=ActualTitleKeysFilePath, Mode=OneWay}" />
                                     </DockPanel>
+                                    <TextBlock Text="{Binding TitleKeysValidationSummary}" TextWrapping="Wrap" Margin="0,4,0,6">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Foreground" Value="{DynamicResource FontBrush.Error}"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding AreTitleKeysValid}" Value="True">
+                                                        <Setter Property="Foreground" Value="{DynamicResource FontBrush.Success}"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
 
                                     <TextBlock Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_Title_KeysCustomFilePath}" />
                                     <DockPanel LastChildFill="True">

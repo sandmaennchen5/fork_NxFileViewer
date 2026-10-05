@@ -24,6 +24,19 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string BatchIntegrity_File { get; }
     string BatchIntegrity_Path { get; }
     string BatchIntegrity_Error { get; }
+    string BatchIntegrity_NszDataCorrupted { get; }
+    string BatchIntegrity_IntegrityFailed { get; }
+    string PackageStructure_Title { get; }
+    string PackageStructure_Scene { get; }
+    string PackageStructure_Cdn { get; }
+    string PackageStructure_Converted { get; }
+    string PackageStructure_Homebrew { get; }
+    string PackageStructure_Incomplete { get; }
+    string PackageStructure_Unknown { get; }
+    string FileInfo_FileSize { get; }
+    string FileInfo_CompressionRatio { get; }
+    string FileInfo_Uncompressed { get; }
+    string FileInfo_SystemUpdate { get; }
     string BatchIntegrity_Export { get; }
     string BatchIntegrity_Start { get; }
     string BatchIntegrity_MoveValid { get; }
@@ -42,6 +55,15 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string AvailableLanguages { get; }
     string AppTitle { get; }
     string Publisher { get; }
+    string Security_Title { get; }
+    string Security_Level { get; }
+    string Security_FileSystemPermissions { get; }
+    string Security_AcidSignature { get; }
+    string Security_Safe { get; }
+    string Security_Unsafe { get; }
+    string Security_Dangerous { get; }
+    string Security_Unavailable { get; }
+    string Security_Details { get; }
 
     string Lng_AmericanEnglish { get; }
     string Lng_BritishEnglish { get; }
@@ -69,6 +91,18 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string SettingsView_Title_KeysEffectiveFilePath { get; }
     string SettingsView_Title_KeysCustomFilePath { get; }
     string SettingsView_Title_KeysDownloadUrl { get; }
+    string KeysValidation_MissingFile { get; }
+    string KeysValidation_ValidEntries { get; }
+    string KeysValidation_MissingMasterKeys { get; }
+    string CnmtOverview_BaseTitleId { get; }
+    string CnmtOverview_MasterKey { get; }
+    string CnmtOverview_MinimumApplicationVersion { get; }
+    string CnmtOverview_Distribution { get; }
+    string KeysValidation_InvalidMasterKeys { get; }
+    string KeysValidation_InvalidLines { get; }
+    string KeysValidation_EmptyFile { get; }
+    string KeysValidation_FirmwareEstimate { get; }
+    string KeysValidation_UnsupportedMasterKeys { get; }
     string SettingsView_ToolTip_Keys { get; }
     string SettingsView_ToolTip_ProdKeys { get; }
     string SettingsView_ToolTip_TitleKeys { get; }
@@ -165,6 +199,8 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string LoadingError_FailedToGetNcaSectionFsHeader { get; }
     string LoadingError_FailedToOpenMainFile { get; }
     string LoadingError_FailedToLoadMainFile { get; }
+    string LoadingError_FailedToOpenNpdmFile { get; }
+    string LoadingError_FailedToLoadNpdmFile { get; }
     string LoadingError_FailedToLoadTicketFile { get; }
     string LoadingError_FailedToLoadTitleIdKey { get; }
     string LoadingError_NczBlocklessCompressionDisabled { get; }

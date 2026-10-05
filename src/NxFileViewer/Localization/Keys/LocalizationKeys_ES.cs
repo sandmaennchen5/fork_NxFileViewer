@@ -28,6 +28,19 @@ public class LocalizationKeys_ES : LocalizationKeysBase, ILocalizationKeys
     public string BatchIntegrity_File => "Archivo";
     public string BatchIntegrity_Path => "Ruta";
     public string BatchIntegrity_Error => "Error";
+    public string BatchIntegrity_NszDataCorrupted => "El flujo de datos NSZ/NCZ comprimido está dañado o incompleto (falló la descompresión Zstandard).";
+    public string BatchIntegrity_IntegrityFailed => "No se pudo completar la comprobación de integridad. Consulte el registro para obtener más detalles.";
+    public string PackageStructure_Title => "Estructura del paquete";
+    public string PackageStructure_Scene => "Lanzamiento Scene";
+    public string PackageStructure_Cdn => "Copia CDN";
+    public string PackageStructure_Converted => "Convertido";
+    public string PackageStructure_Homebrew => "Homebrew";
+    public string PackageStructure_Incomplete => "Incompleto";
+    public string PackageStructure_Unknown => "Desconocido";
+    public string FileInfo_FileSize => "Tamaño del archivo";
+    public string FileInfo_CompressionRatio => "Relación de compresión";
+    public string FileInfo_Uncompressed => "sin comprimir";
+    public string FileInfo_SystemUpdate => "Actualización del sistema incluida (XCI)";
     public string BatchIntegrity_Export => "Exportar CSV…";
     public string BatchIntegrity_Start => "Iniciar verificación";
     public string BatchIntegrity_MoveValid => "Mover archivos válidos…";
@@ -46,6 +59,15 @@ public class LocalizationKeys_ES : LocalizationKeysBase, ILocalizationKeys
     public string AvailableLanguages => "Idiomas";
     public string AppTitle => "Título";
     public string Publisher => "Editor";
+    public string Security_Title => "Seguridad del programa";
+    public string Security_Level => "Evaluación";
+    public string Security_FileSystemPermissions => "Permisos del sistema de archivos";
+    public string Security_AcidSignature => "Firma ACID";
+    public string Security_Safe => "Seguro";
+    public string Security_Unsafe => "No seguro";
+    public string Security_Dangerous => "Peligroso";
+    public string Security_Unavailable => "No disponible";
+    public string Security_Details => "Servicios autorizados ({0}): {1}";
 
     public string Lng_AmericanEnglish => "Inglés EE.UU.A.";
     public string Lng_BritishEnglish => "Inglés";
@@ -73,6 +95,18 @@ public class LocalizationKeys_ES : LocalizationKeysBase, ILocalizationKeys
     public string SettingsView_Title_KeysEffectiveFilePath => "Ruta Actual";
     public string SettingsView_Title_KeysCustomFilePath => "Ruta personalizada";
     public string SettingsView_Title_KeysDownloadUrl => "URL de descarga";
+    public string KeysValidation_MissingFile => "No se encontró ningún archivo.";
+    public string KeysValidation_ValidEntries => "Válido ({0} entradas).";
+    public string KeysValidation_MissingMasterKeys => "Claves maestras que faltan: {0}.";
+    public string CnmtOverview_BaseTitleId => "ID del título base";
+    public string CnmtOverview_MasterKey => "Clave maestra necesaria";
+    public string CnmtOverview_MinimumApplicationVersion => "Versión mínima de la aplicación (DLC)";
+    public string CnmtOverview_Distribution => "Distribución";
+    public string KeysValidation_InvalidMasterKeys => "Claves maestras no válidas: {0}.";
+    public string KeysValidation_InvalidLines => "Líneas con formato incorrecto: {0}.";
+    public string KeysValidation_EmptyFile => "El archivo no contiene entradas válidas.";
+    public string KeysValidation_FirmwareEstimate => "Revisión válida más alta: {0} — admite contenido hasta el firmware {1}.";
+    public string KeysValidation_UnsupportedMasterKeys => "Se detectó una nueva revisión de clave maestra: {0}. Esta versión del programa aún no puede validarla ni asociarla a un firmware; es necesario actualizar la aplicación.";
     public string SettingsView_ToolTip_Keys => """
                                                Las llaves son necesarias para poder abrir archivos del formato Nintendo Switch encriptados (XCI, NSP, ...).
                                                Cada archivo oficial con formato Nintendo Switch está encriptado con las llaves específicas del firmware con que fueron construidos.
@@ -206,6 +240,8 @@ public class LocalizationKeys_ES : LocalizationKeysBase, ILocalizationKeys
     public string LoadingError_FailedToGetNcaSectionFsHeader => "Error al obtener el encabezado de sistema NCA para la sección «{0}»: {1}";
     public string LoadingError_FailedToOpenMainFile => "Error al abrir el Archivo Principal: {0}";
     public string LoadingError_FailedToLoadMainFile => "Error al cargar el Archivo Principal: {0}";
+    public string LoadingError_FailedToOpenNpdmFile => "No se pudo abrir main.npdm: {0}";
+    public string LoadingError_FailedToLoadNpdmFile => "No se pudo analizar main.npdm: {0}";
     public string LoadingError_FailedToLoadTicketFile => "Error al cargar el archivo de tiquete: {0}";
     public string LoadingError_FailedToLoadTitleIdKey => "Error al cargar el ID de Título desde el archivo de tiquete «{0}»: {1}";
     public string LoadingError_NczBlocklessCompressionDisabled => "La apertura de archivos NCZ con compresión sin bloques está deshabilitada en las configuraciones.";

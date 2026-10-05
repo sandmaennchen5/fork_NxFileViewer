@@ -63,6 +63,8 @@ internal class FileLoader : IFileLoader
         foreach (var missingKey in missingKeys)
             fileOverview.MissingKeys.Add(missingKey);
 
+        fileOverview.FileSize = new System.IO.FileInfo(filePath).Length;
+
         var openedFile = new NxFile(filePath, rootItem, fileOverview);
         return openedFile;
     }
