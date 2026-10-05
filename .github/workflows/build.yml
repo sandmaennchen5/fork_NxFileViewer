@@ -24,10 +24,26 @@ jobs:
         shell: pwsh
         run: ./Publish.ps1
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+      - name: Upload x64 ZIP
+        uses: actions/upload-artifact@v7
         with:
-          name: NxFileViewer-build
-          path: Publish/*.zip
+          path: Publish/*_x64.zip
+          archive: false
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload x86 ZIP
+        uses: actions/upload-artifact@v7
+        with:
+          path: Publish/*_x86.zip
+          archive: false
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload optional firmware hashes ZIP
+        uses: actions/upload-artifact@v7
+        with:
+          path: Publish/*_firmware-hashes.zip
+          archive: false
           if-no-files-found: error
           retention-days: 7

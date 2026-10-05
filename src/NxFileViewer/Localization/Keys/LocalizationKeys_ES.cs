@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Emignatik.NxFileViewer.Utils.MVVM.Localization;
 using LibHac.Ncm;
 
@@ -6,6 +6,19 @@ namespace Emignatik.NxFileViewer.Localization.Keys;
 
 public class LocalizationKeys_ES : LocalizationKeysBase, ILocalizationKeys
 {
+    public string Firmware_NoReferences => "Hashes no disponibles: GitHub inaccesible y referencias locales ausentes o inválidas.";
+    public string Firmware_LoadingOnline => "Cargando hashes de firmware desde GitHub…";
+    public string Firmware_OnlineSource => "Fuente: GitHub (cargada para esta comprobación).";
+    public string Firmware_OfflineSource => "GitHub no disponible. Se usan hashes incluidos; pueden faltar versiones recientes.";
+    public string Firmware_BrowseZip => "Seleccionar ZIP de firmware…";
+    public string Firmware_Title => "Verificación de firmware";
+    public string Firmware_Unknown => "No se encontró una referencia de firmware.";
+    public string Firmware_Summary => "{0}/{1} archivos válidos; faltantes: {2}, modificados: {3}, adicionales: {4}, duplicados: {5}.";
+    public string Firmware_Missing => "Faltante";
+    public string Firmware_Changed => "Modificado (tamaño/SHA-256)";
+    public string Firmware_Extra => "NCA adicional";
+    public string Firmware_Duplicate => "Nombre duplicado";
+
     public override bool IsFallback => true;
     public override string DisplayName => "Español";
     public override string CultureName => "es-ES";
@@ -112,7 +125,7 @@ public class LocalizationKeys_ES : LocalizationKeysBase, ILocalizationKeys
                                                Cada archivo oficial con formato Nintendo Switch está encriptado con las llaves específicas del firmware con que fueron construidos.
 
                                                Asegúrese de contar con el archivo de llaves «prod.keys» más actualizado, para poder abrir archivos con el formato Nintendo Switch sin errores.
-                                               
+
                                                El archivo deberá contener una llave por línea, con el formato «NOMBRE_LLAVE = VALOR_HEXADECIMAL».
                                                """;
     public string SettingsView_ToolTip_ProdKeys => """
@@ -121,7 +134,7 @@ public class LocalizationKeys_ES : LocalizationKeysBase, ILocalizationKeys
                                                        1. La ruta definida en esta configuración.
                                                        2. La carpeta donde se encuentra el programa.
                                                        3. La carpeta «%UserProfile%\\.switch»
-                                                   
+
                                                    Al iniciar, NXFileViewer puede descargar de forma automática el archivo de llaves si no se encuentra uno en el sistema.
                                                    El archivo se descargará en la carpeta donde se encuentra el programa.
                                                    """;
@@ -132,7 +145,7 @@ public class LocalizationKeys_ES : LocalizationKeysBase, ILocalizationKeys
                                                         1. La ruta definida en esta configuración.
                                                         2. La carpeta donde se encuentra el programa.
                                                         3. La carpeta «%UserProfile%\\.switch»
-                                                    
+
                                                     Al iniciar, NXFileViewer puede descargar de forma automática el archivo de llaves si no se encuentra uno en el sistema.
                                                     El archivo se descargará en la carpeta donde se encuentra el programa.
                                                     """;
@@ -268,7 +281,7 @@ public class LocalizationKeys_ES : LocalizationKeysBase, ILocalizationKeys
     public string Title_FileInfo_Integrity => "Integridad";
     public string ToolTip_NcasIntegrity => $"""
                                            Una verificación de integridad consiste en verificar la integridad de cada NCA (o NCZ).
-                                           
+
                                            El resultado de la Verificación de Integridad puede ser uno de los siguientes:
                                            - {NcasIntegrity_NoNca}: No se encuentra archivo NCA.
                                            - {NcasIntegrity_Unchecked}: Verificación de Integridad no realizada.
@@ -278,7 +291,7 @@ public class LocalizationKeys_ES : LocalizationKeysBase, ILocalizationKeys
                                            - {NcasIntegrity_Modified}: Por lo menos un NCA ha sido modificado (la firma no es correcta pero el hash es correcto).
                                            - {NcasIntegrity_Corrupted}: Por lo menos un NCA está corrupto (el hash es inválido).
                                            - {NcasIntegrity_Error}: Ha ocurrido un error durante la verificación de Integridad.
-                                           
+
                                            Los detalles del análisis de cada NCA se encuentran en la ficha «{TabContent}».
                                            """;
 
@@ -325,6 +338,7 @@ public class LocalizationKeys_ES : LocalizationKeysBase, ILocalizationKeys
 
     public string KeysLoading_Starting_Log => ">>> Cargando llaves...";
     public string KeysLoading_Successful_Log => ">>> Llaves cargadas.";
+    public string KeysLoading_UnusedKey_Log => "Información: esta versión del programa no utiliza la clave adicional «{0}».";
     public string KeysLoading_Error => "Error al cargar llaves: {0}.";
     public string WarnNoProdKeysFileFound => "No se encontró el archivo «prod.keys».";
     public string InvalidSetting_KeysFileNotFound => "El archivo de llaves «{0}» definido en las configuraciones, no existe.";
@@ -338,6 +352,9 @@ public class LocalizationKeys_ES : LocalizationKeysBase, ILocalizationKeys
     public string OpenFileLocation_Failed_Log => "Error al abrir la ubicación del archivo «{0}»: {1}";
     public string SettingsView_TitlePageUrl => "URL de la página de Títulos";
     public string SettingsView_TitleInfoApiUrl => "URL de API de información de títulos";
+    public string SettingsView_TitleInfoProvider => "Fuente de nombres de títulos";
+    public string SettingsView_TitleDbRegion => "Región / idioma TitleDB";
+    public string SettingsView_TitleDbCacheTip => "TitleDB se guarda localmente y se actualiza a diario. La caché sigue disponible si el servicio falla. Los títulos ausentes también se buscan en US.en.";
     public string BatchIntegrity_FileType => "Tipo de archivo";
     public string BatchIntegrity_PackageType => "Tipo de paquete";
     public string BatchIntegrity_ShowOnlyErrors => "Mostrar solo archivos defectuosos";
@@ -358,17 +375,17 @@ public class LocalizationKeys_ES : LocalizationKeysBase, ILocalizationKeys
     public string RenamingTool_FileFilters => "Filtros";
     public string RenamingTool_ToolTip_Patterns =>
         $$"""
-         Sintáxis de las llaves: 
+         Sintáxis de las llaves:
             {<Llave>[:<Formato>]}
-         
+
          El formato opcional puede ser:
          - U: Mayúsculas
          - L: Minúsculas
-         
+
          Ejemplos:
            {Title} => Título original
            {Title:U} => Título en mayúsculas
-         
+
          Llaves soportadas:
            • TitleId:
               - El identificador del contenido.
@@ -391,9 +408,9 @@ public class LocalizationKeys_ES : LocalizationKeysBase, ILocalizationKeys
               - La versión a mostrar.
            • WTitle:
               - El título consultado desde la Internet.
-           • WAppTitle: 
+           • WAppTitle:
               - El título de la {{nameof(ContentMetaType.Application)}} correspondiente, consultado desde la Internet.
-         
+
          Utilice las secuencias \{ o \} para escribir caracteres literales { o }.
          """;
     public string RenamingTool_ToolTip_BasePattern => $"El patrón a utilizar para contenidos del tipo {nameof(ContentMetaType.Application)}.";

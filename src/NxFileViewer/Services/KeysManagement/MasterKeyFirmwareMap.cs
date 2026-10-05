@@ -28,6 +28,7 @@ public static class MasterKeyFirmwareMap
         "20.0.0",
         "21.0.0",
         "22.0.0",
+        "23.0.0",
     ];
 
     public static string? GetSupportedFirmware(int masterKeyRevision) =>

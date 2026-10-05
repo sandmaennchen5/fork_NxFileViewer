@@ -1,10 +1,10 @@
-# NxFileViewer
+# NxFileViewer 3.0.4
 
 ## Description
 
 View and browse content of Nintendo Switch files.
 
-Download latest version [here](https://github.com/Myster-Tee/NxFileViewer/releases).
+Download latest version [here](https://github.com/sandmaennchen5/fork_NxFileViewer/releases).
 
 ## Features
 
@@ -21,8 +21,8 @@ Download latest version [here](https://github.com/Myster-Tee/NxFileViewer/releas
 - Checks real files type (XCI or NSP)
 - Detailed log
 - User-friendly and responsive interface
-- Single executable file
-- Do not write anything outside of the program directory
+- Application ZIPs plus a separate optional firmware-hashes ZIP
+- TitleDB cache in `%LOCALAPPDATA%/NxFileViewer/TitleDB`; solid NCZ reads use automatically cleaned temporary files
 - Verify integrity (hash and signature)
 - Batch integrity check for complete folders containing NSP, NSZ, XCI, and XCZ files
 - Live batch results with file type, package type, compression, integrity status, and error details
@@ -33,6 +33,10 @@ Download latest version [here](https://github.com/Myster-Tee/NxFileViewer/releas
 - Displays missing keys
 - Opens title URL
 - Configurable Tinfoil title page and API URLs
+- Selectable Tinfoil, GitHub TitleDB and NLib title metadata, with local-title fallback during outages
+- Key-file validation, firmware revision estimates and anonymous FTP key downloads
+- Firmware ZIP/folder verification using SHA-256, automatic detection in batch checks and detailed failure reports
+- Solid NCZ prefix caching to speed up backward/random reads without repeated full decompression
 - Multiple interface languages (English, French, German, and Spanish)
 - Supports compressed NACP title blocks and up to 32 NACP title languages
 - Advanced files renaming
@@ -46,6 +50,18 @@ Download latest version [here](https://github.com/Myster-Tee/NxFileViewer/releas
 Open **Tools → Check folder integrity** to verify all supported Switch files in a directory. Subdirectories can be included optionally. Results are added to the table as soon as each file has been checked, while the overview panel displays information about the file currently being processed.
 
 The batch window supports cancellation, live progress reporting, faulty-file filtering, and CSV export. After the check, files reported as original and valid can be moved to a selected destination. The original folder structure is retained, existing destination files are skipped, and invalid files remain untouched.
+
+### Firmware verification
+
+Open **Tools → Firmware verification** and choose a folder or **Select firmware ZIP…**. Folder integrity checks also recognize firmware, optionally in subdirectories. The table shows the inferred version in the Structure column; select its row and open the Firmware verification tab for missing, changed, extra or duplicate NCA details. Only complete matches pass. Firmware entries are excluded from moving verified game packages.
+
+Current references are loaded from GitHub into memory for each detected or explicitly selected firmware check, without a disk cache. Pure game folders make no GitHub request. References from [`fw/hashes`](fw/hashes) are provided in a separate optional firmware-hashes ZIP as an offline fallback, shown in the result details. Extract this add-on into the directory containing `NxFileViewer.exe`, so the files are located at `fw/hashes/*.json`. ZIP contents are hashed directly without extraction or keys; repacked ZIPs can pass. Loose NCA files and ZIPs containing NCA entries are recognized as candidates even without local hash lists. Missing hash sources affect only firmware results, while game package checks continue. See [firmware verification](docs/Firmware-verification.md) and [firmware reference maintenance](fw/README.md).
+
+### Title information and NCZ loading
+
+Choose Tinfoil, GitHub TitleDB or NLib in **Settings → Miscellaneous → Title name source**. GitHub catalogs are cached for offline use; renaming falls back to local NACP names if online requests fail. See [title providers](docs/Title-providers.md).
+
+Solid NCZ decoding reuses a temporary decoded prefix for backward reads. First-time forward skips still require decoding and temporary disk usage can approach the payload size. See [NCZ reader changes](docs/NSZ-reader-update.md). ZstdSharp remains 0.8.8 and compressed NACP support is retained.
 
 ## Screenshots
 
@@ -65,7 +81,7 @@ If application doesn't start, please install the *.NET Desktop Runtime 8* which 
 
 Feel free to contribute to this project to make this program better.
 
-I designed the application so that it can be easily localized in several languages.  
+I designed the application so that it can be easily localized in several languages.
 If you want this app in your language, send me your translations ;).
 
 ## Development
@@ -73,6 +89,19 @@ If you want this app in your language, send me your translations ;).
 ### Requirements
 
  - Microsoft Visual Studio 2022+
+
+### Build and tests
+
+```powershell
+dotnet build src/NxFileViewer.sln --no-restore
+dotnet test src/NxFileViewer.sln --no-restore
+```
+
+Restore dependencies first on a fresh checkout. The local `/test/` folder is ignored and contains only personal test data; automated tests under `src/*.Test` remain part of the repository. See [3.0.4 release notes](CHANGELOG.md).
+
+### GitHub Actions downloads
+
+After a push to master, the Build workflow provides the x64 and x86 application ZIPs and the optional firmware-hashes ZIP as three separate artifacts. Each download is the original `NxFileViewer_v<version>_x64.zip` or `_x86.zip`, plus `NxFileViewer_v<version>_firmware-hashes.zip`, without an additional ZIP wrapper. Artifacts are retained for seven days; permanent downloads belong in GitHub Releases.
 
 ### Publishing
 

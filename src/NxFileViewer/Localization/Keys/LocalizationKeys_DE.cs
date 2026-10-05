@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Emignatik.NxFileViewer.Utils.MVVM.Localization;
 using LibHac.Ncm;
 
@@ -6,6 +6,19 @@ namespace Emignatik.NxFileViewer.Localization.Keys;
 
 public class LocalizationKeys_DE : LocalizationKeysBase, ILocalizationKeys
 {
+    public string Firmware_NoReferences => "Firmware-Hashlisten nicht verfügbar: GitHub nicht erreichbar und lokale Referenzen fehlen oder sind ungültig.";
+    public string Firmware_LoadingOnline => "Firmware-Hashlisten von GitHub laden…";
+    public string Firmware_OnlineSource => "Hashquelle: GitHub (für diesen Prüflauf geladen).";
+    public string Firmware_OfflineSource => "Hinweis: GitHub nicht verfügbar. Prüfung mit mitgelieferten Hashlisten; neuere Firmware kann fehlen.";
+    public string Firmware_BrowseZip => "Firmware-ZIP auswählen…";
+    public string Firmware_Title => "Firmware-Prüfung";
+    public string Firmware_Unknown => "Keine passende Firmware-Hashliste gefunden.";
+    public string Firmware_Summary => "{0}/{1} Dateien gültig; fehlend: {2}, verändert: {3}, zusätzlich: {4}, doppelt: {5}.";
+    public string Firmware_Missing => "Fehlend";
+    public string Firmware_Changed => "Verändert (Größe/SHA-256)";
+    public string Firmware_Extra => "Zusätzliche NCA";
+    public string Firmware_Duplicate => "Doppelter Dateiname";
+
     public override bool IsFallback => true;
     public override string DisplayName => "Deutsch";
     public override string CultureName => "de-DE";
@@ -112,7 +125,7 @@ public class LocalizationKeys_DE : LocalizationKeysBase, ILocalizationKeys
                                                Jede offizielle Nintendo-Switch-Datei ist mit Keys verschlüsselt, die spezifisch für die Switch-Firmware-Version sind, für die sie erstellt wurde.
 
                                                Um jede Nintendo-Switch-Datei ohne Fehler zu öffnen, stelle sicher, dass du stets eine aktuelle "prod.keys"-Datei mit den Keys aller bestehenden Firmware-Versionen hast.
-                                               
+
                                                Die Datei sollte einen Key pro Zeile enthalten, in der Form «KEY_NAME = HEXADECIMAL_WERT».
                                                """;
     public string SettingsView_ToolTip_ProdKeys => """
@@ -121,7 +134,7 @@ public class LocalizationKeys_DE : LocalizationKeysBase, ILocalizationKeys
                                                        1. Im Pfad, der durch diese Einstellung definiert ist
                                                        2. Im Verzeichnis des aktuellen Programms
                                                        3. Im Verzeichnis «%UserProfile%\\.switch»
-                                                   
+
                                                    Beim Start kann das Programm die Keydatei automatisch herunterladen, falls keine auf dem System gefunden wird.
                                                    Die Keydatei wird im Verzeichnis der aktuellen Anwendung gespeichert.
                                                    """;
@@ -132,7 +145,7 @@ public class LocalizationKeys_DE : LocalizationKeysBase, ILocalizationKeys
                                                         1. Im Pfad, der durch diese Einstellung definiert ist
                                                         2. Im Verzeichnis des aktuellen Programms
                                                         3. Im Verzeichnis «%UserProfile%\\.switch»
-                                                    
+
                                                     Beim Start kann das Programm die Keydatei automatisch herunterladen, falls keine auf dem System gefunden wird.
                                                     Die Keydatei wird im Verzeichnis der aktuellen Anwendung gespeichert.
                                                     """;
@@ -268,7 +281,7 @@ public class LocalizationKeys_DE : LocalizationKeysBase, ILocalizationKeys
     public string Title_FileInfo_Integrity => "Integrität";
     public string ToolTip_NcasIntegrity => $"""
                                            Die Integritätsprüfung besteht darin, die Integrität jeder NCA (oder NCZ) zu überprüfen.
-                                           
+
                                            Das Ergebnis der Integritätsprüfung kann wie folgt aussehen:
                                            {NcasIntegrity_NoNca}: Keine NCA-Datei gefunden.
                                            {NcasIntegrity_Unchecked}: Integrität nicht geprüft.
@@ -278,7 +291,7 @@ public class LocalizationKeys_DE : LocalizationKeysBase, ILocalizationKeys
                                            {NcasIntegrity_Modified}: Mindestens eine NCA ist modifiziert (Signatur nicht in Ordnung, aber Hash in Ordnung).
                                            {NcasIntegrity_Corrupted}: Mindestens eine NCA ist beschädigt (Hash ungültig).
                                            {NcasIntegrity_Error}: Ein Fehler ist während der Integritätsprüfung aufgetreten.
-                                           
+
                                            Details zu jeder analysierten NCA findest du im Tab «Inhalt».
                                            """;
 
@@ -325,6 +338,7 @@ public class LocalizationKeys_DE : LocalizationKeysBase, ILocalizationKeys
 
     public string KeysLoading_Starting_Log => ">>> Lade Keys...";
     public string KeysLoading_Successful_Log => ">>> Keys erfolgreich geladen.";
+    public string KeysLoading_UnusedKey_Log => "Hinweis: Zusätzlicher Schlüssel «{0}» wird von dieser Programmversion nicht verwendet.";
     public string KeysLoading_Error => "Keys konnten nicht geladen werden: {0}.";
     public string WarnNoProdKeysFileFound => "Keine «prod.keys» Datei gefunden.";
     public string InvalidSetting_KeysFileNotFound => "In den Einstellungen definierte Keydatei «{0}» existiert nicht.";
@@ -338,6 +352,9 @@ public class LocalizationKeys_DE : LocalizationKeysBase, ILocalizationKeys
     public string OpenFileLocation_Failed_Log => "Fehler beim Öffnen des Speicherorts der Datei «{0}»: {1}";
     public string SettingsView_TitlePageUrl => "Titel Seiten-URL";
     public string SettingsView_TitleInfoApiUrl => "Titelinfo-API-URL";
+    public string SettingsView_TitleInfoProvider => "Quelle für Titelnamen";
+    public string SettingsView_TitleDbRegion => "TitleDB-Region / Sprache";
+    public string SettingsView_TitleDbCacheTip => "TitleDB wird lokal gespeichert und täglich aktualisiert. Bei Ausfällen wird der gespeicherte Stand verwendet. Fehlende Titel werden zusätzlich in US.en gesucht.";
     public string BatchIntegrity_FileType => "Dateityp";
     public string BatchIntegrity_PackageType => "Pakettyp";
     public string BatchIntegrity_ShowOnlyErrors => "Nur fehlerhafte anzeigen";
@@ -358,17 +375,17 @@ public class LocalizationKeys_DE : LocalizationKeysBase, ILocalizationKeys
     public string RenamingTool_FileFilters => "Filter";
     public string RenamingTool_ToolTip_Patterns =>
         $$"""
-         Schlüsselwort-Syntax: 
+         Schlüsselwort-Syntax:
             {<Keyword>[:<Format>]}
-         
+
          Das Format ist optional und kann sein:
          - U: Großbuchstaben
          - L: Kleinbuchstaben
-         
+
          Beispiele:
            {Title} => Der original Titel
            {Title:U} => Der Titel in Großbuchstaben
-         
+
          Unterstützte Schlüsselwörter:
            • TitleID:
               - Die Inhalts-ID.
@@ -391,9 +408,9 @@ public class LocalizationKeys_DE : LocalizationKeysBase, ILocalizationKeys
               - Die angezeigte Version.
            • WTitle:
               - Der Titel des Inhalts, der aus dem Internet abgerufen wurde.
-           • WAppTitle: 
+           • WAppTitle:
               - Der Titel der entsprechenden {{nameof(ContentMetaType.Application)}}, der aus dem Internet abgerufen wurde.
-         
+
          Verwende  \{ oder \}, um die Zeichen { oder } zu schreiben.
          """;
     public string RenamingTool_ToolTip_BasePattern => $"Das Muster, das für Inhalte des Typs {nameof(ContentMetaType.Application)} verwendet werden soll.";

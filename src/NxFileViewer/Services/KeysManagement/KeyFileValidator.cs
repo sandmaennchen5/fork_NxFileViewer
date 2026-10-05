@@ -33,6 +33,7 @@ public static partial class KeyFileValidator
         ["master_key_13"] = 2476807835,
         ["master_key_14"] = 2448653557,
         ["master_key_15"] = 4071812001,
+        ["master_key_16"] = 418653682,
     };
 
     public static KeyFileValidationResult ValidateProdKeys(string? filePath)

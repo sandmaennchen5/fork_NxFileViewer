@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
+using System.Net.Http;
 using System.Threading;
 using Emignatik.NxFileViewer.FileLoading;
 using Emignatik.NxFileViewer.Models.Overview;
@@ -26,16 +28,21 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
     private Action<NxFile>? _fileLoaded;
     private Action<BatchIntegrityResult>? _resultCompleted;
     private readonly ILogger<VerifyDirectoryIntegrityRunnable> _logger;
+    private readonly string? _referenceDirectory;
+    private readonly HttpClient? _firmwareClient;
     private string? _directory;
     private bool _includeSubdirectories;
 
     public VerifyDirectoryIntegrityRunnable(IFileLoader fileLoader, IServiceProvider serviceProvider,
-        IAppSettings appSettings, ILogger<VerifyDirectoryIntegrityRunnable> logger)
+        IAppSettings appSettings, ILogger<VerifyDirectoryIntegrityRunnable> logger,
+        string? referenceDirectory = null, HttpClient? firmwareClient = null)
     {
         _fileLoader = fileLoader;
         _serviceProvider = serviceProvider;
         _appSettings = appSettings;
         _logger = logger;
+        _referenceDirectory = referenceDirectory;
+        _firmwareClient = firmwareClient;
     }
 
     public bool SupportsCancellation => true;
@@ -57,10 +64,44 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
             throw new InvalidOperationException($"{nameof(Setup)} should be called first.");
 
         var option = _includeSubdirectories ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
-        var files = Directory.EnumerateFiles(_directory, "*", option)
-            .Where(path => SupportedExtensions.Contains(Path.GetExtension(path)))
-            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
+        FirmwareIntegrityVerifier? firmware = null;
+        var allFiles = Directory.Exists(_directory) ? Directory.GetFiles(_directory, "*", option) : new[] { _directory };
+        var folderCandidates = allFiles.Where(p => p.EndsWith(".nca", StringComparison.OrdinalIgnoreCase))
+            .Select(Path.GetDirectoryName).Where(p => p != null).Distinct(StringComparer.OrdinalIgnoreCase).Select(p => p!).ToArray();
+        var zipCandidates = allFiles.Where(p => p.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+            .Where(p => !Directory.Exists(_directory) || ContainsNca(p)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var hasFirmware = folderCandidates.Length > 0 || zipCandidates.Count > 0;
+        string? referenceNotice = null;
+        if (hasFirmware)
+        {
+            progressReporter.SetText(LocalizationManager.Instance.Current.Keys.Firmware_LoadingOnline);
+            using var ownedClient = _firmwareClient == null ? new HttpClient { Timeout = TimeSpan.FromSeconds(15) } : null;
+            var client = _firmwareClient ?? ownedClient!;
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeout.CancelAfter(TimeSpan.FromSeconds(60));
+            try
+            {
+                firmware = GitHubFirmwareReferences.LoadAsync(client, timeout.Token).GetAwaiter().GetResult();
+                referenceNotice = LocalizationManager.Instance.Current.Keys.Firmware_OnlineSource;
+            }
+            catch (Exception ex) when (!cancellationToken.IsCancellationRequested &&
+                ex is HttpRequestException or OperationCanceledException or System.Text.Json.JsonException or InvalidDataException or InvalidOperationException or KeyNotFoundException or ArgumentException)
+            {
+                _logger.LogWarning(ex, "GitHub firmware references unavailable; using bundled references.");
+                referenceNotice = LocalizationManager.Instance.Current.Keys.Firmware_OfflineSource;
+                try { firmware = new FirmwareIntegrityVerifier(_referenceDirectory); }
+                catch (Exception referenceException) when (referenceException is IOException or UnauthorizedAccessException or
+                    System.Text.Json.JsonException or InvalidOperationException or KeyNotFoundException or ArgumentException)
+                {
+                    _logger.LogWarning(referenceException, "Bundled firmware references unavailable.");
+                    referenceNotice = LocalizationManager.Instance.Current.Keys.Firmware_NoReferences;
+                }
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+        }
+        // Loose NCA folders and NCA ZIPs are candidates even without bundled hash lists.
+        var files = allFiles.Where(path => SupportedExtensions.Contains(Path.GetExtension(path)) || zipCandidates.Contains(path))
+            .Concat(folderCandidates).OrderBy(path => path, StringComparer.OrdinalIgnoreCase).ToArray();
         var results = new List<BatchIntegrityResult>(files.Length);
 
         for (var index = 0; index < files.Length; index++)
@@ -71,28 +112,38 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
 
             try
             {
-                var nxFile = _fileLoader.Load(file);
-                try
+                if (Directory.Exists(file) || Path.GetExtension(file).Equals(".zip", StringComparison.OrdinalIgnoreCase))
                 {
-                    _fileLoaded?.Invoke(nxFile);
+                    if (firmware == null) throw new InvalidDataException(referenceNotice);
+                    var result = firmware.Verify(file, cancellationToken,
+                        value => progressReporter.SetPercentage((index + value) / files.Length));
+                    results.Add(result with { FirmwareDetails = referenceNotice + Environment.NewLine + result.FirmwareDetails });
                 }
-                catch (Exception previewException)
+                else
                 {
-                    // A UI preview failure must not invalidate the package analysis.
-                    _logger.LogWarning(previewException, "Failed to display preview for {FilePath}", file);
+                    var nxFile = _fileLoader.Load(file);
+                    try
+                    {
+                        _fileLoaded?.Invoke(nxFile);
+                    }
+                    catch (Exception previewException)
+                    {
+                        // A UI preview failure must not invalidate the package analysis.
+                        _logger.LogWarning(previewException, "Failed to display preview for {FilePath}", file);
+                    }
+                    var verifier = _serviceProvider.GetRequiredService<IVerifyNcasIntegrityRunnable>();
+                    verifier.Setup(nxFile.Overview, _appSettings.IgnoreMissingDeltaFragments);
+                    verifier.Run(new ScaledProgressReporter(progressReporter, index, files.Length), cancellationToken);
+                    var integrityError = BuildIntegrityError(nxFile.Overview);
+                    results.Add(new BatchIntegrityResult(
+                        file,
+                        Path.GetExtension(file).TrimStart('.').ToUpperInvariant(),
+                        nxFile.Overview.FileType.ToString(),
+                        nxFile.Overview.PackageStructure.ToString(),
+                        nxFile.Overview.NcaCompressionType.ToString(),
+                        nxFile.Overview.NcasIntegrity,
+                        integrityError));
                 }
-                var verifier = _serviceProvider.GetRequiredService<IVerifyNcasIntegrityRunnable>();
-                verifier.Setup(nxFile.Overview, _appSettings.IgnoreMissingDeltaFragments);
-                verifier.Run(new ScaledProgressReporter(progressReporter, index, files.Length), cancellationToken);
-                var integrityError = BuildIntegrityError(nxFile.Overview);
-                results.Add(new BatchIntegrityResult(
-                    file,
-                    Path.GetExtension(file).TrimStart('.').ToUpperInvariant(),
-                    nxFile.Overview.FileType.ToString(),
-                    nxFile.Overview.PackageStructure.ToString(),
-                    nxFile.Overview.NcaCompressionType.ToString(),
-                    nxFile.Overview.NcasIntegrity,
-                    integrityError));
             }
             catch (OperationCanceledException)
             {
@@ -108,7 +159,7 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
                     "Unknown",
                     "Unknown",
                     NcasIntegrity.Error,
-                    ex.Message));
+                    ex.Message) { IsFirmware = Directory.Exists(file) || Path.GetExtension(file).Equals(".zip", StringComparison.OrdinalIgnoreCase), FirmwareDetails = ex.Message });
             }
 
             _resultCompleted?.Invoke(results[^1]);
@@ -119,6 +170,16 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
         if (files.Length == 0)
             progressReporter.SetPercentage(1);
         return results;
+    }
+
+    private static bool ContainsNca(string path)
+    {
+        try
+        {
+            using var zip = ZipFile.OpenRead(path);
+            return zip.Entries.Any(e => e.Name.EndsWith(".nca", StringComparison.OrdinalIgnoreCase));
+        }
+        catch (InvalidDataException) { return Path.GetFileName(path).Contains("firmware", StringComparison.OrdinalIgnoreCase); }
     }
 
     private static string? BuildIntegrityError(FileOverview overview)

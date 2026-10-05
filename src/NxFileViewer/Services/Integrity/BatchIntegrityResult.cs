@@ -12,5 +12,7 @@ public sealed record BatchIntegrityResult(
     NcasIntegrity Integrity,
     string? Error)
 {
+    public bool IsFirmware { get; init; }
+    public string? FirmwareDetails { get; init; }
     public string FileName => Path.GetFileName(FilePath);
 }

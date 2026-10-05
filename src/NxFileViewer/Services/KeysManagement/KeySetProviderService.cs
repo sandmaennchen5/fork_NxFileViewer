@@ -144,7 +144,7 @@ public class KeySetProviderService : NotifyPropertyChangedBase, IKeySetProviderS
     }
 
     /// <summary>
-    /// Loads the KeySet with 
+    /// Loads the KeySet with
     /// </summary>
     /// <returns></returns>
     private KeySet LoadKeySet()
@@ -169,7 +169,7 @@ public class KeySetProviderService : NotifyPropertyChangedBase, IKeySetProviderS
                     },
                     message =>
                     {
-                        _logger.LogWarning(message);
+                        KeyReaderMessageLogger.Log(_logger, message, LocalizationManager.Instance.Current.Keys.KeysLoading_UnusedKey_Log);
                     })
             );
 

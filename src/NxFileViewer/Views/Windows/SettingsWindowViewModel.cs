@@ -113,6 +113,13 @@ public class SettingsWindowViewModel : WindowViewModelBase
 
 
     public IEnumerable<LogLevel> LogLevels => Enum.GetValues<LogLevel>();
+    public IEnumerable<TitleProviderOption> TitleProviderOptions { get; } = new[]
+    {
+        new TitleProviderOption(TitleInfoProvider.Tinfoil, "Tinfoil"),
+        new TitleProviderOption(TitleInfoProvider.GitHubTitleDb, "TitleDB (GitHub)"),
+        new TitleProviderOption(TitleInfoProvider.NLib, "NLib API"),
+    };
+    public IEnumerable<string> TitleDbRegions { get; } = new[] { "DE.de", "US.en", "GB.en", "FR.fr", "ES.es", "IT.it", "JP.ja" };
 
     public IEnumerable<ThemeOption> ThemeOptions { get; } = new[]
     {
@@ -308,3 +315,4 @@ public class SettingsWindowViewModel : WindowViewModelBase
 }
 
 public sealed record ThemeOption(AppTheme Value, string DisplayName);
+public sealed record TitleProviderOption(TitleInfoProvider Value, string DisplayName);

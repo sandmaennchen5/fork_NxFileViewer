@@ -1,4 +1,4 @@
-﻿using Emignatik.NxFileViewer.Utils.MVVM.Localization;
+using Emignatik.NxFileViewer.Utils.MVVM.Localization;
 
 // ReSharper disable InconsistentNaming
 
@@ -6,6 +6,19 @@ namespace Emignatik.NxFileViewer.Localization.Keys;
 
 public interface ILocalizationKeys : ILocalizationKeysBase
 {
+    string Firmware_NoReferences { get; }
+    string Firmware_LoadingOnline { get; }
+    string Firmware_OnlineSource { get; }
+    string Firmware_OfflineSource { get; }
+    string Firmware_BrowseZip { get; }
+    string Firmware_Title { get; }
+    string Firmware_Unknown { get; }
+    string Firmware_Summary { get; }
+    string Firmware_Missing { get; }
+    string Firmware_Changed { get; }
+    string Firmware_Extra { get; }
+    string Firmware_Duplicate { get; }
+
     string FileNotSupported_Log { get; }
     string OpenFile_Filter { get; }
 
@@ -271,6 +284,7 @@ public interface ILocalizationKeys : ILocalizationKeysBase
 
     string KeysLoading_Starting_Log { get; }
     string KeysLoading_Successful_Log { get; }
+    string KeysLoading_UnusedKey_Log { get; }
     string KeysLoading_Error { get; }
     string WarnNoProdKeysFileFound { get; }
     string InvalidSetting_KeysFileNotFound { get; }
@@ -285,6 +299,9 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string OpenFileLocation_Failed_Log { get; }
     string SettingsView_TitlePageUrl { get; }
     string SettingsView_TitleInfoApiUrl { get; }
+    string SettingsView_TitleInfoProvider { get; }
+    string SettingsView_TitleDbRegion { get; }
+    string SettingsView_TitleDbCacheTip { get; }
     string BatchIntegrity_FileType { get; }
     string BatchIntegrity_PackageType { get; }
     string BatchIntegrity_ShowOnlyErrors { get; }

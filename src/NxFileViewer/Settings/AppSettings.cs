@@ -20,6 +20,9 @@ public class AppSettings : NotifyPropertyChangedBase, IAppSettings
 
     private string _titlePageUrl = "https://tinfoil.io/Title/{TitleId}";
     private string _titleInfoApiUrl = "https://tinfoil.io/api/title/{TitleId}";
+    private TitleInfoProvider _titleInfoProvider;
+    private string _titleDbRegion = "DE.de";
+    private string _nLibApiUrl = "https://api.nlib.cc/nx/{TitleId}?lang={Language}";
     private string _lastUsedDir = "";
     private bool _allowNczBlocklessCompressionOpening = true;
     private bool _acceptMissingDeltaFragments = true;
@@ -198,6 +201,24 @@ public class AppSettings : NotifyPropertyChangedBase, IAppSettings
 
     [JsonIgnore]
     IRenamingOptions IAppSettings.RenamingOptions => RenamingOptions;
+
+    public TitleInfoProvider TitleInfoProvider
+    {
+        get => _titleInfoProvider;
+        set { _titleInfoProvider = value; NotifyPropertyChanged(); }
+    }
+
+    public string TitleDbRegion
+    {
+        get => _titleDbRegion;
+        set { _titleDbRegion = value; NotifyPropertyChanged(); }
+    }
+
+    public string NLibApiUrl
+    {
+        get => _nLibApiUrl;
+        set { _nLibApiUrl = value; NotifyPropertyChanged(); }
+    }
 
     public RenamingOptions RenamingOptions { get; set; } = new();
 

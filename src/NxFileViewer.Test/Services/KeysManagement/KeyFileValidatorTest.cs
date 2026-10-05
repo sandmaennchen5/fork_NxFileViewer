@@ -21,6 +21,7 @@ public class KeyFileValidatorTest : IDisposable
         Assert.False(result.IsValid);
         Assert.Contains("master_key_00", result.InvalidKeys);
         Assert.Contains("master_key_15", result.MissingKeys);
+        Assert.Contains("master_key_16", result.MissingKeys);
         Assert.DoesNotContain("master_key_00", result.MissingKeys);
     }
 
@@ -37,13 +38,36 @@ public class KeyFileValidatorTest : IDisposable
     [Fact]
     public void ValidateProdKeys_ReportsUnsupportedMasterKeyRevisions()
     {
-        var path = WriteFile("future-prod.keys", "master_key_16 = 00112233445566778899AABBCCDDEEFF\n");
+        var path = WriteFile("future-prod.keys", "master_key_17 = 00112233445566778899AABBCCDDEEFF\n");
 
         var result = KeyFileValidator.ValidateProdKeys(path);
 
         Assert.True(result.HasWarnings);
-        Assert.Contains("master_key_16", result.UnsupportedMasterKeys!);
+        Assert.Contains("master_key_17", result.UnsupportedMasterKeys!);
+        Assert.DoesNotContain("master_key_17", result.InvalidKeys);
+    }
+
+    [Fact]
+    public void ValidateProdKeys_RecognizesRevision16AndItsFirmware()
+    {
+        // Artificial CRC32 collision starting with "TEST", not a cryptographic key.
+        var path = WriteFile("synthetic.keys", "master_key_16 = 54455354000000000000000063c1e62c\n");
+        var result = KeyFileValidator.ValidateProdKeys(path);
         Assert.DoesNotContain("master_key_16", result.InvalidKeys);
+        Assert.DoesNotContain("master_key_16", result.MissingKeys);
+        Assert.DoesNotContain("master_key_16", result.UnsupportedMasterKeys!);
+        Assert.Equal(0x16, result.HighestValidMasterKeyRevision);
+        Assert.Equal("23.0.0", MasterKeyFirmwareMap.GetSupportedFirmware(result.HighestValidMasterKeyRevision!.Value));
+    }
+
+    [Fact]
+    public void ValidateProdKeys_RejectsIncorrectRevision16Checksum()
+    {
+        var path = WriteFile("invalid.keys", "master_key_16 = 00000000000000000000000000000000\n");
+        var result = KeyFileValidator.ValidateProdKeys(path);
+        Assert.Contains("master_key_16", result.InvalidKeys);
+        Assert.DoesNotContain("master_key_16", result.UnsupportedMasterKeys!);
+        Assert.Null(result.HighestValidMasterKeyRevision);
     }
 
     [Fact]
@@ -79,6 +103,7 @@ public class KeyFileValidatorTest : IDisposable
     [InlineData(0x13, "20.0.0")]
     [InlineData(0x14, "21.0.0")]
     [InlineData(0x15, "22.0.0")]
+    [InlineData(0x16, "23.0.0")]
     public void FirmwareMap_MapsRecentMasterKeyRevisions(int revision, string firmware)
     {
         Assert.Equal(firmware, MasterKeyFirmwareMap.GetSupportedFirmware(revision));

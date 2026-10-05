@@ -43,6 +43,9 @@ public interface IAppSettings : INotifyPropertyChanged
     string TitlePageUrl { get; set; }
 
     string TitleInfoApiUrl { get; set; }
+    TitleInfoProvider TitleInfoProvider { get; set; }
+    string TitleDbRegion { get; set; }
+    string NLibApiUrl { get; set; }
 
     IRenamingOptions RenamingOptions { get; }
 

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Emignatik.NxFileViewer.Utils.MVVM.Localization;
 using LibHac.Ncm;
 
@@ -6,6 +6,19 @@ namespace Emignatik.NxFileViewer.Localization.Keys;
 
 public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
 {
+    public string Firmware_NoReferences => "Empreintes indisponibles : GitHub inaccessible et références locales absentes ou invalides.";
+    public string Firmware_LoadingOnline => "Chargement des empreintes depuis GitHub…";
+    public string Firmware_OnlineSource => "Source : GitHub (chargée pour cette vérification).";
+    public string Firmware_OfflineSource => "GitHub indisponible. Empreintes fournies utilisées ; des firmwares récents peuvent manquer.";
+    public string Firmware_BrowseZip => "Choisir un ZIP de firmware…";
+    public string Firmware_Title => "Vérification du firmware";
+    public string Firmware_Unknown => "Aucune référence de firmware correspondante.";
+    public string Firmware_Summary => "{0}/{1} fichiers valides ; manquants : {2}, modifiés : {3}, supplémentaires : {4}, doublons : {5}.";
+    public string Firmware_Missing => "Manquant";
+    public string Firmware_Changed => "Modifié (taille/SHA-256)";
+    public string Firmware_Extra => "NCA supplémentaire";
+    public string Firmware_Duplicate => "Nom en double";
+
     public override bool IsFallback => true;
     public override string DisplayName => "Français";
     public override string CultureName => "fr-FR";
@@ -112,7 +125,7 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
                                                Chaque fichier Nintendo Switch officiel est chiffré avec des clés spéciques à la version du firmware pour lequel il a été construit.
 
                                                Afin de pouvoir ouvrir n'importe quel fichier sans erreur, veuillez vous assurer de toujours posséder un fichier "prod.keys" contenant l'ensemble de toutes les clés de tous les firmwares existants.
-                                               
+
                                                Les fichiers de clé doivent contenir une clé par ligne, sous la forme «NOM_CLE = VALEUR_HEXADECIMAL»."
                                                """;
 
@@ -122,7 +135,7 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
                                                        1. le chemin défini par ce paramètre
                                                        2. le répertoire courant du programme
                                                        3. le dossier «%UserProfile%\\.switch»
-                                                   
+
                                                    Au démarrage, le programme peut automatiquement télécharger le fichier de clés quand aucun n'est trouvé sur le système.
                                                    Le fichier de clés sera téléchargé dans le répertoire courant de l'application.
                                                    """;
@@ -133,7 +146,7 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
                                                         1. le chemin défini par ce paramètre
                                                         2. le répertoire courant du programme
                                                         3. le dossier «%UserProfile%\\.switch»
-                                                    
+
                                                     Au démarrage, le programme peut automatiquement télécharger le fichier de clés quand aucun n'est trouvé sur le système.
                                                     Le fichier de clés sera téléchargé dans le répertoire courant de l'application.
                                                     """;
@@ -284,7 +297,7 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
 
     public string AvailableContents => "Contenus:";
     public string MultiContentPackageToolTip => "Le package contient plusieurs contenus («{0}» détecté).";
-        
+
     public string NcasIntegrity_Error_NcaMissing => "L'intégrité du NCA «{0}» ne peut être vérifiée, NCA manquant.";
     public string NcasIntegrity_Error_Log => "Echec de vérification de l'intégrité des NCAs: {0}";
     public string NcaIntegrity_GetOriginalNcaError => "Echec de récupération du NCA original: {0}";
@@ -325,6 +338,7 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
 
     public string KeysLoading_Starting_Log => ">>> Chargement des clés...";
     public string KeysLoading_Successful_Log => ">>> Clés chargées avec succès.";
+    public string KeysLoading_UnusedKey_Log => "Information : la clé supplémentaire «{0}» n’est pas utilisée par cette version du programme.";
     public string KeysLoading_Error => "Echec de chargement des clés: {0}.";
     public string WarnNoProdKeysFileFound => "Aucun fichier «prod.keys» trouvé.";
     public string InvalidSetting_KeysFileNotFound => "Le fichier de clé «{0}» défini dans les paramètres n'existe pas.";
@@ -338,6 +352,9 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
     public string OpenFileLocation_Failed_Log => "Echec d'ouverture de l'emplacement du fichier «{0}»: {1}";
     public string SettingsView_TitlePageUrl => "URL du titre";
     public string SettingsView_TitleInfoApiUrl => "URL de l’API des titres";
+    public string SettingsView_TitleInfoProvider => "Source des noms de titres";
+    public string SettingsView_TitleDbRegion => "Région / langue TitleDB";
+    public string SettingsView_TitleDbCacheTip => "TitleDB est conservée localement et actualisée chaque jour. Le cache reste disponible en cas de panne. Les titres manquants sont aussi recherchés dans US.en.";
     public string BatchIntegrity_FileType => "Type de fichier";
     public string BatchIntegrity_PackageType => "Type de paquet";
     public string BatchIntegrity_ShowOnlyErrors => "Afficher uniquement les fichiers défectueux";
@@ -364,11 +381,11 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
          Le format est facultatif, et peut valoir:
             - U: Majuscule
             - L: Minuscule
-         
+
          Exemples:
             {Title} => Le titre original
             {Title:U} => Le titre en majuscule
-         
+
          Liste des mots clés:
            • TitleId:
               - L'id du contenu.
@@ -391,9 +408,9 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
               - La version affichée.
            • WTitle:
               - Le titre du contenu récupéré depuis Internet.
-           • WAppTitle: 
+           • WAppTitle:
               - Le titre de l'{{nameof(ContentMetaType.Application)}} correspondante, récupéré depuis Internet.
-         
+
          Utilisez \{ ou \} pour écrire littéralement les caractères { ou }.
          """;
 

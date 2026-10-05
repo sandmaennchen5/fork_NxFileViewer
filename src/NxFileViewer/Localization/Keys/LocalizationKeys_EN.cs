@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Emignatik.NxFileViewer.Utils.MVVM.Localization;
 using LibHac.Ncm;
 
@@ -6,6 +6,19 @@ namespace Emignatik.NxFileViewer.Localization.Keys;
 
 public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
 {
+    public string Firmware_NoReferences => "Firmware hashes unavailable: GitHub could not be loaded and local references are missing or invalid.";
+    public string Firmware_LoadingOnline => "Loading firmware hashes from GitHub…";
+    public string Firmware_OnlineSource => "Hash source: GitHub (loaded for this check).";
+    public string Firmware_OfflineSource => "Notice: GitHub unavailable. Using bundled hashes; newer firmware may be missing.";
+    public string Firmware_BrowseZip => "Select firmware ZIP…";
+    public string Firmware_Title => "Firmware verification";
+    public string Firmware_Unknown => "No matching firmware hash reference found.";
+    public string Firmware_Summary => "{0}/{1} files valid; missing: {2}, changed: {3}, extra: {4}, duplicate: {5}.";
+    public string Firmware_Missing => "Missing";
+    public string Firmware_Changed => "Changed (size/SHA-256)";
+    public string Firmware_Extra => "Extra NCA";
+    public string Firmware_Duplicate => "Duplicate filename";
+
     public override bool IsFallback => true;
     public override string DisplayName => "English";
     public override string CultureName => "en-US";
@@ -112,7 +125,7 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
                                                Each official Nintendo Switch file is encrypted with keys specific to the Switch firmware version it was built for.
 
                                                In order to open any Nintendo Switch file without any error, always ensure to have an up-to-date "prod.keys" file with all the keys of all existing firmwares.
-                                               
+
                                                File should contain one key per line, in form of «KEY_NAME = HEXADECIMAL_VALUE».
                                                """;
     public string SettingsView_ToolTip_ProdKeys => """
@@ -121,7 +134,7 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
                                                        1. the path defined by this setting
                                                        2. the current program's directory
                                                        3. the «%UserProfile%\\.switch» directory
-                                                   
+
                                                    At startup, the program can automatically download the keys file when none is found on the system.
                                                    The keys file will be downloaded to the current application's directory.
                                                    """;
@@ -132,7 +145,7 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
                                                         1. the path defined by this setting
                                                         2. the current program's directory
                                                         3. the «%UserProfile%\\.switch» directory
-                                                    
+
                                                     At startup, the program can automatically download the keys file when none is found on the system.
                                                     The keys file will be downloaded to the current application's directory.
                                                     """;
@@ -268,7 +281,7 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
     public string Title_FileInfo_Integrity => "Integrity";
     public string ToolTip_NcasIntegrity => $"""
                                            Integrity check consists in verifying the integrity of each NCA (or NCZ).
-                                           
+
                                            Integrity result can be any of the following:
                                            - {NcasIntegrity_NoNca}: No NCA file found.
                                            - {NcasIntegrity_Unchecked}: Integrity not checked.
@@ -278,7 +291,7 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
                                            - {NcasIntegrity_Modified}: At least one NCA is modified (signature is not ok, but hash is ok).
                                            - {NcasIntegrity_Corrupted}: At least one NCA is corrupted (hash invalid).
                                            - {NcasIntegrity_Error}: An error occurred during the integrity check.
-                                           
+
                                            The detail of each analyzed NCA can be found in the «Content» tab.
                                            """;
 
@@ -325,6 +338,7 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
 
     public string KeysLoading_Starting_Log => ">>> Loading Keys...";
     public string KeysLoading_Successful_Log => ">>> Keys successfully loaded.";
+    public string KeysLoading_UnusedKey_Log => "Note: Additional key «{0}» is not used by this program version.";
     public string KeysLoading_Error => "Failed to load keys: {0}.";
     public string WarnNoProdKeysFileFound => "No «prod.keys» file found.";
     public string InvalidSetting_KeysFileNotFound => "Keys file «{0}» defined in the settings doesn't exist.";
@@ -338,6 +352,9 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
     public string OpenFileLocation_Failed_Log => "Failed to open location of file «{0}»: {1}";
     public string SettingsView_TitlePageUrl => "Title page URL";
     public string SettingsView_TitleInfoApiUrl => "Title information API URL";
+    public string SettingsView_TitleInfoProvider => "Title name source";
+    public string SettingsView_TitleDbRegion => "TitleDB region / language";
+    public string SettingsView_TitleDbCacheTip => "TitleDB is stored locally and refreshed daily. Cached data remains available during outages. Missing titles are also looked up in US.en.";
     public string BatchIntegrity_FileType => "File type";
     public string BatchIntegrity_PackageType => "Package type";
     public string BatchIntegrity_ShowOnlyErrors => "Show faulty files only";
@@ -358,17 +375,17 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
     public string RenamingTool_FileFilters => "Filters";
     public string RenamingTool_ToolTip_Patterns =>
         $$"""
-         Keyword syntax: 
+         Keyword syntax:
             {<Keyword>[:<Format>]}
-         
+
          Format is optional and can be:
          - U: Upper-case
          - L: Lower-case
-         
+
          Examples:
            {Title} => The original title
            {Title:U} => The upper-case title
-         
+
          Supported keywords:
            • TitleId:
               - The content id.
@@ -391,9 +408,9 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
               - The displayed version.
            • WTitle:
               - The content title retrieved from the Internet.
-           • WAppTitle: 
+           • WAppTitle:
               - The title of the corresponding {{nameof(ContentMetaType.Application)}}, retrieved from the Internet.
-         
+
          Use \{ or \} to write the literal chars { or }.
          """;
     public string RenamingTool_ToolTip_BasePattern => $"The pattern to use for contents of type {nameof(ContentMetaType.Application)}.";

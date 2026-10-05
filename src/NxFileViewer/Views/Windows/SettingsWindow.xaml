@@ -7,9 +7,10 @@
         xmlns:customControls="clr-namespace:Emignatik.NxFileViewer.Views.CustomControls"
         xmlns:windows="clr-namespace:Emignatik.NxFileViewer.Views.Windows"
         xmlns:keysManagement="clr-namespace:Emignatik.NxFileViewer.Services.KeysManagement"
+        xmlns:settings="clr-namespace:Emignatik.NxFileViewer.Settings"
         mc:Ignorable="d"
         Style="{StaticResource WindowStyle}"
-        Title="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_Title}" 
+        Title="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_Title}"
         Width="400"
         Height="440"
         d:DataContext="{d:DesignInstance windows:SettingsWindowViewModel}"
@@ -78,7 +79,7 @@
 
                                     <TextBlock  Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_Title_KeysDownloadUrl}" />
                                     <DockPanel LastChildFill="true">
-                                        <Button Command="{Binding Path=DownloadProdKeysCommand}" Style="{StaticResource DownloadButton}" DockPanel.Dock="Right" 
+                                        <Button Command="{Binding Path=DownloadProdKeysCommand}" Style="{StaticResource DownloadButton}" DockPanel.Dock="Right"
                                                 ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_ToolTip_DownloadKeys}"/>
                                         <TextBox Text="{Binding Path=EditedSettings.ProdKeysDownloadUrl}" />
                                     </DockPanel>
@@ -181,8 +182,48 @@
                             </StackPanel>
 
                             <StackPanel>
+                                <TextBlock Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_TitleInfoProvider}" />
+                                <ComboBox ItemsSource="{Binding TitleProviderOptions}" SelectedValuePath="Value" SelectedValue="{Binding EditedSettings.TitleInfoProvider}" DisplayMemberPath="DisplayName" />
+                            </StackPanel>
+
+                            <StackPanel>
+                                <StackPanel.Style>
+                                    <Style TargetType="StackPanel">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding EditedSettings.TitleInfoProvider}" Value="{x:Static settings:TitleInfoProvider.Tinfoil}"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </StackPanel.Style>
                                 <TextBlock Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_TitleInfoApiUrl}" />
                                 <TextBox Text="{Binding Path=EditedSettings.TitleInfoApiUrl, UpdateSourceTrigger=PropertyChanged}" />
+                            </StackPanel>
+
+                            <StackPanel>
+                                <StackPanel.Style>
+                                    <Style TargetType="StackPanel">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding EditedSettings.TitleInfoProvider}" Value="{x:Static settings:TitleInfoProvider.GitHubTitleDb}"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </StackPanel.Style>
+                                <TextBlock Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_TitleDbRegion}" />
+                                <ComboBox ItemsSource="{Binding TitleDbRegions}" SelectedItem="{Binding EditedSettings.TitleDbRegion}" />
+                                <TextBlock TextWrapping="Wrap" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_TitleDbCacheTip}" />
+                            </StackPanel>
+
+                            <StackPanel>
+                                <StackPanel.Style>
+                                    <Style TargetType="StackPanel">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding EditedSettings.TitleInfoProvider}" Value="{x:Static settings:TitleInfoProvider.NLib}"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </StackPanel.Style>
+                                <TextBlock Style="{StaticResource Title2}" Text="NLib API URL" />
+                                <TextBox Text="{Binding EditedSettings.NLibApiUrl, UpdateSourceTrigger=PropertyChanged}" />
                             </StackPanel>
 
                         </StackPanel>

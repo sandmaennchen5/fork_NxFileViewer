@@ -11,9 +11,10 @@
             <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         <Grid>
-            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
             <TextBox Text="{Binding InputDirectory, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,8,0"/>
             <Button Grid.Column="1" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_Browse}" Command="{Binding BrowseCommand}" Padding="14,3"/>
+            <Button Grid.Column="2" Margin="8,0,0,0" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Firmware_BrowseZip}" Command="{Binding BrowseFirmwareZipCommand}" Padding="14,3"/>
         </Grid>
         <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,8">
             <CheckBox Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_IncludeSubdirectories}" IsChecked="{Binding IncludeSubdirectories}"/>
@@ -21,7 +22,7 @@
         </StackPanel>
         <Grid Grid.Row="2">
             <Grid.ColumnDefinitions><ColumnDefinition Width="3*"/><ColumnDefinition Width="5"/><ColumnDefinition Width="2*"/></Grid.ColumnDefinitions>
-            <DataGrid ItemsSource="{Binding ResultsView}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False">
+            <DataGrid ItemsSource="{Binding ResultsView}" SelectedItem="{Binding SelectedResult}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_File}" Binding="{Binding FileName}" Width="2*"/>
                     <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_FileType}" Binding="{Binding FileType}" Width="*"/>
@@ -37,6 +38,9 @@
             <TabControl Grid.Column="2" Margin="8,0,0,0">
                 <TabItem Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.TabOverview}">
                     <userControls:FileOverviewView DataContext="{Binding PreviewOverview}"/>
+                </TabItem>
+                <TabItem Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Firmware_Title}">
+                    <TextBox Text="{Binding SelectedResult.FirmwareDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
                 </TabItem>
             </TabControl>
         </Grid>

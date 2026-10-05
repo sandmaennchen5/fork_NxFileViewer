@@ -5,13 +5,19 @@ All notable changes to NxFileViewer will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [3.0.4] - 2026-10-05
 
 ### Added
 
+- Firmware verification for ZIP archives and folders of loose NCAs using bundled `fw/hashes/*.json` size and SHA-256 references, without keys or extraction.
+- Firmware checks fetch current hash references from GitHub only for detected or explicitly selected firmware, with no disk cache and a visible bundled-reference fallback during outages. Repeated firmware checks fetch again; pure game folders make no request.
+- Automatic firmware detection in folder integrity checks, firmware version/result details, and CSV export. Missing, changed, extra and duplicate NCA entries fail verification.
+- Selectable title metadata sources: Tinfoil, regional GitHub TitleDB with persistent offline cache, and configurable NLib API.
+- Firmware mapping for master-key revision 0x16 to 23.0.0. Its CRC32 reference was derived from a local key file and is not an independent upstream confirmation.
+
 - Added validation results for `prod.keys` and `title.keys` to the settings window.
 - Added detection and reporting of missing `master_key_XX` revisions in outdated `prod.keys` files.
-- Added CRC32-based validation of known master-key revisions through `master_key_15`.
+- Added CRC32-based validation of known master-key revisions through `master_key_16`.
 - Added malformed-line detection for key files.
 - Added structural validation of Rights ID and title-key pairs in `title.keys`.
 - Added an estimate of the newest supported firmware based on the highest valid master-key revision.
@@ -31,6 +37,11 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Fixed
 
+- Solid NCZ reads now cache the decoded prefix in a temporary file, avoiding complete decompression restarts on backward/random reads and improving the likely bottleneck behind issue #52.
+- Block NCZ decoding respects compressed block boundaries; block lookup, short reads, EOF handling, zero-length reads and disabled caching are corrected or covered by regression tests.
+- Online rename failures (including HTTP 503) fall back to the local NACP title when available.
+- Unrecognized additional key names are reported as localized informational notices; malformed key data remains a warning.
+
 - Prevented a double release of the LibHac `main.npdm` file while loading program-security information.
 - Added a defensive size limit so malformed NPDM files fail safely instead of destabilizing file loading.
 - Snapshot NPDM security data inside the protected parser block so UI bindings cannot trigger delayed parser failures.
@@ -42,9 +53,58 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Notes
 
+- ZstdSharp.Port remains at 0.8.8; compressed NACP titles remain supported.
+- Firmware references ship with the application and work offline. ZIPs repacked with different compression are valid if all NCA contents match. Local `/test/` data is excluded from Git.
+- Validation: solution build and 94 automated tests (including nine firmware tests). Real firmware archives were not used for these tests.
+
 - The firmware shown for `prod.keys` is the newest content firmware supported by its keys. The exact firmware on which the file was dumped cannot be determined from the key file.
 - `title.keys` can be checked for valid structure, but title-key values cannot be compared against a universal list of expected values.
 
 ## [3.0.3]
 
-- Existing release preceding this changelog.
+Dieses Release erweitert NxFileViewer um eine Stapelprüfung, modernisiert die Oberfläche und übernimmt Verbesserungen aus verschiedenen Community-Forks.
+Neue Stapel-Integritätsprüfung
+- Ganze Ordner mit Nintendo-Switch-Dateien prüfen
+- Unterstützt NSP, NSZ, XCI und XCZ
+- Unterordner optional einbeziehen
+- Ergebnisse erscheinen während der laufenden Prüfung
+- Anzeige von:
+  - Dateityp
+  - Pakettyp
+  - Komprimierung
+  - Integritätsstatus
+  - Fehlerbeschreibung
+  - vollständigem Dateipfad
+- Filter „Nur fehlerhafte anzeigen“
+- Aktuell geprüfte Datei mit eigener Übersicht rechts
+- Fortschrittsanzeige und Statusleiste
+- Prüfung kann abgebrochen werden
+- Ergebnisse als CSV exportieren
+- Zuletzt verwendeten Stapelordner speichern
+- Fehlerfreie Dateien in einen auswählbaren Zielordner verschieben
+- Unterordnerstruktur bleibt beim Verschieben erhalten
+- Vorhandene Zieldateien werden nicht überschrieben
+- Fehlerhafte Dateien werden niemals automatisch gelöscht oder verschoben
+Oberfläche und Einstellungen
+- Dark-, Light- und System-Theme
+- Dunkle Titelleisten für Hauptfenster, Einstellungen, Umbenennen und Stapelprüfung
+- Fensterposition und Fenstergröße werden gespeichert
+- Verbesserte Darstellung des Stapelfensters im Dark Mode
+- Tinfoil-Titelseiten-URL und Tinfoil-API-URL separat konfigurierbar
+- Aktualisierung von tinfoil.media auf tinfoil.io
+NACP-Verbesserungen
+- Unterstützung komprimierter NACP-Titelblöcke
+- Unterstützung von bis zu 32 Sprachen statt bisher 16
+- Erweiterte Anzeige von NACP-Informationen
+Umbenennen
+- GitHub-Issue #46 behoben
+- Fehlende Leerzeichen bzw. Trennzeichen in online abgerufenen Titeln werden beim Umbenennen korrigiert
+- Normalisierung fehlerhaft zusammengesetzter Dateinamen verbessert
+Abhängigkeiten und Build
+- Projekt auf aktuelle .NET-8-kompatible Pakete aktualisiert
+- ZstdSharp.Port aktualisiert
+- Microsoft.Extensions-Pakete aktualisiert
+- Test-SDK, xUnit und Coverlet aktualisiert
+- LibHac bleibt vorerst auf Version 0.19.0, da kein vollständig kompatibler direkter Ersatz verfügbar ist
+
+Vielen Dank an das ursprüngliche NxFileViewer-Projekt und alle Community-Mitwirkenden.
