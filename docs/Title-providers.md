@@ -3,7 +3,7 @@
 In Settings, under Miscellaneous, select **Title name source**:
 
 - **Tinfoil** uses the existing configurable Title information API URL. Existing settings retain this source and URL.
-- **TitleDB (GitHub)** downloads the selected regional JSON catalog, defaults to DE.de, and looks up entries by their embedded title ID rather than their NSU dictionary key. Missing titles are also looked up in US.en. Catalogs are cached in `%LOCALAPPDATA%/NxFileViewer/TitleDB`, refreshed after 24 hours, and retained when an update fails. Failed refreshes with existing cached data wait five minutes before retrying. Catalog files are replaced only after valid parsing; unwritable cache storage does not prevent using downloaded titles in memory.
+- **TitleDB (GitHub)** downloads the selected regional JSON catalog, defaults to DE.de, and looks up entries by their embedded title ID rather than their NSU dictionary key. Missing titles are also looked up in US.en. Catalogs are cached in `Cache/TitleDB` next to the executable, refreshed after 24 hours, and retained when an update fails. Failed refreshes with existing cached data wait five minutes before retrying. Catalog files are replaced only after valid parsing; unwritable cache storage does not prevent using downloaded titles in memory.
 - **NLib API** defaults to `https://api.nlib.cc/nx/{TitleId}?lang={Language}`. The URL is editable for other deployments. Language follows the app language or system language for automatic selection, with English as fallback for unsupported languages. The adapter maps NLib's `icon` field.
 
 Applying settings changes the metadata source for subsequent requests. The per-title memory cache includes provider, source URL, region and app language, and expires after 24 hours. The separate title-web-page URL remains configurable independently.
@@ -18,3 +18,9 @@ Sources reviewed:
 Verification on 2026-10-05: both live sources returned Until Then for title ID 010019C023004000. Solution build passed with zero warnings and errors; all 94 tests passed for version 3.0.4. Tests cover provider routing, NLib language/icon mapping, indexing by title ID, cache persistence across restarts, stale cache during outages, rejection of malformed updates, English fallback, settings persistence and source switching, plus the existing offline-renaming regression tests.
 
 Version 3.0.4 includes these settings. Older Publish packages need rebuilding to include them.
+
+No AppData import or fallback is used. If the program cache directory is unwritable, titles may still be used in memory and the failed save is logged; no other cache location is selected.
+
+## Manual refresh
+
+Use **Updates → Refresh TitleDB** to force a new download for the saved TitleDB region and US.en fallback. This works independently of the selected title provider and does not change it. Validated catalogs replace their cache files atomically under `Cache/TitleDB` next to the viewer. Failed downloads or invalid JSON retain previous catalogs. Cached per-title responses are invalidated afterwards, including if only one region succeeded.

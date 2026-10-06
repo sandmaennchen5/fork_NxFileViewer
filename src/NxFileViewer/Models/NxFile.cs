@@ -11,6 +11,11 @@ namespace Emignatik.NxFileViewer.Models;
 /// </summary>
 public class NxFile : IDisposable
 {
+    public Services.Integrity.BatchIntegrityResult? FirmwareResult { get; set; }
+    public IDisposable? OwnedResource { get; set; }
+    public string? ArchivePath { get; set; }
+    public string? ArchiveEntry { get; set; }
+    public System.Collections.Generic.IReadOnlyList<string> ArchiveEntries { get; set; } = Array.Empty<string>();
     public NxFile(string filePath, IItem rootItem, FileOverview overview)
     {
         FilePath = filePath;
@@ -38,6 +43,7 @@ public class NxFile : IDisposable
 
     public void Dispose()
     {
-        RootItem.Dispose();
+        try { RootItem.Dispose(); }
+        finally { OwnedResource?.Dispose(); OwnedResource = null; }
     }
 }

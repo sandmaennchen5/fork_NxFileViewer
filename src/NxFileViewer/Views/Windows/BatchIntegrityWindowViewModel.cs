@@ -1,5 +1,6 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
@@ -19,6 +20,10 @@ using Emignatik.NxFileViewer.Settings;
 using Emignatik.NxFileViewer.Models;
 using Emignatik.NxFileViewer.Views.UserControls;
 using System.Windows;
+using System.Threading;
+using System.Threading.Tasks;
+using Emignatik.NxFileViewer.FileLoading;
+using Emignatik.NxFileViewer.Services.Nsz;
 
 namespace Emignatik.NxFileViewer.Views.Windows;
 
@@ -30,6 +35,10 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
     private string _inputDirectory = "";
     private bool _showOnlyErrors;
     private NxFile? _previewFile;
+    private bool _closed;
+    // Overview models contain metadata already read by the checker; retaining them
+    // does not require retaining the open NxFile or its decoded NCZ cache.
+    private readonly Dictionary<string, FileOverviewViewModel> _completedPreviews = new(StringComparer.OrdinalIgnoreCase);
     private FileOverviewViewModel? _previewOverview;
 
     public BatchIntegrityWindowViewModel(IPromptService promptService, IServiceProvider serviceProvider,
@@ -45,12 +54,14 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         BrowseCommand = new RelayCommand(Browse);
         BrowseFirmwareZipCommand = new RelayCommand(() =>
         {
-            var dialog = new Microsoft.Win32.OpenFileDialog { Filter = "Firmware ZIP (*.zip)|*.zip", Title = LocalizationManager.Instance.Current.Keys.Firmware_Title };
+            var dialog = new Microsoft.Win32.OpenFileDialog { Filter = "ZIP / 7z (*.zip;*.7z)|*.zip;*.7z", Title = LocalizationManager.Instance.Current.Keys.BatchIntegrity_Title };
             if (dialog.ShowDialog() == true) InputDirectory = dialog.FileName;
         });
         StartCommand = new RelayCommand(Start, CanStart);
         ExportCommand = new RelayCommand(Export, () => Results.Count > 0 && !BackgroundTask.IsRunning);
         MoveValidCommand = new RelayCommand(MoveValid, CanMoveValid);
+        CompressValidCommand = new RelayCommand(() => ConvertValid(NszOperation.Compress), () => CanConvertValid(NszOperation.Compress));
+        DecompressValidCommand = new RelayCommand(() => ConvertValid(NszOperation.Decompress), () => CanConvertValid(NszOperation.Decompress));
         _inputDirectory = Directory.Exists(appSettings.LastUsedDir) ? appSettings.LastUsedDir : "";
         BackgroundTask.PropertyChanged += BackgroundTaskOnPropertyChanged;
     }
@@ -63,12 +74,32 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
     public BatchIntegrityResult? SelectedResult
     {
         get => _selectedResult;
-        set { _selectedResult = value; NotifyPropertyChanged(); }
+        set
+        {
+            if (ReferenceEquals(_selectedResult, value)) return;
+            _selectedResult = value;
+            SelectedDetailsTabIndex = value?.IsFirmware == true ? 1 : 0;
+            NotifyPropertyChanged();
+            UpdateSelectedPreview();
+        }
+    }
+    private int _selectedDetailsTabIndex;
+    public int SelectedDetailsTabIndex
+    {
+        get => _selectedDetailsTabIndex;
+        set
+        {
+            if (_selectedDetailsTabIndex == value) return;
+            _selectedDetailsTabIndex = value;
+            NotifyPropertyChanged();
+        }
     }
     public RelayCommand BrowseCommand { get; }
     public RelayCommand StartCommand { get; }
     public RelayCommand ExportCommand { get; }
     public RelayCommand MoveValidCommand { get; }
+    public RelayCommand CompressValidCommand { get; }
+    public RelayCommand DecompressValidCommand { get; }
     public bool IncludeSubdirectories { get; set; } = true;
     public FileOverviewViewModel? PreviewOverview
     {
@@ -76,6 +107,15 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         private set { _previewOverview = value; NotifyPropertyChanged(); }
     }
 
+    private string _searchText = "";
+    private string _fileTypeFilter = "";
+    private string _integrityFilter = "";
+    public string SearchText { get => _searchText; set { _searchText = value ?? ""; NotifyPropertyChanged(); ResultsView.Refresh(); } }
+    public string FileTypeFilter { get => _fileTypeFilter; set { _fileTypeFilter = value ?? ""; NotifyPropertyChanged(); ResultsView.Refresh(); } }
+    public string IntegrityFilter { get => _integrityFilter; set { _integrityFilter = value ?? ""; NotifyPropertyChanged(); ResultsView.Refresh(); } }
+    public IReadOnlyList<BatchFilterOption> FileTypeFilters { get; } = new[] { "", "NSP", "NSZ", "XCI", "XCZ", "ZIP", "7Z", "Folder" }.Select(value => new BatchFilterOption(value)).ToArray();
+    public IReadOnlyList<BatchFilterOption> IntegrityFilters { get; } = new[] { new BatchFilterOption("") }.Concat(Enum.GetValues<NcasIntegrity>().Select(value => new BatchFilterOption(value.ToString()))).ToArray();
+    public RelayCommand ResetFiltersCommand => new(() => { SearchText = ""; FileTypeFilter = ""; IntegrityFilter = ""; ShowOnlyErrors = false; });
     public bool ShowOnlyErrors
     {
         get => _showOnlyErrors;
@@ -99,11 +139,12 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         if (directory != null) InputDirectory = directory;
     }
 
-    private bool CanStart() => (Directory.Exists(InputDirectory) || (File.Exists(InputDirectory) && Path.GetExtension(InputDirectory).Equals(".zip", StringComparison.OrdinalIgnoreCase))) && !BackgroundTask.IsRunning;
+    private bool CanStart() => (Directory.Exists(InputDirectory) || (File.Exists(InputDirectory) && PackageZip.IsArchive(InputDirectory))) && !BackgroundTask.IsRunning;
 
     private async void Start()
     {
         Results.Clear();
+        _completedPreviews.Clear();
         SelectedResult = null;
         ClearPreview();
         ExportCommand.TriggerCanExecuteChanged();
@@ -117,6 +158,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         catch (Exception ex) { _logger.LogError(ex, "Batch integrity check failed."); }
         finally
         {
+            if (_closed) ClearPreview();
             ExportCommand.TriggerCanExecuteChanged();
             MoveValidCommand.TriggerCanExecuteChanged();
         }
@@ -128,7 +170,12 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         {
             _previewFile?.Dispose();
             _previewFile = file;
-            PreviewOverview = new FileOverviewViewModel(file.Overview, _serviceProvider);
+            if (_closed) return;
+            // Capture every loaded overview once, even while another result is selected.
+            _completedPreviews[file.FilePath] = new FileOverviewViewModel(file.Overview, _serviceProvider);
+            if (SelectedResult == null || SelectedResult.FilePath.Equals(file.FilePath, StringComparison.OrdinalIgnoreCase))
+                PreviewOverview = _completedPreviews[file.FilePath];
+            else UpdateSelectedPreview();
         });
     }
 
@@ -136,6 +183,32 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
     {
         Application.Current.Dispatcher.Invoke(() =>
         {
+            // The cached model observes integrity changes from the verifier.
+            // Publish it before adding a row, which can trigger selection bindings.
+            if (!result.IsFirmware && _completedPreviews.TryGetValue(result.FilePath, out var completed) &&
+                SelectedResult?.FilePath.Equals(result.FilePath, StringComparison.OrdinalIgnoreCase) == true)
+                PreviewOverview = completed;
+            if (!result.IsFirmware && _completedPreviews.TryGetValue(result.FilePath, out var overview))
+            {
+                var packages = overview.CnmtContainers;
+                string Join(Func<CnmtContainerViewModel, string?> selector) => string.Join(" / ",
+                    packages.Select(selector).Where(value => !string.IsNullOrWhiteSpace(value)).Distinct());
+                result = result with
+                {
+                    Title = Join(package => package.Titles.FirstOrDefault()?.AppName),
+                    TitleId = Join(package => package.TitleId),
+                    Publisher = Join(package => package.Titles.FirstOrDefault()?.Publisher),
+                    Version = Join(package => package.TitleVersion),
+                    DisplayVersion = Join(package => package.DisplayVersion),
+                    SystemVersion = Join(package => package.MinimumSystemVersion),
+                    MasterKey = Join(package => package.MasterKey),
+                    BuildId = Join(package => package.BuildID),
+                    Distribution = Join(package => package.Distribution),
+                    Languages = string.Join(", ", packages.SelectMany(package => package.Titles).Select(title => title.Language.ToString()).Distinct()),
+                    FileSize = _previewFile?.FilePath == result.FilePath ? _previewFile.Overview.FileSize : null,
+                    CompressionRatio = _previewFile?.FilePath == result.FilePath ? _previewFile.Overview.CompressionRatio : null
+                };
+            }
             Results.Add(result);
             if (result.IsFirmware) SelectedResult = result;
             ExportCommand.TriggerCanExecuteChanged();
@@ -150,8 +223,59 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         PreviewOverview = null;
     }
 
+    public void ClosePreview()
+    {
+        _closed = true;
+        _completedPreviews.Clear();
+        BackgroundTask.PropertyChanged -= BackgroundTaskOnPropertyChanged;
+        // The checking file remains in use until the verifier task ends.
+        if (!BackgroundTask.IsRunning) ClearPreview();
+    }
+
+    private void UpdateSelectedPreview()
+    {
+        PreviewOverview = null;
+        var selected = SelectedResult;
+        if (_closed || selected == null || selected.IsFirmware) return;
+        // Completed results are snapshots. Selection must never reopen a package,
+        // including when its source was moved/deleted after the check.
+        if (_completedPreviews.TryGetValue(selected.FilePath, out var completed))
+            PreviewOverview = completed;
+    }
     private bool CanMoveValid() => !BackgroundTask.IsRunning &&
         Results.Any(result => !result.IsFirmware && result.Integrity == NcasIntegrity.Original && File.Exists(result.FilePath));
+
+    private bool CanConvertValid(NszOperation operation) => !BackgroundTask.IsRunning && Results.Any(result =>
+        !result.IsFirmware && result.Integrity == NcasIntegrity.Original && File.Exists(result.FilePath) &&
+        PackageConversionService.Supports(result.FilePath, operation));
+
+    private async void ConvertValid(NszOperation operation)
+    {
+        if (!CanConvertValid(operation)) return;
+        var paths = Results.Where(result => !result.IsFirmware && result.Integrity == NcasIntegrity.Original &&
+            File.Exists(result.FilePath) && PackageConversionService.Supports(result.FilePath, operation))
+            .Select(result => result.FilePath).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        ClearPreview();
+        var attempts = await _serviceProvider.GetRequiredService<NszActions>().ConvertFilesAsync(paths, operation, InputDirectory);
+        foreach (var attempt in attempts)
+        {
+            var existing = Results.FirstOrDefault(result => result.FilePath == attempt.SourcePath);
+            if (existing == null) continue;
+            var result = attempt.Result;
+            Results[Results.IndexOf(existing)] = existing with
+            {
+                ConversionStatus = result != null ? LocalizationManager.Instance.Current.Keys.Nsz_Verified +
+                    (result.SourceDeleted ? "; " + LocalizationManager.Instance.Current.Keys.Nsz_SourceDeleted :
+                    result.SourceDeletionError != null ? "; " + LocalizationManager.Instance.Current.Keys.Nsz_SourceDeleteFailed + ": " + result.SourceDeletionError : "") : attempt.Error,
+                ConversionFailed = result == null || result.SourceDeletionError != null,
+                ConvertedPath = result?.OutputPath, SourceSize = result?.SourceSize, OutputSize = result?.OutputSize
+            };
+            if (result != null && !Results.Any(row => row.FilePath.Equals(result.OutputPath, StringComparison.OrdinalIgnoreCase)))
+                Results.Add(result.Verification with { ConversionStatus = LocalizationManager.Instance.Current.Keys.Nsz_Verified,
+                    SourceSize = result.SourceSize, OutputSize = result.OutputSize });
+        }
+        ResultsView.Refresh();
+    }
 
     private async void MoveValid()
     {
@@ -206,8 +330,8 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
     {
         var path = _promptService.PromptSaveFile("integrity-results.csv", "Export integrity results", "CSV files (*.csv)|*.csv");
         if (path == null) return;
-        var csv = new StringBuilder("File;FileType;PackageType;Structure;Compression;Integrity;Error;FirmwareDetails\r\n");
-        foreach (var result in Results)
+        var csv = new StringBuilder("File;FileType;PackageType;Structure;Compression;Integrity;Error;FirmwareDetails;Conversion;ConvertedPath;SourceBytes;OutputBytes;Title;TitleId;Publisher;Version;DisplayVersion;Firmware;MasterKey;BuildId;Distribution;Languages;FileBytes;CompressionRatio\r\n");
+        foreach (var result in ResultsView.Cast<BatchIntegrityResult>())
             csv.Append(Escape(result.FilePath)).Append(';')
                 .Append(Escape(result.FileType)).Append(';')
                 .Append(Escape(result.PackageType)).Append(';')
@@ -215,14 +339,21 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
                 .Append(Escape(result.Compression)).Append(';')
                 .Append(Escape(result.Integrity.ToString())).Append(';')
                 .Append(Escape(result.Error ?? "")).Append(';')
-                .Append(Escape(result.FirmwareDetails ?? "")).Append("\r\n");
+                .Append(Escape(result.FirmwareDetails ?? "")).Append(';')
+                .Append(Escape(result.ConversionStatus ?? "")).Append(';')
+                .Append(Escape(result.ConvertedPath ?? "")).Append(';')
+                .Append(result.SourceSize).Append(';').Append(result.OutputSize).Append(';')
+                .Append(string.Join(";", new[] { result.Title, result.TitleId, result.Publisher, result.Version, result.DisplayVersion,
+                    result.SystemVersion, result.MasterKey, result.BuildId, result.Distribution, result.Languages }.Select(Escape)))
+                .Append(';').Append(result.FileSize).Append(';')
+                .Append(result.CompressionRatio?.ToString(System.Globalization.CultureInfo.InvariantCulture)).Append("\r\n");
         File.WriteAllText(path, csv.ToString(), new UTF8Encoding(true));
     }
 
     private static string Escape(string value) => $"\"{value.Replace("\"", "\"\"")}\"";
 
     private bool ShouldDisplayResult(object item) =>
-        !_showOnlyErrors || item is BatchIntegrityResult { Integrity: not NcasIntegrity.Original };
+        item is BatchIntegrityResult result && BatchResultFilter.Matches(result, SearchText, FileTypeFilter, IntegrityFilter, ShowOnlyErrors);
 
     private void BackgroundTaskOnPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
@@ -230,5 +361,12 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         StartCommand.TriggerCanExecuteChanged(true);
         ExportCommand.TriggerCanExecuteChanged(true);
         MoveValidCommand.TriggerCanExecuteChanged(true);
+        CompressValidCommand.TriggerCanExecuteChanged(true);
+        DecompressValidCommand.TriggerCanExecuteChanged(true);
     }
+}
+
+public sealed record BatchFilterOption(string Value)
+{
+    public string Label => Value.Length == 0 ? LocalizationManager.Instance.Current.Keys.BatchTable_All : Value;
 }

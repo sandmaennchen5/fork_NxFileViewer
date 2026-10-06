@@ -77,6 +77,30 @@ internal sealed class TitleDbCatalog(string cacheDirectory, ILogger? logger)
         finally { _gate.Release(); }
     }
 
+    public async Task<int> RefreshAsync(string region, HttpClient client, CancellationToken token)
+    {
+        if (!Regex.IsMatch(region, "^[A-Z]{2}\\.[a-z]{2}$")) throw new ArgumentException("Invalid TitleDB region.");
+        await _gate.WaitAsync(token);
+        try
+        {
+            var json = await client.GetStringAsync($"https://raw.githubusercontent.com/blawar/titledb/master/{region}.json", token);
+            var titles = Parse(json);
+            Directory.CreateDirectory(cacheDirectory);
+            var path = Path.Combine(cacheDirectory, region + ".json");
+            var temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
+            try
+            {
+                await File.WriteAllTextAsync(temporary, json, token);
+                token.ThrowIfCancellationRequested();
+                File.Move(temporary, path, overwrite: true);
+                _catalogs[region] = (titles, DateTime.UtcNow.AddDays(1));
+                return titles.Count;
+            }
+            finally { if (File.Exists(temporary)) File.Delete(temporary); }
+        }
+        finally { _gate.Release(); }
+    }
+
     private static Dictionary<string, OnlineTitleInfo> Parse(string json)
     {
         using var document = JsonDocument.Parse(json);

@@ -1,14 +1,9 @@
-﻿using System.Windows;
+using System.Windows.Controls;
 
 namespace Emignatik.NxFileViewer.Views.Windows;
 
-/// <summary>
-/// Logique d'interaction pour RenameToolWindow.xaml
-/// </summary>
-public partial class RenameToolWindow : Window
+// Embedded workspace page; its view model survives navigation.
+public partial class RenameToolWindow : UserControl
 {
-    public RenameToolWindow()
-    {
-        InitializeComponent();
-    }
+    public RenameToolWindow() => InitializeComponent();
 }

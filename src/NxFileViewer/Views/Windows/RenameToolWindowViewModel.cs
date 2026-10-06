@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.ComponentModel;
 using Emignatik.NxFileViewer.Commands;
 using Emignatik.NxFileViewer.Localization;
@@ -183,9 +183,11 @@ public class RenameToolWindowViewModel : WindowViewModelBase, IFilesDropped
             RenameCommand.InputPath = selectedDir;
     }
 
+    public Action? EditingCompleted { get; set; }
+
     private void Cancel()
     {
-        this.Window?.Close();
+        EditingCompleted?.Invoke();
     }
 
     public void OnFilesDropped(string[] files)

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading.Tasks;
 using System.Windows;
 using Emignatik.NxFileViewer.FileLoading;
@@ -8,6 +8,9 @@ using Emignatik.NxFileViewer.Services.BackgroundTask;
 using Emignatik.NxFileViewer.Services.BackgroundTask.RunnableImpl;
 using Emignatik.NxFileViewer.Settings;
 using Microsoft.Extensions.Logging;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 
 namespace Emignatik.NxFileViewer.Services.FileOpening;
 
@@ -17,6 +20,9 @@ public class FileOpeningService : IFileOpeningService
     private readonly IFileLoader _fileLoader;
     private readonly IMainBackgroundTaskRunnerService _backgroundTaskRunnerService;
     private readonly ILogger _logger;
+    private readonly Dictionary<string, NxFile> _archiveFiles = new(StringComparer.Ordinal);
+    private string? _archivePath;
+    private int _openGeneration;
 
     public FileOpeningService(ILoggerFactory loggerFactory, IAppSettings appSettings, IFileLoader fileLoader, IMainBackgroundTaskRunnerService backgroundTaskRunnerService)
     {
@@ -28,24 +34,46 @@ public class FileOpeningService : IFileOpeningService
 
     public async Task SafeOpenFile(string filePath)
     {
+        if (_backgroundTaskRunnerService.IsRunning) return;
+        var generation = ++_openGeneration;
         try
         {
-            _appSettings.LastOpenedFile = filePath;
+            _appSettings.LastOpenedFile = PackageZip.ArchivePath(filePath);
+            var sameArchive = PackageZip.IsMember(filePath) && _archivePath != null &&
+                string.Equals(Path.GetFullPath(PackageZip.ArchivePath(filePath)), _archivePath, StringComparison.OrdinalIgnoreCase);
+            if (sameArchive && _archiveFiles.TryGetValue(filePath.Split(PackageZip.Separator, 2)[1], out var cached))
+            {
+                _openedFile = cached;
+                NotifyOpenedFileChanged(cached);
+                return;
+            }
 
-            var runnableRelay = new RunnableRelay<NxFile>((reporter, _) =>
+            var runnableRelay = new RunnableRelay<NxFile>((reporter, token) =>
             {
                 var loadingFilePleaseWait = LocalizationManager.Instance.Current.Keys.LoadingFile_PleaseWait;
                 reporter.SetText(loadingFilePleaseWait);
-                return _fileLoader.Load(filePath);
+                return _fileLoader.Load(filePath, token);
             })
             {
                 SupportProgress = false,
-                SupportsCancellation = false
+                SupportsCancellation = PackageZip.IsMember(filePath) || PackageZip.IsArchive(filePath) || System.IO.Path.GetExtension(filePath).Equals(".nca", StringComparison.OrdinalIgnoreCase)
             };
 
-            _openedFile = await _backgroundTaskRunnerService.RunAsync(runnableRelay);
+            var loaded = await _backgroundTaskRunnerService.RunAsync(runnableRelay);
+            if (generation != _openGeneration) { loaded.Dispose(); return; }
+            if (!sameArchive) DisposeOpenedFiles();
+            _openedFile = loaded;
+            if (loaded.ArchivePath != null && loaded.ArchiveEntry != null)
+            {
+                _archivePath = Path.GetFullPath(loaded.ArchivePath);
+                _archiveFiles.Add(loaded.ArchiveEntry, loaded);
+            }
 
             NotifyOpenedFileChanged(_openedFile);
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogInformation(LocalizationManager.Instance.Current.Keys.Update_Cancelled);
         }
         catch (FileNotSupportedException ex)
         {
@@ -59,8 +87,8 @@ public class FileOpeningService : IFileOpeningService
 
     public void SafeClose()
     {
-        _openedFile?.Dispose();
-        _openedFile = null;
+        ++_openGeneration; // A pending load must not reopen the archive after Close.
+        DisposeOpenedFiles();
 
         GC.Collect();
         GC.WaitForPendingFinalizers();
@@ -72,13 +100,26 @@ public class FileOpeningService : IFileOpeningService
 
     private NxFile? _openedFile;
 
+    private void DisposeOpenedFiles()
+    {
+        var files = _archiveFiles.Values.Concat(_openedFile == null ? Array.Empty<NxFile>() : new[] { _openedFile }).Distinct().ToArray();
+        _archiveFiles.Clear();
+        _archivePath = null;
+        _openedFile = null;
+        foreach (var file in files)
+        {
+            try { file.Dispose(); }
+            catch (Exception ex) { _logger.LogWarning(ex, "Failed to close opened file resources."); }
+        }
+    }
+
     public NxFile? OpenedFile => _openedFile;
 
     private void NotifyOpenedFileChanged(NxFile? newFile)
     {
-        var dispatcher = Application.Current.Dispatcher;
+        var dispatcher = Application.Current?.Dispatcher;
 
-        if (!dispatcher.CheckAccess())
+        if (dispatcher != null && !dispatcher.CheckAccess())
         {
             dispatcher.InvokeAsync(() =>
             {

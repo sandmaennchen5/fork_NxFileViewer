@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using Microsoft.Extensions.Logging;
 using Emignatik.NxFileViewer.Styling.Theme;
 
@@ -9,6 +9,13 @@ namespace Emignatik.NxFileViewer.Settings;
 /// </summary>
 public interface IAppSettings : INotifyPropertyChanged
 {
+    bool CheckViewerUpdatesOnStartup { get; set; }
+    bool IncludeViewerPrereleases { get; set; }
+    string NszExecutablePath { get; set; }
+    bool NszCheckUpdates { get; set; }
+    int NszCompressionLevel { get; set; }
+    NszCompressionMode NszCompressionMode { get; set; }
+    int NszBlockSizeExponent { get; set; }
 
     string AppLanguage { get; set; }
 

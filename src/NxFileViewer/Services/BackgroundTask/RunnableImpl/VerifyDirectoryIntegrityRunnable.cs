@@ -68,9 +68,11 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
         var allFiles = Directory.Exists(_directory) ? Directory.GetFiles(_directory, "*", option) : new[] { _directory };
         var folderCandidates = allFiles.Where(p => p.EndsWith(".nca", StringComparison.OrdinalIgnoreCase))
             .Select(Path.GetDirectoryName).Where(p => p != null).Distinct(StringComparer.OrdinalIgnoreCase).Select(p => p!).ToArray();
-        var zipCandidates = allFiles.Where(p => p.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
-            .Where(p => !Directory.Exists(_directory) || ContainsNca(p)).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var hasFirmware = folderCandidates.Length > 0 || zipCandidates.Count > 0;
+        var zipCandidates = allFiles.Where(PackageZip.IsArchive)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var firmwareZips = zipCandidates.Where(p => ContainsNca(p) && ExpandPackages(p).SequenceEqual(new[] { p }))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var hasFirmware = folderCandidates.Length > 0 || firmwareZips.Count > 0;
         string? referenceNotice = null;
         if (hasFirmware)
         {
@@ -101,6 +103,7 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
         }
         // Loose NCA folders and NCA ZIPs are candidates even without bundled hash lists.
         var files = allFiles.Where(path => SupportedExtensions.Contains(Path.GetExtension(path)) || zipCandidates.Contains(path))
+            .SelectMany(ExpandPackages)
             .Concat(folderCandidates).OrderBy(path => path, StringComparer.OrdinalIgnoreCase).ToArray();
         var results = new List<BatchIntegrityResult>(files.Length);
 
@@ -112,7 +115,7 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
 
             try
             {
-                if (Directory.Exists(file) || Path.GetExtension(file).Equals(".zip", StringComparison.OrdinalIgnoreCase))
+                if (Directory.Exists(file) || firmwareZips.Contains(file))
                 {
                     if (firmware == null) throw new InvalidDataException(referenceNotice);
                     var result = firmware.Verify(file, cancellationToken,
@@ -121,28 +124,34 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
                 }
                 else
                 {
-                    var nxFile = _fileLoader.Load(file);
+                    var nxFile = _fileLoader.Load(file, cancellationToken);
+                    var retained = false;
                     try
                     {
-                        _fileLoaded?.Invoke(nxFile);
+                        try
+                        {
+                            _fileLoaded?.Invoke(nxFile);
+                            retained = _fileLoaded != null;
+                        }
+                        catch (Exception previewException)
+                        {
+                            // A UI preview failure must not invalidate the package analysis.
+                            _logger.LogWarning(previewException, "Failed to display preview for {FilePath}", file);
+                        }
+                        var verifier = _serviceProvider.GetRequiredService<IVerifyNcasIntegrityRunnable>();
+                        verifier.Setup(nxFile.Overview, _appSettings.IgnoreMissingDeltaFragments);
+                        verifier.Run(new ScaledProgressReporter(progressReporter, index, files.Length), cancellationToken);
+                        var integrityError = BuildIntegrityError(nxFile.Overview);
+                        results.Add(new BatchIntegrityResult(
+                            file,
+                            PackageZip.DisplayFileType(file),
+                            nxFile.Overview.FileType.ToString(),
+                            nxFile.Overview.PackageStructure.ToString(),
+                            nxFile.Overview.NcaCompressionType.ToString(),
+                            nxFile.Overview.NcasIntegrity,
+                            integrityError));
                     }
-                    catch (Exception previewException)
-                    {
-                        // A UI preview failure must not invalidate the package analysis.
-                        _logger.LogWarning(previewException, "Failed to display preview for {FilePath}", file);
-                    }
-                    var verifier = _serviceProvider.GetRequiredService<IVerifyNcasIntegrityRunnable>();
-                    verifier.Setup(nxFile.Overview, _appSettings.IgnoreMissingDeltaFragments);
-                    verifier.Run(new ScaledProgressReporter(progressReporter, index, files.Length), cancellationToken);
-                    var integrityError = BuildIntegrityError(nxFile.Overview);
-                    results.Add(new BatchIntegrityResult(
-                        file,
-                        Path.GetExtension(file).TrimStart('.').ToUpperInvariant(),
-                        nxFile.Overview.FileType.ToString(),
-                        nxFile.Overview.PackageStructure.ToString(),
-                        nxFile.Overview.NcaCompressionType.ToString(),
-                        nxFile.Overview.NcasIntegrity,
-                        integrityError));
+                    finally { if (!retained) nxFile.Dispose(); }
                 }
             }
             catch (OperationCanceledException)
@@ -154,12 +163,12 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
                 _logger.LogError(ex, "Failed to check integrity of {FilePath}", file);
                 results.Add(new BatchIntegrityResult(
                     file,
-                    Path.GetExtension(file).TrimStart('.').ToUpperInvariant(),
+                    PackageZip.DisplayFileType(file),
                     NxFileType.Unknown.ToString(),
                     "Unknown",
                     "Unknown",
                     NcasIntegrity.Error,
-                    ex.Message) { IsFirmware = Directory.Exists(file) || Path.GetExtension(file).Equals(".zip", StringComparison.OrdinalIgnoreCase), FirmwareDetails = ex.Message });
+                    ex.Message) { IsFirmware = Directory.Exists(file) || firmwareZips.Contains(file), FirmwareDetails = ex.Message });
             }
 
             _resultCompleted?.Invoke(results[^1]);
@@ -176,10 +185,25 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
     {
         try
         {
-            using var zip = ZipFile.OpenRead(path);
-            return zip.Entries.Any(e => e.Name.EndsWith(".nca", StringComparison.OrdinalIgnoreCase));
+            return PackageZip.GetFileEntries(path).Any(e => e.EndsWith(".nca", StringComparison.OrdinalIgnoreCase));
         }
         catch (InvalidDataException) { return Path.GetFileName(path).Contains("firmware", StringComparison.OrdinalIgnoreCase); }
+        catch (IOException) { return false; }
+        catch (UnauthorizedAccessException) { return false; }
+    }
+
+    private static IEnumerable<string> ExpandPackages(string path)
+    {
+        if (!PackageZip.IsArchive(path)) return new[] { path };
+        try
+        {
+            var entries = PackageZip.GetEntries(path, includeNca: false);
+            if (entries.Count > 0) return entries.Select(entry => PackageZip.MemberPath(path, entry)).ToArray();
+        }
+        catch (IOException) { }
+        catch (InvalidDataException) { }
+        catch (UnauthorizedAccessException) { }
+        return new[] { path };
     }
 
     private static string? BuildIntegrityError(FileOverview overview)

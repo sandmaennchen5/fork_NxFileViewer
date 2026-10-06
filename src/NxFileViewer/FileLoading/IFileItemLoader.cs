@@ -25,6 +25,7 @@ public interface IFileItemLoader
     /// <param name="nspFilePath"></param>
     /// <returns></returns>
     NspItem LoadNsp(string nspFilePath);
+    StandaloneNcaFileItem LoadNca(string filePath);
 }
 
 public delegate void MissingKeyExceptionHandler(object sender, MissingKeyExceptionHandlerArgs args);

@@ -1,15 +1,9 @@
-﻿using System.Windows;
+using System.Windows.Controls;
 
-namespace Emignatik.NxFileViewer.Views.Windows
+namespace Emignatik.NxFileViewer.Views.Windows;
+
+// Embedded workspace page; its view model survives navigation.
+public partial class SettingsWindow : UserControl
 {
-    /// <summary>
-    /// Interaction logic for SettingsWindow.xaml
-    /// </summary>
-    public partial class SettingsWindow : Window
-    {
-        public SettingsWindow()
-        {
-            InitializeComponent();
-        }
-    }
+    public SettingsWindow() => InitializeComponent();
 }

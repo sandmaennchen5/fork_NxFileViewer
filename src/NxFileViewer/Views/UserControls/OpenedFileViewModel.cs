@@ -18,7 +18,7 @@ public class OpenedFileViewModel : ViewModelBase
         FileOverview = new FileOverviewViewModel(_nxFile.Overview, serviceProvider);
 
         OpenFileLocationCommand = serviceProvider.GetRequiredService<IOpenFileLocationCommand>();
-        OpenFileLocationCommand.FilePath = _nxFile.FilePath;
+        OpenFileLocationCommand.FilePath = _nxFile.ArchivePath ?? _nxFile.FilePath;
     }
 
     public FileOverviewViewModel FileOverview { get; }
@@ -26,6 +26,11 @@ public class OpenedFileViewModel : ViewModelBase
     public ContentViewModel Content { get; }
 
     public string FilePath => _nxFile.FilePath;
+    public bool HasFirmwareInfo => _nxFile.FirmwareResult != null;
+    public bool IsFirmwareOnly => _nxFile.RootItem is Models.TreeItems.Impl.FirmwareFileItem;
+    public int InitialDetailsTabIndex => _nxFile.FirmwareResult?.IsFirmware == true ? 2 : 0;
+    public string FirmwareVersion => _nxFile.FirmwareResult?.Structure ?? "";
+    public string FirmwareDetails => _nxFile.FirmwareResult?.FirmwareDetails ?? "";
 
     public IOpenFileLocationCommand OpenFileLocationCommand { get; }
 }

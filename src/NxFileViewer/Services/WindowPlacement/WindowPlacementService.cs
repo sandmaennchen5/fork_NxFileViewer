@@ -88,7 +88,7 @@ public class WindowPlacementService : IWindowPlacementService
             if (!SetWindowPlacement(handle, ref windowPlacement))
                 _logger.LogDebug("Window placement couldn't be restored.");
 
-            if (restoreSavedPlacement && savedPlacement.IsMaximized)
+            if (ShouldStartMaximized(_appSettings))
                 window.WindowState = WindowState.Maximized;
         }
         catch (Exception ex)
@@ -96,6 +96,9 @@ public class WindowPlacementService : IWindowPlacementService
             _logger.LogDebug(ex, "Failed to restore the window placement: {message}", ex.Message);
         }
     }
+
+    public static bool ShouldStartMaximized(IAppSettings settings) =>
+        !settings.RememberWindowPlacement || !settings.MainWindowPlacement.IsDefined || settings.MainWindowPlacement.IsMaximized;
 
     public void Save(Window window)
     {

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
@@ -43,6 +43,11 @@ public class SettingsWindowViewModel : WindowViewModelBase
 
         BrowseProdKeysCommand = new RelayCommand(BrowseProdKeys);
         BrowseTitleKeysCommand = new RelayCommand(BrowseTitleKeys);
+        BrowseNszCommand = new RelayCommand(() =>
+        {
+            var dialog = new OpenFileDialog { Filter = "NSZ CLI (*.exe)|*.exe" };
+            if (dialog.ShowDialog() == true) EditedSettings.NszExecutablePath = dialog.FileName;
+        });
         ApplySettingsCommand = new RelayCommand(ApplySettings);
         CancelSettingsCommand = new RelayCommand(CancelSettings);
         ResetSettingsCommand = new RelayCommand(ResetSettings);
@@ -96,6 +101,28 @@ public class SettingsWindowViewModel : WindowViewModelBase
     public ICommand BrowseProdKeysCommand { get; }
 
     public ICommand BrowseTitleKeysCommand { get; }
+    public IReadOnlyList<NszModeOption> NszModeOptions => new[]
+    {
+        new NszModeOption(NszCompressionMode.Auto, LocalizationManager.Instance.Current.Keys.Nsz_ModeAuto),
+        new NszModeOption(NszCompressionMode.Solid, LocalizationManager.Instance.Current.Keys.Nsz_ModeSolid),
+        new NszModeOption(NszCompressionMode.Block, LocalizationManager.Instance.Current.Keys.Nsz_ModeBlock)
+    };
+    public IReadOnlyList<NszBlockSizeOption> NszBlockSizeOptions { get; } = BuildBlockSizeOptions();
+    private static IReadOnlyList<NszBlockSizeOption> BuildBlockSizeOptions()
+    {
+        var options = new List<NszBlockSizeOption>();
+        for (var exponent = 14; exponent <= 32; exponent++)
+        {
+            var bytes = 1L << exponent;
+            var label = exponent < 20 ? $"{bytes / 1024} KiB" : exponent < 30 ? $"{bytes / (1024 * 1024)} MiB" : $"{bytes / (1024L * 1024 * 1024)} GiB";
+            options.Add(new(exponent, label));
+        }
+        return options;
+    }
+
+    public Emignatik.NxFileViewer.Services.Updates.ViewerUpdateActions ViewerUpdates => _serviceProvider.GetRequiredService<Emignatik.NxFileViewer.Services.Updates.ViewerUpdateActions>();
+
+    public ICommand BrowseNszCommand { get; }
 
     public ICommand ApplySettingsCommand { get; }
 
@@ -245,7 +272,7 @@ public class SettingsWindowViewModel : WindowViewModelBase
         }
     }
 
-    private static string BuildValidationSummary(KeyFileValidationResult result)
+    internal static string BuildValidationSummary(KeyFileValidationResult result)
     {
         var keys = LocalizationManager.Instance.Current.Keys;
         if (!result.FileExists)
@@ -297,15 +324,38 @@ public class SettingsWindowViewModel : WindowViewModelBase
         }
     }
 
+    public Action? EditingCompleted { get; set; }
+    public bool PluginSettingsOnly { get; set; }
+    public Emignatik.NxFileViewer.Services.Nsz.NszActions Nsz => _serviceProvider.GetRequiredService<Emignatik.NxFileViewer.Services.Nsz.NszActions>();
+
+    private static void CopyPluginSettings(IAppSettings source, IAppSettings destination)
+    {
+        destination.NszExecutablePath = source.NszExecutablePath;
+        destination.NszCheckUpdates = source.NszCheckUpdates;
+        destination.NszCompressionLevel = source.NszCompressionLevel;
+        destination.NszCompressionMode = source.NszCompressionMode;
+        destination.NszBlockSizeExponent = source.NszBlockSizeExponent;
+    }
+
+
     private void ApplySettings()
     {
-        _appSettingsManager.Load(EditedSettings);
-        this.Window?.Close();
+        if (PluginSettingsOnly)
+            CopyPluginSettings(EditedSettings, _serviceProvider.GetRequiredService<IAppSettings>());
+        else
+        {
+            // A general-settings draft must not overwrite separately saved plugin settings.
+            CopyPluginSettings(_appSettingsManager.Clone(), EditedSettings);
+            _appSettingsManager.Load(EditedSettings);
+        }
+        InitializeFromSettings(_appSettingsManager.Clone());
+        EditingCompleted?.Invoke();
     }
 
     private void CancelSettings()
     {
-        this.Window?.Close();
+        InitializeFromSettings(_appSettingsManager.Clone());
+        EditingCompleted?.Invoke();
     }
 
     private void ResetSettings()
@@ -316,3 +366,6 @@ public class SettingsWindowViewModel : WindowViewModelBase
 
 public sealed record ThemeOption(AppTheme Value, string DisplayName);
 public sealed record TitleProviderOption(TitleInfoProvider Value, string DisplayName);
+
+public sealed record NszModeOption(NszCompressionMode Value, string DisplayName);
+public sealed record NszBlockSizeOption(int Value, string DisplayName);

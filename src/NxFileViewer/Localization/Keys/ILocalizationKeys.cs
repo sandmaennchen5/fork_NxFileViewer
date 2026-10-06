@@ -6,17 +6,86 @@ namespace Emignatik.NxFileViewer.Localization.Keys;
 
 public interface ILocalizationKeys : ILocalizationKeysBase
 {
+    string DataUpdate_Firmware { get; }
+    string DataUpdate_Title { get; }
+    string DataUpdate_Titles { get; }
+    string DataUpdate_TitleTip { get; }
+    string DataUpdate_FirmwareTip { get; }
+    string DataUpdate_CheckFirmware { get; }
+    string DataUpdate_SaveFirmware { get; }
+    string DataUpdate_Working { get; }
+    string DataUpdate_TitlesDone { get; }
+    string DataUpdate_FirmwareSaved { get; }
+    string DataUpdate_FirmwareChecked { get; }
+    string Update_Title { get; }
+    string Update_Auto { get; }
+    string Update_IncludePrereleases { get; }
+    string Update_Prerelease { get; }
+    string Update_Check { get; }
+    string Update_Install { get; }
+    string Update_Checking { get; }
+    string Update_Current { get; }
+    string Update_Available { get; }
+    string Update_Failed { get; }
+    string Update_Confirm { get; }
+    string Update_Downloading { get; }
+    string Update_Installing { get; }
+    string Update_Cancelled { get; }
+    string Nsz_Mode { get; }
+    string Nsz_ModeAuto { get; }
+    string Nsz_ModeSolid { get; }
+    string Nsz_ModeBlock { get; }
+    string Nsz_BlockSize { get; }
+    string Nsz_ModeTip { get; }
+    string Workspace_Plugins { get; }
+    string Workspace_Home { get; }
+    string Workspace_File { get; }
+    string Workspace_Menu { get; }
+    string Nsz_Replace { get; }
+    string Nsz_Number { get; }
+    string Nsz_Cancel { get; }
+    string Nsz_DeleteSourcePrompt { get; }
+    string Nsz_SourceDeleted { get; }
+    string Nsz_SourceDeleteFailed { get; }
+    string Nsz_Compress { get; }
+    string Nsz_Decompress { get; }
+    string Nsz_CompressValid { get; }
+    string Nsz_DecompressValid { get; }
+    string Nsz_Update { get; }
+    string Nsz_Rollback { get; }
+    string Nsz_SelectDestination { get; }
+    string Nsz_PythonRuntimeFailed { get; }
+    string Nsz_NotInstalled { get; }
+    string Nsz_Updating { get; }
+    string Nsz_SourceSize { get; }
+    string Nsz_OutputSize { get; }
+    string Nsz_Verified { get; }
+    string Nsz_Summary { get; }
+    string Nsz_SettingsTip { get; }
+    string Nsz_CheckUpdates { get; }
+    string Nsz_Level { get; }
+    string Nsz_OutputExists { get; }
+    string Nsz_SourceInvalid { get; }
+    string Nsz_OutputInvalid { get; }
+    string Nsz_OutputMissing { get; }
+    string Nsz_KeysMissing { get; }
+    string Nsz_Incompatible { get; }
+    string Nsz_OfflineFallback { get; }
     string Firmware_NoReferences { get; }
     string Firmware_LoadingOnline { get; }
     string Firmware_OnlineSource { get; }
     string Firmware_OfflineSource { get; }
     string Firmware_BrowseZip { get; }
     string Firmware_Title { get; }
+    string Firmware_NcaMatches { get; }
+    string Firmware_Versions { get; }
     string Firmware_Unknown { get; }
     string Firmware_Summary { get; }
     string Firmware_Missing { get; }
     string Firmware_Changed { get; }
     string Firmware_Extra { get; }
+    string Firmware_Renamed { get; }
+    string Firmware_RenamedSummary { get; }
     string Firmware_Duplicate { get; }
 
     string FileNotSupported_Log { get; }
@@ -34,6 +103,11 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string BatchIntegrity_SelectDirectory { get; }
     string BatchIntegrity_Browse { get; }
     string BatchIntegrity_IncludeSubdirectories { get; }
+    string BatchTable_Columns { get; }
+    string BatchTable_Search { get; }
+    string BatchTable_All { get; }
+    string BatchTable_ResetFilters { get; }
+    string BatchTable_ResetSort { get; }
     string BatchIntegrity_File { get; }
     string BatchIntegrity_Path { get; }
     string BatchIntegrity_Error { get; }
@@ -357,4 +431,10 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string FileRenaming_EmptyDirectoryNotAllowed { get; }
 
     string Window_Tip_Title { get; }
+    string Nsz_Installed { get; }
+    string Nsz_CustomExecutable { get; }
+    string Settings_Program { get; }
+    string Nsz_PhaseSource { get; }
+    string Nsz_PhaseOutput { get; }
+    string Nsz_PhasePublish { get; }
 }

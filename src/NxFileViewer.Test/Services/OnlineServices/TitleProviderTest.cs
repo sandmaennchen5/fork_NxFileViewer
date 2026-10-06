@@ -22,6 +22,28 @@ public class TitleProviderTest : IDisposable
     private readonly string _cacheDirectory = Path.Combine(Path.GetTempPath(), "TitleDbTests." + Guid.NewGuid().ToString("N"));
 
     [Fact]
+    public async Task DefaultTitleDbCacheIsInsideProgramDirectory()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "Cache", "TitleDB", "XY.xy.json");
+        var previous = File.Exists(path) ? File.ReadAllBytes(path) : null;
+        try
+        {
+            using var handler = new Handler(_ => Ok(Catalog));
+            using var client = new HttpClient(handler);
+            var service = new OnlineTitleInfoService(new AppSettings {
+                TitleInfoProvider = TitleInfoProvider.GitHubTitleDb, TitleDbRegion = "XY.xy"
+            }, httpClient: client);
+            Assert.NotNull(await service.GetTitleInfoAsync(TitleId));
+            Assert.Equal(Catalog, File.ReadAllText(path));
+        }
+        finally
+        {
+            if (previous == null) File.Delete(path);
+            else File.WriteAllBytes(path, previous);
+        }
+    }
+
+    [Fact]
     public async Task NLibUsesConfiguredEndpointLanguageAndIconField()
     {
         var settings = new AppSettings { TitleInfoProvider = TitleInfoProvider.NLib, AppLanguage = "de-DE" };
@@ -128,6 +150,37 @@ public class TitleProviderTest : IDisposable
             .AddSingleton<ICachedOnlineTitleInfoService, CachedOnlineTitleInfoService>()
             .BuildServiceProvider();
         Assert.NotNull(provider.GetRequiredService<ICachedOnlineTitleInfoService>());
+    }
+
+    [Fact]
+    public async Task ManualTitleDbRefreshBypassesFreshCacheAndClearsTitleResponses()
+    {
+        var json = Catalog;
+        using var client = new HttpClient(new Handler(_ => Ok(json)));
+        var settings = new AppSettings { TitleInfoProvider = TitleInfoProvider.GitHubTitleDb, TitleDbRegion = "US.en" };
+        var online = new OnlineTitleInfoService(settings, httpClient: client, cacheDirectory: _cacheDirectory);
+        var cache = new CachedOnlineTitleInfoService(online, settings);
+        Assert.Equal("Until Then", (await cache.GetTitleInfoAsync(TitleId))!.Name);
+        json = Catalog.Replace("Until Then", "Updated title");
+        Assert.Equal(1, await online.RefreshTitleDbAsync("US.en", TestContext.Current.CancellationToken));
+        cache.ClearCache();
+        Assert.Equal("Updated title", (await cache.GetTitleInfoAsync(TitleId))!.Name);
+        Assert.Contains("Updated title", File.ReadAllText(Path.Combine(_cacheDirectory, "US.en.json")));
+    }
+
+    [Fact]
+    public async Task FailedManualRefreshPreservesUsableCatalog()
+    {
+        var json = Catalog;
+        using var client = new HttpClient(new Handler(_ => Ok(json)));
+        var online = new OnlineTitleInfoService(new AppSettings { TitleInfoProvider = TitleInfoProvider.GitHubTitleDb, TitleDbRegion = "US.en" },
+            httpClient: client, cacheDirectory: _cacheDirectory);
+        Assert.Equal("Until Then", (await online.GetTitleInfoAsync(TitleId))!.Name);
+        var before = File.ReadAllText(Path.Combine(_cacheDirectory, "US.en.json"));
+        json = "{}";
+        await Assert.ThrowsAsync<JsonException>(() => online.RefreshTitleDbAsync("US.en", TestContext.Current.CancellationToken));
+        Assert.Equal(before, File.ReadAllText(Path.Combine(_cacheDirectory, "US.en.json")));
+        Assert.Equal("Until Then", (await online.GetTitleInfoAsync(TitleId))!.Name);
     }
 
     private static HttpResponseMessage Ok(string json) => new(HttpStatusCode.OK) { Content = new StringContent(json) };

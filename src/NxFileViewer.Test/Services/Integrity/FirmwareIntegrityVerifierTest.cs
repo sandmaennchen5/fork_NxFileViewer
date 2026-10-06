@@ -73,6 +73,75 @@ public sealed class FirmwareIntegrityVerifierTest : IDisposable
         Assert.Equal(NcasIntegrity.Error, _verifier.Verify(_folder, TestContext.Current.CancellationToken).Integrity);
     }
     [Fact] public void CancellationPropagates() => Assert.Throws<OperationCanceledException>(() => _verifier.Verify(_folder, new CancellationToken(true)));
+    [Theory] [InlineData(false)] [InlineData(true)]
+    public void RenamedContentIsReportedOnceWithExpectedFilename(bool zip)
+    {
+        File.Move(Path.Combine(_folder, "a.nca"), Path.Combine(_folder, "typo.nca"));
+        var path = _folder;
+        if (zip)
+        {
+            path = Path.Combine(_root, "renamed.zip");
+            using var archive = ZipFile.Open(path, ZipArchiveMode.Create);
+            foreach (var file in Directory.GetFiles(_folder)) archive.CreateEntryFromFile(file, "nested/" + Path.GetFileName(file));
+        }
+        var result = _verifier.Verify(path, TestContext.Current.CancellationToken);
+        var keys = Emignatik.NxFileViewer.Localization.LocalizationManager.Instance.Current.Keys;
+        Assert.Equal("test", result.Structure);
+        Assert.Equal(NcasIntegrity.Error, result.Integrity); // Correct contents still need the expected names.
+        Assert.Contains(keys.Firmware_Renamed + ": typo.nca → a.nca", result.FirmwareDetails);
+        Assert.DoesNotContain(keys.Firmware_Missing + ": a.nca", result.FirmwareDetails);
+        Assert.DoesNotContain(keys.Firmware_Extra + ": typo.nca", result.FirmwareDetails);
+        Assert.Contains(string.Format(keys.Firmware_RenamedSummary, 1), result.FirmwareDetails);
+        Assert.True(File.Exists(Path.Combine(_folder, "typo.nca"))); // Verification does not rename files.
+    }
+    [Fact] public void EntirelyRenamedSetStillIdentifiesVersion()
+    {
+        File.Move(Path.Combine(_folder, "a.nca"), Path.Combine(_folder, "first.nca"));
+        File.Move(Path.Combine(_folder, "b.cnmt.nca"), Path.Combine(_folder, "second.nca"));
+        var result = _verifier.Verify(_folder, TestContext.Current.CancellationToken);
+        var keys = Emignatik.NxFileViewer.Localization.LocalizationManager.Instance.Current.Keys;
+        Assert.Equal("test", result.Structure);
+        Assert.Contains("first.nca → a.nca", result.FirmwareDetails);
+        Assert.Contains("second.nca → b.cnmt.nca", result.FirmwareDetails);
+        Assert.Contains(string.Format(keys.Firmware_RenamedSummary, 2), result.FirmwareDetails);
+        Assert.Equal(NcasIntegrity.Error, result.Integrity);
+    }
+    [Fact] public void DifferentHashCannotBeClassifiedAsRenamed()
+    {
+        File.Delete(Path.Combine(_folder, "a.nca"));
+        File.WriteAllBytes(Path.Combine(_folder, "typo.nca"), new byte[] { 3, 2, 1 });
+        var result = _verifier.Verify(_folder, TestContext.Current.CancellationToken);
+        var keys = Emignatik.NxFileViewer.Localization.LocalizationManager.Instance.Current.Keys;
+        Assert.Contains(keys.Firmware_Missing + ": a.nca", result.FirmwareDetails);
+        Assert.Contains(keys.Firmware_Extra + ": typo.nca", result.FirmwareDetails);
+        Assert.DoesNotContain("typo.nca → a.nca", result.FirmwareDetails);
+    }
+    [Fact] public void OneRenamedFileCannotSatisfyTwoExpectedFilesWithSameContent()
+    {
+        var bytes = new byte[] { 1, 2, 3 };
+        File.Delete(Path.Combine(_folder, "b.cnmt.nca"));
+        File.Move(Path.Combine(_folder, "a.nca"), Path.Combine(_folder, "typo.nca"));
+        var fingerprint = new { size = bytes.Length, sha256 = Convert.ToHexString(SHA256.HashData(bytes)) };
+        var verifier = new FirmwareIntegrityVerifier(new[] { JsonSerializer.Serialize(new {
+            name = "shared-content", file_count = 2, files = new System.Collections.Generic.Dictionary<string, object> {
+                ["a.nca"] = fingerprint, ["b.nca"] = fingerprint
+            }
+        }) });
+        var result = verifier.Verify(_folder, TestContext.Current.CancellationToken);
+        var keys = Emignatik.NxFileViewer.Localization.LocalizationManager.Instance.Current.Keys;
+        Assert.Contains("typo.nca → a.nca", result.FirmwareDetails);
+        Assert.Contains(keys.Firmware_Missing + ": b.nca", result.FirmwareDetails);
+        Assert.Contains(string.Format(keys.Firmware_RenamedSummary, 1), result.FirmwareDetails);
+        Assert.Equal(NcasIntegrity.Error, result.Integrity);
+    }
+    [Fact] public void DuplicateContentWithNoMissingFilenameRemainsExtra()
+    {
+        File.Copy(Path.Combine(_folder, "a.nca"), Path.Combine(_folder, "copy.nca"));
+        var result = _verifier.Verify(_folder, TestContext.Current.CancellationToken);
+        var keys = Emignatik.NxFileViewer.Localization.LocalizationManager.Instance.Current.Keys;
+        Assert.Contains(keys.Firmware_Extra + ": copy.nca", result.FirmwareDetails);
+        Assert.Contains(string.Format(keys.Firmware_RenamedSummary, 0), result.FirmwareDetails);
+    }
     [Fact] public void BundledReferencesAreAvailable() => Assert.NotNull(new FirmwareIntegrityVerifier());
     public void Dispose() => Directory.Delete(_root, true);
 }

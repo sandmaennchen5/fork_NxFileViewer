@@ -45,6 +45,13 @@ public class FileItemLoader : IFileItemLoader
 
     public event MissingKeyExceptionHandler? MissingKey;
 
+    public StandaloneNcaFileItem LoadNca(string filePath)
+    {
+        var item = new StandaloneNcaFileItem(filePath, _keySetProviderService.GetKeySet(_appSettings.AlwaysReloadKeysBeforeOpen));
+        try { BuildNcaChildItems(item.NcaItem); return item; }
+        catch { item.Dispose(); throw; }
+    }
+
     public NspItem LoadNsp(string nspFilePath)
     {
         var keySet = _keySetProviderService.GetKeySet(_appSettings.AlwaysReloadKeysBeforeOpen);

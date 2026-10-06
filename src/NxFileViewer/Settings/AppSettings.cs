@@ -1,4 +1,4 @@
-﻿using System.Text.Json.Serialization;
+using System.Text.Json.Serialization;
 using Emignatik.NxFileViewer.Utils.MVVM;
 using Emignatik.NxFileViewer.Utils.MVVM.Localization;
 using Microsoft.Extensions.Logging;
@@ -8,6 +8,48 @@ namespace Emignatik.NxFileViewer.Settings;
 
 public class AppSettings : NotifyPropertyChangedBase, IAppSettings
 {
+    private bool _includeViewerPrereleases;
+    public bool IncludeViewerPrereleases
+    {
+        get => _includeViewerPrereleases;
+        set { _includeViewerPrereleases = value; NotifyPropertyChanged(); }
+    }
+    private bool _checkViewerUpdatesOnStartup = true;
+    public bool CheckViewerUpdatesOnStartup
+    {
+        get => _checkViewerUpdatesOnStartup;
+        set { _checkViewerUpdatesOnStartup = value; NotifyPropertyChanged(); }
+    }
+    private string _nszExecutablePath = "";
+    private bool _nszCheckUpdates = true;
+    private int _nszCompressionLevel = 18;
+    public string NszExecutablePath
+    {
+        get => _nszExecutablePath;
+        set { _nszExecutablePath = value; NotifyPropertyChanged(); }
+    }
+    public bool NszCheckUpdates
+    {
+        get => _nszCheckUpdates;
+        set { _nszCheckUpdates = value; NotifyPropertyChanged(); }
+    }
+    public int NszCompressionLevel
+    {
+        get => _nszCompressionLevel;
+        set { _nszCompressionLevel = System.Math.Clamp(value, 1, 22); NotifyPropertyChanged(); }
+    }
+    private NszCompressionMode _nszCompressionMode = NszCompressionMode.Auto;
+    private int _nszBlockSizeExponent = 20;
+    public NszCompressionMode NszCompressionMode
+    {
+        get => _nszCompressionMode;
+        set { _nszCompressionMode = System.Enum.IsDefined(value) ? value : NszCompressionMode.Auto; NotifyPropertyChanged(); }
+    }
+    public int NszBlockSizeExponent
+    {
+        get => _nszBlockSizeExponent;
+        set { _nszBlockSizeExponent = System.Math.Clamp(value, 14, 32); NotifyPropertyChanged(); }
+    }
     private string _appLanguage = IAutoLocalization<ILocalizationKeysBase>.CULTURE_NAME;
     private string _lastRenamePath = "";
     private string _lastOpenedFile = "";

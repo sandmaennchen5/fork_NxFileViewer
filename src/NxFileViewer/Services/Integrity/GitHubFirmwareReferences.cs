@@ -16,6 +16,12 @@ public static class GitHubFirmwareReferences
 {
     public static async Task<FirmwareIntegrityVerifier> LoadAsync(HttpClient client, CancellationToken cancellationToken)
     {
+        var manifests = await LoadManifestsAsync(client, cancellationToken).ConfigureAwait(false);
+        return new FirmwareIntegrityVerifier(manifests.Values);
+    }
+
+    public static async Task<IReadOnlyDictionary<string, string>> LoadManifestsAsync(HttpClient client, CancellationToken cancellationToken)
+    {
         using var request = new HttpRequestMessage(HttpMethod.Get,
             "https://api.github.com/repos/sandmaennchen5/fork_NxFileViewer/contents/fw/hashes?ref=master");
         request.Headers.UserAgent.ParseAdd("NxFileViewer/3.0.4");
@@ -46,10 +52,12 @@ public static class GitHubFirmwareReferences
                 hash.AppendData(bytes);
                 if (!Convert.ToHexString(hash.GetHashAndReset()).Equals(entry.Sha, StringComparison.OrdinalIgnoreCase))
                     throw new InvalidDataException("GitHub firmware reference changed during download.");
-                return Encoding.UTF8.GetString(bytes).TrimStart('\uFEFF');
+                return (entry.Name, Manifest: Encoding.UTF8.GetString(bytes).TrimStart('\uFEFF'));
             }
             finally { gate.Release(); }
         })).ConfigureAwait(false);
-        return new FirmwareIntegrityVerifier(manifests);
+        var result = manifests.ToDictionary(m => m.Name, m => m.Manifest, StringComparer.OrdinalIgnoreCase);
+        _ = new FirmwareIntegrityVerifier(result.Values); // Validate the whole set before exposing it.
+        return result;
     }
 }

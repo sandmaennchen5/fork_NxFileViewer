@@ -1,4 +1,5 @@
-﻿using System;
+using Emignatik.NxFileViewer.Services.Updates;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -16,6 +17,7 @@ using Emignatik.NxFileViewer.Services.FileOpening;
 using Emignatik.NxFileViewer.Services.FileRenaming;
 using Emignatik.NxFileViewer.Services.GlobalEvents;
 using Emignatik.NxFileViewer.Services.Integrity;
+using Emignatik.NxFileViewer.Services.Nsz;
 using Emignatik.NxFileViewer.Services.KeysManagement;
 using Emignatik.NxFileViewer.Services.OnlineServices;
 using Emignatik.NxFileViewer.Services.Prompting;
@@ -48,12 +50,22 @@ public partial class App : Application, IAppEvents
 
             .AddSingleton<IKeySetProviderService, KeySetProviderService>()
             .AddSingleton<IFileOpeningService, FileOpeningService>()
+            .AddSingleton<NszPluginManager>()
+            .AddSingleton<INszPlugin, NszCliPlugin>()
+            .AddSingleton<IConversionVerifier, ConversionVerifier>()
+            .AddSingleton<PackageConversionService>()
+            .AddSingleton<UpdateCenterViewModel>()
+            .AddSingleton<ViewerUpdateService>()
+            .AddSingleton<ViewerUpdateActions>()
+            .AddSingleton<NszActions>()
             .AddSingleton<ISelectedItemService, SelectedItemService>()
             .AddSingleton<IPromptService, PromptService>()
             .AddSingleton<IPackageInfoLoader, PackageInfoLoader>()
             .AddSingleton<IFileRenamerService, FileRenamerService>()
             .AddSingleton<IFileLocationOpenerService, FileLocationOpenerService>()
-            .AddSingleton<IOnlineTitleInfoService, OnlineTitleInfoService>()
+            .AddSingleton<OnlineTitleInfoService>()
+            .AddSingleton<IOnlineTitleInfoService>(sp => sp.GetRequiredService<OnlineTitleInfoService>())
+            .AddSingleton<ITitleDbUpdater>(sp => sp.GetRequiredService<OnlineTitleInfoService>())
             .AddSingleton<ICachedOnlineTitleInfoService, CachedOnlineTitleInfoService>()
             .AddSingleton<IOnlineTitlePageOpenerService, OnlineTitlePageOpenerService>()
             .AddSingleton<MainBackgroundTaskRunnerService>()
@@ -148,6 +160,7 @@ public partial class App : Application, IAppEvents
         void MainWindowLoaded(object sender, RoutedEventArgs args)
         {
             mainWindow.Loaded -= MainWindowLoaded;
+            _ = ServiceProvider.GetRequiredService<ViewerUpdateActions>().CheckAsync(true);
             Initialize(e.Args);
         }
         mainWindow.Loaded += MainWindowLoaded;

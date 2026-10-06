@@ -1,16 +1,17 @@
-﻿using System;
+using System;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.IO;
 using System.Globalization;
 using System.Threading.Tasks;
+using System.Threading;
 using Emignatik.NxFileViewer.Settings;
 using Microsoft.Extensions.Logging;
 
 namespace Emignatik.NxFileViewer.Services.OnlineServices;
 
-public class OnlineTitleInfoService : IOnlineTitleInfoService
+public class OnlineTitleInfoService : IOnlineTitleInfoService, ITitleDbUpdater
 {
     private readonly IAppSettings _appSettings;
     private readonly ILogger<OnlineTitleInfoService>? _logger;
@@ -22,9 +23,15 @@ public class OnlineTitleInfoService : IOnlineTitleInfoService
         _appSettings = appSettings ?? throw new ArgumentNullException(nameof(appSettings));
         _logger = loggerFactory?.CreateLogger<OnlineTitleInfoService>();
         _httpClient = httpClient;
-        _titleDb = new TitleDbCatalog(cacheDirectory ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "NxFileViewer", "TitleDB"), _logger);
+        _titleDb = new TitleDbCatalog(cacheDirectory ?? Path.Combine(AppContext.BaseDirectory, "Cache", "TitleDB"), _logger);
     }
 
+
+    public async Task<int> RefreshTitleDbAsync(string region, CancellationToken token)
+    {
+        using var ownedClient = _httpClient == null ? new HttpClient { Timeout = TimeSpan.FromMinutes(2) } : null;
+        return await _titleDb.RefreshAsync(region, _httpClient ?? ownedClient!, token);
+    }
 
     public async Task<IOnlineTitleInfo?> GetTitleInfoAsync(string titleId)
     {
@@ -62,4 +69,9 @@ public class OnlineTitleInfoService : IOnlineTitleInfoService
             return null;
         }
     }
+}
+
+public interface ITitleDbUpdater
+{
+    Task<int> RefreshTitleDbAsync(string region, CancellationToken token);
 }

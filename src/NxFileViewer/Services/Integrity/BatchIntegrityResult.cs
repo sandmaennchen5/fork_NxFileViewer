@@ -12,6 +12,24 @@ public sealed record BatchIntegrityResult(
     NcasIntegrity Integrity,
     string? Error)
 {
+    public string Title { get; init; } = "";
+    public string TitleId { get; init; } = "";
+    public string Publisher { get; init; } = "";
+    public string Version { get; init; } = "";
+    public long? VersionNumber => long.TryParse(Version, out var value) ? value : null;
+    public string DisplayVersion { get; init; } = "";
+    public string SystemVersion { get; init; } = "";
+    public string MasterKey { get; init; } = "";
+    public string BuildId { get; init; } = "";
+    public string Distribution { get; init; } = "";
+    public string Languages { get; init; } = "";
+    public long? FileSize { get; init; }
+    public double? CompressionRatio { get; init; }
+    public string? ConversionStatus { get; init; }
+    public bool ConversionFailed { get; init; }
+    public string? ConvertedPath { get; init; }
+    public long? SourceSize { get; init; }
+    public long? OutputSize { get; init; }
     public bool IsFirmware { get; init; }
     public string? FirmwareDetails { get; init; }
     public string FileName => Path.GetFileName(FilePath);
