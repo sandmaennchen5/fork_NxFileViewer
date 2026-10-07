@@ -11,7 +11,7 @@
     <Company>NxFileViewer</Company>
     <Product>NxFileViewer</Product>
     <Authors>NxFileViewer</Authors>
-    <Version>4.0.0-beta.2</Version>
+    <Version>4.0.0-beta.3</Version>
     <PackageProjectUrl></PackageProjectUrl>
     <PackageIcon>Icon.ico</PackageIcon>
     <Description>Browse content of Nintendo Switch files</Description>
@@ -106,5 +106,8 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Services\Updates\InstallUpdate.ps1" LogicalName="ViewerUpdate.InstallUpdate.ps1" />
+  </ItemGroup>
+  <ItemGroup>
+    <AssemblyMetadata Include="ViewerSelfContained" Value="$(SelfContained)" />
   </ItemGroup>
 </Project>

@@ -9,6 +9,19 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string DataUpdate_Firmware { get; }
     string DataUpdate_Title { get; }
     string DataUpdate_Titles { get; }
+    string BatchNaming_Unchecked { get; }
+    string DataUpdate_LocalFirmwareVersion { get; }
+    string DataUpdate_NoLocalFirmware { get; }
+    string DataUpdate_TitleCatalogDate { get; }
+    string DataUpdate_TitleCatalogMissing { get; }
+    string DataUpdate_OnlineFirmwareVersion { get; }
+    string Keys_ExistingValidation { get; }
+    string Keys_IncomingValidation { get; }
+    string Keys_ReplaceDownloaded { get; }
+    string Keys_SaveTicketKeys { get; }
+    string Keys_TicketConflict { get; }
+    string Keys_TicketSaved { get; }
+    string Tinfoil_StabilityHint { get; }
     string DataUpdate_TitleTip { get; }
     string DataUpdate_FirmwareTip { get; }
     string DataUpdate_CheckFirmware { get; }
@@ -44,6 +57,8 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string Nsz_Replace { get; }
     string Nsz_Number { get; }
     string TitlePage_Custom { get; }
+    string Info_WithRuntime { get; }
+    string Info_WithoutRuntime { get; }
     string Info_Description { get; }
     string Info_Shortcuts { get; }
     string BatchHistory_Show { get; }
@@ -467,6 +482,12 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string Batch_VerifyAll { get; }
     string File_MissingKeys { get; }
     string File_CopyMissingKeys { get; }
+    string Keys_ProgramFolder { get; }
+    string Keys_SharedFolder { get; }
+    string Keys_InUse { get; }
+    string Keys_DownloadAll { get; }
+    string Keys_DownloadHost { get; }
+    string Keys_DownloadHostTip { get; }
     string Keys_CopyToSwitch { get; }
     string Keys_ReplaceShared { get; }
     string Keys_SharedCopied { get; }

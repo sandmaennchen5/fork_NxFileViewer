@@ -19,6 +19,23 @@ public sealed class ViewerUpdateTest : IDisposable
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), "ViewerUpdateTest-" + Guid.NewGuid());
     public ViewerUpdateTest() => Directory.CreateDirectory(_root);
+    [Theory]
+    [InlineData("x64", false)] [InlineData("x64", true)]
+    [InlineData("x86", false)] [InlineData("x86", true)]
+    public void KeepsInstalledDistributionForPreviewAssets(string architecture, bool selfContained)
+    {
+        var names = new[] { "x64", "x86", "self-contained_x64", "self-contained_x86" };
+        var json = JsonSerializer.SerializeToElement(new { tag_name = "v4.0.0-beta.3", draft = false, prerelease = true,
+            assets = names.Select(suffix => new { name = "NxFileViewer_v4.0.0-beta.3_" + suffix + ".zip", browser_download_url = Url, digest = "sha256:" + new string('1', 64) }) });
+        var result = ViewerUpdateService.SelectRelease(json, new Version(4,0,0), architecture, true, currentTag: "4.0.0-beta.2", selfContained: selfContained)!;
+        Assert.Equal("NxFileViewer_v4.0.0-beta.3_" + (selfContained ? "self-contained_" : "") + architecture + ".zip", result.AssetName);
+    }
+    [Fact]
+    public void DoesNotSwitchDistributionWhenRuntimeAssetIsMissing()
+    {
+        Assert.Null(ViewerUpdateService.SelectRelease(Release(), new Version(3,0,4), "x64", skipMissingPackage: true, selfContained: true));
+        Assert.Throws<InvalidDataException>(() => ViewerUpdateService.SelectRelease(Release(), new Version(3,0,4), "x64", selfContained: true));
+    }
     private const string Url = "https://github.com/sandmaennchen5/fork_NxFileViewer/releases/download/v3.0.5/NxFileViewer_v3.0.5_x64.zip";
     private static JsonElement Release(string tag = "v3.0.5", bool draft = false, bool prerelease = false, string url = Url) =>
         JsonSerializer.SerializeToElement(new { tag_name = tag, draft, prerelease, assets = new[]

@@ -1,3 +1,4 @@
+using System.Linq;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -18,6 +19,7 @@ using Emignatik.NxFileViewer.Utils.MVVM.Localization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
+using Emignatik.NxFileViewer.Services.OnlineServices;
 
 namespace Emignatik.NxFileViewer.Views.Windows;
 
@@ -58,6 +60,9 @@ public class SettingsWindowViewModel : WindowViewModelBase
         DownloadTitleKeysCommand = new RelayCommand(DownloadTitleKeys, CanDownloadTitleKeys);
         EditProdKeysCommand = new RelayCommand(OpenProdKeysLocation, CanOpenProdKeysLocation);
         EditTitleKeysCommand = new RelayCommand(OpenTitleKeysLocation, CanOpenTitleKeysLocation);
+        OpenKeyLocationCommand = new RelayCommand(path => _fileLocationOpenerService.OpenFileLocationSafe((string)path!),
+            path => path is string file && SafeCheckFileExists(file));
+        DownloadKeysCommand = new RelayCommand(() => DownloadKeys(true, true), () => !_backgroundTaskRunnerService.IsRunning);
 
         InitializeFromSettings(appSettingsManager.Clone());
 
@@ -68,6 +73,7 @@ public class SettingsWindowViewModel : WindowViewModelBase
                 CopyKeysToSwitchCommand.TriggerCanExecuteChanged();
                 DownloadProdKeysCommand.TriggerCanExecuteChanged();
                 DownloadTitleKeysCommand.TriggerCanExecuteChanged();
+                DownloadKeysCommand.TriggerCanExecuteChanged();
             }
         };
 
@@ -88,11 +94,12 @@ public class SettingsWindowViewModel : WindowViewModelBase
             {
                 NotifyPropertyChanged(nameof(TitleKeysValidationSummary));
                 NotifyPropertyChanged(nameof(AreTitleKeysValid));
+                RefreshKeyLocations();
             }
         };
     }
 
-    private const string TinfoilPage = "https://tinfoil.io/Title/{TitleId}";
+    private const string TinfoilPage = "https://tinfoil.media/Title/{TitleId}";
     private const string NxContentPage = "https://nx-content.ghostland.at/?game={TitleId}";
     private int _titlePageSource;
     private string _customTitlePageUrl = TinfoilPage;
@@ -128,9 +135,12 @@ public class SettingsWindowViewModel : WindowViewModelBase
                 var target = Path.Combine(SharedKeyFiles.DirectoryPath, file.Name);
                 if (File.Exists(file.Source) && File.Exists(target) && !Path.GetFullPath(file.Source!).Equals(target, StringComparison.OrdinalIgnoreCase)) existing.Add(target);
             }
-            if (existing.Count > 0 && ThemedDialog.Confirm("Keys", keys.Keys_ReplaceShared + Environment.NewLine + string.Join(Environment.NewLine, existing), false) != MessageBoxResult.Yes) return;
+            var comparisons = files.Where(file => existing.Contains(Path.Combine(SharedKeyFiles.DirectoryPath, file.Name)))
+                .Select(file => KeyReplacementComparison(file.Source!, Path.Combine(SharedKeyFiles.DirectoryPath, file.Name), file.Name == "title.keys"));
+            if (existing.Count > 0 && ThemedDialog.Confirm("Keys", keys.Keys_ReplaceShared + Environment.NewLine + string.Join(Environment.NewLine + Environment.NewLine, comparisons), false) != MessageBoxResult.Yes) return;
             foreach (var file in files)
                 if (File.Exists(file.Source)) SharedKeyFiles.Copy(file.Source!, Path.Combine(SharedKeyFiles.DirectoryPath, file.Name), overwrite: existing.Contains(Path.Combine(SharedKeyFiles.DirectoryPath, file.Name)));
+            RefreshKeyLocations();
             ThemedDialog.Notice(keys.Keys_SharedCopied + Environment.NewLine + SharedKeyFiles.DirectoryPath, "Keys", MessageBoxImage.Information);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
@@ -142,7 +152,10 @@ public class SettingsWindowViewModel : WindowViewModelBase
         [MemberNotNull(nameof(_editedSettings))]
         private set
         {
+            if (_editedSettings != null) _editedSettings.PropertyChanged -= OnEditedKeyPathChanged;
             _editedSettings = value;
+            _editedSettings.PropertyChanged += OnEditedKeyPathChanged;
+            RefreshKeyLocations();
             _titlePageSource = value.TitlePageUrl == TinfoilPage ? 0 : value.TitlePageUrl == NxContentPage ? 1 : 2;
             _customTitlePageUrl = _titlePageSource == 2 ? value.TitlePageUrl : TinfoilPage;
             NotifyPropertyChanged(nameof(SelectedTitlePageSource));
@@ -187,6 +200,15 @@ public class SettingsWindowViewModel : WindowViewModelBase
     public RelayCommand DownloadProdKeysCommand { get; }
 
     public RelayCommand DownloadTitleKeysCommand { get; }
+    public RelayCommand DownloadKeysCommand { get; }
+    private static string KeyReplacementComparison(string source, string destination, bool titleKeys)
+    {
+        var keys = LocalizationManager.Instance.Current.Keys;
+        string Summary(string path) => BuildValidationSummary(titleKeys ? KeyFileValidator.ValidateTitleKeys(path) : KeyFileValidator.ValidateProdKeys(path));
+        return destination + Environment.NewLine + keys.Keys_ExistingValidation + Environment.NewLine + Summary(destination)
+            + Environment.NewLine + keys.Keys_IncomingValidation + Environment.NewLine + Summary(source);
+    }
+    public RelayCommand OpenKeyLocationCommand { get; }
 
     public RelayCommand EditProdKeysCommand { get; }
 
@@ -206,7 +228,7 @@ public class SettingsWindowViewModel : WindowViewModelBase
         get => EditedSettings.TitleInfoProvider;
         set {
             EditedSettings.TitleInfoProvider = value;
-            if (value == TitleInfoProvider.Tinfoil) EditedSettings.TitleInfoApiUrl = "https://tinfoil.io/api/title/{TitleId}";
+            if (value == TitleInfoProvider.Tinfoil) EditedSettings.TitleInfoApiUrl = "https://tinfoil.media/api/title/{TitleId}";
             if (value == TitleInfoProvider.NLib) EditedSettings.NLibApiUrl = "https://api.nlib.cc/nx/{TitleId}?lang={Language}";
             NotifyPropertyChanged();
         }
@@ -234,6 +256,26 @@ public class SettingsWindowViewModel : WindowViewModelBase
 
     public string TitleKeysValidationSummary => BuildValidationSummary(_keySetProviderService.TitleKeysValidation);
 
+    public IReadOnlyList<KeyLocationStatus> ProdKeyLocations { get; private set; } = Array.Empty<KeyLocationStatus>();
+    public IReadOnlyList<KeyLocationStatus> TitleKeyLocations { get; private set; } = Array.Empty<KeyLocationStatus>();
+
+    private void OnEditedKeyPathChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(IAppSettings.ProdKeysFilePath) or nameof(IAppSettings.TitleKeysFilePath)) RefreshKeyLocations();
+    }
+
+    public void RefreshKeyLocations()
+    {
+        ProdKeyLocations = KeyLocationStatus.Inspect(_keySetProviderService.AppDirProdKeysFilePath,
+            Path.Combine(SharedKeyFiles.DirectoryPath, "prod.keys"), EditedSettings.ProdKeysFilePath,
+            _keySetProviderService.ActualProdKeysFilePath, false);
+        TitleKeyLocations = KeyLocationStatus.Inspect(_keySetProviderService.AppDirTitleKeysFilePath,
+            Path.Combine(SharedKeyFiles.DirectoryPath, "title.keys"), EditedSettings.TitleKeysFilePath,
+            _keySetProviderService.ActualTitleKeysFilePath, true);
+        NotifyPropertyChanged(nameof(ProdKeyLocations));
+        NotifyPropertyChanged(nameof(TitleKeyLocations));
+    }
+
     public IEnumerable<ILocalization<ILocalizationKeys>> AvailableLanguages => LocalizationManager.Instance.AvailableLocalizations;
 
     public ILocalization<ILocalizationKeys>? SelectedLanguage
@@ -251,6 +293,7 @@ public class SettingsWindowViewModel : WindowViewModelBase
     [MemberNotNull(nameof(_editedSettings))]
     private void InitializeFromSettings(IAppSettings appSettings)
     {
+        KeyDownloads.MigrateLegacyHost(appSettings);
         EditedSettings = appSettings;
         this.SelectedLanguage = LocalizationManager.Instance.AvailableLocalizations.FindByCultureName(appSettings.AppLanguage);
     }
@@ -273,22 +316,52 @@ public class SettingsWindowViewModel : WindowViewModelBase
         }
     }
 
-    private async void DownloadProdKeys()
-    {
-        var clonedSettings = EditedSettings;
-        var downloadFileRunnable = _serviceProvider.GetRequiredService<IDownloadFileRunnable>();
-        downloadFileRunnable.Setup(clonedSettings.ProdKeysDownloadUrl, _keySetProviderService.AppDirProdKeysFilePath);
-        await _backgroundTaskRunnerService.RunAsync(downloadFileRunnable);
-        _keySetProviderService.Reset();
-    }
+    private void DownloadProdKeys() => DownloadKeys(true, false);
 
-    private async void DownloadTitleKeys()
+    private void DownloadTitleKeys() => DownloadKeys(false, true);
+
+    private async void DownloadKeys(bool prod, bool title)
     {
-        var clonedSettings = EditedSettings;
-        var downloadFileRunnable = _serviceProvider.GetRequiredService<IDownloadFileRunnable>();
-        downloadFileRunnable.Setup(clonedSettings.TitleKeysDownloadUrl, _keySetProviderService.AppDirTitleKeysFilePath);
-        await _backgroundTaskRunnerService.RunAsync(downloadFileRunnable);
-        _keySetProviderService.Reset();
+        if (_backgroundTaskRunnerService.IsRunning) return;
+        var logger = _serviceProvider.GetRequiredService<ILoggerFactory>().CreateLogger<SettingsWindowViewModel>();
+        try
+        {
+            var settings = EditedSettings;
+            var requests = new List<(string Url, string Destination)>();
+            if (prod) requests.Add((KeyDownloads.ResolveUrl(settings.ProdKeysDownloadUrl, settings.KeysDownloadHost),
+                KeyDownloads.Destination(settings.ProdKeysFilePath, _keySetProviderService.AppDirProdKeysFilePath)));
+            if (title) requests.Add((KeyDownloads.ResolveUrl(settings.TitleKeysDownloadUrl, settings.KeysDownloadHost),
+                KeyDownloads.Destination(settings.TitleKeysFilePath, _keySetProviderService.AppDirTitleKeysFilePath)));
+            if (requests.Count == 2 && string.Equals(requests[0].Destination, requests[1].Destination, StringComparison.OrdinalIgnoreCase))
+                throw new ArgumentException("prod.keys and title.keys require different destination paths.");
+            var downloader = _serviceProvider.GetRequiredService<IHttpDownloader>();
+            await _backgroundTaskRunnerService.RunAsync(new RunnableRelay((progress, token) =>
+            {
+                for (var i = 0; i < requests.Count; i++)
+                {
+                    token.ThrowIfCancellationRequested();
+                    var request = requests[i];
+                    progress.SetText(LocalizationManager.Instance.Current.Keys.Status_DownloadingFile.SafeFormat(Path.GetFileName(request.Destination)));
+                    logger.LogInformation(LocalizationManager.Instance.Current.Keys.Log_DownloadingFileFromUrl.SafeFormat(request.Destination, request.Url));
+                    var titleKeys = title && (!prod || i == 1);
+                    KeyDownloads.DownloadAsync(downloader, request.Url, request.Destination, token, (source, destination) =>
+                    {
+                        var comparison = KeyReplacementComparison(source, destination, titleKeys);
+                        return Application.Current.Dispatcher.Invoke(() => token.IsCancellationRequested ? false :
+                            ThemedDialog.Confirm("Keys", LocalizationManager.Instance.Current.Keys.Keys_ReplaceDownloaded + Environment.NewLine + comparison, false) == MessageBoxResult.Yes);
+                    }).GetAwaiter().GetResult();
+                    logger.LogInformation(LocalizationManager.Instance.Current.Keys.Log_FileSuccessfullyDownloaded.SafeFormat(request.Destination));
+                    progress.SetPercentage((i + 1d) / requests.Count);
+                }
+            }) { SupportsCancellation = true, SupportProgress = true });
+        }
+        catch (OperationCanceledException) { logger.LogInformation(LocalizationManager.Instance.Current.Keys.Log_DownloadFileCanceled); }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Key download failed.");
+            ThemedDialog.Notice(ex.Message, "Keys", MessageBoxImage.Error);
+        }
+        finally { _keySetProviderService.Reset(); RefreshKeyLocations(); }
     }
 
     private bool CanDownloadTitleKeys()

@@ -12,6 +12,40 @@
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance windows:SettingsWindowViewModel}">
 
+    <UserControl.Resources>
+        <DataTemplate x:Key="KeyLocationStatusTemplate">
+            <Border BorderBrush="{DynamicResource Control.Static.Border}" BorderThickness="1" Padding="8" Margin="0,4,0,4">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="{Binding Location}" FontWeight="Bold"/>
+                        <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Keys_InUse}"
+                                   Foreground="{DynamicResource FontBrush.Success}" Margin="12,0,0,0"
+                                   Visibility="{Binding IsActive, Converter={StaticResource FalseToCollapseVisibilityConverter}}"/>
+                    </StackPanel>
+                    <DockPanel Margin="0,4,0,4">
+                        <Button DockPanel.Dock="Right" Style="{StaticResource EditButton}" CommandParameter="{Binding FilePath}"
+                                Command="{Binding DataContext.OpenKeyLocationCommand, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"
+                                ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_ToolTip_OpenKeysLocation}"/>
+                        <TextBox Text="{Binding FilePath, Mode=OneWay}" Style="{StaticResource ReadOnlyTextBoxShaded}"/>
+                    </DockPanel>
+                    <TextBlock Text="{Binding Summary}" TextWrapping="Wrap">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Foreground" Value="{DynamicResource FontBrush.Error}"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Validation.IsValid}" Value="True"><Setter Property="Foreground" Value="{DynamicResource FontBrush.Success}"/></DataTrigger>
+                                    <DataTrigger Binding="{Binding Validation.HasWarnings}" Value="True"><Setter Property="Foreground" Value="{DynamicResource FontBrush.Warning}"/></DataTrigger>
+                                    <DataTrigger Binding="{Binding Validation.FileExists}" Value="False"><Setter Property="Foreground" Value="{DynamicResource FontBrush.Warning}"/></DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+    </UserControl.Resources>
+
+
     <TabControl x:Name="SettingsSections">
     <TabItem Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Settings_Program}">
     <Grid>
@@ -35,13 +69,25 @@
 
 
                         <StackPanel Orientation="Vertical" DockPanel.Dock="Top">
-                            <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Keys_CopyToSwitch}" Command="{Binding CopyKeysToSwitchCommand}" HorizontalAlignment="Left" Padding="12,5" Margin="0,6,0,10"/>
-                            <CheckBox IsChecked="{Binding EditedSettings.AlwaysReloadKeysBeforeOpen}"
+                            <WrapPanel Margin="0,6,0,10">
+                                <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Keys_CopyToSwitch}" Command="{Binding CopyKeysToSwitchCommand}" Padding="12,5" Margin="0,0,8,8"/>
+                                <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Keys_DownloadAll}" Command="{Binding DownloadKeysCommand}" Padding="12,5" Margin="0,0,8,8"/>
+                                <StackPanel Margin="8,0,0,8">
+                            <TextBlock Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Keys_DownloadHost}"/>
+                            <TextBox Text="{Binding EditedSettings.KeysDownloadHost, UpdateSourceTrigger=PropertyChanged}" Width="240" HorizontalAlignment="Left"
+                                     ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Keys_DownloadHostTip}" Margin="0"/>
+
+                                </StackPanel>
+                            </WrapPanel>
+                            <WrapPanel Margin="0,0,0,8">
+                            <CheckBox IsChecked="{Binding EditedSettings.AlwaysReloadKeysBeforeOpen}" Margin="0,0,20,0"
                                         Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_CheckBox_AlwaysReloadKeysBeforeOpen}" />
                             <CheckBox IsChecked="{Binding EditedSettings.InjectTicketKeys}"
                                       Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_CheckBox_InjectTicketKeys}" />
+                            </WrapPanel>
 
-                            <Expander>
+                            <CheckBox IsChecked="{Binding EditedSettings.SaveTicketKeys}" IsEnabled="{Binding EditedSettings.InjectTicketKeys}" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Keys_SaveTicketKeys}" Margin="0,0,0,8"/>
+                            <Expander Expanded="KeyLocationsExpanded">
                                 <Expander.Header>
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="{x:Static keysManagement:IKeySetProviderService.DEFAULT_PROD_KEYS_FILE_NAME}" Style="{StaticResource Title1}"/>
@@ -49,28 +95,7 @@
                                     </StackPanel>
                                 </Expander.Header>
                                 <StackPanel>
-                                    <TextBlock Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_Title_KeysEffectiveFilePath}" />
-                                    <DockPanel LastChildFill="true">
-                                        <Button Command="{Binding Path=EditProdKeysCommand}" Style="{StaticResource EditButton}" DockPanel.Dock="Right"
-                                                ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_ToolTip_OpenKeysLocation}"/>
-                                        <TextBox Style="{StaticResource ReadOnlyTextBoxShaded}" Text="{Binding Path=ActualProdKeysFilePath, Mode=OneWay}" />
-                                    </DockPanel>
-                                    <TextBlock Text="{Binding ProdKeysValidationSummary}" TextWrapping="Wrap" Margin="0,4,0,6">
-                                        <TextBlock.Style>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="Foreground" Value="{DynamicResource FontBrush.Error}"/>
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding AreProdKeysValid}" Value="True">
-                                                        <Setter Property="Foreground" Value="{DynamicResource FontBrush.Success}"/>
-                                                    </DataTrigger>
-                                                    <DataTrigger Binding="{Binding HasProdKeysWarnings}" Value="True">
-                                                        <Setter Property="Foreground" Value="{DynamicResource FontBrush.Warning}"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </TextBlock.Style>
-                                    </TextBlock>
-
+                                    <ItemsControl ItemsSource="{Binding ProdKeyLocations}" ItemTemplate="{StaticResource KeyLocationStatusTemplate}" Margin="0,6,0,8"/>
                                     <TextBlock Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_Title_KeysCustomFilePath}" />
                                     <DockPanel LastChildFill="true">
                                         <Button Command="{Binding Path=BrowseProdKeysCommand}" Style="{StaticResource BrowseButton}" DockPanel.Dock="Right"
@@ -79,15 +104,11 @@
                                     </DockPanel>
 
                                     <TextBlock  Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_Title_KeysDownloadUrl}" />
-                                    <DockPanel LastChildFill="true">
-                                        <Button Command="{Binding Path=DownloadProdKeysCommand}" Style="{StaticResource DownloadButton}" DockPanel.Dock="Right"
-                                                ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_ToolTip_DownloadKeys}"/>
-                                        <TextBox Text="{Binding Path=EditedSettings.ProdKeysDownloadUrl}" />
-                                    </DockPanel>
+                                    <TextBox Text="{Binding EditedSettings.ProdKeysDownloadUrl, UpdateSourceTrigger=PropertyChanged}" ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Keys_DownloadHostTip}"/>
                                 </StackPanel>
                             </Expander>
 
-                            <Expander>
+                            <Expander Expanded="KeyLocationsExpanded">
                                 <Expander.Header>
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="{x:Static keysManagement:IKeySetProviderService.DEFAULT_TITLE_KEYS_FILE_NAME}" Style="{StaticResource Title1}"/>
@@ -96,25 +117,7 @@
                                 </Expander.Header>
                                 <StackPanel>
 
-                                    <TextBlock Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_Title_KeysEffectiveFilePath}" />
-                                    <DockPanel LastChildFill="true">
-                                        <Button Command="{Binding Path=EditTitleKeysCommand}" Style="{StaticResource EditButton}" DockPanel.Dock="Right"
-                                                ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_ToolTip_OpenKeysLocation}"/>
-                                        <TextBox Style="{StaticResource ReadOnlyTextBoxShaded}" Text="{Binding Path=ActualTitleKeysFilePath, Mode=OneWay}" />
-                                    </DockPanel>
-                                    <TextBlock Text="{Binding TitleKeysValidationSummary}" TextWrapping="Wrap" Margin="0,4,0,6">
-                                        <TextBlock.Style>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="Foreground" Value="{DynamicResource FontBrush.Error}"/>
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding AreTitleKeysValid}" Value="True">
-                                                        <Setter Property="Foreground" Value="{DynamicResource FontBrush.Success}"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </TextBlock.Style>
-                                    </TextBlock>
-
+                                    <ItemsControl ItemsSource="{Binding TitleKeyLocations}" ItemTemplate="{StaticResource KeyLocationStatusTemplate}" Margin="0,6,0,8"/>
                                     <TextBlock Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_Title_KeysCustomFilePath}" />
                                     <DockPanel LastChildFill="True">
                                         <Button Command="{Binding Path=BrowseTitleKeysCommand}" Style="{StaticResource BrowseButton}" DockPanel.Dock="Right"
@@ -122,11 +125,7 @@
                                         <TextBox Text="{Binding Path=EditedSettings.TitleKeysFilePath, UpdateSourceTrigger=PropertyChanged}"/>
                                     </DockPanel>
                                     <TextBlock  Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_Title_KeysDownloadUrl}" />
-                                    <DockPanel LastChildFill="true">
-                                        <Button Command="{Binding Path=DownloadTitleKeysCommand}" Style="{StaticResource DownloadButton}" DockPanel.Dock="Right"
-                                                ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_ToolTip_DownloadKeys}"/>
-                                        <TextBox Text="{Binding Path=EditedSettings.TitleKeysDownloadUrl}" />
-                                    </DockPanel>
+                                    <TextBox Text="{Binding EditedSettings.TitleKeysDownloadUrl, UpdateSourceTrigger=PropertyChanged}" ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Keys_DownloadHostTip}"/>
                                 </StackPanel>
                             </Expander>
                         </StackPanel>
@@ -189,6 +188,7 @@
                             <StackPanel>
                                 <TextBlock Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_TitleInfoProvider}" />
                                 <ComboBox ItemsSource="{Binding TitleProviderOptions}" SelectedValuePath="Value" SelectedValue="{Binding SelectedTitleInfoSource}" DisplayMemberPath="DisplayName" />
+                                <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Tinfoil_StabilityHint}" TextWrapping="Wrap" Margin="0,6,0,0"/>
                             </StackPanel>
                             <StackPanel>
                                 <StackPanel.Style><Style TargetType="StackPanel"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding EditedSettings.TitleInfoProvider}" Value="{x:Static settings:TitleInfoProvider.Custom}"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></StackPanel.Style>

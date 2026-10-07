@@ -125,6 +125,21 @@
                     <StackPanel Margin="24" MaxWidth="900" HorizontalAlignment="Left">
                         <Image Source="/Styling/Icons/Icon.ico" Width="72" Height="72" HorizontalAlignment="Left" Margin="0,0,0,16"/>
                         <TextBlock Text="{Binding ProgramVersion}" FontSize="28" Margin="0,0,0,16"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <TextBlock Text="{Binding ProgramArchitecture}" FontWeight="Bold" Margin="0,0,12,0"/>
+                            <TextBlock>
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Text" Value="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Info_WithoutRuntime}"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding HasBundledRuntime}" Value="True">
+                                                <Setter Property="Text" Value="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Info_WithRuntime}"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </StackPanel>
                         <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Info_Description}" TextWrapping="Wrap" Margin="0,0,0,16"/>
                         <TextBlock Text="GitHub: sandmaennchen5/fork_NxFileViewer" Margin="0,0,0,8"/>
                         <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Info_Shortcuts}" Style="{StaticResource Title2}" Margin="0,16,0,12"/>

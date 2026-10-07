@@ -62,7 +62,7 @@ public sealed class ViewerUpdateActions : NotifyPropertyChangedBase
             var architecture = RuntimeInformation.ProcessArchitecture switch
             { Architecture.X64 => "x64", Architecture.X86 => "x86", _ => throw new NotSupportedException("No release package for this architecture.") };
             var includePrereleases = _settings.IncludeViewerPrereleases;
-            _release = await _service.CheckAsync(Assembly.GetExecutingAssembly().GetName().Version!, architecture, timeout.Token, includePrereleases, Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion);
+            _release = await _service.CheckAsync(Assembly.GetExecutingAssembly().GetName().Version!, architecture, timeout.Token, includePrereleases, Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion, ViewerDistribution.IsSelfContained);
             if (includePrereleases != _settings.IncludeViewerPrereleases) { _release = null; Status = ""; return; }
             Status = _release == null ? LocalizationManager.Instance.Current.Keys.Update_Current :
                 string.Format(LocalizationManager.Instance.Current.Keys.Update_Available, ReleaseLabel(_release));

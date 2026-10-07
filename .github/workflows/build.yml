@@ -27,7 +27,9 @@ jobs:
       - name: Upload x64 ZIP
         uses: actions/upload-artifact@v7
         with:
-          path: Publish/*_x64.zip
+          path: |
+            Publish/*_x64.zip
+            !Publish/*_self-contained_x64.zip
           archive: false
           if-no-files-found: error
           retention-days: 7
@@ -35,7 +37,25 @@ jobs:
       - name: Upload x86 ZIP
         uses: actions/upload-artifact@v7
         with:
-          path: Publish/*_x86.zip
+          path: |
+            Publish/*_x86.zip
+            !Publish/*_self-contained_x86.zip
+          archive: false
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload x64 ZIP with .NET (compressed)
+        uses: actions/upload-artifact@v7
+        with:
+          path: Publish/*_self-contained_x64.zip
+          archive: false
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload x86 ZIP with .NET (compressed)
+        uses: actions/upload-artifact@v7
+        with:
+          path: Publish/*_self-contained_x86.zip
           archive: false
           if-no-files-found: error
           retention-days: 7

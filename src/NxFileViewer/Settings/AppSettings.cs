@@ -74,12 +74,18 @@ public class AppSettings : NotifyPropertyChangedBase, IAppSettings
     private string _prodKeysFilePath = "";
     private string _titleKeysFilePath = "";
     private LogLevel _logLevel = LogLevel.Information;
-    private string _prodKeysDownloadUrl = "ftp://192.168.178.100:5000/sdmc:/switch/prod.keys";
-    private string _titleKeysDownloadUrl = "ftp://192.168.178.100:5000/sdmc:/switch/title.keys";
+    private string _keysDownloadHost = "192.168.178.100";
+    public string KeysDownloadHost
+    {
+        get => _keysDownloadHost;
+        set { _keysDownloadHost = value; NotifyPropertyChanged(); }
+    }
+    private string _prodKeysDownloadUrl = "ftp://{IP}:5000/sdmc:/switch/prod.keys";
+    private string _titleKeysDownloadUrl = "ftp://{IP}:5000/sdmc:/switch/title.keys";
     private bool _alwaysReloadKeysBeforeOpen = false;
 
-    private string _titlePageUrl = "https://tinfoil.io/Title/{TitleId}";
-    private string _titleInfoApiUrl = "https://tinfoil.io/api/title/{TitleId}";
+    private string _titlePageUrl = "https://tinfoil.media/Title/{TitleId}";
+    private string _titleInfoApiUrl = "https://tinfoil.media/api/title/{TitleId}";
     private TitleInfoProvider _titleInfoProvider;
     private string _titleDbRegion = "DE.de";
     private string _nLibApiUrl = "https://api.nlib.cc/nx/{TitleId}?lang={Language}";
@@ -87,6 +93,8 @@ public class AppSettings : NotifyPropertyChangedBase, IAppSettings
     private bool _allowNczBlocklessCompressionOpening = true;
     private bool _acceptMissingDeltaFragments = true;
     private bool _injectTicketKeys = true;
+    private bool _saveTicketKeys;
+    public bool SaveTicketKeys { get => _saveTicketKeys; set { _saveTicketKeys = value; NotifyPropertyChanged(); } }
     private AppTheme _theme = AppTheme.System;
     private bool _rememberWindowPlacement = true;
 

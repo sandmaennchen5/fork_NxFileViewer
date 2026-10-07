@@ -5,6 +5,31 @@ All notable changes to NxFileViewer will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.0-beta.3] - 2026-10-07
+
+### Added
+
+- Publish standard and compressed self-contained x64/x86 ZIPs, with matching GitHub Actions artifacts. Updates preserve the installed runtime variant and architecture; Info displays both.
+- Add a batch naming-status filter, local TitleDB refresh dates and highest local/online firmware reference versions in Updates settings.
+- Show validation separately for program-local, .switch and custom key files, including active-file indicators and file-location buttons.
+- Add a shared download IP/hostname and {IP} URL templates. Download keys to custom paths or the program folder, staging downloads and comparing existing/incoming validation before replacement.
+- Optionally save missing ticket keys to title.keys without duplicates or overwriting conflicts; disabled by default.
+- Remove empty program subdirectories on exit, preserving files, links and private test/development directories.
+
+### Changed
+
+- Group batch filter checkboxes into two rows and start the second action row with CSV export; place naming actions before Cancel.
+- Arrange key actions beside the download host, with key checkboxes below; show validation comparisons when copying keys to .switch.
+- Remove the resizable output divider from the renaming tool.
+- Restore tinfoil.media presets and show an availability hint, preserving custom API URLs.
+- Update English documentation for the new settings and release variants.
+
+### Fixed
+
+- Rediscover and validate key locations on explicit reload, picking up new program-local keys without restarting.
+- Compare full semantic versions for beta/RC updates and verify downloaded product versions.
+- Preserve existing key files on download failure, cancellation or declined replacement.
+
 ## [4.0.0-beta.2] - 2026-10-07
 
 ### Added

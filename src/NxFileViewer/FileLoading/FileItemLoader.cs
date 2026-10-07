@@ -218,6 +218,21 @@ public class FileItemLoader : IFileItemLoader
                             parentItem.KeySet.ExternalKeySet.Add(rightsId, accessKey).ThrowIfFailure();
                             _logger.LogInformation(LocalizationManager.Instance.Current.Keys.LoadingInfo_TitleIdKeySuccessfullyInjected.SafeFormat(rightsId.ToString(), accessKey.ToString(), fileName));
                         }
+                        if (_appSettings.SaveTicketKeys)
+                        {
+                            var path = _keySetProviderService.ActualTitleKeysFilePath ?? KeyDownloads.Destination(
+                                _appSettings.TitleKeysFilePath, _keySetProviderService.AppDirTitleKeysFilePath);
+                            try
+                            {
+                                var saved = TicketKeyStore.AddMissing(path, rightsId.ToString(), accessKey.ToString());
+                                if (saved == TicketKeySaveResult.Conflict)
+                                    _logger.LogWarning(LocalizationManager.Instance.Current.Keys.Keys_TicketConflict.SafeFormat(rightsId.ToString(), path));
+                                else if (saved == TicketKeySaveResult.Added)
+                                    _logger.LogInformation(LocalizationManager.Instance.Current.Keys.Keys_TicketSaved.SafeFormat(rightsId.ToString(), path));
+                            }
+                            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+                            { _logger.LogWarning(ex, "Could not persist ticket key to {Path}.", path); }
+                        }
                     }
                     catch (Exception ex) when (ex is not OperationCanceledException)
                     {

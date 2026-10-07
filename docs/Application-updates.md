@@ -14,13 +14,15 @@ A hidden Windows PowerShell helper initializes before the viewer closes, allowin
 
 Replacement errors preserve the existing EXE. If the new process fails to launch or exits within two seconds, the helper attempts to restore the previous EXE. This checks early startup only. Staging data, the backup and `error.txt` remain under Updates for recovery or diagnosis.
 
-## Publishing 4.0.0-beta.2
+## Publishing 4.0.0-beta.3
 
-The project uses the valid package version `4.0.0-beta.2`. Run `Publish.ps1`, create a GitHub Release with tag `v4.0.0-beta.2`, and mark it as a pre-release. Attach:
+The project uses the valid package version `4.0.0-beta.3`. Run `Publish.ps1`, create a GitHub Release with tag `v4.0.0-beta.3`, and mark it as a pre-release. Attach:
 
-- `NxFileViewer_v4.0.0-beta.2_x64.zip`
-- `NxFileViewer_v4.0.0-beta.2_x86.zip`
-- `NxFileViewer_v4.0.0-beta.2_firmware-hashes.zip` (optional reference add-on)
+- `NxFileViewer_v4.0.0-beta.3_x64.zip`
+- `NxFileViewer_v4.0.0-beta.3_x86.zip`
+- `NxFileViewer_v4.0.0-beta.3_self-contained_x64.zip` (compressed, includes .NET)
+- `NxFileViewer_v4.0.0-beta.3_self-contained_x86.zip` (compressed, includes .NET)
+- `NxFileViewer_v4.0.0-beta.3_firmware-hashes.zip` (optional reference add-on)
 
 Application ZIPs include the portable executable with embedded debug symbols; firmware references stay in their separate ZIP. GitHub Actions artifacts alone are not releases available to the updater. Architecture selection follows the running viewer process.
 
@@ -41,3 +43,11 @@ Older Beta 1 builds still contain the numeric-only comparison and cannot discove
 ## Validation
 
 Tests use mocked releases/downloads, corrupt and unsafe archives, and isolated dummy EXEs for replacement and backup checks. They never replace an installed user application. A complete live GitHub upgrade/restart has not been validated during development.
+
+## Runtime variants
+
+Each x64/x86 release offers a standard ZIP requiring .NET 8 Desktop Runtime and a compressed self-contained ZIP with .NET included. Standard names remain NxFileViewer_v<VERSION>_<ARCH>.zip; bundled-runtime names are NxFileViewer_v<VERSION>_self-contained_<ARCH>.zip. Both contain only NxFileViewer.exe.
+
+The executable records its runtime distribution at build time. Updates preserve this distribution and architecture, including preview releases. A missing compatible package is reported or skipped while listing previews; another runtime distribution is never substituted. Previously installed standard builds continue using the original ZIP names.
+
+The Info tab displays the application version, process architecture and whether .NET is bundled. Standard builds explicitly show the .NET 8 Desktop Runtime requirement.

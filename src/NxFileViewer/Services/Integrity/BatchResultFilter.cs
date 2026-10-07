@@ -6,8 +6,9 @@ namespace Emignatik.NxFileViewer.Services.Integrity;
 
 public static class BatchResultFilter
 {
-    public static bool Matches(BatchIntegrityResult result, string search, string fileType, string integrity, bool onlyErrors)
+    public static bool Matches(BatchIntegrityResult result, string search, string fileType, string integrity, bool onlyErrors, string naming = "")
     {
+        if (naming.Length > 0 && naming != NamingState(result)) return false;
         if (onlyErrors && result.Integrity == NcasIntegrity.Original && !result.ConversionFailed && result.NamingError == null) return false;
         if (fileType.Length > 0 && !result.FileType.Equals(fileType, StringComparison.OrdinalIgnoreCase) &&
             !result.FileType.StartsWith(fileType + " (", StringComparison.OrdinalIgnoreCase) &&
@@ -22,4 +23,7 @@ public static class BatchResultFilter
         return search.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)
             .All(word => text.Contains(word, StringComparison.OrdinalIgnoreCase));
     }
+
+    public static string NamingState(BatchIntegrityResult result) => result.NamingError != null ? "Error"
+        : result.NamingMatches == true ? "Matches" : result.NamingMatches == false ? "Differs" : "Unchecked";
 }

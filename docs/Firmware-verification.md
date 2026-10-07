@@ -39,3 +39,5 @@ See [reference maintenance](../fw/README.md) for database generation.
 ## Tests
 
 Synthetic fixtures cover complete and incomplete sets, renamed files, changed content, duplicates, archive subdirectories, mixed/nested firmware and game entries, unavailable references, cancellation and resource cleanup. Tests do not require real firmware archives or keys.
+
+Settings → Updates shows the highest firmware version covered by valid locally installed hash manifests. Checking online references also reports the highest available version; a missing local reference directory is shown explicitly.

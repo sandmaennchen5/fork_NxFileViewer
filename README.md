@@ -1,8 +1,8 @@
-# NxFileViewer 4.0.0-beta.2
+# NxFileViewer 4.0.0-beta.3
 
 Browse and verify Nintendo Switch packages with a Windows desktop interface based on [LibHac](https://github.com/Thealexbarney/LibHac).
 
-Download application ZIPs from [GitHub Releases](https://github.com/sandmaennchen5/fork_NxFileViewer/releases). Choose x64 or x86; firmware hash references are a separate optional download. See the [changelog](CHANGELOG.md) for release history.
+Download application ZIPs from [GitHub Releases](https://github.com/sandmaennchen5/fork_NxFileViewer/releases). Choose x64 or x86, either standard (requires .NET 8 Desktop Runtime) or self-contained (includes .NET, compressed). Application updates preserve the installed architecture and runtime variant; firmware hash references are a separate optional download. See the [changelog](CHANGELOG.md) for release history.
 
 ## Workspace
 
@@ -42,7 +42,7 @@ Choose a directory or ZIP/7z archive. Subdirectories and archives can be include
 - Successfully verified physical packages can be compressed, decompressed or moved; relative subdirectories are preserved.
 - Right-click a row for individual actions: open in File check, verify, convert, move, open the title website, check naming or rename.
 
-The Columns button shows or hides additional overview fields. Click headers to sort, Shift-click for multiple sort columns, and drag headers to reorder. Combine search, file-type and integrity filters with Only errors. CSV export follows the current filtering and sorting and includes all overview fields. Hover over cells or headers to read their full text. Horizontal/vertical scrolling and Shift + mouse wheel support wide tables. Overview metadata is retained for quick selection without reopening NSZ files.
+The Columns button shows or hides additional overview fields. Click headers to sort, Shift-click for multiple sort columns, and drag headers to reorder. Combine search, file-type, integrity and naming-status filters with Only errors. Naming filters include matching, differing, unchecked and failed names. The naming actions appear immediately before Cancel. CSV export follows the current filtering and sorting and includes all overview fields. Hover over cells or headers to read their full text. Horizontal/vertical scrolling and Shift + mouse wheel support wide tables. Overview metadata is retained for quick selection without reopening NSZ files.
 
 The last five batch sessions can be displayed or resumed. Disable history under Settings → Program if desired; existing saved sessions remain available when re-enabled. See [batch history](docs/Batch-history.md).
 
@@ -58,7 +58,7 @@ In Batch check, Check naming compares physical NSP/NSZ/XCI/XCZ packages with the
 
 ## Keys and title sources
 
-Settings shows the actual `prod.keys` and `title.keys` files in use, structural validation results, missing master-key revisions and firmware estimates. Select your own locations or use configured download URLs, including anonymous FTP. Missing required keys are shown on Start and file/batch views.
+The expandable prod.keys and title.keys sections show independent paths and validation results for the program directory, %USERPROFILE%/.switch and the custom path when configured. The currently used file is marked; each location has a button to open its file location, replacing the duplicate effective-path section. Results refresh when opening the sections, reloading keys, copying shared keys or changing the custom path. Validation includes structural errors, missing master-key revisions and firmware estimates. Select your own locations or use configured download URLs, including anonymous FTP. A shared IP/hostname field replaces {IP} in both URL templates, for example ftp://{IP}:5000/sdmc:/switch/prod.keys. Download keys beside Copy keys downloads prod.keys and title.keys to their configured custom paths, or to the program directory when a custom path is empty. Failed or cancelled downloads retain existing files; successful downloads refresh validation. Legacy FTP URLs sharing one host migrate to the shared field without changing their ports or remote paths. Reload keys reruns discovery and validation: an explicit settings path takes priority, followed by the program directory and then %USERPROFILE%/.switch. Newly added program-local files are recognized without restarting. Missing required keys are shown on Start and file/batch views.
 
 An explicit settings action copies the current key files to `%USERPROFILE%/.switch` for other applications. Existing files require replacement confirmation; source files remain unchanged. Key values are masked in saved session logs.
 
@@ -72,7 +72,7 @@ Conversion verifies both source and output. Existing targets offer replacement, 
 
 ## Updates and local storage
 
-Settings → Updates groups application updates, plugin installation/update/rollback, TitleDB refresh and firmware-reference actions. Automatic application checks are optional and never install without confirmation. Published pre-releases can be included explicitly. Updates verify SHA-256, version and architecture before replacement and restart. See [application updates and compatible release packages](docs/Application-updates.md).
+Settings → Updates groups application updates, plugin installation/update/rollback, TitleDB refresh and firmware-reference actions. It shows the local TitleDB refresh date for each regional catalog and the highest firmware version covered by installed hash references. Online firmware checks also show the highest available reference version. Automatic application checks are optional and never install without confirmation. Published pre-releases can be included explicitly. Updates verify SHA-256, version and architecture before replacement and restart. See [application updates and compatible release packages](docs/Application-updates.md).
 
 Check online hashes reads firmware references without saving them; Update offline hashes explicitly replaces the local set and retains a backup.
 
@@ -109,3 +109,9 @@ Screenshots illustrate the viewer and may show an earlier interface.
 Contributions and translations are welcome.
 
 Thanks to [Thealexbarney](https://github.com/Thealexbarney) for LibHac, [nicoboss](https://github.com/nicoboss) for NSZ and format guidance, and the Nintendo Switch community.
+
+Manual key copying and downloading show the existing and incoming validation summaries before replacing an existing file. Downloads are staged until approval; declining preserves existing keys and removes the staged download.
+
+Settings → Program → Keys optionally saves missing ticket keys to the active title.keys file (disabled by default, requires ticket injection). If no title.keys exists, the configured custom path or program folder is used. Existing entries remain unchanged; conflicting Rights IDs are reported in the log. Identical keys are not duplicated.
+
+On exit, empty subdirectories under the program directory are removed after shutdown cleanup. Files, nonempty directories, links, development metadata and private test directories are preserved. Inaccessible directories are skipped.

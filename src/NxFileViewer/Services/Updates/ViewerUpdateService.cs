@@ -33,7 +33,7 @@ public sealed class ViewerUpdateService
         client.DefaultRequestHeaders.UserAgent.ParseAdd("NxFileViewer-Updater/1.0");
         return client;
     }
-    public async Task<ViewerRelease?> CheckAsync(Version current, string architecture, CancellationToken token, bool includePrereleases = false, string? currentTag = null)
+    public async Task<ViewerRelease?> CheckAsync(Version current, string architecture, CancellationToken token, bool includePrereleases = false, string? currentTag = null, bool selfContained = false)
     {
         if (includePrereleases)
         {
@@ -47,7 +47,7 @@ public sealed class ViewerUpdateService
                 foreach (var item in releases.RootElement.EnumerateArray())
                 {
                     // A release for another architecture must not hide compatible releases.
-                    var candidate = SelectRelease(item, current, architecture, true, skipMissingPackage: true, currentTag: currentTag);
+                    var candidate = SelectRelease(item, current, architecture, true, skipMissingPackage: true, currentTag: currentTag, selfContained: selfContained);
                     if (candidate != null) candidates.Add(candidate);
                 }
                 if (releases.RootElement.GetArrayLength() < 100) break;
@@ -58,9 +58,9 @@ public sealed class ViewerUpdateService
         if (response.StatusCode == HttpStatusCode.NotFound) return null;
         response.EnsureSuccessStatusCode();
         using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(token).ConfigureAwait(false));
-        return SelectRelease(json.RootElement, current, architecture, currentTag: currentTag);
+        return SelectRelease(json.RootElement, current, architecture, currentTag: currentTag, selfContained: selfContained);
     }
-    public static ViewerRelease? SelectRelease(JsonElement release, Version current, string architecture, bool includePrereleases = false, bool skipMissingPackage = false, string? currentTag = null)
+    public static ViewerRelease? SelectRelease(JsonElement release, Version current, string architecture, bool includePrereleases = false, bool skipMissingPackage = false, string? currentTag = null, bool selfContained = false)
     {
         if (architecture is not ("x64" or "x86")) throw new NotSupportedException("Unsupported update architecture.");
         if (release.GetProperty("draft").GetBoolean()) return null;
@@ -73,9 +73,10 @@ public sealed class ViewerUpdateService
         var installedVersion = ViewerVersion.TryParse(currentTag, out var parsedCurrent) && parsedCurrent.Numeric == Normalize(current)
             ? parsedCurrent : ViewerVersion.FromNumeric(current);
         if (candidateVersion.CompareTo(installedVersion) <= 0) return null;
-        var name = $"NxFileViewer_v{version.Major}.{version.Minor}.{version.Build}_{architecture}.zip";
+        var variant = selfContained ? "_self-contained" : "";
+        var name = $"NxFileViewer_v{version.Major}.{version.Minor}.{version.Build}{variant}_{architecture}.zip";
         var assets = release.GetProperty("assets").EnumerateArray().ToArray();
-        var taggedName = $"NxFileViewer_v{tag.TrimStart('v', 'V')}_{architecture}.zip";
+        var taggedName = $"NxFileViewer_v{tag.TrimStart('v', 'V')}{variant}_{architecture}.zip";
         var asset = assets.FirstOrDefault(a => a.GetProperty("name").GetString() == name);
         if (asset.ValueKind == JsonValueKind.Undefined) asset = assets.FirstOrDefault(a => a.GetProperty("name").GetString() == taggedName);
         if (asset.ValueKind == JsonValueKind.Undefined)

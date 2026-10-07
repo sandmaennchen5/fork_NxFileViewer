@@ -19,6 +19,7 @@
                 </StackPanel></GroupBox>
                 <GroupBox Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.DataUpdate_Titles}"><StackPanel Margin="10">
                     <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.DataUpdate_TitleTip}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                    <TextBlock Text="{Binding TitleCatalogSummary}" TextWrapping="Wrap" Margin="0,0,0,8"/>
                     <TextBlock Text="{Binding TitleStatus}" TextWrapping="Wrap" Margin="0,0,0,8"/>
                     <WrapPanel>
                         <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.DataUpdate_Titles}" Command="{Binding RefreshTitlesCommand}" Padding="12,5" Margin="0,0,8,0"/>
@@ -26,6 +27,7 @@
                 </StackPanel></GroupBox>
                 <GroupBox Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.DataUpdate_Firmware}"><StackPanel Margin="10">
                     <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.DataUpdate_FirmwareTip}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                    <TextBlock Text="{Binding LocalFirmwareSummary}" TextWrapping="Wrap" Margin="0,0,0,8"/>
                     <TextBlock Text="{Binding FirmwareStatus}" TextWrapping="Wrap" Margin="0,0,0,8"/>
                     <WrapPanel>
                         <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.DataUpdate_CheckFirmware}" Command="{Binding CheckFirmwareCommand}" Padding="12,5" Margin="0,0,8,0"/>

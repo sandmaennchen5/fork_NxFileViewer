@@ -40,6 +40,8 @@ public sealed class UpdateCenterViewModel : ViewModelBase
             CheckFirmwareCommand.TriggerCanExecuteChanged(true);
             SaveFirmwareCommand.TriggerCanExecuteChanged(true);
         };
+        settings.PropertyChanged += (_, args) => { if (args.PropertyName == nameof(IAppSettings.TitleDbRegion)) RefreshInstalledData(); };
+        RefreshInstalledData();
     }
     public IMainBackgroundTaskRunnerService Background => _background;
     public NszActions Nsz { get; }
@@ -49,6 +51,24 @@ public sealed class UpdateCenterViewModel : ViewModelBase
     public RelayCommand SaveFirmwareCommand { get; }
     public string TitleStatus { get => _titleStatus; private set { _titleStatus = value; NotifyPropertyChanged(); } }
     public string FirmwareStatus { get => _firmwareStatus; private set { _firmwareStatus = value; NotifyPropertyChanged(); } }
+    public string TitleCatalogSummary { get; private set; } = "";
+    public string LocalFirmwareSummary { get; private set; } = "";
+    public void RefreshInstalledData()
+    {
+        var keys = LocalizationManager.Instance.Current.Keys;
+        string Catalog(string region)
+        {
+            var date = InstalledDataStatus.TitleDbDate(AppContext.BaseDirectory, region);
+            return date.HasValue ? string.Format(keys.DataUpdate_TitleCatalogDate, region, date.Value.ToLocalTime().ToString("g"))
+                : string.Format(keys.DataUpdate_TitleCatalogMissing, region);
+        }
+        TitleCatalogSummary = Catalog(_settings.TitleDbRegion);
+        if (_settings.TitleDbRegion != "US.en") TitleCatalogSummary += Environment.NewLine + Catalog("US.en");
+        var version = InstalledDataStatus.LocalFirmwareVersion(AppContext.BaseDirectory);
+        LocalFirmwareSummary = version == null ? keys.DataUpdate_NoLocalFirmware : string.Format(keys.DataUpdate_LocalFirmwareVersion, version);
+        NotifyPropertyChanged(nameof(TitleCatalogSummary));
+        NotifyPropertyChanged(nameof(LocalFirmwareSummary));
+    }
     private async void RefreshTitles()
     {
         if (!RefreshTitlesCommand.CanExecute(null)) return;
@@ -71,11 +91,13 @@ public sealed class UpdateCenterViewModel : ViewModelBase
         }
         catch (OperationCanceledException) { TitleStatus = LocalizationManager.Instance.Current.Keys.Update_Cancelled; }
         catch (Exception ex) { TitleStatus = LocalizationManager.Instance.Current.Keys.Update_Failed + " " + ex.Message; _logger.LogWarning(ex, "TitleDB refresh failed."); }
+        finally { RefreshInstalledData(); }
     }
     private async void RefreshFirmware(bool save)
     {
         if (_background.IsRunning) return;
         FirmwareStatus = LocalizationManager.Instance.Current.Keys.DataUpdate_Working;
+        string? onlineVersion = null;
         try
         {
             var count = await _background.RunAsync(new RunnableRelay<int>((progress, token) =>
@@ -85,13 +107,16 @@ public sealed class UpdateCenterViewModel : ViewModelBase
                 using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
                 timeout.CancelAfter(TimeSpan.FromMinutes(2));
                 var manifests = GitHubFirmwareReferences.LoadManifestsAsync(client, timeout.Token).GetAwaiter().GetResult();
+                onlineVersion = InstalledDataStatus.HighestFirmwareVersion(manifests.Values);
                 if (save) FirmwareReferenceStore.Save(manifests, AppContext.BaseDirectory, token);
                 return manifests.Count;
             }) { SupportsCancellation = true });
             FirmwareStatus = string.Format(save ? LocalizationManager.Instance.Current.Keys.DataUpdate_FirmwareSaved :
                 LocalizationManager.Instance.Current.Keys.DataUpdate_FirmwareChecked, count);
+            if (onlineVersion != null) FirmwareStatus += Environment.NewLine + string.Format(LocalizationManager.Instance.Current.Keys.DataUpdate_OnlineFirmwareVersion, onlineVersion);
         }
         catch (OperationCanceledException) { FirmwareStatus = LocalizationManager.Instance.Current.Keys.Update_Cancelled; }
         catch (Exception ex) { FirmwareStatus = LocalizationManager.Instance.Current.Keys.Update_Failed + " " + ex.Message; _logger.LogWarning(ex, "Firmware reference refresh failed."); }
+        finally { RefreshInstalledData(); }
     }
 }

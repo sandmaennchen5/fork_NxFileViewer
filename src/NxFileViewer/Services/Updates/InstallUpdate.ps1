@@ -1,4 +1,4 @@
-﻿param([Parameter(Mandatory=$true)][string]$PlanPath, [switch]$NoRestart)
+param([Parameter(Mandatory=$true)][string]$PlanPath, [switch]$NoRestart)
 $ErrorActionPreference = 'Stop'
 $plan = Get-Content -LiteralPath $PlanPath -Raw -Encoding UTF8 | ConvertFrom-Json
 $stage = [IO.Path]::GetFullPath((Split-Path -Parent $PlanPath))

@@ -6,6 +6,16 @@ namespace Emignatik.NxFileViewer.Test.Services.Integrity;
 
 public sealed class BatchResultFilterTest
 {
+    [Theory]
+    [InlineData(true, null, "Matches", true)]
+    [InlineData(false, null, "Differs", true)]
+    [InlineData(null, null, "Unchecked", true)]
+    [InlineData(true, "failure", "Error", true)]
+    [InlineData(false, null, "Matches", false)]
+    [InlineData(null, null, "Differs", false)]
+    public void FiltersNamingState(bool? matches, string? error, string filter, bool expected) =>
+        Assert.Equal(expected, BatchResultFilter.Matches(Result with { NamingMatches = matches, NamingError = error }, "until", "NSZ", "Original", false, filter));
+
     private static readonly BatchIntegrityResult Result = new("games/game.nsz", "NSZ", "NSZ", "Cdn", "Blockless", NcasIntegrity.Original, null)
     { Title = "Until Then", TitleId = "010019C023004000", Publisher = "Maximum Entertainment", SystemVersion = "20.0.1.0" };
 

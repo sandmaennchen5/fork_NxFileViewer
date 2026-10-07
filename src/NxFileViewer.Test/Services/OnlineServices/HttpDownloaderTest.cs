@@ -14,8 +14,11 @@ public class HttpDownloaderTest
     {
         var settings = new AppSettings();
 
-        Assert.Equal("ftp://192.168.178.100:5000/sdmc:/switch/prod.keys", settings.ProdKeysDownloadUrl);
-        Assert.Equal("ftp://192.168.178.100:5000/sdmc:/switch/title.keys", settings.TitleKeysDownloadUrl);
+        Assert.Equal("192.168.178.100", settings.KeysDownloadHost);
+        Assert.Equal("ftp://{IP}:5000/sdmc:/switch/prod.keys", settings.ProdKeysDownloadUrl);
+        Assert.Equal("ftp://{IP}:5000/sdmc:/switch/title.keys", settings.TitleKeysDownloadUrl);
+        Assert.Equal("ftp://192.168.178.100:5000/sdmc:/switch/prod.keys",
+            Emignatik.NxFileViewer.Services.KeysManagement.KeyDownloads.ResolveUrl(settings.ProdKeysDownloadUrl, settings.KeysDownloadHost));
     }
 
     [Fact]

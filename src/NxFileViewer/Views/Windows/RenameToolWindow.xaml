@@ -16,7 +16,6 @@
 
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -71,9 +70,9 @@
             </Grid>
         </ScrollViewer>
 
-        <customControls:GridSplitterEx Grid.Row="1" ResizeDirection="Rows" />
 
-        <GroupBox Grid.Row="2" Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RenamingTool_GroupBoxOutput}">
+
+        <GroupBox Grid.Row="1" Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RenamingTool_GroupBoxOutput}">
             <DataGrid ItemsSource="{Binding Results}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False"
                       ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto">
                 <DataGrid.Columns>
@@ -85,7 +84,7 @@
             </DataGrid>
         </GroupBox>
 
-        <StackPanel Grid.Row="3" Orientation="Horizontal" Height="30" HorizontalAlignment="Center" Margin="0,5">
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Height="30" HorizontalAlignment="Center" Margin="0,5">
             <CheckBox Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RenamingTool_Simulation}" VerticalAlignment="Center" IsChecked="{Binding Path=RenameCommand.IsSimulation}" 
                       Style="{StaticResource TextOnLeft}" />
 
@@ -93,7 +92,7 @@
             <Button Command="{Binding Path=CancelCommand}" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RenamingTool_Button_Cancel}" Style="{StaticResource OkCancelButton}" />
         </StackPanel>
 
-        <StatusBar Grid.Row="4">
+        <StatusBar Grid.Row="3">
 
             <!-- Progress Bar -->
             <StatusBarItem DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center">

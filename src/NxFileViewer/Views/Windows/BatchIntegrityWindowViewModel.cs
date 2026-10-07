@@ -142,12 +142,15 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
     private string _searchText = "";
     private string _fileTypeFilter = "";
     private string _integrityFilter = "";
+    private string _namingFilter = "";
+    public string NamingFilter { get => _namingFilter; set { _namingFilter = value ?? ""; NotifyPropertyChanged(); ResultsView.Refresh(); } }
+    public IReadOnlyList<BatchNamingFilterOption> NamingFilters { get; } = new[] { "", "Matches", "Differs", "Unchecked", "Error" }.Select(value => new BatchNamingFilterOption(value)).ToArray();
     public string SearchText { get => _searchText; set { _searchText = value ?? ""; NotifyPropertyChanged(); ResultsView.Refresh(); } }
     public string FileTypeFilter { get => _fileTypeFilter; set { _fileTypeFilter = value ?? ""; NotifyPropertyChanged(); ResultsView.Refresh(); } }
     public string IntegrityFilter { get => _integrityFilter; set { _integrityFilter = value ?? ""; NotifyPropertyChanged(); ResultsView.Refresh(); } }
     public IReadOnlyList<BatchFilterOption> FileTypeFilters { get; } = new[] { "", "NSP", "NSZ", "XCI", "XCZ", "ZIP", "7Z", "Folder" }.Select(value => new BatchFilterOption(value)).ToArray();
     public IReadOnlyList<BatchFilterOption> IntegrityFilters { get; } = new[] { new BatchFilterOption("") }.Concat(Enum.GetValues<NcasIntegrity>().Select(value => new BatchFilterOption(value.ToString()))).ToArray();
-    public RelayCommand ResetFiltersCommand => new(() => { SearchText = ""; FileTypeFilter = ""; IntegrityFilter = ""; ShowOnlyErrors = false; });
+    public RelayCommand ResetFiltersCommand => new(() => { SearchText = ""; FileTypeFilter = ""; IntegrityFilter = ""; NamingFilter = ""; ShowOnlyErrors = false; });
     public bool ShowOnlyErrors
     {
         get => _showOnlyErrors;
@@ -627,7 +630,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
     private static string Escape(string value) => $"\"{value.Replace("\"", "\"\"")}\"";
 
     private bool ShouldDisplayResult(object item) =>
-        item is BatchIntegrityResult result && BatchResultFilter.Matches(result, SearchText, FileTypeFilter, IntegrityFilter, ShowOnlyErrors);
+        item is BatchIntegrityResult result && BatchResultFilter.Matches(result, SearchText, FileTypeFilter, IntegrityFilter, ShowOnlyErrors, NamingFilter);
 
     private void BackgroundTaskOnPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
@@ -649,4 +652,16 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
 public sealed record BatchFilterOption(string Value)
 {
     public string Label => Value.Length == 0 ? LocalizationManager.Instance.Current.Keys.BatchTable_All : Value;
+}
+
+public sealed record BatchNamingFilterOption(string Value)
+{
+    public string Label => Value switch
+    {
+        "Matches" => LocalizationManager.Instance.Current.Keys.BatchNaming_Matches,
+        "Differs" => LocalizationManager.Instance.Current.Keys.BatchNaming_Differs,
+        "Error" => LocalizationManager.Instance.Current.Keys.BatchNaming_Error,
+        "Unchecked" => LocalizationManager.Instance.Current.Keys.BatchNaming_Unchecked,
+        _ => LocalizationManager.Instance.Current.Keys.BatchTable_All
+    };
 }

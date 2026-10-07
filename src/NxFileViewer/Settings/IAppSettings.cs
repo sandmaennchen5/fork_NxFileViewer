@@ -34,6 +34,7 @@ public interface IAppSettings : INotifyPropertyChanged
     string ProdKeysFilePath { get; set; }
 
     string ProdKeysDownloadUrl { get; set; }
+    string KeysDownloadHost { get; set; }
 
     string TitleKeysFilePath { get; set; }
 
@@ -48,6 +49,7 @@ public interface IAppSettings : INotifyPropertyChanged
     bool AlwaysReloadKeysBeforeOpen { get; set; }
 
     bool InjectTicketKeys { get; set; }
+    bool SaveTicketKeys { get; set; }
 
     string TitlePageUrl { get; set; }
 

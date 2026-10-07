@@ -23,6 +23,8 @@ namespace Emignatik.NxFileViewer.Views.Windows;
 
 public class MainWindowViewModel : WindowViewModelBase, IFilesDropped
 {
+    public bool HasBundledRuntime => Emignatik.NxFileViewer.Services.Updates.ViewerDistribution.IsSelfContained;
+    public string ProgramArchitecture => System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.ToString().ToLowerInvariant();
     private readonly ILogger _logger;
     private readonly IKeySetProviderService _keySetProviderService;
     private readonly IAppSettings _appSettings;

@@ -24,3 +24,7 @@ Use **Settings → Updates → Refresh TitleDB** to download the saved region an
 Catalogs use [blawar/TitleDB](https://github.com/blawar/titledb); the NLib adapter targets [NLib API](https://github.com/ghost-land/Nlib-API).
 
 Automated tests cover routing, language/icon mapping, embedded title-ID lookup, persistent/stale caches, malformed updates, fallback, settings changes, optional ratings and offline renaming. Tests use synthetic or mocked responses rather than requiring live services.
+
+The Updates page shows when each local regional catalog was last refreshed, including the US.en fallback. This is the local cache timestamp, not the upstream catalog publication date. Missing catalogs are shown explicitly.
+
+Tinfoil presets use https://tinfoil.media for title pages and the title API. Tinfoil can be temporarily unavailable or unstable; retry later or select another provider. Previous standard tinfoil.io presets migrate automatically; custom API URLs are preserved.
