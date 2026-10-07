@@ -79,7 +79,8 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var firmwareZips = zipCandidates.Where(p => ContainsNca(p) && ExpandPackages(p, cancellationToken).SequenceEqual(new[] { p }))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var expanded = allFiles.Where(path => SupportedExtensions.Contains(Path.GetExtension(path)) || zipCandidates.Contains(path))
+        var expanded = allFiles.Where(path => SupportedExtensions.Contains(Path.GetExtension(path)) || zipCandidates.Contains(path) ||
+                IsNandFile(path, cancellationToken))
             .SelectMany(path => ExpandPackages(path, cancellationToken)).ToArray();
         var archivedFirmware = (_selectedFiles ?? expanded).Where(path => PackageZip.IsMember(path) &&
             (path.EndsWith('/') || PackageZip.IsArchive(path))).ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -153,7 +154,7 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
                             // A UI preview failure must not invalidate the package analysis.
                             _logger.LogWarning(previewException, "Failed to display preview for {FilePath}", file);
                         }
-                        if (_verifyIntegrity)
+                        if (_verifyIntegrity && nxFile.NandResult == null)
                         {
                             var verifier = _serviceProvider.GetRequiredService<IVerifyNcasIntegrityRunnable>();
                             verifier.Setup(nxFile.Overview, _appSettings.IgnoreMissingDeltaFragments);
@@ -162,15 +163,16 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
                         var missingKeys = nxFile.Overview.MissingKeys.Count > 0;
                         var integrityError = missingKeys ? LocalizationManager.Instance.Current.Keys.File_MissingKeys + Environment.NewLine +
                             string.Join(", ", nxFile.Overview.MissingKeys.Select(k => k.KeyName).Distinct()) :
-                            (_verifyIntegrity ? BuildIntegrityError(nxFile.Overview) : null);
+                            (_verifyIntegrity && nxFile.NandResult == null ? BuildIntegrityError(nxFile.Overview) : null);
                         results.Add(new BatchIntegrityResult(
                             file,
-                            PackageZip.DisplayFileType(file),
-                            nxFile.Overview.FileType.ToString(),
-                            nxFile.Overview.PackageStructure.ToString(),
+                            nxFile.NandResult == null ? PackageZip.DisplayFileType(file) : "NAND" + (PackageZip.IsMember(file) ? " (" + Path.GetExtension(PackageZip.ArchivePath(file)).TrimStart('.').ToUpperInvariant() + ")" : ""),
+                            nxFile.NandResult == null ? nxFile.Overview.FileType.ToString() : "NAND",
+                            nxFile.NandResult?.Type ?? nxFile.Overview.PackageStructure.ToString(),
                             nxFile.Overview.NcaCompressionType.ToString(),
                             missingKeys ? NcasIntegrity.Error : nxFile.Overview.NcasIntegrity,
-                            integrityError) { HasMissingKeys = missingKeys });
+                            integrityError) { HasMissingKeys = missingKeys, IsNand = nxFile.NandResult != null,
+                                NandDetails = nxFile.NandResult?.Information, FileSize = nxFile.NandResult?.Size });
                     }
                     finally { if (!retained) nxFile.Dispose(); }
                 }
@@ -211,6 +213,14 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
             return PackageZip.GetFileEntries(path).Any(e => e.EndsWith(".nca", StringComparison.OrdinalIgnoreCase));
         }
         catch (InvalidDataException) { return Path.GetFileName(path).Contains("firmware", StringComparison.OrdinalIgnoreCase); }
+        catch (IOException) { return false; }
+        catch (UnauthorizedAccessException) { return false; }
+    }
+
+    private static bool IsNandFile(string path, CancellationToken token)
+    {
+        if (!Services.Nand.NandDetection.IsCandidateName(path)) return false;
+        try { return Services.Nand.NandDetection.Detect(path, token) != null; }
         catch (IOException) { return false; }
         catch (UnauthorizedAccessException) { return false; }
     }

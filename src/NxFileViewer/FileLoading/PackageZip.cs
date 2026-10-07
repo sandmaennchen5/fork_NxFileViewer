@@ -79,12 +79,50 @@ public static class PackageZip
         token.ThrowIfCancellationRequested();
         if (depth >= MaximumArchiveDepth) throw new InvalidDataException("Archive nesting exceeds the supported depth of 8.");
         var names = GetFileEntries(path);
+        var nandNames = new HashSet<string>(StringComparer.Ordinal);
+        var nandCandidates = names.Where(Services.Nand.NandDetection.IsCandidateName).ToHashSet(StringComparer.Ordinal);
+        foreach (var candidate in nandCandidates) ValidateName(candidate);
+        var reusedNandSession = false;
+        if (nandCandidates.Count > 0)
+        {
+            var info = new FileInfo(path);
+            var sessionPrefix = info.FullName + "::" + info.Length + "::" + info.LastWriteTimeUtc.Ticks + "::";
+            lock (SessionLock)
+            {
+                var existing = Sessions.FirstOrDefault(pair => pair.Key.StartsWith(sessionPrefix, StringComparison.OrdinalIgnoreCase)).Value;
+                if (existing != null)
+                {
+                    foreach (var candidate in nandCandidates)
+                        if (existing.Files.TryGetValue(candidate, out var file) && Services.Nand.NandDetection.Detect(file, token) != null) nandNames.Add(candidate);
+                    reusedNandSession = true;
+                }
+            }
+        }
+        if (nandCandidates.Count > 0 && !reusedNandSession)
+            ReadEntries(path, nandCandidates.Contains, (name, input, size) =>
+            {
+                token.ThrowIfCancellationRequested();
+                // Header probing is bounded; full NAND GPT headers sit after the two BOOT partitions.
+                using var prefix = new MemoryStream();
+                var buffer = new byte[128 * 1024];
+                var remaining = Math.Min(size, 0x1804400L);
+                while (remaining > 0)
+                {
+                    token.ThrowIfCancellationRequested();
+                    var count = input.Read(buffer, 0, (int)Math.Min(remaining, buffer.Length));
+                    if (count == 0) break;
+                    prefix.Write(buffer, 0, count);
+                    remaining -= count;
+                }
+                if (Services.Nand.NandDetection.Detect(prefix, name, token) != null) nandNames.Add(name);
+            }, token);
         var firmwareFolders = includeFirmware ? names.Where(name => name.EndsWith(".nca", StringComparison.OrdinalIgnoreCase))
             .Select(name => name.Replace('\\', '/')).Where(name => name.Contains('/'))
             .Where(name => Path.GetFileNameWithoutExtension(name).Length >= 28 && Path.GetFileNameWithoutExtension(name).All(Uri.IsHexDigit)
                 || name.Contains("firmware", StringComparison.OrdinalIgnoreCase))
             .Select(name => name[..(name.LastIndexOf('/') + 1)]).Distinct(StringComparer.Ordinal).ToArray() : Array.Empty<string>();
-        var entries = names.Where(e => IsSupported(e, includeNca) || IsArchive(e)).ToArray();
+        var entries = names.Where(e => (IsSupported(e, includeNca) && (!Services.Nand.NandDetection.IsCandidateName(e) || nandNames.Contains(e)) || IsArchive(e)) &&
+            !Services.Nand.NandDetection.IsContinuationName(e, first => names.Any(name => name.Replace('\\', '/').Equals(first.Replace('\\', '/'), StringComparison.OrdinalIgnoreCase)))).ToArray();
         foreach (var entry in entries) ValidateName(entry);
         if (entries.Distinct(StringComparer.Ordinal).Count() != entries.Length)
             throw new InvalidDataException("Duplicate package names in archive.");
@@ -112,7 +150,8 @@ public static class PackageZip
         return packages;
     }
     private static bool IsSupported(string name, bool includeNca) => Path.GetExtension(name).ToLowerInvariant() is
-        ".nsp" or ".nsz" or ".xci" or ".xcz" || (includeNca && name.EndsWith(".nca", StringComparison.OrdinalIgnoreCase));
+        ".nsp" or ".nsz" or ".xci" or ".xcz" || (includeNca && name.EndsWith(".nca", StringComparison.OrdinalIgnoreCase)) ||
+        Services.Nand.NandDetection.IsCandidateName(name);
     private static void ValidateName(string name)
     {
         var normalized = name.Replace('\\', '/');
@@ -166,12 +205,18 @@ public static class PackageZip
                 try
                 {
                     var index = 0;
+                    var directories = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                     ReadEntries(archive, _ => true, (name, input, size) =>
                     {
                         token.ThrowIfCancellationRequested();
-                        // Numbered directories prevent collisions and archive path traversal.
-                        var directory = Path.Combine(session.Directory, (index++).ToString());
-                        Directory.CreateDirectory(directory);
+                        // Preserve sibling relationships for split NAND dumps while keeping archive paths out of disk paths.
+                        var parent = Path.GetDirectoryName(name.Replace('/', Path.DirectorySeparatorChar).Replace('\\', Path.DirectorySeparatorChar)) ?? "";
+                        if (!directories.TryGetValue(parent, out var directory))
+                        {
+                            directory = Path.Combine(session.Directory, (index++).ToString());
+                            Directory.CreateDirectory(directory);
+                            directories.Add(parent, directory);
+                        }
                         var file = Path.Combine(directory, name.Replace('\\', '/').Split('/')[^1]);
                         using var output = new FileStream(file, FileMode.CreateNew, FileAccess.Write, FileShare.None);
                         var buffer = new byte[1024 * 1024];

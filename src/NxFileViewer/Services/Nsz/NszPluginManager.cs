@@ -46,8 +46,13 @@ public sealed class NszPluginManager(IAppSettings settings, ILogger<NszPluginMan
         return state with { Executable = Resolve(state.Executable),
             PreviousExecutable = state.PreviousExecutable == null ? null : Resolve(state.PreviousExecutable) };
     }
+    public string? InstalledVersion => string.IsNullOrWhiteSpace(settings.NszExecutablePath) ? ReadState()?.Version : null;
     public string ExecutablePath => string.IsNullOrWhiteSpace(settings.NszExecutablePath)
         ? ReadState()?.Executable ?? "" : Path.GetFullPath(settings.NszExecutablePath);
+    public string GuiExecutablePath
+    {
+        get { try { var path = ExecutablePath; return File.Exists(path) && Path.GetFileName(path).StartsWith("nsz-gui", StringComparison.OrdinalIgnoreCase) ? path : ""; } catch { return ""; } }
+    }
     public string Status
     {
         get

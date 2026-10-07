@@ -6,6 +6,24 @@ namespace Emignatik.NxFileViewer.Localization.Keys;
 
 public class LocalizationKeys_DE : LocalizationKeysBase, ILocalizationKeys
 {
+    public string Nand_Detected => "NAND-Signaturen erkannt. Die Integrität wurde nicht geprüft.";
+    public string Nand_NameCandidate => "NAND-Kandidat anhand des Dateinamens. Für Bestätigung und erweiterte Informationen NAND-Informationen abrufen.";
+    public string Nand_Installed => "Plugin NxNandManager installiert";
+    public string Nand_CustomUpdate => "Eigenen EXE-Pfad leeren und übernehmen, um verwaltete Downloads zu verwenden.";
+    public string Nand_Updating => "NxNandManager wird heruntergeladen und geprüft…";
+    public string Nand_Open => "NAND-Dump öffnen…";
+    public string Nand_Info => "NAND-Informationen";
+    public string Nand_Export => "Partition exportieren…";
+    public string Nand_SettingsTip => "EXE-Pfad leer lassen für verwaltete Downloads unter Einstellungen → Updates → Plugins → NxNandManager. Eine eigene EXE wird nicht ersetzt.";
+    public string Nand_BisKeys => "BIS-Key-Datei (optional; leer = aktive prod.keys von NxFileViewer)";
+    public string Nand_Tip => "NAND-Dump öffnen (bei geteilten Dumps die erste Datei). Der Export kopiert die Partition im gespeicherten Zustand, ohne Entschlüsselung. NxNandManager unter Einstellungen → Plugins konfigurieren.";
+    public string Nand_NewTarget => "Neue lokale Zieldatei wählen. Vorhandene Dateien können nicht ersetzt werden.";
+    public string Nand_SourceMissing => "Die NAND-Quelldatei fehlt oder ist keine lokale Datei.";
+    public string Nand_NotInstalled => "NxNandManager ist nicht installiert. Installation unter Einstellungen → Updates → Plugins.";
+    public string Nand_KeysMissing => "Die konfigurierte BIS-Key-Datei existiert nicht.";
+    public string Nand_ExportFailed => "NxNandManager hat keine gefüllte Partitionsdatei erzeugt.";
+    public string Nand_ExportDone => "Partition exportiert.";
+    public string Nand_Cancelled => "Abgebrochen oder Zeitlimit der Informationsabfrage erreicht.";
     public string DataUpdate_Firmware => "Firmware-Hashes";
     public string DataUpdate_Title => "Updates";
     public string DataUpdate_Titles => "TitleDB aktualisieren";
@@ -38,6 +56,9 @@ public class LocalizationKeys_DE : LocalizationKeysBase, ILocalizationKeys
     public string Update_Install => "Herunterladen und installieren";
     public string Update_Checking => "Suche nach Updates…";
     public string Update_Current => "Keine neuere veröffentlichte Version verfügbar.";
+    public string Component_UpdateAvailable => "Update verfügbar.";
+    public string Component_NotInstalled => "Nicht installiert.";
+    public string Component_CustomVersion => "Benutzerdefinierte Version: automatische Prüfung nicht möglich.";
     public string Update_Available => "Version {0} ist verfügbar.";
     public string Update_Failed => "Update fehlgeschlagen.";
     public string Update_Confirm => "Version {0} herunterladen und installieren? NxFileViewer wird anschließend neu gestartet. Keys, Einstellungen und Plugins bleiben erhalten.";
@@ -117,7 +138,7 @@ public class LocalizationKeys_DE : LocalizationKeysBase, ILocalizationKeys
     public override string LanguageAuto => "Auto";
 
     public string FileNotSupported_Log => "«{0}» Datei wird nicht unterstützt.";
-    public string OpenFile_Filter => "Nintendo Switch Dateien (*.nsp;*.nsz;*.xci;*.xcz;*.nca;*.zip;*.7z)|*.nsp;*.nsz;*.xci;*.xcz;*.nca;*.zip;*.7z|Alle Dateien (*.*)|*.*";
+    public string OpenFile_Filter => "Nintendo Switch Dateien (*.nsp;*.nsz;*.xci;*.xcz;*.nca;*.zip;*.7z;*.bin;*.img;*.00)|*.nsp;*.nsz;*.xci;*.xcz;*.nca;*.zip;*.7z;*.bin;*.img;*.00|Switch-Spielpakete (*.nsp;*.nsz;*.xci;*.xcz)|*.nsp;*.nsz;*.xci;*.xcz|Archive (*.zip;*.7z)|*.zip;*.7z|Switch-Inhaltsdateien (*.nca)|*.nca|NAND-Abbilder und geteilte Dumps (*.bin;*.img;*.00)|*.bin;*.img;*.00|Alle Dateien (*.*)|*.*";
     public string MenuItem_File => "Datei";
     public string MenuItem_Open => "Öffnen...";
     public string MenuItem_OpenLast => "Letzte öffnen";
@@ -146,6 +167,15 @@ public class LocalizationKeys_DE : LocalizationKeysBase, ILocalizationKeys
     public string BatchIntegrity_Error => "Fehler";
     public string BatchIntegrity_NszDataCorrupted => "Der komprimierte NSZ/NCZ-Datenstrom ist beschädigt oder unvollständig (Zstandard-Dekomprimierung fehlgeschlagen).";
     public string BatchIntegrity_IntegrityFailed => "Die Integritätsprüfung konnte nicht vollständig ausgeführt werden. Details stehen im Protokoll.";
+    public string PackageStructure_Filesystem => "Dateisystem";
+    public string Signature_Title => "NCA-Signatur";
+    public string Signature_Passed => "Bestanden";
+    public string Signature_NotPassed => "Nicht bestanden";
+    public string Signature_Unchecked => "Nicht geprüft";
+    public string ToolTip_PackageStructure => "Struktur nach Nx Game Info:\nScene (XCI): Update-, Normal- und Secure-Partition vorhanden.\nKonvertiert (XCI): nur Secure-Partition; typisch für NSP → XCI.\nScene (NSP): legalinfo.xml, nacp.xml, programinfo.xml und cardspec.xml; typisch für BBB-Releases.\nHomebrew (NSP): authoringtoolinfo.xml vorhanden.\nCDN (NSP): Zertifikat (.cert) und Ticket (.tik); typisch für eShop-CDN-Dumps.\nKonvertiert (NSP): ohne Zertifikat und Ticket; typisch für XCI → NSP.\nDateisystem: installierte NAX0-Titel auf der Switch-SD-Karte.\nUnvollständig: nur NCA-Inhalte. NSZ/XCZ folgen den entsprechenden Paketregeln; NCZ zählt als NCA.";
+    public string ToolTip_NcaSignature => "Bestanden: gültige NCA-Signaturen, wie bei offiziellen Titeln erwartet.\nNicht bestanden: mindestens eine ungültige NCA-Signatur; bei Homebrew möglich, bei offiziellen Titeln auffällig.\nNicht geprüft: die NCA-Signaturprüfung wurde noch nicht vollständig durchgeführt. Über die Integritätsprüfung starten.\nDiese Anzeige betrifft NCA-Header-Signaturen; ACID ist eine separate NPDM-Signatur.";
+    public string ToolTip_Permission => "Sicher: kein Dateisystem-Servicezugriff oder Bit 0x8000000000000000 nicht gesetzt.\nUnsicher: Dateisystem-Servicezugriff und Bit 0x8000000000000000 gesetzt (EraseMmc).\nGefährlich: Dateisystem-Servicezugriff und Maske 0xffffffffffffffff (alle Berechtigungen).\nUnsicher/Gefährlich sollte nur bei Homebrew, nicht bei offiziellen Spielen vorkommen. Nur für Basistitel und Updates verfügbar. Diese Einstufung bewertet Berechtigungen und ist keine vollständige Sicherheitsprüfung.";
+    public string ToolTip_AcidSignature => "Signatur des ACID-Abschnitts in main.npdm, unabhängig von der NCA-Header-Signatur.";
     public string PackageStructure_Title => "Paketstruktur";
     public string PackageStructure_Scene => "Scene-Release";
     public string PackageStructure_Cdn => "CDN-Rip";
@@ -289,7 +319,7 @@ public class LocalizationKeys_DE : LocalizationKeysBase, ILocalizationKeys
 
     public string BrowseKeysFile_ProdTitle => "Wähle \"prod\" Keydatei";
     public string BrowseKeysFile_TitleTitle => "Wähle \"title\" Keydatei";
-    public string BrowseKeysFile_Filter => "Keydateien (*.keys)|*.keys|Alle Dateien (*.*)|*.*";
+    public string BrowseKeysFile_Filter => "Keydateien (*.keys)|*.keys|Switch-Spielpakete (*.nsp;*.nsz;*.xci;*.xcz)|*.nsp;*.nsz;*.xci;*.xcz|Archive (*.zip;*.7z)|*.zip;*.7z|Switch-Inhaltsdateien (*.nca)|*.nca|NAND-Abbilder und geteilte Dumps (*.bin;*.img;*.00)|*.bin;*.img;*.00|Alle Dateien (*.*)|*.*";
 
     public string SuspiciousFileExtension => "Dateierweiterung «{0}» scheint ungültig zu sein, «{1}» oder «{2}» wurde erwartet.";
     public string DragMeAFile => "Ziehe eine unterstützte Datei hierher :)";

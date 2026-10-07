@@ -12,6 +12,8 @@ public sealed record BatchIntegrityResult(
     NcasIntegrity Integrity,
     string? Error)
 {
+    public bool IsNand { get; init; }
+    public string? NandDetails { get; init; }
     public bool? NamingMatches { get; init; }
     public string? ProposedPath { get; init; }
     public string? NamingError { get; init; }

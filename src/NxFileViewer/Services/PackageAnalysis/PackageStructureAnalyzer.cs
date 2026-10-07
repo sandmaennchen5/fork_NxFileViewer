@@ -16,6 +16,7 @@ public static class PackageStructureAnalyzer
     {
         NspItem nsp => AnalyzeNspNames(nsp.ChildItems.Select(item => item.Name)),
         XciItem xci => AnalyzeXciPartitions(xci.ChildItems.Select(item => item.XciPartitionType)),
+        _ when string.Equals(rootItem.Format, "NAX0", StringComparison.OrdinalIgnoreCase) => PackageStructure.Filesystem,
         _ => PackageStructure.Unknown
     };
 
@@ -38,7 +39,7 @@ public static class PackageStructureAnalyzer
             return PackageStructure.Cdn;
 
         var containsOnlyNcas = names.All(name => name.EndsWith(".nca") || name.EndsWith(".ncz"));
-        return containsOnlyNcas ? PackageStructure.Incomplete : PackageStructure.Converted;
+        return containsOnlyNcas || hasTicket || hasCertificate ? PackageStructure.Incomplete : PackageStructure.Converted;
     }
 
     public static PackageStructure AnalyzeXciPartitions(IEnumerable<XciPartitionType> partitions)
@@ -62,5 +63,6 @@ public enum PackageStructure
     Cdn,
     Converted,
     Homebrew,
-    Incomplete
+    Incomplete,
+    Filesystem
 }

@@ -11,6 +11,8 @@ namespace Emignatik.NxFileViewer.Models;
 /// </summary>
 public class NxFile : IDisposable
 {
+    public Services.Nand.NandDetectionResult? NandResult { get; set; }
+    public string? NandPhysicalPath { get; set; }
     public Services.Integrity.BatchIntegrityResult? FirmwareResult { get; set; }
     public IDisposable? OwnedResource { get; set; }
     public string? ArchivePath { get; set; }

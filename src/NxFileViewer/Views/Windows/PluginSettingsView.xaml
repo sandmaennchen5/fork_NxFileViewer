@@ -7,6 +7,20 @@
         <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <StackPanel Margin="10">
+                    <GroupBox Header="NxNandManager" Margin="0,0,0,12">
+                        <StackPanel Margin="6">
+                            <TextBlock TextWrapping="Wrap" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nand_SettingsTip}"/>
+                            <DockPanel Margin="0,6,0,0">
+                                <Button DockPanel.Dock="Right" Content="…" Command="{Binding BrowseNandCommand}" Padding="8,2"/>
+                                <TextBox Text="{Binding EditedSettings.NandExecutablePath, UpdateSourceTrigger=PropertyChanged}"/>
+                            </DockPanel>
+                            <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nand_BisKeys}" Margin="0,8,0,0"/>
+                            <DockPanel Margin="0,6,0,0">
+                                <Button DockPanel.Dock="Right" Content="…" Command="{Binding BrowseBisKeysCommand}" Padding="8,2"/>
+                                <TextBox Text="{Binding EditedSettings.NandBisKeysPath, UpdateSourceTrigger=PropertyChanged}"/>
+                            </DockPanel>
+                        </StackPanel>
+                    </GroupBox>
                     <GroupBox Header="nicoboss/nsz">
                         <StackPanel Margin="6">
                             <TextBlock TextWrapping="Wrap" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nsz_SettingsTip}"/>

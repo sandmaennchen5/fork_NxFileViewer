@@ -100,6 +100,7 @@ public class MainWindowViewModel : WindowViewModelBase, IFilesDropped
     private IServiceProvider ServiceProvider { get; }
     public Emignatik.NxFileViewer.Services.Updates.ViewerUpdateActions ViewerUpdates => ServiceProvider.GetRequiredService<Emignatik.NxFileViewer.Services.Updates.ViewerUpdateActions>();
 
+    public Emignatik.NxFileViewer.Services.Nand.NandPluginActions NandPlugin => ServiceProvider.GetRequiredService<Emignatik.NxFileViewer.Services.Nand.NandPluginActions>();
     public NszActions Nsz => ServiceProvider.GetRequiredService<NszActions>();
 
     public IOpenFileCommand OpenFileCommand { get; }

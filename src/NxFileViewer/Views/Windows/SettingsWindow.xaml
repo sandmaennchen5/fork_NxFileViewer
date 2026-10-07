@@ -82,11 +82,12 @@
                             <WrapPanel Margin="0,0,0,8">
                             <CheckBox IsChecked="{Binding EditedSettings.AlwaysReloadKeysBeforeOpen}" Margin="0,0,20,0"
                                         Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_CheckBox_AlwaysReloadKeysBeforeOpen}" />
-                            <CheckBox IsChecked="{Binding EditedSettings.InjectTicketKeys}"
+                            <CheckBox IsChecked="{Binding EditedSettings.InjectTicketKeys}" Margin="0,0,20,0"
                                       Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_CheckBox_InjectTicketKeys}" />
+                            <CheckBox IsChecked="{Binding EditedSettings.SaveTicketKeys}" IsEnabled="{Binding EditedSettings.InjectTicketKeys}" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Keys_SaveTicketKeys}"/>
                             </WrapPanel>
 
-                            <CheckBox IsChecked="{Binding EditedSettings.SaveTicketKeys}" IsEnabled="{Binding EditedSettings.InjectTicketKeys}" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Keys_SaveTicketKeys}" Margin="0,0,0,8"/>
+
                             <Expander Expanded="KeyLocationsExpanded">
                                 <Expander.Header>
                                     <StackPanel Orientation="Horizontal">
@@ -353,11 +354,7 @@
                         <StackPanel Margin="6">
                             <CheckBox Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Update_Auto}" IsChecked="{Binding EditedSettings.CheckViewerUpdatesOnStartup}"/>
                             <CheckBox Margin="0,8,0,0" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Update_IncludePrereleases}" IsChecked="{Binding EditedSettings.IncludeViewerPrereleases}"/>
-                            <TextBlock Margin="0,8" Text="{Binding ViewerUpdates.Status}" TextWrapping="Wrap"/>
-                            <WrapPanel>
-                                <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Update_Check}" Command="{Binding ViewerUpdates.CheckCommand}" Padding="12,5"/>
-                                <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Update_Install}" Command="{Binding ViewerUpdates.InstallCommand}" Margin="8,0,0,0" Padding="12,5"/>
-                            </WrapPanel>
+
                         </StackPanel>
                     </GroupBox>
             <ContentControl x:Name="SettingsUpdatesContent" Grid.Row="1"/>

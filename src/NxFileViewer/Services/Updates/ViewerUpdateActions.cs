@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
@@ -24,13 +25,15 @@ public sealed class ViewerUpdateActions : NotifyPropertyChangedBase
     private readonly IAppSettings _settings;
     private readonly IMainBackgroundTaskRunnerService _background;
     private readonly ILogger<ViewerUpdateActions> _logger;
+    private readonly ComponentUpdateChecker _components;
     private ViewerRelease? _release;
     private bool _busy;
     private string _status = "";
+    private string _availableUpdates = "";
     public ViewerUpdateActions(ViewerUpdateService service, IAppSettings settings,
-        IMainBackgroundTaskRunnerService background, ILogger<ViewerUpdateActions> logger)
+        IMainBackgroundTaskRunnerService background, ILogger<ViewerUpdateActions> logger, ComponentUpdateChecker components)
     {
-        _service = service; _settings = settings; _background = background; _logger = logger;
+        _components = components; _service = service; _settings = settings; _background = background; _logger = logger;
         CheckCommand = new RelayCommand(() => _ = CheckAsync(false), () => !_busy);
         InstallCommand = new RelayCommand(Install, () => !_busy && !_background.IsRunning && _release != null && (!_release.IsPrerelease || _settings.IncludeViewerPrereleases));
         _background.PropertyChanged += (_, _) => InstallCommand.TriggerCanExecuteChanged(true);
@@ -39,15 +42,20 @@ public sealed class ViewerUpdateActions : NotifyPropertyChangedBase
             if (args.PropertyName != nameof(IAppSettings.IncludeViewerPrereleases)) return;
             _release = null;
             Status = "";
+            AvailableUpdates = "";
+            NotifyPropertyChanged(nameof(HasViewerUpdate));
             InstallCommand.TriggerCanExecuteChanged(true);
         };
     }
     public RelayCommand CheckCommand { get; }
     public RelayCommand InstallCommand { get; }
     public string Status { get => _status; private set { _status = value; NotifyPropertyChanged(); } }
+    public string AvailableUpdates { get => _availableUpdates; private set { _availableUpdates = value; NotifyPropertyChanged(); } }
+    public bool HasViewerUpdate => _release != null && (!_release.IsPrerelease || _settings.IncludeViewerPrereleases);
     private void SetBusy(bool value)
     {
         _busy = value;
+        NotifyPropertyChanged(nameof(HasViewerUpdate));
         CheckCommand.TriggerCanExecuteChanged();
         InstallCommand.TriggerCanExecuteChanged();
     }
@@ -55,6 +63,7 @@ public sealed class ViewerUpdateActions : NotifyPropertyChangedBase
     {
         if (_busy || (automatic && !_settings.CheckViewerUpdatesOnStartup)) return;
         SetBusy(true);
+        AvailableUpdates = "";
         Status = LocalizationManager.Instance.Current.Keys.Update_Checking;
         try
         {
@@ -66,16 +75,28 @@ public sealed class ViewerUpdateActions : NotifyPropertyChangedBase
             if (includePrereleases != _settings.IncludeViewerPrereleases) { _release = null; Status = ""; return; }
             Status = _release == null ? LocalizationManager.Instance.Current.Keys.Update_Current :
                 string.Format(LocalizationManager.Instance.Current.Keys.Update_Available, ReleaseLabel(_release));
-            if (!automatic) Emignatik.NxFileViewer.Views.Windows.ThemedDialog.Notice(Status, "NxFileViewer Update", MessageBoxImage.Information);
+
         }
         catch (Exception ex)
         {
             _release = null;
             Status = LocalizationManager.Instance.Current.Keys.Update_Failed;
             _logger.LogWarning(ex, "Viewer update check failed.");
-            if (!automatic) Emignatik.NxFileViewer.Views.Windows.ThemedDialog.Notice(Status + Environment.NewLine + ex.Message, "NxFileViewer Update", MessageBoxImage.Warning);
+
         }
-        finally { SetBusy(false); }
+        finally
+        {
+            try
+            {
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(45));
+                var results = await _components.CheckResultsAsync(timeout.Token);
+                Status += Environment.NewLine + string.Join(Environment.NewLine, results.Select(r => r.Name + ": " + r.Status));
+                AvailableUpdates = UpdateAvailabilitySummary.Format(_release == null ? null : ReleaseLabel(_release), results);
+            }
+            catch (Exception ex) { AvailableUpdates = UpdateAvailabilitySummary.Format(_release == null ? null : ReleaseLabel(_release), Array.Empty<ComponentUpdateResult>()); Status += Environment.NewLine + LocalizationManager.Instance.Current.Keys.Update_Failed; _logger.LogWarning(ex, "Component update check failed."); }
+            SetBusy(false);
+            if (!automatic) Emignatik.NxFileViewer.Views.Windows.ThemedDialog.Notice(Status, "NxFileViewer Update", MessageBoxImage.Information);
+        }
     }
     private static string ReleaseLabel(ViewerRelease release) => release.DisplayVersion +
         (release.IsPrerelease ? " (" + LocalizationManager.Instance.Current.Keys.Update_Prerelease + ")" : "");

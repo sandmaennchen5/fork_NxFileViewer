@@ -36,6 +36,7 @@ public sealed class NszActions : NotifyPropertyChangedBase
     {
         _manager = manager; _converter = converter; _background = background; _prompts = prompts;
         _opening = opening; _logger = logger; _settings = settings;
+        OpenGuiCommand = new RelayCommand(() => { try { PluginGuiLauncher.Open(_manager.GuiExecutablePath, false); } catch (Exception ex) { ShowError(ex); } }, () => !_background.IsRunning && File.Exists(_manager.GuiExecutablePath));
         CompressCommand = new RelayCommand(() => ConvertOpened(NszOperation.Compress), () => CanConvertOpened(NszOperation.Compress));
         DecompressCommand = new RelayCommand(() => ConvertOpened(NszOperation.Decompress), () => CanConvertOpened(NszOperation.Decompress));
         UpdateCommand = new RelayCommand(Update, () => !_background.IsRunning && string.IsNullOrWhiteSpace(settings.NszExecutablePath));
@@ -45,6 +46,7 @@ public sealed class NszActions : NotifyPropertyChangedBase
         settings.PropertyChanged += (_, _) => Refresh();
     }
 
+    public RelayCommand OpenGuiCommand { get; }
     public RelayCommand CompressCommand { get; }
     public RelayCommand DecompressCommand { get; }
     public RelayCommand UpdateCommand { get; }
@@ -55,6 +57,7 @@ public sealed class NszActions : NotifyPropertyChangedBase
     {
         CompressCommand.TriggerCanExecuteChanged(true); DecompressCommand.TriggerCanExecuteChanged(true);
         UpdateCommand.TriggerCanExecuteChanged(true); RollbackCommand.TriggerCanExecuteChanged(true);
+        OpenGuiCommand.TriggerCanExecuteChanged(true);
         NotifyPropertyChanged(nameof(Status));
     }
 

@@ -19,7 +19,7 @@ public static class BatchResultFilter
             result.Version, result.DisplayVersion, result.SystemVersion, result.MasterKey, result.BuildId,
             result.Distribution, result.Languages, result.FileType, result.PackageType, result.Structure,
             result.Compression, result.Integrity, result.Error, result.ConversionStatus, result.FirmwareDetails,
-            result.NamingStatus, result.NamingError, result.ProposedPath);
+            result.NamingStatus, result.NamingError, result.ProposedPath, result.NandDetails);
         return search.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)
             .All(word => text.Contains(word, StringComparison.OrdinalIgnoreCase));
     }

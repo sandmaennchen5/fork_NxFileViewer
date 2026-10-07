@@ -8,6 +8,18 @@ namespace Emignatik.NxFileViewer.Settings;
 
 public class AppSettings : NotifyPropertyChangedBase, IAppSettings
 {
+    private string _nandExecutablePath = "";
+    private string _nandBisKeysPath = "";
+    public string NandExecutablePath
+    {
+        get => _nandExecutablePath;
+        set { _nandExecutablePath = value; NotifyPropertyChanged(); }
+    }
+    public string NandBisKeysPath
+    {
+        get => _nandBisKeysPath;
+        set { _nandBisKeysPath = value; NotifyPropertyChanged(); }
+    }
     private int _logFileRetentionCount = 5;
     public int LogFileRetentionCount
     {

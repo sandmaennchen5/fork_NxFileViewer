@@ -48,6 +48,16 @@ public class SettingsWindowViewModel : WindowViewModelBase
             (File.Exists(ActualProdKeysFilePath) || File.Exists(ActualTitleKeysFilePath)));
         BrowseProdKeysCommand = new RelayCommand(BrowseProdKeys);
         BrowseTitleKeysCommand = new RelayCommand(BrowseTitleKeys);
+        BrowseNandCommand = new RelayCommand(() =>
+        {
+            var dialog = new OpenFileDialog { Filter = "NxNandManager (*.exe)|*.exe" };
+            if (dialog.ShowDialog() == true) EditedSettings.NandExecutablePath = dialog.FileName;
+        });
+        BrowseBisKeysCommand = new RelayCommand(() =>
+        {
+            var dialog = new OpenFileDialog { Filter = "BIS keys (*.*)|*.*" };
+            if (dialog.ShowDialog() == true) EditedSettings.NandBisKeysPath = dialog.FileName;
+        });
         BrowseNszCommand = new RelayCommand(() =>
         {
             var dialog = new OpenFileDialog { Filter = "NSZ CLI (*.exe)|*.exe" };
@@ -190,6 +200,8 @@ public class SettingsWindowViewModel : WindowViewModelBase
     public Emignatik.NxFileViewer.Services.Updates.ViewerUpdateActions ViewerUpdates => _serviceProvider.GetRequiredService<Emignatik.NxFileViewer.Services.Updates.ViewerUpdateActions>();
 
     public ICommand BrowseNszCommand { get; }
+    public ICommand BrowseNandCommand { get; }
+    public ICommand BrowseBisKeysCommand { get; }
 
     public ICommand ApplySettingsCommand { get; }
 
@@ -468,6 +480,8 @@ public class SettingsWindowViewModel : WindowViewModelBase
 
     private static void CopyPluginSettings(IAppSettings source, IAppSettings destination)
     {
+        destination.NandExecutablePath = source.NandExecutablePath;
+        destination.NandBisKeysPath = source.NandBisKeysPath;
         destination.NszExecutablePath = source.NszExecutablePath;
         destination.NszCheckUpdates = source.NszCheckUpdates;
         destination.NszCompressionLevel = source.NszCompressionLevel;

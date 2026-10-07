@@ -27,10 +27,11 @@ public sealed class UpdateCenterViewModel : ViewModelBase
     private string _firmwareStatus = "";
     public UpdateCenterViewModel(IMainBackgroundTaskRunnerService background, ITitleDbUpdater titles,
         ICachedOnlineTitleInfoService cache, IAppSettings settings, NszActions nsz,
-        ViewerUpdateActions viewer, ILogger<UpdateCenterViewModel> logger)
+        ViewerUpdateActions viewer, ILogger<UpdateCenterViewModel> logger, Emignatik.NxFileViewer.Services.Nand.NandPluginActions nand)
     {
         _background = background; _titles = titles; _cache = cache; _settings = settings; _logger = logger;
         Nsz = nsz; Viewer = viewer;
+        Nand = nand;
         RefreshTitlesCommand = new RelayCommand(RefreshTitles, () => !background.IsRunning);
         CheckFirmwareCommand = new RelayCommand(() => RefreshFirmware(false), () => !background.IsRunning);
         SaveFirmwareCommand = new RelayCommand(() => RefreshFirmware(true), () => !background.IsRunning);
@@ -45,6 +46,7 @@ public sealed class UpdateCenterViewModel : ViewModelBase
     }
     public IMainBackgroundTaskRunnerService Background => _background;
     public NszActions Nsz { get; }
+    public Emignatik.NxFileViewer.Services.Nand.NandPluginActions Nand { get; }
     public ViewerUpdateActions Viewer { get; }
     public RelayCommand RefreshTitlesCommand { get; }
     public RelayCommand CheckFirmwareCommand { get; }

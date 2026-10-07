@@ -139,7 +139,7 @@ public class CnmtContainerViewModel : ViewModelBase
         }
     }
 
-    public Visibility SecurityVisibility => _cnmtContainer.NpdmItem == null ? Visibility.Collapsed : Visibility.Visible;
+    public Visibility SecurityVisibility => _cnmtContainer.NpdmItem != null && _cnmtContainer.CnmtItem.ContentType is LibHac.Ncm.ContentMetaType.Application or LibHac.Ncm.ContentMetaType.Patch ? Visibility.Visible : Visibility.Collapsed;
 
     public string SecurityLevel => _cnmtContainer.NpdmItem?.SecurityLevel switch
     {

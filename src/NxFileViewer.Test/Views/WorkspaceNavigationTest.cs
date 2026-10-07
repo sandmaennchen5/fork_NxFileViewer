@@ -78,12 +78,42 @@ public sealed class WorkspaceNavigationTest
                 Assert.NotSame(settings, plugins);
                 Assert.True(plugins.PluginSettingsOnly);
                 plugins.EditedSettings.NszCompressionLevel = 9;
+                var originalNandExecutable = actual.NandExecutablePath;
+                var originalBisKeys = actual.NandBisKeysPath;
+                plugins.EditedSettings.NandExecutablePath = "C:\\Plugins\\NxNandManager.exe";
+                plugins.EditedSettings.NandBisKeysPath = "C:\\Keys\\bis.keys";
                 plugins.ApplySettingsCommand.Execute(null);
+                Assert.Equal("C:\\Plugins\\NxNandManager.exe", actual.NandExecutablePath);
+                Assert.Equal("C:\\Keys\\bis.keys", actual.NandBisKeysPath);
                 Assert.Equal(9, actual.NszCompressionLevel);
                 Assert.Equal(originalTitleUrl, actual.TitlePageUrl);
                 Assert.Equal("https://example.com/general-draft", settings.EditedSettings.TitlePageUrl);
                 main.Navigate(WorkspaceSection.Settings);
                 settings.ApplySettingsCommand.Execute(null);
+                Assert.Equal("C:\\Plugins\\NxNandManager.exe", actual.NandExecutablePath);
+                main.Navigate(WorkspaceSection.Nand);
+                var nandPage = Assert.IsType<NandView>(((TabItem)main.FindName("NandTab")).Content);
+                Assert.IsType<NandViewModel>(nandPage.DataContext);
+                main.Navigate(WorkspaceSection.Home);
+                main.Navigate(WorkspaceSection.Nand);
+                Assert.Same(nandPage, ((TabItem)main.FindName("NandTab")).Content);
+                var nandRoot = new Emignatik.NxFileViewer.Models.TreeItems.Impl.NandFileItem("synthetic.bin");
+                using var nandFile = new Emignatik.NxFileViewer.Models.NxFile("synthetic.bin", nandRoot,
+                    new Emignatik.NxFileViewer.Models.Overview.FileOverview(nandRoot))
+                {
+                    NandPhysicalPath = "synthetic.bin",
+                    NandResult = new Emignatik.NxFileViewer.Services.Nand.NandDetectionResult("RAWNAND", new[] { "SYSTEM" }, false, 512, 1)
+                };
+                var openedNand = new Emignatik.NxFileViewer.Views.UserControls.OpenedFileViewModel(nandFile, App.ServiceProvider);
+                Assert.True(openedNand.IsNand);
+                Assert.Equal(3, openedNand.InitialDetailsTabIndex);
+                Assert.False(openedNand.Nand!.IsStandalone);
+                Assert.Equal("SYSTEM", openedNand.Nand.SelectedPartition);
+                Assert.False(batch.CanActOnFile(new Emignatik.NxFileViewer.Services.Integrity.BatchIntegrityResult(
+                    "synthetic.bin", "NAND", "NAND", "RAWNAND", "None", Emignatik.NxFileViewer.Models.Overview.NcasIntegrity.Unchecked, null) { IsNand = true }));
+                var openedNandPage = new Emignatik.NxFileViewer.Views.UserControls.OpenedFileView { DataContext = openedNand };
+                var nandDetails = (TabControl)openedNandPage.Content;
+                Assert.IsType<NandView>(((TabItem)nandDetails.Items[3]).Content);
                 Assert.Equal(9, actual.NszCompressionLevel);
                 Assert.Equal("https://example.com/general-draft", actual.TitlePageUrl);
                 main.Navigate(WorkspaceSection.Plugins);
@@ -94,6 +124,8 @@ public sealed class WorkspaceNavigationTest
                 Assert.Equal(9, plugins.EditedSettings.NszCompressionLevel);
                 Assert.False(closed);
                 actual.NszCompressionLevel = originalLevel;
+                actual.NandExecutablePath = originalNandExecutable;
+                actual.NandBisKeysPath = originalBisKeys;
                 actual.TitlePageUrl = originalTitleUrl;
                 App.ServiceProvider.GetRequiredService<IShowRenameToolWindowCommand>().Execute(null);
                 Assert.IsType<RenameToolWindow>(((TabItem)main.FindName("RenameTab")).Content);
@@ -121,10 +153,18 @@ public sealed class WorkspaceNavigationTest
                 Assert.Equal(nszOverview.NcasIntegrity, capturedNsz.NcasIntegrity);
                 var nspOverview = new Emignatik.NxFileViewer.Models.Overview.FileOverview(new PreviewItem());
                 var nspPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), Guid.NewGuid() + ".nsp");
+                batch.SelectedResult = nszResult with { IsFirmware = true };
+                Assert.Equal(1, batch.SelectedDetailsTabIndex);
                 showPreview.Invoke(batch, new object[] {
                     new Emignatik.NxFileViewer.Models.NxFile(nspPath, nspOverview.RootItem, nspOverview) });
+                Assert.Equal(0, batch.SelectedDetailsTabIndex);
+                Assert.Null(batch.SelectedResult);
+                Assert.False(batch.ShowStoredOverview);
+                Assert.NotSame(capturedNsz, batch.PreviewOverview);
+                Assert.Equal(nspOverview.NcasIntegrity, batch.PreviewOverview!.NcasIntegrity);
                 var nspResult = nszResult with { FilePath = nspPath, FileType = "NSP", Compression = "None" };
                 showCompleted.Invoke(batch, new object[] { nspResult });
+                Assert.Equal(nspPath, batch.SelectedResult!.FilePath);
                 batch.SelectedResult = nspResult;
                 Assert.NotNull(batch.PreviewOverview);
                 batch.SelectedResult = nszResult;
@@ -246,6 +286,26 @@ public sealed class WorkspaceNavigationTest
                     Assert.False(batch.LoadHistoryCommand.CanExecute(null));
                     actual.EnableBatchHistory = true;
                     Assert.True(batch.IsHistoryEnabled);
+                    // Restoring a history has no live preview cache. Display persisted
+                    // game metadata even when the source/archive no longer exists.
+                    foreach (var format in new[] { "NSP", "NSZ", "XCI", "XCZ", "NSP (ZIP)", "NSZ (7Z)" })
+                    {
+                        var savedGame = nszResult with { FilePath = nszPath + ".missing", FileType = format,
+                            Title = "Saved game", TitleId = "0100123456789000", Publisher = "Saved publisher", FileSize = 1024 };
+                        batch.SelectedHistory = new Emignatik.NxFileViewer.Services.Integrity.BatchHistoryEntry(Guid.NewGuid(), DateTime.UtcNow,
+                            "missing history source", false, true, true, false, "Completed", new[] { savedGame }, new());
+                        batch.LoadHistoryCommand.Execute(null);
+                        Assert.Same(savedGame, batch.SelectedResult);
+                        Assert.Null(batch.PreviewOverview);
+                        Assert.True(batch.ShowStoredOverview);
+                        Assert.Equal(0, batch.SelectedDetailsTabIndex);
+                        Assert.Contains(batch.StoredOverviewFields, field => field.Value == "Saved game");
+                        Assert.Contains(batch.StoredOverviewFields, field => field.Value == "0100123456789000");
+                        batch.SelectedResult = savedGame with { IsNand = true };
+                        Assert.False(batch.ShowStoredOverview);
+                        batch.SelectedResult = savedGame with { IsFirmware = true };
+                        Assert.False(batch.ShowStoredOverview);
+                    }
                 }
                 finally { actual.EnableBatchHistory = historyEnabled; }
                 main.Close();

@@ -14,15 +14,15 @@ A hidden Windows PowerShell helper initializes before the viewer closes, allowin
 
 Replacement errors preserve the existing EXE. If the new process fails to launch or exits within two seconds, the helper attempts to restore the previous EXE. This checks early startup only. Staging data, the backup and `error.txt` remain under Updates for recovery or diagnosis.
 
-## Publishing 4.0.0-beta.3
+## Publishing 4.0.0
 
-The project uses the valid package version `4.0.0-beta.3`. Run `Publish.ps1`, create a GitHub Release with tag `v4.0.0-beta.3`, and mark it as a pre-release. Attach:
+The project uses the valid package version `4.0.0`. Run `Publish.ps1`, create a GitHub Release with tag `v4.0.0`, as a stable release (leave the pre-release option disabled). Attach:
 
-- `NxFileViewer_v4.0.0-beta.3_x64.zip`
-- `NxFileViewer_v4.0.0-beta.3_x86.zip`
-- `NxFileViewer_v4.0.0-beta.3_self-contained_x64.zip` (compressed, includes .NET)
-- `NxFileViewer_v4.0.0-beta.3_self-contained_x86.zip` (compressed, includes .NET)
-- `NxFileViewer_v4.0.0-beta.3_firmware-hashes.zip` (optional reference add-on)
+- `NxFileViewer_v4.0.0_x64.zip`
+- `NxFileViewer_v4.0.0_x86.zip`
+- `NxFileViewer_v4.0.0_self-contained_x64.zip` (compressed, includes .NET)
+- `NxFileViewer_v4.0.0_self-contained_x86.zip` (compressed, includes .NET)
+- `NxFileViewer_v4.0.0_firmware-hashes.zip` (optional reference add-on)
 
 Application ZIPs include the portable executable with embedded debug symbols; firmware references stay in their separate ZIP. GitHub Actions artifacts alone are not releases available to the updater. Architecture selection follows the running viewer process.
 

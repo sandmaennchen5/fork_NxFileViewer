@@ -14,6 +14,20 @@
         Title="{Binding Path=Title}" Height="850" Width="1400" MinHeight="600" MinWidth="1000" d:DataContext="{d:DesignInstance windows:MainWindowViewModel}"
         dragAndDrop:DropFilesBehaviorExtension.IsEnabled="True">
 
+    <Window.Resources>
+        <DrawingImage x:Key="NandIcon">
+            <DrawingImage.Drawing>
+                <DrawingGroup>
+                    <!-- RAM-style memory board, chips and gold contacts. -->
+                    <GeometryDrawing Brush="#348A68" Geometry="M1,1 L31,1 31,12 19,12 19,15 16,15 16,12 1,12 Z">
+                        <GeometryDrawing.Pen><Pen Brush="#205A45" Thickness="1"/></GeometryDrawing.Pen>
+                    </GeometryDrawing>
+                    <GeometryDrawing Brush="#263747" Geometry="M4,3 H10 V10 H4 Z M13,3 H19 V10 H13 Z M22,3 H28 V10 H22 Z"/>
+                    <GeometryDrawing Brush="#E5BD60" Geometry="M3,12 H5 V15 H3 Z M7,12 H9 V15 H7 Z M11,12 H13 V15 H11 Z M21,12 H23 V15 H21 Z M25,12 H27 V15 H25 Z M29,12 H31 V15 H29 Z"/>
+                </DrawingGroup>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+    </Window.Resources>
     <Window.InputBindings>
         <KeyBinding Gesture="Ctrl+O" Command="{Binding Path=OpenFileCommand}" />
         <KeyBinding Gesture="Ctrl+Shift+O" Command="{Binding Path=OpenLastFileCommand}" />
@@ -40,7 +54,7 @@
         <TabControl x:Name="WorkspaceTabs" Grid.Row="1" SelectionChanged="WorkspaceSelectionChanged">
             <TabItem x:Name="HomeTab">
                 <TabItem.Header><StackPanel Orientation="Horizontal"><Image Source="/Styling/Icons/FolderDirectoryEntryItem.png" Width="16" Height="16" Margin="0,0,7,0"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Workspace_Home}" VerticalAlignment="Center"/></StackPanel></TabItem.Header>
-                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="600">
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="960">
                     <Image Source="/Styling/Icons/Icon.ico" Width="72" Height="72" Margin="0,0,0,16"/>
                     <TextBlock Text="NxFileViewer" FontSize="30" Margin="0,0,0,24" HorizontalAlignment="Center"/>
                     <Border BorderBrush="{DynamicResource FontBrush.Warning}" BorderThickness="1" Padding="12" Margin="0,0,0,12"
@@ -56,14 +70,21 @@
                             </WrapPanel>
                         </StackPanel>
                     </Border>
-                    <TextBlock Text="{Binding ViewerUpdates.Status}" TextWrapping="Wrap" HorizontalAlignment="Center" Margin="0,0,0,12"/>
-                    <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Update_Install}" Command="{Binding ViewerUpdates.InstallCommand}" Padding="12,5" Margin="0,0,0,12"/>
-                    <Button Click="NavigateFile" Padding="24,12" Margin="0,5"><StackPanel Orientation="Horizontal"><Image Source="/Styling/Icons/open_16x16.png" Width="20" Height="20" Margin="0,0,12,0"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Workspace_File}" VerticalAlignment="Center"/></StackPanel></Button>
-                    <Button Click="NavigateBatch" Padding="24,12" Margin="0,5"><StackPanel Orientation="Horizontal"><Image Source="/Styling/Icons/safe_16x16.png" Width="20" Height="20" Margin="0,0,12,0"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_Title}" VerticalAlignment="Center"/></StackPanel></Button>
-                    <Button Click="NavigateRename" Padding="24,12" Margin="0,5"><StackPanel Orientation="Horizontal"><Image Source="/Styling/Icons/rename_16x16.png" Width="20" Height="20" Margin="0,0,12,0"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RenamingTool_WindowTitle}" VerticalAlignment="Center"/></StackPanel></Button>
-                    <Button Click="NavigateSettings" Padding="24,12" Margin="0,5"><StackPanel Orientation="Horizontal"><Image Source="/Styling/Icons/settings_16x16.png" Width="20" Height="20" Margin="0,0,12,0"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_Title}" VerticalAlignment="Center"/></StackPanel></Button>
-                    <Button Click="NavigatePlugins" Padding="24,12" Margin="0,5"><StackPanel Orientation="Horizontal"><Image Source="/Styling/Icons/settings_16x16.png" Width="20" Height="20" Margin="0,0,12,0"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Workspace_Plugins}" VerticalAlignment="Center"/></StackPanel></Button>
-                    <Button Click="NavigateUpdates" Padding="24,12" Margin="0,5"><StackPanel Orientation="Horizontal"><Image Source="/Styling/Icons/refresh_16x16.png" Width="20" Height="20" Margin="0,0,12,0"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.DataUpdate_Title}" VerticalAlignment="Center"/></StackPanel></Button>
+                    <TextBlock Text="{Binding ViewerUpdates.AvailableUpdates}" Visibility="{Binding ViewerUpdates.AvailableUpdates, Converter={StaticResource StringNullOrEmptyToCollapsedVisibilityConverter}}" TextWrapping="Wrap" HorizontalAlignment="Center" Margin="0,0,0,12"/>
+                    <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Update_Install}" Command="{Binding ViewerUpdates.InstallCommand}" Visibility="{Binding ViewerUpdates.HasViewerUpdate, Converter={StaticResource FalseToCollapseVisibilityConverter}}" Padding="12,5" Margin="0,0,0,12"/>
+                    <WrapPanel HorizontalAlignment="Center">
+                    <Button Click="NavigateFile" Padding="12,10" Margin="4,5"><StackPanel Orientation="Horizontal"><Image Source="/Styling/Icons/open_16x16.png" Width="20" Height="20" Margin="0,0,12,0"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Workspace_File}" VerticalAlignment="Center"/></StackPanel></Button>
+                    <Button Click="NavigateBatch" Padding="12,10" Margin="4,5"><StackPanel Orientation="Horizontal"><Image Source="/Styling/Icons/safe_16x16.png" Width="20" Height="20" Margin="0,0,12,0"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_Title}" VerticalAlignment="Center"/></StackPanel></Button>
+                    <Button Click="NavigateRename" Padding="12,10" Margin="4,5"><StackPanel Orientation="Horizontal"><Image Source="/Styling/Icons/rename_16x16.png" Width="20" Height="20" Margin="0,0,12,0"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RenamingTool_WindowTitle}" VerticalAlignment="Center"/></StackPanel></Button>
+                    <Button x:Name="HomeNandButton" Click="NavigateNand" Padding="12,10" Margin="4,5"><StackPanel Orientation="Horizontal"><Image Source="{StaticResource NandIcon}" Width="24" Height="20" Margin="0,0,12,0"/><TextBlock Text="NAND" VerticalAlignment="Center"/></StackPanel></Button>
+                    <Button Click="NavigateSettings" Padding="12,10" Margin="4,5"><StackPanel Orientation="Horizontal"><Image Source="/Styling/Icons/settings_16x16.png" Width="20" Height="20" Margin="0,0,12,0"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_Title}" VerticalAlignment="Center"/></StackPanel></Button>
+                    <Button Click="NavigatePlugins" Padding="12,10" Margin="4,5"><StackPanel Orientation="Horizontal"><Image Source="/Styling/Icons/settings_16x16.png" Width="20" Height="20" Margin="0,0,12,0"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Workspace_Plugins}" VerticalAlignment="Center"/></StackPanel></Button>
+                    <Button Click="NavigateUpdates" Padding="12,10" Margin="4,5"><StackPanel Orientation="Horizontal"><Image Source="/Styling/Icons/refresh_16x16.png" Width="20" Height="20" Margin="0,0,12,0"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.DataUpdate_Title}" VerticalAlignment="Center"/></StackPanel></Button>
+                    </WrapPanel>
+                    <WrapPanel x:Name="HomePluginRow" HorizontalAlignment="Center" Margin="0,16,0,0">
+                        <Button x:Name="NandGuiButton" Command="{Binding NandPlugin.OpenGuiCommand}" Padding="20,12" Margin="4,5"><StackPanel Orientation="Horizontal"><Image Source="{StaticResource NandIcon}" Width="24" Height="20" Margin="0,0,10,0"/><TextBlock Text="NxNandManager GUI" VerticalAlignment="Center"/></StackPanel></Button>
+                        <Button x:Name="NszGuiButton" Content="NSZ GUI" Command="{Binding Nsz.OpenGuiCommand}" Padding="20,12" Margin="4,5"/>
+                    </WrapPanel>
                 </StackPanel>
             </TabItem>
             <TabItem x:Name="FileTab">
@@ -109,6 +130,7 @@
                 <TabItem.Header><StackPanel Orientation="Horizontal"><Image Source="/Styling/Icons/safe_16x16.png" Width="16" Height="16" Margin="0,0,7,0"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_Title}" VerticalAlignment="Center"/></StackPanel></TabItem.Header></TabItem>
             <TabItem x:Name="RenameTab">
                 <TabItem.Header><StackPanel Orientation="Horizontal"><Image Source="/Styling/Icons/rename_16x16.png" Width="16" Height="16" Margin="0,0,7,0"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RenamingTool_WindowTitle}" VerticalAlignment="Center"/></StackPanel></TabItem.Header></TabItem>
+            <TabItem x:Name="NandTab"><TabItem.Header><StackPanel Orientation="Horizontal"><Image Source="{StaticResource NandIcon}" Width="20" Height="16" Margin="0,0,7,0"/><TextBlock Text="NAND" VerticalAlignment="Center"/></StackPanel></TabItem.Header></TabItem>
             <TabItem x:Name="SettingsTab">
                 <TabItem.Header><StackPanel Orientation="Horizontal"><Image Source="/Styling/Icons/settings_16x16.png" Width="16" Height="16" Margin="0,0,7,0"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_Title}" VerticalAlignment="Center"/></StackPanel></TabItem.Header></TabItem>
             <TabItem x:Name="LogTab">
@@ -152,6 +174,7 @@
                         <DockPanel Margin="0,0,0,10"><TextBlock Text="F2" Width="160" FontWeight="Bold"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.MenuItem_ShowRenameToolWindow}"/></DockPanel>
                         <DockPanel Margin="0,0,0,10"><TextBlock Text="Alt+S" Width="160" FontWeight="Bold"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_Title}"/></DockPanel>
                     </StackPanel></ScrollViewer></TabItem>
+
         </TabControl>
 
 

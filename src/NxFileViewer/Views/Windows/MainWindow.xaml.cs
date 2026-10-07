@@ -7,7 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Emignatik.NxFileViewer.Views.Windows;
 
-public enum WorkspaceSection { Home, File, Batch, Rename, Settings, Log, Plugins, Updates, Info }
+public enum WorkspaceSection { Home, File, Batch, Rename, Nand, Settings, Log, Plugins, Updates, Info }
 
 public partial class MainWindow : Window
 {
@@ -70,6 +70,9 @@ public partial class MainWindow : Window
         // attached to their tabs, keeping results, drafts and running tasks intact.
         switch (section)
         {
+            case WorkspaceSection.Nand when NandTab.Content == null:
+                NandTab.Content = new NandView { DataContext = App.ServiceProvider.GetRequiredService<NandViewModel>() };
+                break;
             case WorkspaceSection.Updates when UpdatesTab.Content == null:
                 UpdatesTab.Content = new UpdateCenterView { DataContext = App.ServiceProvider.GetRequiredService<UpdateCenterViewModel>() };
                 break;
@@ -134,6 +137,7 @@ public partial class MainWindow : Window
     private void NavigateHome(object sender, RoutedEventArgs e) => Navigate(WorkspaceSection.Home);
     private void NavigateFile(object sender, RoutedEventArgs e) => Navigate(WorkspaceSection.File);
     private void NavigateBatch(object sender, RoutedEventArgs e) => Navigate(WorkspaceSection.Batch);
+    private void NavigateNand(object sender, RoutedEventArgs e) => Navigate(WorkspaceSection.Nand);
     private void NavigateRename(object sender, RoutedEventArgs e) => Navigate(WorkspaceSection.Rename);
     private void NavigateUpdates(object sender, RoutedEventArgs e) => Navigate(WorkspaceSection.Updates);
     private void NavigatePlugins(object sender, RoutedEventArgs e) => Navigate(WorkspaceSection.Plugins);

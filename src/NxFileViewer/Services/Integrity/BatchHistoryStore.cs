@@ -47,7 +47,13 @@ public sealed class BatchHistoryStore(string path)
         try
         {
             path = PackageZip.ArchivePath(path);
-            if (File.Exists(path)) { var file = new FileInfo(path); return $"{file.Length}:{file.LastWriteTimeUtc.Ticks}"; }
+            if (File.Exists(path))
+            {
+                var parts = Services.Nand.NandDetection.SplitFiles(path);
+                if (parts.Count > 1) return string.Join("|", parts.Select(part =>
+                { var item = new FileInfo(part); return $"{item.Name}:{item.Length}:{item.LastWriteTimeUtc.Ticks}"; }));
+                var file = new FileInfo(path); return $"{file.Length}:{file.LastWriteTimeUtc.Ticks}";
+            }
             if (Directory.Exists(path)) return string.Join("|", Directory.GetFiles(path, "*", SearchOption.AllDirectories)
                 .OrderBy(p => p, StringComparer.OrdinalIgnoreCase).Select(p =>
                 { var file = new FileInfo(p); return $"{Path.GetRelativePath(path,p)}:{file.Length}:{file.LastWriteTimeUtc.Ticks}"; }));

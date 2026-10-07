@@ -105,7 +105,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         {
             if (ReferenceEquals(_selectedResult, value)) return;
             _selectedResult = value;
-            SelectedDetailsTabIndex = value?.IsFirmware == true ? 1 : 0;
+            SelectedDetailsTabIndex = value?.IsNand == true ? 2 : value?.IsFirmware == true ? 1 : 0;
             NotifyPropertyChanged();
             UpdateSelectedPreview();
         }
@@ -133,10 +133,13 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
     public RelayCommand CompressValidCommand { get; }
     public RelayCommand DecompressValidCommand { get; }
     public bool IncludeSubdirectories { get; set; } = true;
+    public bool ShowStoredOverview => !_closed && PreviewOverview == null && SelectedResult is { IsFirmware: false, IsNand: false };
+    public IReadOnlyList<KeyValuePair<string, string>> StoredOverviewFields => ShowStoredOverview
+        ? BatchStoredOverview.Build(SelectedResult!, LocalizationManager.Instance.Current.Keys) : Array.Empty<KeyValuePair<string, string>>();
     public FileOverviewViewModel? PreviewOverview
     {
         get => _previewOverview;
-        private set { _previewOverview = value; NotifyPropertyChanged(); }
+        private set { _previewOverview = value; NotifyPropertyChanged(); NotifyPropertyChanged(nameof(ShowStoredOverview)); NotifyPropertyChanged(nameof(StoredOverviewFields)); }
     }
 
     private string _searchText = "";
@@ -148,7 +151,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
     public string SearchText { get => _searchText; set { _searchText = value ?? ""; NotifyPropertyChanged(); ResultsView.Refresh(); } }
     public string FileTypeFilter { get => _fileTypeFilter; set { _fileTypeFilter = value ?? ""; NotifyPropertyChanged(); ResultsView.Refresh(); } }
     public string IntegrityFilter { get => _integrityFilter; set { _integrityFilter = value ?? ""; NotifyPropertyChanged(); ResultsView.Refresh(); } }
-    public IReadOnlyList<BatchFilterOption> FileTypeFilters { get; } = new[] { "", "NSP", "NSZ", "XCI", "XCZ", "ZIP", "7Z", "Folder" }.Select(value => new BatchFilterOption(value)).ToArray();
+    public IReadOnlyList<BatchFilterOption> FileTypeFilters { get; } = new[] { "", "NSP", "NSZ", "XCI", "XCZ", "NAND", "ZIP", "7Z", "Folder" }.Select(value => new BatchFilterOption(value)).ToArray();
     public IReadOnlyList<BatchFilterOption> IntegrityFilters { get; } = new[] { new BatchFilterOption("") }.Concat(Enum.GetValues<NcasIntegrity>().Select(value => new BatchFilterOption(value.ToString()))).ToArray();
     public RelayCommand ResetFiltersCommand => new(() => { SearchText = ""; FileTypeFilter = ""; IntegrityFilter = ""; NamingFilter = ""; ShowOnlyErrors = false; });
     public bool ShowOnlyErrors
@@ -264,12 +267,14 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         InputDirectory = saved.Source;
         IncludeArchives = saved.IncludeArchives; IncludeSubdirectories = saved.IncludeSubdirectories;
         NotifyPropertyChanged(nameof(IncludeArchives)); NotifyPropertyChanged(nameof(IncludeSubdirectories));
+        SelectedResult = null;
         ClearPreview(); _completedPreviews.Clear(); Results.Clear(); _fingerprints.Clear();
         foreach (var result in saved.Results)
             Results.Add(!prepareResume || saved.CanSkip(result.FilePath, _appSettings.IgnoreMissingDeltaFragments) ? result :
                 result with { Integrity = NcasIntegrity.Unchecked });
         foreach (var pair in saved.Fingerprints) _fingerprints[pair.Key] = pair.Value;
         _session = saved;
+        SelectedResult = ResultsView.Cast<BatchIntegrityResult>().FirstOrDefault();
         ExportCommand.TriggerCanExecuteChanged(); VerifyAllCommand.TriggerCanExecuteChanged();
         MoveValidCommand.TriggerCanExecuteChanged();
         return true;
@@ -281,11 +286,12 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
             _previewFile?.Dispose();
             _previewFile = file;
             if (_closed) return;
-            // Capture every loaded overview once, even while another result is selected.
+            // Follow the package being read, while retaining completed snapshots
+            // for manual selection after the scan.
             _completedPreviews[file.FilePath] = new FileOverviewViewModel(file.Overview, _serviceProvider);
-            if (SelectedResult == null || SelectedResult.FilePath.Equals(file.FilePath, StringComparison.OrdinalIgnoreCase))
-                PreviewOverview = _completedPreviews[file.FilePath];
-            else UpdateSelectedPreview();
+            SelectedResult = Results.FirstOrDefault(result => result.FilePath.Equals(file.FilePath, StringComparison.OrdinalIgnoreCase));
+            SelectedDetailsTabIndex = 0;
+            PreviewOverview = _completedPreviews[file.FilePath];
         });
     }
 
@@ -295,10 +301,10 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         {
             // The cached model observes integrity changes from the verifier.
             // Publish it before adding a row, which can trigger selection bindings.
-            if (!result.IsFirmware && _completedPreviews.TryGetValue(result.FilePath, out var completed) &&
+            if (!result.IsFirmware && !result.IsNand && _completedPreviews.TryGetValue(result.FilePath, out var completed) &&
                 SelectedResult?.FilePath.Equals(result.FilePath, StringComparison.OrdinalIgnoreCase) == true)
                 PreviewOverview = completed;
-            if (!result.IsFirmware && _completedPreviews.TryGetValue(result.FilePath, out var overview))
+            if (!result.IsFirmware && !result.IsNand && _completedPreviews.TryGetValue(result.FilePath, out var overview))
             {
                 var packages = overview.CnmtContainers;
                 string Join(Func<CnmtContainerViewModel, string?> selector) => string.Join(" / ",
@@ -326,7 +332,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
             if (fingerprint != null) _fingerprints[result.FilePath] = fingerprint;
             else _fingerprints.Remove(result.FilePath);
             SaveHistory("Running");
-            if (result.IsFirmware) SelectedResult = result;
+            SelectedResult = result;
             ExportCommand.TriggerCanExecuteChanged();
             MoveValidCommand.TriggerCanExecuteChanged();
             CheckNamingCommand.TriggerCanExecuteChanged();
@@ -354,17 +360,17 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
     {
         PreviewOverview = null;
         var selected = SelectedResult;
-        if (_closed || selected == null || selected.IsFirmware) return;
+        if (_closed || selected == null || selected.IsFirmware || selected.IsNand) return;
         // Completed results are snapshots. Selection must never reopen a package,
         // including when its source was moved/deleted after the check.
         if (_completedPreviews.TryGetValue(selected.FilePath, out var completed))
             PreviewOverview = completed;
     }
     public bool CanActOnFile(BatchIntegrityResult file, NszOperation? operation = null) => !BackgroundTask.IsRunning &&
-        !file.IsFirmware && !file.HasMissingKeys && File.Exists(file.FilePath) &&
+        !file.IsFirmware && !file.IsNand && !file.HasMissingKeys && File.Exists(file.FilePath) &&
         (operation == null || PackageConversionService.Supports(file.FilePath, operation.Value));
     public bool CanCheckNaming(BatchIntegrityResult file) => !BackgroundTask.IsRunning &&
-        !file.IsFirmware && !file.HasMissingKeys &&
+        !file.IsFirmware && !file.IsNand && !file.HasMissingKeys &&
         File.Exists(file.FilePath) && Path.GetExtension(file.FilePath).ToLowerInvariant() is ".nsp" or ".nsz" or ".xci" or ".xcz";
     private bool CanProcessNaming() => Results.Any(CanCheckNaming);
     public void CheckSelectedNaming(BatchIntegrityResult file) => ProcessNaming(false, file);
@@ -499,7 +505,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
     }
     public async void VerifySelected(BatchIntegrityResult file)
     {
-        if (BackgroundTask.IsRunning || (!Directory.Exists(file.FilePath) && !File.Exists(PackageZip.ArchivePath(file.FilePath)))) return;
+        if (file.IsNand || BackgroundTask.IsRunning || (!Directory.Exists(file.FilePath) && !File.Exists(PackageZip.ArchivePath(file.FilePath)))) return;
         try
         {
             var runnable = _serviceProvider.GetRequiredService<IVerifyDirectoryIntegrityRunnable>()
@@ -510,16 +516,16 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         catch (Exception ex) { _logger.LogError(ex, "Failed to verify selected file."); }
     }
     private bool CanMoveValid() => !BackgroundTask.IsRunning &&
-        Results.Any(result => !result.IsFirmware && result.Integrity == NcasIntegrity.Original && File.Exists(result.FilePath));
+        Results.Any(result => !result.IsFirmware && !result.IsNand && result.Integrity == NcasIntegrity.Original && File.Exists(result.FilePath));
 
     private bool CanConvertValid(NszOperation operation) => !BackgroundTask.IsRunning && Results.Any(result =>
-        !result.IsFirmware && result.Integrity == NcasIntegrity.Original && File.Exists(result.FilePath) &&
+        !result.IsFirmware && !result.IsNand && result.Integrity == NcasIntegrity.Original && File.Exists(result.FilePath) &&
         PackageConversionService.Supports(result.FilePath, operation));
 
     private async void ConvertValid(NszOperation operation, BatchIntegrityResult? selected = null)
     {
         if (selected == null ? !CanConvertValid(operation) : !CanActOnFile(selected, operation)) return;
-        var paths = (selected == null ? Results.AsEnumerable() : new[] { selected }).Where(result => !result.IsFirmware && (selected != null || result.Integrity == NcasIntegrity.Original) &&
+        var paths = (selected == null ? Results.AsEnumerable() : new[] { selected }).Where(result => !result.IsFirmware && !result.IsNand && (selected != null || result.Integrity == NcasIntegrity.Original) &&
             File.Exists(result.FilePath) && PackageConversionService.Supports(result.FilePath, operation))
             .Select(result => result.FilePath).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         ClearPreview();
@@ -560,7 +566,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
             : selected.FilePath.Equals(opening.OpenedFile.FilePath, StringComparison.OrdinalIgnoreCase))) opening.SafeClose();
         ClearPreview();
         var validFiles = (selected == null ? Results.AsEnumerable() : new[] { selected }).Where(result =>
-            !result.IsFirmware && (selected != null || result.Integrity == NcasIntegrity.Original) && File.Exists(result.FilePath)).ToArray();
+            !result.IsFirmware && !result.IsNand && (selected != null || result.Integrity == NcasIntegrity.Original) && File.Exists(result.FilePath)).ToArray();
         var runnable = new RunnableRelay<int>((reporter, cancellationToken) =>
         {
             var moved = 0;
@@ -587,7 +593,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         try
         {
             await BackgroundTask.RunAsync(runnable);
-            foreach (var movedResult in Results.Where(result => !result.IsFirmware && !File.Exists(result.FilePath)).ToArray())
+            foreach (var movedResult in Results.Where(result => !result.IsFirmware && !result.IsNand && !File.Exists(result.FilePath)).ToArray())
                 Results.Remove(movedResult);
         }
         catch (OperationCanceledException) { }
@@ -605,7 +611,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
     {
         var path = _promptService.PromptSaveFile("integrity-results.csv", "Export integrity results", "CSV files (*.csv)|*.csv");
         if (path == null) return;
-        var csv = new StringBuilder("File;FileType;PackageType;Structure;Compression;Integrity;Error;FirmwareDetails;Conversion;ConvertedPath;SourceBytes;OutputBytes;Title;TitleId;Publisher;Version;DisplayVersion;Firmware;MasterKey;BuildId;Distribution;Languages;FileBytes;CompressionRatio;Naming;ProposedPath;NamingError\r\n");
+        var csv = new StringBuilder("File;FileType;PackageType;Structure;Compression;Integrity;Error;FirmwareDetails;Conversion;ConvertedPath;SourceBytes;OutputBytes;Title;TitleId;Publisher;Version;DisplayVersion;Firmware;MasterKey;BuildId;Distribution;Languages;FileBytes;CompressionRatio;Naming;ProposedPath;NamingError;IsNand;NandDetails\r\n");
         foreach (var result in ResultsView.Cast<BatchIntegrityResult>())
             csv.Append(Escape(result.FilePath)).Append(';')
                 .Append(Escape(result.FileType)).Append(';')
@@ -623,7 +629,8 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
                 .Append(';').Append(result.FileSize).Append(';')
                 .Append(result.CompressionRatio?.ToString(System.Globalization.CultureInfo.InvariantCulture))
                 .Append(';').Append(Escape(result.NamingStatus)).Append(';').Append(Escape(result.ProposedPath ?? ""))
-                .Append(';').Append(Escape(result.NamingError ?? "")).Append("\r\n");
+                .Append(';').Append(Escape(result.NamingError ?? ""))
+                .Append(';').Append(result.IsNand).Append(';').Append(Escape(result.NandDetails ?? "")).Append("\r\n");
         File.WriteAllText(path, csv.ToString(), new UTF8Encoding(true));
     }
 

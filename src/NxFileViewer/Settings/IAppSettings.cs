@@ -9,6 +9,8 @@ namespace Emignatik.NxFileViewer.Settings;
 /// </summary>
 public interface IAppSettings : INotifyPropertyChanged
 {
+    string NandExecutablePath { get; set; }
+    string NandBisKeysPath { get; set; }
     bool CheckViewerUpdatesOnStartup { get; set; }
     bool IncludeViewerPrereleases { get; set; }
     string NszExecutablePath { get; set; }

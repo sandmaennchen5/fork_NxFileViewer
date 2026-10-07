@@ -68,11 +68,20 @@ internal class FileLoader : IFileLoader
                 }
                 loaded = Load(extracted.FilePath, token);
                 return new NxFile(PackageZip.MemberPath(archive, entry), loaded.RootItem, loaded.Overview)
-                { OwnedResource = extracted, ArchivePath = archive, ArchiveEntry = entry, ArchiveEntries = entries, FirmwareResult = loaded.FirmwareResult };
+                { OwnedResource = extracted, ArchivePath = archive, ArchiveEntry = entry, ArchiveEntries = entries, FirmwareResult = loaded.FirmwareResult,
+                    NandResult = loaded.NandResult, NandPhysicalPath = loaded.NandPhysicalPath };
             }
             catch { loaded?.Dispose(); extracted.Dispose(); throw; }
         }
         _logger.LogInformation(LocalizationManager.Instance.Current.Keys.Log_OpeningFile.SafeFormat(filePath));
+
+        var nand = Services.Nand.NandDetection.Detect(filePath, token);
+        if (nand != null)
+        {
+            var root = new NandFileItem(filePath);
+            return new NxFile(filePath, root, new FileOverview(root) { FileSize = nand.Size })
+            { NandResult = nand, NandPhysicalPath = filePath };
+        }
 
         BatchIntegrityResult? ncaFirmware = null;
         if (Path.GetExtension(filePath).Equals(".nca", StringComparison.OrdinalIgnoreCase))

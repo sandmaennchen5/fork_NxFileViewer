@@ -7,7 +7,19 @@
         <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <StackPanel>
+                <WrapPanel Margin="0,0,0,10">
+                <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Update_Check}" Command="{Binding Viewer.CheckCommand}" Padding="12,5" Margin="0,0,8,0"/>
+                    <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Update_Install}" Command="{Binding Viewer.InstallCommand}" Padding="12,5"/>
+                </WrapPanel>
+                <TextBlock Text="{Binding Viewer.Status}" TextWrapping="Wrap" Margin="0,0,0,12"/>
                 <GroupBox Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Workspace_Plugins}"><StackPanel Margin="10">
+                    <GroupBox Header="NxNandManager"><StackPanel Margin="10">
+                        <TextBlock Text="{Binding Nand.Status}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                        <WrapPanel>
+                            <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nsz_Update}" Command="{Binding Nand.UpdateCommand}" Padding="12,5" Margin="0,0,8,0"/>
+                            <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nsz_Rollback}" Command="{Binding Nand.RollbackCommand}" Padding="12,5"/>
+                        </WrapPanel>
+                    </StackPanel></GroupBox>
                     <GroupBox Header="nicoboss/nsz"><StackPanel Margin="10">
                     <CheckBox Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nsz_CheckUpdates}" IsChecked="{Binding DataContext.EditedSettings.NszCheckUpdates, RelativeSource={RelativeSource AncestorType={x:Type windows:SettingsWindow}}}" Margin="0,0,0,8"/>
                     <TextBlock Text="{Binding Nsz.Status}" TextWrapping="Wrap" Margin="0,0,0,8"/>

@@ -33,7 +33,7 @@ public partial class BatchIntegrityWindow : UserControl
         Add(keys.Nsz_Compress, model.CanActOnFile(file, NszOperation.Compress), () => model.ConvertSelected(file, NszOperation.Compress));
         Add(keys.Nsz_Decompress, model.CanActOnFile(file, NszOperation.Decompress), () => model.ConvertSelected(file, NszOperation.Decompress));
         Add(keys.MenuItem_OpenTitleWebPage, model.CanOpenTitle(file), () => model.OpenSelectedTitle(file));
-        Add(keys.MenuItem_CheckIntegrity, !model.BackgroundTask.IsRunning &&
+        Add(keys.MenuItem_CheckIntegrity, !file.IsNand && !model.BackgroundTask.IsRunning &&
             (Directory.Exists(file.FilePath) || File.Exists(PackageZip.ArchivePath(file.FilePath))), () => model.VerifySelected(file));
         Add(keys.BatchNaming_Check, model.CanCheckNaming(file), () => model.CheckSelectedNaming(file));
         Add(keys.RenamingTool_Button_Rename, model.CanCheckNaming(file), () => model.RenameSelected(file));

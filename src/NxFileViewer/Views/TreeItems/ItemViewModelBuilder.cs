@@ -64,6 +64,7 @@ public class ItemViewModelBuilder : IItemViewModelBuilder
                 itemViewModel = new CnmtContentEntryItemViewModel(cnmtContentEntryItem, _serviceProvider);
                 break;
             case FirmwareFileItem:
+            case NandFileItem:
                 itemViewModel = new ItemViewModel(item, _serviceProvider);
                 break;
             default:

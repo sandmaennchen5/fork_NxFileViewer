@@ -6,6 +6,24 @@ namespace Emignatik.NxFileViewer.Localization.Keys;
 
 public interface ILocalizationKeys : ILocalizationKeysBase
 {
+    string Nand_Detected { get; }
+    string Nand_NameCandidate { get; }
+    string Nand_Installed { get; }
+    string Nand_Updating { get; }
+    string Nand_CustomUpdate { get; }
+    string Nand_Open { get; }
+    string Nand_Info { get; }
+    string Nand_Export { get; }
+    string Nand_SettingsTip { get; }
+    string Nand_BisKeys { get; }
+    string Nand_Tip { get; }
+    string Nand_NewTarget { get; }
+    string Nand_SourceMissing { get; }
+    string Nand_NotInstalled { get; }
+    string Nand_KeysMissing { get; }
+    string Nand_ExportFailed { get; }
+    string Nand_ExportDone { get; }
+    string Nand_Cancelled { get; }
     string DataUpdate_Firmware { get; }
     string DataUpdate_Title { get; }
     string DataUpdate_Titles { get; }
@@ -38,6 +56,9 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string Update_Install { get; }
     string Update_Checking { get; }
     string Update_Current { get; }
+    string Component_UpdateAvailable { get; }
+    string Component_NotInstalled { get; }
+    string Component_CustomVersion { get; }
     string Update_Available { get; }
     string Update_Failed { get; }
     string Update_Confirm { get; }
@@ -142,6 +163,15 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string BatchIntegrity_Error { get; }
     string BatchIntegrity_NszDataCorrupted { get; }
     string BatchIntegrity_IntegrityFailed { get; }
+    string PackageStructure_Filesystem { get; }
+    string Signature_Title { get; }
+    string Signature_Passed { get; }
+    string Signature_NotPassed { get; }
+    string Signature_Unchecked { get; }
+    string ToolTip_PackageStructure { get; }
+    string ToolTip_NcaSignature { get; }
+    string ToolTip_Permission { get; }
+    string ToolTip_AcidSignature { get; }
     string PackageStructure_Title { get; }
     string PackageStructure_Scene { get; }
     string PackageStructure_Cdn { get; }

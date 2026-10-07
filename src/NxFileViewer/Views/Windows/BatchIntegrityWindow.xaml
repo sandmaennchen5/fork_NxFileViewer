@@ -81,10 +81,39 @@
             <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch"/>
             <TabControl x:Name="DetailsTabs" Grid.Column="2" Margin="8,0,0,0" SelectedIndex="{Binding SelectedDetailsTabIndex, Mode=TwoWay}">
                 <TabItem Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.TabOverview}">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><userControls:FileOverviewView DataContext="{Binding PreviewOverview}"/></ScrollViewer>
+                                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel>
+                            <userControls:FileOverviewView DataContext="{Binding PreviewOverview}">
+                                <userControls:FileOverviewView.Style>
+                                    <Style TargetType="userControls:FileOverviewView" BasedOn="{StaticResource UserControlStyle}">
+                                        <Style.Triggers><DataTrigger Binding="{Binding}" Value="{x:Null}"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers>
+                                    </Style>
+                                </userControls:FileOverviewView.Style>
+                            </userControls:FileOverviewView>
+                            <GroupBox Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchHistory_Title}"
+                                      Visibility="{Binding ShowStoredOverview, Converter={StaticResource FalseToCollapseVisibilityConverter}}">
+                                <StackPanel>
+                                    <TextBox Text="{Binding SelectedResult.FilePath, Mode=OneWay}" Style="{StaticResource ReadOnlyTextBox}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                                    <ItemsControl x:Name="StoredOverviewFields" ItemsSource="{Binding StoredOverviewFields}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Margin="0,0,0,6">
+                                                    <TextBlock Text="{Binding Key}" Style="{StaticResource Title2}"/>
+                                                    <TextBox Text="{Binding Value, Mode=OneWay}" Style="{StaticResource ReadOnlyTextBox}" TextWrapping="Wrap"/>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </GroupBox>
+                        </StackPanel>
+                    </ScrollViewer>
                 </TabItem>
                 <TabItem Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Firmware_Title}">
                     <TextBox Text="{Binding SelectedResult.FirmwareDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
+                </TabItem>
+                <TabItem Header="NAND">
+                    <TextBox Text="{Binding SelectedResult.NandDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
                 </TabItem>
             </TabControl>
         </Grid>
