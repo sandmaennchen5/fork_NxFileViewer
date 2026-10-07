@@ -42,7 +42,8 @@ public class NczBlocklessDecompressionStream : Stream
             return 0;
 
         // Create only on first read. DeleteOnClose also cleans up after failed reads.
-        _cache ??= new FileStream(Path.Combine(Path.GetTempPath(), Path.GetRandomFileName()),
+        if (_cache == null) Directory.CreateDirectory(Path.Combine(AppContext.BaseDirectory, "Temp", "NCZ"));
+        _cache ??= new FileStream(Path.Combine(AppContext.BaseDirectory, "Temp", "NCZ", Path.GetRandomFileName()),
             FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None, 64 * 1024,
             FileOptions.DeleteOnClose | FileOptions.RandomAccess);
         var end = _position + count;

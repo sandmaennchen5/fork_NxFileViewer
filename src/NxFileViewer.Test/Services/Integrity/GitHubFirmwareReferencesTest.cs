@@ -88,6 +88,15 @@ public class GitHubFirmwareReferencesTest
         public void SetText(string value) { }
         public void SetPercentage(double value) { }
     }
+#if !DEBUG
+    [Fact] public void ReleaseStackTracesUseNeutralBuildPaths()
+    {
+        var error = Assert.Throws<InvalidDataException>(() => new FirmwareIntegrityVerifier(Array.Empty<string>()));
+        var stack = error.StackTrace!.Replace('\\', '/');
+        Assert.Contains("/_/NxFileViewer/src/NxFileViewer/Services/Integrity/FirmwareIntegrityVerifier.cs:line", stack);
+        Assert.DoesNotContain(":/Users/", stack, StringComparison.OrdinalIgnoreCase);
+    }
+#endif
     private sealed class Handler : HttpMessageHandler
     {
         public string? Failure { get; init; }

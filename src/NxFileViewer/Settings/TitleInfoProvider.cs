@@ -4,5 +4,6 @@ public enum TitleInfoProvider
 {
     Tinfoil,
     GitHubTitleDb,
-    NLib
+    NLib,
+    Custom
 }

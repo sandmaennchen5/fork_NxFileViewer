@@ -47,6 +47,64 @@ public class OfflineRenamingTest
         Assert.Null(result.Exception);
         Assert.True(result.IsSimulation);
         Assert.Equal("Until Then", result.NewFileName);
+        var directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        var original = Path.Combine(directory, "old.nsz");
+        File.WriteAllText(original, "synthetic input");
+        try
+        {
+            RenamingResult? reported = null;
+            var results = await renamer.RenameFromDirectoryAsync(directory, "*.nsz", false, false, settings, true,
+                null, new NoProgress(), CancellationToken.None, row => reported = row);
+            Assert.Same(Assert.Single(results), reported);
+            Assert.Equal("old.nsz", reported!.OldFileName);
+            Assert.Equal("Until Then", reported.NewFileName);
+            Assert.True(reported.IsSimulation);
+            Assert.True(File.Exists(original));
+            Assert.False(File.Exists(Path.Combine(directory, "Until Then")));
+            settings.TargetDirectory = Path.Combine(directory, "target");
+            settings.ApplicationPattern.Insert(0, new StaticTextPatternPart("GAME/DLC/"));
+            var preview = await renamer.RenameFileAsync(original, false, settings, true, null, CancellationToken.None);
+            var target = Path.Combine(settings.TargetDirectory, "GAME", "DLC", "Until Then");
+            Assert.Equal(target, preview.NewFilePath);
+            Assert.Equal("QUELL::old.nsz", preview.OldPathDisplay);
+            Assert.Equal("ZIEL::" + Path.Combine("GAME", "DLC", "Until Then"), preview.NewPathDisplay);
+            settings.TargetDirectory = directory + Path.DirectorySeparatorChar;
+            var sameRoot = await renamer.RenameFileAsync(original, false, settings, true, null, CancellationToken.None);
+            Assert.Equal("QUELL::" + Path.Combine("GAME", "DLC", "Until Then"), sameRoot.NewPathDisplay);
+            settings.TargetDirectory = Path.Combine(directory, "target");
+            Assert.Equal(original, preview.OldFilePath);
+            Assert.False(Directory.Exists(settings.TargetDirectory));
+            var moved = await renamer.RenameFileAsync(original, false, settings, false, null, CancellationToken.None);
+            Assert.Null(moved.Exception);
+            Assert.Equal(original, moved.OldFilePath);
+            Assert.False(File.Exists(original));
+            Assert.Equal("synthetic input", File.ReadAllText(target));
+            var matching = await renamer.RenameFileAsync(target, false, settings, true, null, CancellationToken.None);
+            Assert.Null(matching.Exception);
+            Assert.False(matching.IsRenamed);
+
+            File.WriteAllText(original, "second input");
+            var collision = await renamer.RenameFileAsync(original, false, settings, false, null, CancellationToken.None);
+            Assert.IsType<IOException>(collision.Exception);
+            Assert.Equal(target, collision.NewFilePath);
+            Assert.Equal("second input", File.ReadAllText(original));
+            Assert.Equal("synthetic input", File.ReadAllText(target));
+            settings.ApplicationPattern[0] = new StaticTextPatternPart("../");
+            var escape = await renamer.RenameFileAsync(original, false, settings, false, null, CancellationToken.None);
+            Assert.IsType<IOException>(escape.Exception);
+            Assert.True(File.Exists(original));
+
+        }
+        finally { Directory.Delete(directory, true); }
+
+    }
+
+    private sealed class NoProgress : Emignatik.NxFileViewer.Services.BackgroundTask.IProgressReporter
+    {
+        public void SetMode(bool isIndeterminate) { }
+        public void SetText(string text) { }
+        public void SetPercentage(double percentage) { }
     }
 
     private sealed class PackageLoader(Content content) : IPackageInfoLoader

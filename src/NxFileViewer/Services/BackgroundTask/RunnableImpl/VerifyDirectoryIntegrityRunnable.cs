@@ -32,6 +32,9 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
     private readonly HttpClient? _firmwareClient;
     private string? _directory;
     private bool _includeSubdirectories;
+    private bool _includeArchives, _verifyIntegrity;
+    private IReadOnlyList<string>? _selectedFiles;
+    private Func<string, bool>? _skipCompleted;
 
     public VerifyDirectoryIntegrityRunnable(IFileLoader fileLoader, IServiceProvider serviceProvider,
         IAppSettings appSettings, ILogger<VerifyDirectoryIntegrityRunnable> logger,
@@ -49,12 +52,14 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
     public bool SupportProgress => true;
 
     public IVerifyDirectoryIntegrityRunnable Setup(string directory, bool includeSubdirectories,
-        Action<NxFile>? fileLoaded = null, Action<BatchIntegrityResult>? resultCompleted = null)
+        Action<NxFile>? fileLoaded = null, Action<BatchIntegrityResult>? resultCompleted = null,
+        bool includeArchives = true, bool verifyIntegrity = true, IReadOnlyList<string>? selectedFiles = null, Func<string, bool>? skipCompleted = null)
     {
         _directory = directory ?? throw new ArgumentNullException(nameof(directory));
         _includeSubdirectories = includeSubdirectories;
         _fileLoaded = fileLoaded;
         _resultCompleted = resultCompleted;
+        _includeArchives = includeArchives; _verifyIntegrity = verifyIntegrity; _selectedFiles = selectedFiles; _skipCompleted = skipCompleted;
         return this;
     }
 
@@ -65,12 +70,21 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
 
         var option = _includeSubdirectories ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
         FirmwareIntegrityVerifier? firmware = null;
-        var allFiles = Directory.Exists(_directory) ? Directory.GetFiles(_directory, "*", option) : new[] { _directory };
+        var allFiles = _selectedFiles?.Select(PackageZip.ArchivePath).Distinct(StringComparer.OrdinalIgnoreCase).ToArray() ??
+            (Directory.Exists(_directory) ? Directory.GetFiles(_directory, "*", option) : new[] { _directory });
         var folderCandidates = allFiles.Where(p => p.EndsWith(".nca", StringComparison.OrdinalIgnoreCase))
-            .Select(Path.GetDirectoryName).Where(p => p != null).Distinct(StringComparer.OrdinalIgnoreCase).Select(p => p!).ToArray();
-        var zipCandidates = allFiles.Where(p => p.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
-            .Where(p => !Directory.Exists(_directory) || ContainsNca(p)).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var hasFirmware = folderCandidates.Length > 0 || zipCandidates.Count > 0;
+            .Select(Path.GetDirectoryName).Where(p => p != null).Select(p => p!)
+            .Concat(_selectedFiles?.Where(Directory.Exists) ?? Array.Empty<string>()).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        var zipCandidates = allFiles.Where(p => (_selectedFiles != null || _includeArchives) && PackageZip.IsArchive(p))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var firmwareZips = zipCandidates.Where(p => ContainsNca(p) && ExpandPackages(p, cancellationToken).SequenceEqual(new[] { p }))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var expanded = allFiles.Where(path => SupportedExtensions.Contains(Path.GetExtension(path)) || zipCandidates.Contains(path) ||
+                IsNandFile(path, cancellationToken))
+            .SelectMany(path => ExpandPackages(path, cancellationToken)).ToArray();
+        var archivedFirmware = (_selectedFiles ?? expanded).Where(path => PackageZip.IsMember(path) &&
+            (path.EndsWith('/') || PackageZip.IsArchive(path))).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var hasFirmware = folderCandidates.Length > 0 || firmwareZips.Count > 0 || archivedFirmware.Count > 0;
         string? referenceNotice = null;
         if (hasFirmware)
         {
@@ -100,49 +114,67 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
             cancellationToken.ThrowIfCancellationRequested();
         }
         // Loose NCA folders and NCA ZIPs are candidates even without bundled hash lists.
-        var files = allFiles.Where(path => SupportedExtensions.Contains(Path.GetExtension(path)) || zipCandidates.Contains(path))
-            .Concat(folderCandidates).OrderBy(path => path, StringComparer.OrdinalIgnoreCase).ToArray();
+        var files = _selectedFiles?.ToArray() ?? expanded.Concat(folderCandidates).OrderBy(path => path, StringComparer.OrdinalIgnoreCase).ToArray();
+        files = files.Where(file => _skipCompleted?.Invoke(file) != true).ToArray();
         var results = new List<BatchIntegrityResult>(files.Length);
 
         for (var index = 0; index < files.Length; index++)
         {
             cancellationToken.ThrowIfCancellationRequested();
             var file = files[index];
+            var fingerprint = BatchHistoryStore.Fingerprint(file);
             progressReporter.SetText($"Checking {index + 1}/{files.Length}: {Path.GetFileName(file)}");
 
             try
             {
-                if (Directory.Exists(file) || Path.GetExtension(file).Equals(".zip", StringComparison.OrdinalIgnoreCase))
+                if (Directory.Exists(file) || firmwareZips.Contains(file) || archivedFirmware.Contains(file))
                 {
                     if (firmware == null) throw new InvalidDataException(referenceNotice);
-                    var result = firmware.Verify(file, cancellationToken,
+                    using var extractedFirmware = archivedFirmware.Contains(file)
+                        ? PackageZip.Extract(PackageZip.ArchivePath(file), file.Split(PackageZip.Separator, 2)[1], cancellationToken) : null;
+                    var result = firmware.Verify(extractedFirmware?.FilePath ?? file, cancellationToken,
                         value => progressReporter.SetPercentage((index + value) / files.Length));
+                    result = result with { FilePath = file, FileType = archivedFirmware.Contains(file)
+                        ? file.EndsWith('/') ? "Folder (" + Path.GetExtension(PackageZip.ArchivePath(file)).TrimStart('.').ToUpperInvariant() + ")" : PackageZip.DisplayFileType(file) : result.FileType };
                     results.Add(result with { FirmwareDetails = referenceNotice + Environment.NewLine + result.FirmwareDetails });
                 }
                 else
                 {
-                    var nxFile = _fileLoader.Load(file);
+                    var nxFile = _fileLoader.Load(file, cancellationToken);
+                    var retained = false;
                     try
                     {
-                        _fileLoaded?.Invoke(nxFile);
+                        try
+                        {
+                            _fileLoaded?.Invoke(nxFile);
+                            retained = _fileLoaded != null;
+                        }
+                        catch (Exception previewException)
+                        {
+                            // A UI preview failure must not invalidate the package analysis.
+                            _logger.LogWarning(previewException, "Failed to display preview for {FilePath}", file);
+                        }
+                        if (_verifyIntegrity && nxFile.NandResult == null)
+                        {
+                            var verifier = _serviceProvider.GetRequiredService<IVerifyNcasIntegrityRunnable>();
+                            verifier.Setup(nxFile.Overview, _appSettings.IgnoreMissingDeltaFragments);
+                            verifier.Run(new ScaledProgressReporter(progressReporter, index, files.Length), cancellationToken);
+                        }
+                        var missingKeys = nxFile.Overview.MissingKeys.Count > 0;
+                        var integrityError = missingKeys ? LocalizationManager.Instance.Current.Keys.File_MissingKeys + Environment.NewLine +
+                            string.Join(", ", nxFile.Overview.MissingKeys.Select(k => k.KeyName).Distinct()) :
+                            (_verifyIntegrity && nxFile.NandResult == null ? BuildIntegrityError(nxFile.Overview) : null);
+                        results.Add(new BatchIntegrityResult(
+                            file,
+                            nxFile.NandResult == null ? PackageZip.DisplayFileType(file) : "NAND" + (PackageZip.IsMember(file) ? " (" + Path.GetExtension(PackageZip.ArchivePath(file)).TrimStart('.').ToUpperInvariant() + ")" : ""),
+                            nxFile.NandResult == null ? nxFile.Overview.FileType.ToString() : "NAND",
+                            nxFile.NandResult?.Type ?? nxFile.Overview.PackageStructure.ToString(),
+                            nxFile.Overview.NcaCompressionType.ToString(),
+                            missingKeys ? NcasIntegrity.Error : nxFile.Overview.NcasIntegrity,
+                            integrityError) { HasMissingKeys = missingKeys, IsNand = nxFile.NandResult != null,
+                                NandDetails = nxFile.NandResult?.Information, FileSize = nxFile.NandResult?.Size });
                     }
-                    catch (Exception previewException)
-                    {
-                        // A UI preview failure must not invalidate the package analysis.
-                        _logger.LogWarning(previewException, "Failed to display preview for {FilePath}", file);
-                    }
-                    var verifier = _serviceProvider.GetRequiredService<IVerifyNcasIntegrityRunnable>();
-                    verifier.Setup(nxFile.Overview, _appSettings.IgnoreMissingDeltaFragments);
-                    verifier.Run(new ScaledProgressReporter(progressReporter, index, files.Length), cancellationToken);
-                    var integrityError = BuildIntegrityError(nxFile.Overview);
-                    results.Add(new BatchIntegrityResult(
-                        file,
-                        Path.GetExtension(file).TrimStart('.').ToUpperInvariant(),
-                        nxFile.Overview.FileType.ToString(),
-                        nxFile.Overview.PackageStructure.ToString(),
-                        nxFile.Overview.NcaCompressionType.ToString(),
-                        nxFile.Overview.NcasIntegrity,
-                        integrityError));
+                    finally { if (!retained) nxFile.Dispose(); }
                 }
             }
             catch (OperationCanceledException)
@@ -154,14 +186,16 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
                 _logger.LogError(ex, "Failed to check integrity of {FilePath}", file);
                 results.Add(new BatchIntegrityResult(
                     file,
-                    Path.GetExtension(file).TrimStart('.').ToUpperInvariant(),
+                    PackageZip.DisplayFileType(file),
                     NxFileType.Unknown.ToString(),
                     "Unknown",
                     "Unknown",
                     NcasIntegrity.Error,
-                    ex.Message) { IsFirmware = Directory.Exists(file) || Path.GetExtension(file).Equals(".zip", StringComparison.OrdinalIgnoreCase), FirmwareDetails = ex.Message });
+                    ex.Message) { IsFirmware = Directory.Exists(file) || firmwareZips.Contains(file) || archivedFirmware.Contains(file), FirmwareDetails = ex.Message });
             }
 
+            results[^1] = results[^1] with { SourceFingerprint = fingerprint != null &&
+                fingerprint == BatchHistoryStore.Fingerprint(file) ? fingerprint : null };
             _resultCompleted?.Invoke(results[^1]);
 
             progressReporter.SetPercentage(files.Length == 0 ? 1 : (double)(index + 1) / files.Length);
@@ -176,10 +210,33 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
     {
         try
         {
-            using var zip = ZipFile.OpenRead(path);
-            return zip.Entries.Any(e => e.Name.EndsWith(".nca", StringComparison.OrdinalIgnoreCase));
+            return PackageZip.GetFileEntries(path).Any(e => e.EndsWith(".nca", StringComparison.OrdinalIgnoreCase));
         }
         catch (InvalidDataException) { return Path.GetFileName(path).Contains("firmware", StringComparison.OrdinalIgnoreCase); }
+        catch (IOException) { return false; }
+        catch (UnauthorizedAccessException) { return false; }
+    }
+
+    private static bool IsNandFile(string path, CancellationToken token)
+    {
+        if (!Services.Nand.NandDetection.IsCandidateName(path)) return false;
+        try { return Services.Nand.NandDetection.Detect(path, token) != null; }
+        catch (IOException) { return false; }
+        catch (UnauthorizedAccessException) { return false; }
+    }
+
+    private static IEnumerable<string> ExpandPackages(string path, CancellationToken token)
+    {
+        if (!PackageZip.IsArchive(path)) return new[] { path };
+        try
+        {
+            var entries = PackageZip.GetEntries(path, includeNca: false, token: token, includeFirmware: true);
+            if (entries.Count > 0) return entries.Select(entry => PackageZip.MemberPath(path, entry)).ToArray();
+        }
+        catch (IOException) { }
+        catch (InvalidDataException) { }
+        catch (UnauthorizedAccessException) { }
+        return new[] { path };
     }
 
     private static string? BuildIntegrityError(FileOverview overview)
@@ -227,5 +284,6 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
 public interface IVerifyDirectoryIntegrityRunnable : IRunnable<IReadOnlyList<BatchIntegrityResult>>
 {
     IVerifyDirectoryIntegrityRunnable Setup(string directory, bool includeSubdirectories,
-        Action<NxFile>? fileLoaded = null, Action<BatchIntegrityResult>? resultCompleted = null);
+        Action<NxFile>? fileLoaded = null, Action<BatchIntegrityResult>? resultCompleted = null,
+        bool includeArchives = true, bool verifyIntegrity = true, IReadOnlyList<string>? selectedFiles = null, Func<string, bool>? skipCompleted = null);
 }

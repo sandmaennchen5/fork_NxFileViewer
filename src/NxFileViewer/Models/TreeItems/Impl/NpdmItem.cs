@@ -17,13 +17,14 @@ public class NpdmItem : DirectoryEntryItem
     {
         Npdm = npdm ?? throw new ArgumentNullException(nameof(npdm));
         FileSystemPermissions = npdm.AciD.FsAccess.PermissionsBitmask;
-        SecurityLevel = ProgramPermissionAnalyzer.Analyze(FileSystemPermissions);
+
         AcidSignatureValidity = npdm.AciD.SignatureValidity;
         Services = npdm.AciD.ServiceAccess?.Services?
             .Where(service => !string.IsNullOrWhiteSpace(service.Item1))
             .Select(service => service.Item1)
             .OrderBy(service => service, StringComparer.Ordinal)
             .ToArray() ?? [];
+        SecurityLevel = ProgramPermissionAnalyzer.Analyze(FileSystemPermissions, ProgramPermissionAnalyzer.HasFileSystemServices(Services));
     }
 
     public NpdmBinary Npdm { get; }

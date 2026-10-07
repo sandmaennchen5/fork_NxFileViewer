@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Emignatik.NxFileViewer.Localization;
+using Emignatik.NxFileViewer.Settings;
 using Emignatik.NxFileViewer.Models.Overview;
 using Emignatik.NxFileViewer.Models.TreeItems;
 using Emignatik.NxFileViewer.Models.TreeItems.Impl;
@@ -19,29 +20,33 @@ namespace Emignatik.NxFileViewer.FileLoading;
 public class FileOverviewLoader : IFileOverviewLoader
 {
     private readonly ILogger _logger;
+    private readonly IAppSettings _settings;
 
-    public FileOverviewLoader(ILoggerFactory loggerFactory)
+    public FileOverviewLoader(ILoggerFactory loggerFactory, IAppSettings? settings = null)
     {
         _logger = (loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory))).CreateLogger(this.GetType());
+        _settings = settings ?? new AppSettings();
     }
 
     public FileOverview Load(XciItem xciItem)
     {
-        return new FileOverviewLoaderInternal(_logger).CreateXciOverview(xciItem);
+        return new FileOverviewLoaderInternal(_logger, _settings.IgnoreMissingDeltaFragments).CreateXciOverview(xciItem);
     }
 
     public FileOverview Load(NspItem nspItem)
     {
-        return new FileOverviewLoaderInternal(_logger).CreateNspOverview(nspItem);
+        return new FileOverviewLoaderInternal(_logger, _settings.IgnoreMissingDeltaFragments).CreateNspOverview(nspItem);
     }
 
     private class FileOverviewLoaderInternal
     {
         private readonly ILogger _logger;
+        private readonly bool _ignoreMissingDeltaFragments;
 
-        public FileOverviewLoaderInternal(ILogger logger)
+        public FileOverviewLoaderInternal(ILogger logger, bool ignoreMissingDeltaFragments)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _ignoreMissingDeltaFragments = ignoreMissingDeltaFragments;
         }
 
         public FileOverview CreateXciOverview(XciItem xciItem)
@@ -94,7 +99,11 @@ public class FileOverviewLoader : IFileOverviewLoader
 
                     if (referencedNcaItem == null)
                     {
-                        _logger.LogError(LocalizationManager.Instance.Current.Keys.LoadingError_NcaFileMissing_Log.SafeFormat(cnmtEntryItem.NcaId, cnmtEntryItem.NcaContentType));
+                        var message = LocalizationManager.Instance.Current.Keys.LoadingError_NcaFileMissing_Log.SafeFormat(cnmtEntryItem.NcaId, cnmtEntryItem.NcaContentType);
+                        if (_ignoreMissingDeltaFragments && cnmtEntryItem.NcaContentType == ContentType.DeltaFragment)
+                            _logger.LogInformation(message);
+                        else
+                            _logger.LogError(message);
                         continue;
                     }
 

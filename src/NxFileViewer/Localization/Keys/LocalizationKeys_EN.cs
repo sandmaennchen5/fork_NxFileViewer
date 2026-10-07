@@ -6,16 +6,129 @@ namespace Emignatik.NxFileViewer.Localization.Keys;
 
 public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
 {
+    public string Nand_Detected => "NAND signatures detected. Integrity has not been checked.";
+    public string Nand_NameCandidate => "NAND candidate identified by filename. Read NAND information to confirm and obtain extended details.";
+    public string Nand_Installed => "NxNandManager plugin installed";
+    public string Nand_CustomUpdate => "Clear and apply the custom EXE path to use managed downloads.";
+    public string Nand_Updating => "Downloading and checking NxNandManager…";
+    public string Nand_Open => "Open NAND dump…";
+    public string Nand_Info => "NAND information";
+    public string Nand_Export => "Export partition…";
+    public string Nand_SettingsTip => "Leave the EXE path empty to use managed downloads under Settings → Updates → Plugins → NxNandManager. A custom EXE is never replaced.";
+    public string Nand_BisKeys => "BIS key file (optional; empty = NxFileViewer's active prod.keys)";
+    public string Nand_Tip => "Open a NAND dump (first file for split dumps). Export copies the selected partition as stored, without decryption. Configure NxNandManager under Settings → Plugins.";
+    public string Nand_NewTarget => "Select a new local output file. Existing files cannot be replaced.";
+    public string Nand_SourceMissing => "NAND source file is missing or is not a local file.";
+    public string Nand_NotInstalled => "NxNandManager is not installed. Install it under Settings → Updates → Plugins.";
+    public string Nand_KeysMissing => "The configured BIS key file does not exist.";
+    public string Nand_ExportFailed => "NxNandManager did not produce a non-empty partition file.";
+    public string Nand_ExportDone => "Partition exported.";
+    public string Nand_Cancelled => "Cancelled or information request timed out.";
+    public string DataUpdate_Firmware => "Firmware hashes";
+    public string DataUpdate_Title => "Updates";
+    public string DataUpdate_Titles => "Refresh TitleDB";
+    public string BatchNaming_Unchecked => "Unchecked";
+    public string DataUpdate_LocalFirmwareVersion => "Local hash references through firmware {0}.";
+    public string DataUpdate_NoLocalFirmware => "No local firmware hash references installed.";
+    public string DataUpdate_TitleCatalogDate => "TitleDB {0}: local cache updated {1}.";
+    public string DataUpdate_TitleCatalogMissing => "TitleDB {0}: no local catalog.";
+    public string DataUpdate_OnlineFirmwareVersion => "Online hash references through firmware {0}.";
+    public string Keys_ExistingValidation => "Existing file:";
+    public string Keys_IncomingValidation => "Incoming file:";
+    public string Keys_ReplaceDownloaded => "Use the downloaded keys and replace the existing file?";
+    public string Keys_SaveTicketKeys => "Save missing ticket keys to title.keys";
+    public string Keys_TicketConflict => "Ticket key conflict for {0} in {1}: existing entry preserved.";
+    public string Keys_TicketSaved => "Ticket key for {0} saved to {1}.";
+    public string Tinfoil_StabilityHint => "Tinfoil may be temporarily unavailable or unstable. If requests fail, try again later or select another source.";
+    public string DataUpdate_TitleTip => "Refreshes GitHub TitleDB for the saved region and US fallback in the program folder. The selected title provider stays unchanged.";
+    public string DataUpdate_FirmwareTip => "Firmware checks still fetch fresh online hashes without a persistent cache. Only the separate button saves the offline package; previous local hashes are backed up.";
+    public string DataUpdate_CheckFirmware => "Check online hashes";
+    public string DataUpdate_SaveFirmware => "Update offline hashes";
+    public string DataUpdate_Working => "Updating…";
+    public string DataUpdate_TitlesDone => "TitleDB {0} refreshed: {1} catalog entries including US fallback.";
+    public string DataUpdate_FirmwareSaved => "Offline hashes updated: {0} reference files.";
+    public string DataUpdate_FirmwareChecked => "Online hashes checked: {0} reference files; nothing saved.";
+    public string Update_Title => "Application updates";
+    public string Update_IncludePrereleases => "Include pre-releases in application updates";
+    public string Update_Prerelease => "Pre-release";
+    public string Update_Auto => "Check for application updates on startup";
+    public string Update_Check => "Check for updates";
+    public string Update_Install => "Download and install";
+    public string Update_Checking => "Checking for updates…";
+    public string Update_Current => "No newer published version available.";
+    public string Component_UpdateAvailable => "Update available.";
+    public string Component_NotInstalled => "Not installed.";
+    public string Component_CustomVersion => "Custom version: automatic checking unavailable.";
+    public string Update_Available => "Version {0} is available.";
+    public string Update_Failed => "Update failed.";
+    public string Update_Confirm => "Download and install version {0}? NxFileViewer will restart. Keys, settings and plugins are retained.";
+    public string Update_Downloading => "Downloading and verifying update…";
+    public string Update_Installing => "Installing update…";
+    public string Update_Cancelled => "Update cancelled.";
+    public string Nsz_Mode => "Compression mode";
+    public string Nsz_ModeAuto => "Automatic (NSZ: solid, XCZ: blocks)";
+    public string Nsz_ModeSolid => "Solid / Blockless";
+    public string Nsz_ModeBlock => "Block compression";
+    public string Nsz_BlockSize => "Block size";
+    public string Nsz_ModeTip => "Solid compresses slightly better. Blocks allow fast backward and random reads. Mode and block size apply only to compression.";
+    public string Workspace_Plugins => "Plugins";
+    public string Workspace_Home => "Home";
+    public string Workspace_File => "File verification";
+    public string Workspace_Menu => "Main menu";
+    public string Nsz_Replace => "Replace";
+    public string Nsz_Number => "Save with numbering";
+    public string TitlePage_Custom => "Custom";
+    public string Info_WithRuntime => "With bundled .NET";
+    public string Info_WithoutRuntime => "Without bundled .NET — requires .NET 8 Desktop Runtime";
+    public string Info_Description => "NxFileViewer inspects and verifies Nintendo Switch files. Supports NSP, NSZ, XCI, XCZ, NCA, ZIP and 7z archives, firmware verification and NSZ conversion.";
+    public string Info_Shortcuts => "Keyboard shortcuts";
+    public string BatchHistory_Show => "Show";
+    public string BatchHistory_Title => "Last 5 batch checks";
+    public string BatchHistory_Resume => "Resume";
+    public string Dialog_Yes => "Yes";
+    public string Dialog_No => "No";
+    public string Nsz_Cancel => "Cancel";
+    public string Nsz_DeleteSourcePrompt => "Delete source files after successful conversion and verification? They are kept on failure.";
+    public string Nsz_SourceDeleted => "Source deleted";
+    public string Nsz_SourceDeleteFailed => "Could not delete source";
+    public string Nsz_Compress => "Compress and verify…";
+    public string Nsz_Decompress => "Decompress and verify…";
+    public string Nsz_CompressValid => "Compress valid files…";
+    public string Nsz_DecompressValid => "Decompress valid files…";
+    public string Nsz_Update => "Install / update plugin…";
+    public string Nsz_Rollback => "Use previous version";
+    public string Nsz_SelectDestination => "Select output directory";
+    public string Nsz_PythonRuntimeFailed => "The external NSZ executable could not load its embedded Python DLL. Startup failed before keys or input files were checked. Select another NSZ CLI that runs on this computer in Settings → Plugin nicoboss/nsz.";
+    public string Nsz_NotInstalled => "Plugin nicoboss/nsz is not installed.";
+    public string Nsz_Updating => "Updating Plugin nicoboss/nsz…";
+    public string Nsz_SourceSize => "Original size (bytes)";
+    public string Nsz_OutputSize => "Output size (bytes)";
+    public string Nsz_Verified => "Verified output";
+    public string Nsz_Summary => "{0} converted and verified; {1} failed; {2} not processed. Originals were retained.";
+    public string Nsz_SettingsTip => "Optional NSZ CLI path. Leave empty to manage official releases automatically. Original and output are checked; source files are kept.";
+    public string Nsz_CheckUpdates => "Check for stable updates before conversion";
+    public string Nsz_Level => "Compression level (1–22)";
+    public string Nsz_OutputExists => "Output already exists:";
+    public string Nsz_SourceInvalid => "Source integrity check failed:";
+    public string Nsz_OutputInvalid => "Output integrity check failed:";
+    public string Nsz_OutputMissing => "NSZ did not create the expected output.";
+    public string Nsz_KeysMissing => "No prod.keys file is loaded.";
+    public string Nsz_Incompatible => "This NSZ CLI does not support the required options.";
+    public string Nsz_OfflineFallback => "Update unavailable; using installed NSZ version.";
     public string Firmware_NoReferences => "Firmware hashes unavailable: GitHub could not be loaded and local references are missing or invalid.";
     public string Firmware_LoadingOnline => "Loading firmware hashes from GitHub…";
     public string Firmware_OnlineSource => "Hash source: GitHub (loaded for this check).";
     public string Firmware_OfflineSource => "Notice: GitHub unavailable. Using bundled hashes; newer firmware may be missing.";
-    public string Firmware_BrowseZip => "Select firmware ZIP…";
+    public string Firmware_BrowseZip => "Select ZIP / 7z…";
+    public string Firmware_NcaMatches => "This NCA is included in these firmware versions:";
+    public string Firmware_Versions => "Firmware version(s)";
     public string Firmware_Title => "Firmware verification";
     public string Firmware_Unknown => "No matching firmware hash reference found.";
     public string Firmware_Summary => "{0}/{1} files valid; missing: {2}, changed: {3}, extra: {4}, duplicate: {5}.";
     public string Firmware_Missing => "Missing";
     public string Firmware_Changed => "Changed (size/SHA-256)";
+    public string Firmware_Renamed => "Incorrect filename (content matches)";
+    public string Firmware_RenamedSummary => "Incorrect filenames: {0}.";
     public string Firmware_Extra => "Extra NCA";
     public string Firmware_Duplicate => "Duplicate filename";
 
@@ -25,24 +138,44 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
     public override string LanguageAuto => "Auto";
 
     public string FileNotSupported_Log => "File «{0}» not supported.";
-    public string OpenFile_Filter => "Nintendo Switch files (*.nsp;*.nsz;*.xci;*.xcz)|*.nsp;*.nsz;*.xci;*.xcz|All files (*.*)|*.*";
-    public string MenuItem_File => "_File";
-    public string MenuItem_Open => "_Open...";
+    public string OpenFile_Filter => "Nintendo Switch files (*.nsp;*.nsz;*.xci;*.xcz;*.nca;*.zip;*.7z;*.bin;*.img;*.00)|*.nsp;*.nsz;*.xci;*.xcz;*.nca;*.zip;*.7z;*.bin;*.img;*.00|Switch game packages (*.nsp;*.nsz;*.xci;*.xcz)|*.nsp;*.nsz;*.xci;*.xcz|Archives (*.zip;*.7z)|*.zip;*.7z|Switch content files (*.nca)|*.nca|NAND images and split dumps (*.bin;*.img;*.00)|*.bin;*.img;*.00|All files (*.*)|*.*";
+    public string MenuItem_File => "File";
+    public string MenuItem_Open => "Open...";
     public string MenuItem_OpenLast => "Open _last";
-    public string MenuItem_Close => "_Close";
+    public string MenuItem_Close => "Close";
     public string MenuItem_Exit => "E_xit";
-    public string MenuItem_Tools => "_Tools";
+    public string MenuItem_Tools => "Tools";
     public string MenuItem_CheckIntegrity => "Check _integrity";
     public string MenuItem_CheckDirectoryIntegrity => "Check folder integrity…";
+    public string BatchNaming_Title => "Naming";
+    public string BatchNaming_Matches => "Matches";
+    public string BatchNaming_Differs => "Does not match";
+    public string BatchNaming_Check => "Check naming";
+    public string BatchNaming_RenameAll => "Rename all mismatches";
+    public string BatchNaming_Error => "Naming error";
     public string BatchIntegrity_Title => "Batch integrity check";
     public string BatchIntegrity_SelectDirectory => "Select folder containing Switch files";
     public string BatchIntegrity_Browse => "Browse…";
     public string BatchIntegrity_IncludeSubdirectories => "Include subdirectories";
+    public string BatchTable_Columns => "Columns…";
+    public string BatchTable_Search => "Search";
+    public string BatchTable_All => "All";
+    public string BatchTable_ResetFilters => "Reset filters";
+    public string BatchTable_ResetSort => "Reset sorting";
     public string BatchIntegrity_File => "File";
     public string BatchIntegrity_Path => "Path";
     public string BatchIntegrity_Error => "Error";
     public string BatchIntegrity_NszDataCorrupted => "The compressed NSZ/NCZ data stream is corrupted or incomplete (Zstandard decompression failed).";
     public string BatchIntegrity_IntegrityFailed => "The integrity check could not be completed. See the log for details.";
+    public string PackageStructure_Filesystem => "Filesystem";
+    public string Signature_Title => "NCA signature";
+    public string Signature_Passed => "Passed";
+    public string Signature_NotPassed => "Not passed";
+    public string Signature_Unchecked => "Not checked";
+    public string ToolTip_PackageStructure => "Structure following Nx Game Info:\nScene (XCI): Update, Normal and Secure partitions.\nConverted (XCI): Secure partition only; typical of NSP → XCI conversions.\nScene (NSP): legalinfo.xml, nacp.xml, programinfo.xml and cardspec.xml; typical of BBB releases.\nHomebrew (NSP): authoringtoolinfo.xml present.\nCDN (NSP): certificate (.cert) and ticket (.tik); typical of eShop CDN dumps.\nConverted (NSP): no certificate or ticket; typical of XCI → NSP conversions.\nFilesystem: installed NAX0 titles on a Switch SD card.\nNot complete: NCA contents only. NSZ/XCZ follow their package rules; NCZ counts as NCA.";
+    public string ToolTip_NcaSignature => "Passed: valid NCA signatures, as expected for official titles.\nNot passed: at least one invalid NCA signature; possible for homebrew, unexpected for official titles.\nNot checked: NCA signature verification has not completed. Run the integrity check.\nThis reports NCA header signatures; ACID is a separate NPDM signature.";
+    public string ToolTip_Permission => "Safe: no filesystem service access or bit 0x8000000000000000 unset.\nUnsafe: filesystem service access and bit 0x8000000000000000 set (EraseMmc).\nDangerous: filesystem service access and mask 0xffffffffffffffff (all permissions).\nUnsafe/Dangerous should only occur for homebrew, not official games. Available for Base and Update only. This classifies permissions and is not a complete security assessment.";
+    public string ToolTip_AcidSignature => "Signature of the ACID section in main.npdm, independent of the NCA header signature.";
     public string PackageStructure_Title => "Package structure";
     public string PackageStructure_Scene => "Scene release";
     public string PackageStructure_Cdn => "CDN rip";
@@ -56,11 +189,13 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
     public string FileInfo_SystemUpdate => "Included system update (XCI)";
     public string BatchIntegrity_Export => "Export CSV…";
     public string BatchIntegrity_Start => "Start check";
+    public string BatchIntegrity_OpenSelected => "Open in file check";
+    public string BatchIntegrity_MoveSelected => "Move…";
     public string BatchIntegrity_MoveValid => "Move valid files…";
     public string BatchIntegrity_SelectMoveDestination => "Select destination for valid files";
     public string BatchIntegrity_Moving => "Moving";
-    public string MenuItem_Options => "_Options";
-    public string MenuItem_Settings => "_Settings";
+    public string MenuItem_Options => "Options";
+    public string MenuItem_Settings => "Settings";
     public string MenuItem_ReloadKeys => "Reload keys";
     public string MenuItem_OpenTitleWebPage => "Open title Web page...";
     public string MenuItem_ShowRenameToolWindow => "Renaming tool...";
@@ -150,6 +285,7 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
                                                     The keys file will be downloaded to the current application's directory.
                                                     """;
 
+    public string SettingsView_LogFileRetention => "Keep log files (1–100 launches)";
     public string SettingsView_LogLevel => "Log level";
     public string SettingsView_ToolTip_LogLevel => "The log level specifies the minimum level to log.";
     public string SettingsView_CheckBox_AlwaysReloadKeysBeforeOpen => "Always reload keys before opening a file";
@@ -183,7 +319,7 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
 
     public string BrowseKeysFile_ProdTitle => "Select \"prod\" keys file";
     public string BrowseKeysFile_TitleTitle => "Select \"title\" keys file";
-    public string BrowseKeysFile_Filter => "Keys files (*.keys)|*.keys|All files (*.*)|*.*";
+    public string BrowseKeysFile_Filter => "Keys files (*.keys)|*.keys|Switch game packages (*.nsp;*.nsz;*.xci;*.xcz)|*.nsp;*.nsz;*.xci;*.xcz|Archives (*.zip;*.7z)|*.zip;*.7z|Switch content files (*.nca)|*.nca|NAND images and split dumps (*.bin;*.img;*.00)|*.bin;*.img;*.00|All files (*.*)|*.*";
 
     public string SuspiciousFileExtension => "File extension «{0}» seems invalid, «{1}» or «{2}» was expected.";
     public string DragMeAFile => "Drag me any supported file here :)";
@@ -366,6 +502,14 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
     public string Log_SaveStorageCanceled => "Storage saving canceled.";
     public string Log_NcasIntegrityCanceled => "NCAs integrity canceled.";
 
+    public string RenamingTool_TargetDirectory => "Target folder (empty = current folder)";
+    public string RenamingTool_FolderTip => "Use / for folders in patterns, e.g. DLC/{WTitle}.{Ext:L}.";
+    public string RenamingTool_OldName => "Old name";
+    public string RenamingTool_NewName => "New name";
+    public string RenamingTool_StatusError => "Error";
+    public string RenamingTool_StatusUnchanged => "Unchanged";
+    public string RenamingTool_StatusSimulation => "Simulation";
+    public string RenamingTool_StatusRenamed => "Renamed";
     public string RenamingTool_WindowTitle => "Renaming tool";
     public string RenamingTool_Patterns => "Patterns";
     public string RenamingTool_ApplicationPattern => "Application pattern";
@@ -375,6 +519,15 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
     public string RenamingTool_FileFilters => "Filters";
     public string RenamingTool_ToolTip_Patterns =>
         $$"""
+         Target folder and subfolders:
+           An empty target folder uses the file's current folder.
+           Separate subfolders with / in the pattern, for example:
+             DLC/{WTitle}.{Ext:L}
+             {WAppTitle}/DLC/{WTitle}.{Ext:L}
+           Use relative folders only; absolute paths and .. are not allowed.
+           Simulation shows full paths without creating folders.
+           Renaming creates missing folders and does not overwrite files.
+
          Keyword syntax:
             {<Keyword>[:<Format>]}
 
@@ -447,4 +600,25 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
     public string FileRenaming_StringOperatorUnknown => "Operator «{0}» is not recognized, allowed operators are «{1}».";
     public string FileRenaming_EmptyDirectoryNotAllowed => "Input directory can't be empty.";
     public string Window_Tip_Title => "Tip";
+    public string Nsz_Installed => "Plugin nicoboss/nsz installed";
+    public string Nsz_CustomExecutable => "Custom executable";
+    public string Settings_Program => "Program";
+    public string Nsz_PhaseSource => "Verify source";
+    public string Nsz_PhaseOutput => "Verify output";
+    public string Nsz_PhasePublish => "Publish output";
+    public string Batch_IncludeArchives => "Include ZIP / 7z";
+    public string Batch_Scan => "Scan file list";
+    public string Batch_VerifyAll => "Verify integrity of all files";
+    public string File_MissingKeys => "Required keys are missing. Contents cannot be fully read. Check prod.keys / title.keys.";
+    public string File_CopyMissingKeys => "Copy missing key names";
+    public string Keys_ProgramFolder => "Program directory";
+    public string Keys_SharedFolder => "User profile (.switch)";
+    public string Keys_InUse => "In use";
+    public string Keys_DownloadAll => "Download keys";
+    public string Keys_DownloadHost => "Download IP / hostname";
+    public string Keys_DownloadHostTip => "{IP} in the download URLs is replaced with this address. Destination: custom path when set, otherwise the program directory.";
+    public string Keys_CopyToSwitch => @"Copy current keys to %USERPROFILE%\.switch";
+    public string Keys_ReplaceShared => "Replace existing keys? Source files will be kept.";
+    public string Keys_SharedCopied => "Keys are available in the shared .switch folder.";
+    public string Batch_ScanAndVerify => "Scan file list and verify integrity";
 }

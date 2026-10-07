@@ -64,6 +64,8 @@ public class VerifyNcasIntegrityRunnable : IVerifyNcasIntegrityRunnable
         // Build the list NCA items to process
         var atLeastOneNcaMissing = false;
         var ncaItemsToProcess = new List<(NcaItem, byte[]?)>();
+        if (fileOverview.RootItem is StandaloneNcaFileItem standalone)
+            ncaItemsToProcess.Add((standalone.NcaItem, null));
         foreach (var cnmtItem in fileOverview.CnmtContainers.Select(container => container.CnmtItem))
         {
             // Add the NCA of the CNMT (which is not referenced by the CNMT content entries)

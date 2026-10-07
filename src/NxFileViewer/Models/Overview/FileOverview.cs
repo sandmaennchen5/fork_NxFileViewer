@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -12,6 +12,7 @@ namespace Emignatik.NxFileViewer.Models.Overview;
 public class FileOverview : NotifyPropertyChangedBase
 {
     private NcasIntegrity _ncasIntegrity;
+    private long? _restoredBytes;
     private NcaCompressionType? _ncaCompressionType;
     private NxBaseFileType? _basePackageType;
     private NxFileType? _packageType;
@@ -43,7 +44,8 @@ public class FileOverview : NotifyPropertyChangedBase
     {
         get
         {
-            var restoredBytes = RootItem.FindChildrenOfType<NczItem>(includeItem: true)
+            // The loaded content tree is complete and immutable; do not rescan it on every UI binding.
+            var restoredBytes = _restoredBytes ??= RootItem.FindChildrenOfType<NczItem>(includeItem: true)
                 .Sum(item => Math.Max(0, item.Ncz.NczHeader.NcaSize - item.Size));
             return FileSize + restoredBytes;
         }
@@ -73,6 +75,7 @@ public class FileOverview : NotifyPropertyChangedBase
 
         return BaseFileType switch
         {
+            NxBaseFileType.NCA => NxFileType.NCA,
             NxBaseFileType.XCI => (isSuperPackage, compressed) switch
             {
                 (false, false) => NxFileType.XCI,
@@ -112,6 +115,8 @@ public class FileOverview : NotifyPropertyChangedBase
             baseFileType = NxBaseFileType.XCI;
         else if (rootItemType == typeof(NspItem))
             baseFileType = NxBaseFileType.NSP;
+        else if (rootItemType == typeof(StandaloneNcaFileItem))
+            baseFileType = NxBaseFileType.NCA;
         else
             baseFileType = NxBaseFileType.Unknown;
 
@@ -168,6 +173,7 @@ public enum NxFileType
     NSP,
     NSZ,
     Unknown,
+    NCA,
 }
 
 public enum NxBaseFileType
@@ -175,6 +181,7 @@ public enum NxBaseFileType
     XCI,
     NSP,
     Unknown,
+    NCA,
 }
 
 public enum NcaCompressionType

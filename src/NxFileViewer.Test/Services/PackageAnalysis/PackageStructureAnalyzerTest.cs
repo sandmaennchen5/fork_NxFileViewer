@@ -6,6 +6,12 @@ namespace Emignatik.NxFileViewer.Test.Services.PackageAnalysis;
 
 public class PackageStructureAnalyzerTest
 {
+    [Theory]
+    [InlineData("title.tik")]
+    [InlineData("title.cert")]
+    public void TicketOrCertificateAloneIsIncomplete(string name) =>
+        Assert.Equal(PackageStructure.Incomplete, PackageStructureAnalyzer.AnalyzeNspNames(new[] { "program.nca", name }));
+
     [Fact]
     public void AnalyzeNspNames_ClassifiesSceneRelease()
     {

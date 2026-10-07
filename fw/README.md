@@ -2,9 +2,9 @@
 
 This folder maintains one cumulative DAT for **all** firmware releases discovered in `THZoria/NX_Firmware`, including normal releases, rebootless updates and pre-releases.
 
-## Verification in NxFileViewer 3.0.4
+## Verification in NxFileViewer
 
-NxFileViewer copies `hashes/*.json` into development builds and distributes them in a separate optional firmware-hashes ZIP, excluded from x64/x86 application ZIPs and uses file sizes and SHA-256 to check firmware ZIPs or folders of loose NCAs. Use Tools → Firmware verification; folder integrity checks recognize known firmware files automatically. No keys or ZIP extraction are needed. Missing, modified, extra and duplicate NCA entries prevent a successful result. Firmware checks fetch current references from this GitHub repository into memory without a disk cache. Pure game folders make no request. Locally installed add-on references remain an explicitly reported offline fallback; no firmware archives are downloaded by the viewer. See [verification details](../docs/Firmware-verification.md).
+NxFileViewer copies `hashes/*.json` into development builds and distributes them in a separate optional firmware-hashes ZIP, excluded from x64/x86 application ZIPs. The viewer uses file sizes and SHA-256 to check firmware ZIPs or folders of loose NCAs. Open firmware through File check or Batch check; batch scans recognize firmware candidates automatically. Hash verification requires no keys. Direct ZIP checks can hash entries without extraction, while mixed/nested containers and 7z use shared temporary extraction. Missing, modified, extra and duplicate NCA entries prevent a successful result. Firmware checks fetch current references from this GitHub repository into memory without a disk cache. Pure game folders make no request. Locally installed add-on references remain an explicitly reported offline fallback; no firmware archives are downloaded by the viewer. See [verification details](../docs/Firmware-verification.md).
 
 Extract `NxFileViewer_v<version>_firmware-hashes.zip` into the directory containing `NxFileViewer.exe`; it creates `fw/hashes/*.json` and works with either architecture. Online firmware checks do not require the add-on.
 

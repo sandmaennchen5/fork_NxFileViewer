@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -8,6 +8,7 @@ using System.Windows.Media;
 using Emignatik.NxFileViewer.Commands;
 using Emignatik.NxFileViewer.Localization;
 using Emignatik.NxFileViewer.Models.Overview;
+using Emignatik.NxFileViewer.Models.TreeItems;
 using Emignatik.NxFileViewer.Styling.Theme;
 using Emignatik.NxFileViewer.Utils.MVVM;
 using Emignatik.NxFileViewer.Utils.MVVM.Commands;
@@ -31,6 +32,8 @@ public class FileOverviewViewModel : ViewModelBase
         _fileOverview = fileOverview ?? throw new ArgumentNullException(nameof(fileOverview));
 
         _brushesProvider = serviceProvider.GetRequiredService<IBrushesProvider>();
+        ThemeObserver.Observe(serviceProvider.GetService<IThemeService>(), this,
+            static view => view.NotifyPropertyChanged(nameof(NcasIntegrityValidityColor)));
         VerifyNcasIntegrityCommand = serviceProvider.GetRequiredService<IVerifyNcasIntegrityCommand>();
         CopyMissingKeysCommand = new RelayCommand(CopyMissingKeys);
 
@@ -47,8 +50,12 @@ public class FileOverviewViewModel : ViewModelBase
 
         SelectedCnmtContainer = CnmtContainers.FirstOrDefault();
 
+        foreach (var nca in _fileOverview.RootItem.FindChildrenOfType<Emignatik.NxFileViewer.Models.TreeItems.Impl.NcaItem>(includeItem: true))
+            System.Windows.WeakEventManager<INotifyPropertyChanged, PropertyChangedEventArgs>.AddHandler(nca, nameof(INotifyPropertyChanged.PropertyChanged), OnNcaSignatureChanged);
         UpdateMissingKeys();
     }
+
+    public bool HasMissingKeys => _fileOverview.MissingKeys.Count > 0;
 
     public string MissingKeys
     {
@@ -79,8 +86,26 @@ public class FileOverviewViewModel : ViewModelBase
         Services.PackageAnalysis.PackageStructure.Converted => LocalizationManager.Instance.Current.Keys.PackageStructure_Converted,
         Services.PackageAnalysis.PackageStructure.Homebrew => LocalizationManager.Instance.Current.Keys.PackageStructure_Homebrew,
         Services.PackageAnalysis.PackageStructure.Incomplete => LocalizationManager.Instance.Current.Keys.PackageStructure_Incomplete,
+        Services.PackageAnalysis.PackageStructure.Filesystem => LocalizationManager.Instance.Current.Keys.PackageStructure_Filesystem,
         _ => LocalizationManager.Instance.Current.Keys.PackageStructure_Unknown
     };
+
+    private void OnNcaSignatureChanged(object? sender, PropertyChangedEventArgs args)
+    {
+        if (args.PropertyName == nameof(Emignatik.NxFileViewer.Models.TreeItems.Impl.NcaItem.HeaderSignatureValidity)) NotifyPropertyChanged(nameof(NcaSignature));
+    }
+
+    public string NcaSignature
+    {
+        get
+        {
+            var signatures = _fileOverview.RootItem.FindChildrenOfType<Emignatik.NxFileViewer.Models.TreeItems.Impl.NcaItem>(includeItem: true).Select(nca => nca.HeaderSignatureValidity).ToArray();
+            var keys = LocalizationManager.Instance.Current.Keys;
+            if (signatures.Length == 0) return keys.Security_Unavailable;
+            if (signatures.Any(validity => validity == LibHac.Common.Validity.Invalid)) return keys.Signature_NotPassed;
+            return signatures.All(validity => validity == LibHac.Common.Validity.Valid) ? keys.Signature_Passed : keys.Signature_Unchecked;
+        }
+    }
 
     public string FileSize => _fileOverview.FileSize.ToFileSize();
 
@@ -142,6 +167,7 @@ public class FileOverviewViewModel : ViewModelBase
         }
 
         MissingKeys = string.Join(Environment.NewLine, missingKeys);
+        NotifyPropertyChanged(nameof(HasMissingKeys));
     }
 
     private void CopyMissingKeys()

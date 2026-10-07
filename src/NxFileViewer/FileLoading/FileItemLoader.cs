@@ -1,4 +1,5 @@
-﻿using System;
+using System;
+using System.Threading;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -35,6 +36,16 @@ public class FileItemLoader : IFileItemLoader
     private readonly IKeySetProviderService _keySetProviderService;
     private readonly IAppSettings _appSettings;
     private readonly ILogger _logger;
+    private readonly AsyncLocal<CancellationToken> _loadToken = new();
+    private T WithCancellation<T>(CancellationToken token, Func<T> load)
+    {
+        var previous = _loadToken.Value; _loadToken.Value = token;
+        try { token.ThrowIfCancellationRequested(); return load(); }
+        finally { _loadToken.Value = previous; }
+    }
+    public NspItem LoadNsp(string path, CancellationToken token) => WithCancellation(token, () => LoadNsp(path));
+    public XciItem LoadXci(string path, CancellationToken token) => WithCancellation(token, () => LoadXci(path));
+    public StandaloneNcaFileItem LoadNca(string path, CancellationToken token) => WithCancellation(token, () => LoadNca(path));
 
     public FileItemLoader(IKeySetProviderService keySetProviderService, ILoggerFactory loggerFactory, IAppSettings appSettings)
     {
@@ -45,20 +56,27 @@ public class FileItemLoader : IFileItemLoader
 
     public event MissingKeyExceptionHandler? MissingKey;
 
+    public StandaloneNcaFileItem LoadNca(string filePath)
+    {
+        var item = new StandaloneNcaFileItem(filePath, _keySetProviderService.GetKeySet(_appSettings.AlwaysReloadKeysBeforeOpen));
+        try { BuildNcaChildItems(item.NcaItem); return item; }
+        catch { item.Dispose(); throw; }
+    }
+
     public NspItem LoadNsp(string nspFilePath)
     {
         var keySet = _keySetProviderService.GetKeySet(_appSettings.AlwaysReloadKeysBeforeOpen);
         var nspItem = NspItem.FromFile(nspFilePath, keySet);
-        BuildPartitionChildItems(nspItem);
-        return nspItem;
+        try { BuildPartitionChildItems(nspItem); _loadToken.Value.ThrowIfCancellationRequested(); return nspItem; }
+        catch { nspItem.Dispose(); throw; }
     }
 
     public XciItem LoadXci(string xciFilePath)
     {
         var keySet = _keySetProviderService.GetKeySet(_appSettings.AlwaysReloadKeysBeforeOpen);
         var xciItem = XciItem.FromFile(xciFilePath, keySet);
-        BuildXciChildItems(xciItem);
-        return xciItem;
+        try { BuildXciChildItems(xciItem); _loadToken.Value.ThrowIfCancellationRequested(); return xciItem; }
+        catch { xciItem.Dispose(); throw; }
     }
 
     private void BuildXciChildItems(XciItem parentItem)
@@ -69,12 +87,13 @@ public class FileItemLoader : IFileItemLoader
         {
             foreach (var xciPartitionType in Enum.GetValues<XciPartitionType>())
             {
+                _loadToken.Value.ThrowIfCancellationRequested();
                 try
                 {
                     if (!xci.HasPartition(xciPartitionType))
                         continue;
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OperationCanceledException)
                 {
                     OnLoadingException(ex, parentItem);
                     var message = LocalizationManager.Instance.Current.Keys.LoadingError_FailedToCheckIfXciPartitionExists.SafeFormat(ex.Message);
@@ -88,7 +107,7 @@ public class FileItemLoader : IFileItemLoader
                 {
                     xciPartition = xci.OpenPartition(xciPartitionType);
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OperationCanceledException)
                 {
                     OnLoadingException(ex, parentItem);
                     var message = LocalizationManager.Instance.Current.Keys.LoadingError_FailedToOpenXciPartition.SafeFormat(ex.Message);
@@ -101,7 +120,7 @@ public class FileItemLoader : IFileItemLoader
                 BuildPartitionChildItems(xciPartitionItem);
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             OnLoadingException(ex, parentItem);
             var message = LocalizationManager.Instance.Current.Keys.LoadingError_FailedToLoadXciContent.SafeFormat(ex.Message);
@@ -122,6 +141,7 @@ public class FileItemLoader : IFileItemLoader
             // First loop on *.tik files to inject title keys in KeySet
             foreach (var partitionFileEntry in partitionFileSystem.EnumerateEntries().Where(e => e.Type == DirectoryEntryType.File))
             {
+                _loadToken.Value.ThrowIfCancellationRequested();
                 var fileName = partitionFileEntry.Name;
                 if (!fileName.EndsWith(".tik", StringComparison.OrdinalIgnoreCase))
                 {
@@ -134,7 +154,7 @@ public class FileItemLoader : IFileItemLoader
                 {
                     file = partitionFileSystem.LoadFile(partitionFileEntry);
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OperationCanceledException)
                 {
                     OnLoadingException(ex, parentItem);
                     var partitionFileEntryItem = new PartitionFileEntryItem(partitionFileEntry, parentItem);
@@ -155,7 +175,7 @@ public class FileItemLoader : IFileItemLoader
 
                     ticket = new Ticket(ms);
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OperationCanceledException)
                 {
                     OnLoadingException(ex, parentItem);
                     var partitionFileEntryItem = new PartitionFileEntryItem(partitionFileEntry, parentItem);
@@ -198,8 +218,23 @@ public class FileItemLoader : IFileItemLoader
                             parentItem.KeySet.ExternalKeySet.Add(rightsId, accessKey).ThrowIfFailure();
                             _logger.LogInformation(LocalizationManager.Instance.Current.Keys.LoadingInfo_TitleIdKeySuccessfullyInjected.SafeFormat(rightsId.ToString(), accessKey.ToString(), fileName));
                         }
+                        if (_appSettings.SaveTicketKeys)
+                        {
+                            var path = _keySetProviderService.ActualTitleKeysFilePath ?? KeyDownloads.Destination(
+                                _appSettings.TitleKeysFilePath, _keySetProviderService.AppDirTitleKeysFilePath);
+                            try
+                            {
+                                var saved = TicketKeyStore.AddMissing(path, rightsId.ToString(), accessKey.ToString());
+                                if (saved == TicketKeySaveResult.Conflict)
+                                    _logger.LogWarning(LocalizationManager.Instance.Current.Keys.Keys_TicketConflict.SafeFormat(rightsId.ToString(), path));
+                                else if (saved == TicketKeySaveResult.Added)
+                                    _logger.LogInformation(LocalizationManager.Instance.Current.Keys.Keys_TicketSaved.SafeFormat(rightsId.ToString(), path));
+                            }
+                            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+                            { _logger.LogWarning(ex, "Could not persist ticket key to {Path}.", path); }
+                        }
                     }
-                    catch (Exception ex)
+                    catch (Exception ex) when (ex is not OperationCanceledException)
                     {
                         _logger.LogError(ex, LocalizationManager.Instance.Current.Keys.LoadingError_FailedToLoadTitleIdKey.SafeFormat(fileName, ex.Message));
                     }
@@ -208,12 +243,13 @@ public class FileItemLoader : IFileItemLoader
 
             foreach (var partitionFileEntry in remainingEntries)
             {
+                _loadToken.Value.ThrowIfCancellationRequested();
                 IFile partitionFile;
                 try
                 {
                     partitionFile = partitionFileSystem.LoadFile(partitionFileEntry);
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OperationCanceledException)
                 {
                     OnLoadingException(ex, parentItem);
                     var partitionFileEntryItem = new PartitionFileEntryItem(partitionFileEntry, parentItem);
@@ -231,7 +267,7 @@ public class FileItemLoader : IFileItemLoader
                     {
                         ncz = new Ncz(parentItem.KeySet, partitionFile.AsStream(), NczReadMode.Fast);
                     }
-                    catch (Exception ex)
+                    catch (Exception ex) when (ex is not OperationCanceledException)
                     {
                         OnLoadingException(ex, parentItem);
                         var partitionFileEntryItem = new PartitionFileEntryItem(partitionFileEntry, parentItem);
@@ -258,7 +294,7 @@ public class FileItemLoader : IFileItemLoader
                         var fileStorage = new FileStorage(partitionFile);
                         nca = new Nca(parentItem.KeySet, fileStorage);
                     }
-                    catch (Exception ex)
+                    catch (Exception ex) when (ex is not OperationCanceledException)
                     {
                         OnLoadingException(ex, parentItem);
                         var partitionFileEntryItem = new PartitionFileEntryItem(partitionFileEntry, parentItem);
@@ -277,7 +313,7 @@ public class FileItemLoader : IFileItemLoader
                 }
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             OnLoadingException(ex, parentItem);
 
@@ -299,7 +335,7 @@ public class FileItemLoader : IFileItemLoader
                     if (!nca.Header.IsSectionEnabled(sectionIndex))
                         continue;
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OperationCanceledException)
                 {
                     OnLoadingException(ex, parentItem);
 
@@ -314,7 +350,7 @@ public class FileItemLoader : IFileItemLoader
                 {
                     ncaFsHeader = nca.GetFsHeader(sectionIndex);
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OperationCanceledException)
                 {
                     OnLoadingException(ex, parentItem);
 
@@ -339,7 +375,7 @@ public class FileItemLoader : IFileItemLoader
                     {
                         fileSystem = nca.OpenFileSystem(sectionIndex, IntegrityCheckLevel.ErrorOnInvalid);
                     }
-                    catch (Exception ex)
+                    catch (Exception ex) when (ex is not OperationCanceledException)
                     {
                         OnLoadingException(ex, sectionItem);
 
@@ -354,7 +390,7 @@ public class FileItemLoader : IFileItemLoader
                 }
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             OnLoadingException(ex, parentItem);
 
@@ -378,6 +414,7 @@ public class FileItemLoader : IFileItemLoader
 
             foreach (var directoryEntry in directoryEntries)
             {
+                _loadToken.Value.ThrowIfCancellationRequested();
                 var entryName = directoryEntry.Name;
                 var entryPath = directoryEntry.FullPath;
 
@@ -391,7 +428,7 @@ public class FileItemLoader : IFileItemLoader
                         fileSystem.OpenFile(ref uniqueRefFile.Ref, entryPath.ToU8Span(), OpenMode.Read).ThrowIfFailure();
                         nacpFile = uniqueRefFile.Release();
                     }
-                    catch (Exception ex)
+                    catch (Exception ex) when (ex is not OperationCanceledException)
                     {
                         OnLoadingException(ex, parentItem);
                         var directoryEntryItem = new DirectoryEntryItem(parentItem, directoryEntry);
@@ -426,7 +463,7 @@ public class FileItemLoader : IFileItemLoader
                         nacpBytes.AsSpan(0, copyLen).CopyTo(blitStruct.ByteSpan);
                         nacp = blitStruct.Value;
                     }
-                    catch (Exception ex)
+                    catch (Exception ex) when (ex is not OperationCanceledException)
                     {
                         OnLoadingException(ex, parentItem);
                         var directoryEntryItem = new DirectoryEntryItem(parentItem, directoryEntry);
@@ -448,7 +485,7 @@ public class FileItemLoader : IFileItemLoader
                         fileSystem.OpenFile(ref uniqueRefFile.Ref, entryPath.ToU8Span(), OpenMode.Read).ThrowIfFailure();
                         cnmtFile = uniqueRefFile.Release();
                     }
-                    catch (Exception ex)
+                    catch (Exception ex) when (ex is not OperationCanceledException)
                     {
                         OnLoadingException(ex, parentItem);
                         var directoryEntryItem = new DirectoryEntryItem(parentItem, directoryEntry);
@@ -463,7 +500,7 @@ public class FileItemLoader : IFileItemLoader
                     {
                         cnmt = new Cnmt(cnmtFile.AsStream());
                     }
-                    catch (Exception ex)
+                    catch (Exception ex) when (ex is not OperationCanceledException)
                     {
                         OnLoadingException(ex, parentItem);
                         var directoryEntryItem = new DirectoryEntryItem(parentItem, directoryEntry);
@@ -491,7 +528,7 @@ public class FileItemLoader : IFileItemLoader
                         fileSystem.OpenFile(ref uniqueRefFile.Ref, entryPath.ToU8Span(), OpenMode.Read).ThrowIfFailure();
                         npdmFile = uniqueRefFile.Release();
                     }
-                    catch (Exception ex)
+                    catch (Exception ex) when (ex is not OperationCanceledException)
                     {
                         OnLoadingException(ex, parentItem);
                         var directoryEntryItem = new DirectoryEntryItem(parentItem, directoryEntry);
@@ -513,7 +550,7 @@ public class FileItemLoader : IFileItemLoader
                         var npdm = new NpdmBinary(npdmStream, parentItem.ParentItem.ParentItem.KeySet);
                         _ = new NpdmItem(npdm, parentItem, directoryEntry);
                     }
-                    catch (Exception ex)
+                    catch (Exception ex) when (ex is not OperationCanceledException)
                     {
                         OnLoadingException(ex, parentItem);
                         var directoryEntryItem = new DirectoryEntryItem(parentItem, directoryEntry);
@@ -532,7 +569,7 @@ public class FileItemLoader : IFileItemLoader
                         fileSystem.OpenFile(ref uniqueRefFile.Ref, entryPath.ToU8Span(), OpenMode.Read).ThrowIfFailure();
                         nsoFile = uniqueRefFile.Release();
                     }
-                    catch (Exception ex)
+                    catch (Exception ex) when (ex is not OperationCanceledException)
                     {
                         OnLoadingException(ex, parentItem);
                         var directoryEntryItem = new DirectoryEntryItem(parentItem, directoryEntry);
@@ -549,7 +586,7 @@ public class FileItemLoader : IFileItemLoader
                         nsoReader.Initialize(nsoFile).ThrowIfFailure();
                         nsoHeader = nsoReader.Header;
                     }
-                    catch (Exception ex)
+                    catch (Exception ex) when (ex is not OperationCanceledException)
                     {
                         OnLoadingException(ex, parentItem);
                         var directoryEntryItem = new DirectoryEntryItem(parentItem, directoryEntry);
@@ -568,7 +605,7 @@ public class FileItemLoader : IFileItemLoader
                 }
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             OnLoadingException(ex, parentItem);
 
@@ -590,11 +627,12 @@ public class FileItemLoader : IFileItemLoader
 
             foreach (var directoryEntry in directoryEntries)
             {
+                _loadToken.Value.ThrowIfCancellationRequested();
                 var directoryEntryItem = new DirectoryEntryItem(parentItem.ContainerSectionItem, directoryEntry, parentItem);
                 BuildDirectoryEntryChildItems(directoryEntryItem);
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             OnLoadingException(ex, parentItem);
 
@@ -610,7 +648,7 @@ public class FileItemLoader : IFileItemLoader
         {
             return fileSystem.EnumerateEntries(currentPath, "*", SearchOptions.Default);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             OnLoadingException(ex, parentItem);
 

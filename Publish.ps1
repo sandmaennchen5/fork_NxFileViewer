@@ -1,5 +1,5 @@
 <#
-    Builds x64/x86 application ZIPs and a separate optional firmware-hashes ZIP.
+    Builds standard and compressed self-contained x64/x86 application ZIPs and a separate optional firmware-hashes ZIP.
     Usage: ./Publish.ps1 [-OutputDirectory Publish]
 #>
 param([string]$OutputDirectory = "Publish")
@@ -15,15 +15,18 @@ $StagingRoot = Join-Path $OutDirRoot (".publish-" + [Guid]::NewGuid().ToString("
 New-Item -ItemType Directory -Path $StagingRoot | Out-Null
 try {
     foreach ($Architecture in @("x64", "x86")) {
-        $ReleaseName = "${AppName}_v${AppVersion}_${Architecture}"
-        $ReleaseDir = Join-Path $StagingRoot $ReleaseName
-        Write-Host "Publishing $ReleaseName"
-        dotnet publish $ProjectPath -p:PublishSingleFile=true -c Release --no-self-contained -r "win-$Architecture" -o $ReleaseDir
-        if ($LASTEXITCODE -ne 0) { throw "Publishing $Architecture failed ($LASTEXITCODE)." }
-        if (Test-Path -LiteralPath (Join-Path $ReleaseDir "fw/hashes")) {
-            throw "Firmware hashes must not be included in application archives."
+        foreach ($WithRuntime in @($false, $true)) {
+            $Variant = if ($WithRuntime) { "_self-contained" } else { "" }
+            $ReleaseName = "${AppName}_v${AppVersion}${Variant}_${Architecture}"
+            $ReleaseDir = Join-Path $StagingRoot $ReleaseName
+            Write-Host "Publishing $ReleaseName"
+            dotnet publish $ProjectPath -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=$WithRuntime -c Release --self-contained $WithRuntime -r "win-$Architecture" -o $ReleaseDir
+            if ($LASTEXITCODE -ne 0) { throw "Publishing $Architecture failed ($LASTEXITCODE)." }
+            if (Test-Path -LiteralPath (Join-Path $ReleaseDir "fw/hashes")) {
+                throw "Firmware hashes must not be included in application archives."
+            }
+            Compress-Archive -LiteralPath $ReleaseDir -DestinationPath (Join-Path $OutDirRoot "$ReleaseName.zip") -Force
         }
-        Compress-Archive -LiteralPath $ReleaseDir -DestinationPath (Join-Path $OutDirRoot "$ReleaseName.zip") -Force
     }
 
     # The add-on extracts to fw/hashes next to either architecture's executable.

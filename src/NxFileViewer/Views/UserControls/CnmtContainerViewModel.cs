@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
@@ -30,6 +30,8 @@ public class CnmtContainerViewModel : ViewModelBase
         _cnmtContainer = cnmtContainer ?? throw new ArgumentNullException(nameof(cnmtContainer));
         ServiceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _brushesProvider = serviceProvider.GetRequiredService<IBrushesProvider>();
+        ThemeObserver.Observe(serviceProvider.GetService<IThemeService>(), this,
+            static view => view.NotifyPropertyChanged(nameof(SecurityColor)));
 
         SaveSelectedImageCommand = serviceProvider.GetRequiredService<ISaveTitleImageCommand>();
         CopySelectedImageCommand = serviceProvider.GetRequiredService<ICopyImageCommand>();
@@ -137,7 +139,7 @@ public class CnmtContainerViewModel : ViewModelBase
         }
     }
 
-    public Visibility SecurityVisibility => _cnmtContainer.NpdmItem == null ? Visibility.Collapsed : Visibility.Visible;
+    public Visibility SecurityVisibility => _cnmtContainer.NpdmItem != null && _cnmtContainer.CnmtItem.ContentType is LibHac.Ncm.ContentMetaType.Application or LibHac.Ncm.ContentMetaType.Patch ? Visibility.Visible : Visibility.Collapsed;
 
     public string SecurityLevel => _cnmtContainer.NpdmItem?.SecurityLevel switch
     {
