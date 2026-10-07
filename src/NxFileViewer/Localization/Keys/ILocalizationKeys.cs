@@ -43,6 +43,14 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string Workspace_Menu { get; }
     string Nsz_Replace { get; }
     string Nsz_Number { get; }
+    string TitlePage_Custom { get; }
+    string Info_Description { get; }
+    string Info_Shortcuts { get; }
+    string BatchHistory_Show { get; }
+    string BatchHistory_Title { get; }
+    string BatchHistory_Resume { get; }
+    string Dialog_Yes { get; }
+    string Dialog_No { get; }
     string Nsz_Cancel { get; }
     string Nsz_DeleteSourcePrompt { get; }
     string Nsz_SourceDeleted { get; }
@@ -99,6 +107,12 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string MenuItem_Tools { get; }
     string MenuItem_CheckIntegrity { get; }
     string MenuItem_CheckDirectoryIntegrity { get; }
+    string BatchNaming_Title { get; }
+    string BatchNaming_Matches { get; }
+    string BatchNaming_Differs { get; }
+    string BatchNaming_Check { get; }
+    string BatchNaming_RenameAll { get; }
+    string BatchNaming_Error { get; }
     string BatchIntegrity_Title { get; }
     string BatchIntegrity_SelectDirectory { get; }
     string BatchIntegrity_Browse { get; }
@@ -127,6 +141,8 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string BatchIntegrity_Export { get; }
     string BatchIntegrity_Start { get; }
     string BatchIntegrity_MoveValid { get; }
+    string BatchIntegrity_MoveSelected { get; }
+    string BatchIntegrity_OpenSelected { get; }
     string BatchIntegrity_SelectMoveDestination { get; }
     string BatchIntegrity_Moving { get; }
     string MenuItem_Options { get; }
@@ -193,6 +209,7 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string SettingsView_ToolTip_Keys { get; }
     string SettingsView_ToolTip_ProdKeys { get; }
     string SettingsView_ToolTip_TitleKeys { get; }
+    string SettingsView_LogFileRetention { get; }
     string SettingsView_LogLevel { get; }
     string SettingsView_ToolTip_LogLevel { get; }
     string SettingsView_CheckBox_AlwaysReloadKeysBeforeOpen { get; }
@@ -387,6 +404,14 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string Log_SaveStorageCanceled { get; }
     string Log_NcasIntegrityCanceled { get; }
 
+    string RenamingTool_TargetDirectory { get; }
+    string RenamingTool_FolderTip { get; }
+    string RenamingTool_OldName { get; }
+    string RenamingTool_NewName { get; }
+    string RenamingTool_StatusError { get; }
+    string RenamingTool_StatusUnchanged { get; }
+    string RenamingTool_StatusSimulation { get; }
+    string RenamingTool_StatusRenamed { get; }
     string RenamingTool_WindowTitle { get; }
     string RenamingTool_Patterns { get; }
     string RenamingTool_ApplicationPattern { get; }
@@ -437,4 +462,13 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string Nsz_PhaseSource { get; }
     string Nsz_PhaseOutput { get; }
     string Nsz_PhasePublish { get; }
+    string Batch_IncludeArchives { get; }
+    string Batch_Scan { get; }
+    string Batch_VerifyAll { get; }
+    string File_MissingKeys { get; }
+    string File_CopyMissingKeys { get; }
+    string Keys_CopyToSwitch { get; }
+    string Keys_ReplaceShared { get; }
+    string Keys_SharedCopied { get; }
+    string Batch_ScanAndVerify { get; }
 }

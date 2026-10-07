@@ -1,158 +1,111 @@
-# NxFileViewer 4.0.0-beta.1
+# NxFileViewer 4.0.0-beta.2
 
-The batch table's **Columns** button shows or hides additional overview fields. Click column headers to sort (Shift-click for multiple columns); drag headers to reorder. Combine text search, file-type and integrity filters with "Only errors". Search terms match across the already loaded overview data, without reopening NSZ files. Reset buttons clear filters or sorting. CSV export follows the current filters and sorting and includes all overview fields; column visibility affects the table only. Column choices remain in place while switching workspace pages during the session.
+Browse and verify Nintendo Switch packages with a Windows desktop interface based on [LibHac](https://github.com/Thealexbarney/LibHac).
 
-ZIP packages can be opened in individual mode (NSP, NSZ, XCI, XCZ and NCA). The first supported entry opens initially; use the entry selector on the File page to switch to another. Standalone NCA files are also supported. Batch checks process all NSP/NSZ/XCI/XCZ entries, each in its own result row; pure NCA ZIPs retain firmware verification. Entries are temporarily extracted under `Temp/ZIP` in the program directory and removed on close. Sufficient free disk space for the selected entry is required. Archive entries cannot be moved or converted through package actions. Nested ZIP archives are not processed.
+Download application ZIPs from [GitHub Releases](https://github.com/sandmaennchen5/fork_NxFileViewer/releases). Choose x64 or x86; firmware hash references are a separate optional download. See the [changelog](CHANGELOG.md) for release history.
 
-## Description
+## Workspace
 
-View and browse content of Nintendo Switch files.
+Start, File check, Batch check, Renaming, Settings, Log and Info share one main window. Switching tabs retains results and settings drafts. During a background task, navigation is restricted to the active page and Log. Use Cancel to stop the task, including an unfinished single-file load.
 
-Download latest version [here](https://github.com/sandmaennchen5/fork_NxFileViewer/releases).
+The interface supports English, French, German and Spanish, with light, dark and system themes. The first launch starts maximized; saved window placement is respected when enabled. Info lists application details and keyboard shortcuts.
 
-## Features
+## File check
 
-- Based on [LibHac](https://github.com/Thealexbarney/LibHac)
-- Supported files: NSP, NSZ, XCI, XCZ
-- Supports Super NSP/XCI
-- Browse files content structure
-- Export files
-- Save or copy title images
-- Specify your own keys location
-- Searches keys in commonly used locations
-- Automatically download keys from an URL defined in the settings
-- Supports drag and drop
-- Checks real files type (XCI or NSP)
-- Detailed log
-- User-friendly and responsive interface
-- Application ZIPs plus a separate optional firmware-hashes ZIP
-- TitleDB cache in `Cache/TitleDB` and automatically cleaned temporary files in `Temp`, all next to the executable
-- Verify integrity (hash and signature)
-- Batch integrity check for complete folders containing NSP, NSZ, XCI, and XCZ files
-- Live batch results with file type, package type, compression, integrity status, and error details
-- Preview the overview of the currently checked file directly in the batch window
-- Filter the batch list to show faulty files only and export the results as CSV
-- Move successfully verified files to a selected destination while preserving subdirectories
-- Existing destination files are never overwritten and faulty files are never deleted automatically
-- Displays missing keys
-- Opens title URL
-- Configurable Tinfoil title page and API URLs
-- Selectable Tinfoil, GitHub TitleDB and NLib title metadata, with local-title fallback during outages
-- Key-file validation, firmware revision estimates and anonymous FTP key downloads
-- Firmware ZIP/folder verification using SHA-256, automatic detection in batch checks and detailed failure reports
-- Solid NCZ prefix caching to speed up backward/random reads without repeated full decompression
-- Multiple interface languages (English, French, German, and Spanish)
-- Supports compressed NACP title blocks and up to 32 NACP title languages
-- Advanced files renaming
-- Improved online title normalization when renaming files
-- Dark, light, and system themes, including themed window title bars
-- Remembers the main window size, position, and the last batch directory
-- Full support of NSZ and XCZ files (compressed with [NSZ](https://github.com/nicoboss/nsz/) tool from **nicoboss**).
+- Open NSP, NSZ, XCI, XCZ or standalone NCA files, including supported packages inside ZIP/7z archives.
+- Browse the content tree, export files, and save or copy title images.
+- View package metadata, languages, firmware requirements, required master keys, compression and security information.
+- Verify NCA hashes and signatures, compress/decompress supported packages, or open the selected title website from the file toolbar.
+- Browse Super NSP/XCI packages and compressed NACP titles with extended language support.
+- See missing-key warnings separately from informational messages about unused keys or permitted missing delta fragments.
 
-### Batch integrity check
+The built-in solid NCZ reader caches a decoded prefix under `Temp/NCZ` to avoid repeated full decompression on backward reads. The first forward skip still requires decoding the preceding data, and temporary disk usage can approach the payload size. Block NCZ files use bounded block reads and indexed lookup. ZstdSharp.Port remains at 0.8.8. See [NCZ reader notes](docs/NSZ-reader-update.md).
 
-Open **Tools → Check folder integrity** to verify all supported Switch files in a directory. Subdirectories can be included optionally. Results are added to the table as soon as each file has been checked, while the overview panel displays information about the file currently being processed.
+## Archives and firmware
 
-The batch window supports cancellation, live progress reporting, faulty-file filtering, and CSV export. After the check, files reported as original and valid can be moved to a selected destination. The original folder structure is retained, existing destination files are skipped, and invalid files remain untouched.
+ZIP and 7z archives are supported in individual and batch mode, including nested archives up to eight levels. Virtual paths identify the chain, for example `outer.zip::inner.zip::Game.nsp`. Opening an archive extracts all its contents into a shared session under `Temp/ZIP`; nested archives are extracted when processed. Allow enough disk space for the extracted contents. Switching between already loaded entries reuses their files and models. Closing or reopening the archive releases its retained temporary data.
 
-### Firmware verification
+Mixed archives can contain game packages, firmware archives and firmware folders. Firmware sets appear as separate entries and are checked independently; missing reference data does not hide them. Batch file types indicate archive origin, such as `NSP (ZIP)`. Archive members cannot be converted, moved or renamed through package actions.
 
-Open **Tools → Firmware verification** and choose a folder or **Select firmware ZIP…**. Folder integrity checks also recognize firmware, optionally in subdirectories. The table shows the inferred version in the Structure column; select its row and open the Firmware verification tab for missing, changed, extra or duplicate NCA details. Only complete matches pass. Firmware entries are excluded from moving verified game packages.
+Firmware verification checks NCA sizes and SHA-256 hashes, identifies the best matching firmware version, and reports missing, changed, additional, duplicate or incorrectly named files. Individual firmware NCAs list matching releases by content hash. Sources are never renamed by firmware verification.
 
-Current references are loaded from GitHub into memory for each detected or explicitly selected firmware check, without a disk cache. Pure game folders make no GitHub request. References from [`fw/hashes`](fw/hashes) are provided in a separate optional firmware-hashes ZIP as an offline fallback, shown in the result details. Extract this add-on into the directory containing `NxFileViewer.exe`, so the files are located at `fw/hashes/*.json`. ZIP contents are hashed directly without extraction or keys; repacked ZIPs can pass. Loose NCA files and ZIPs containing NCA entries are recognized as candidates even without local hash lists. Missing hash sources affect only firmware results, while game package checks continue. See [firmware verification](docs/Firmware-verification.md) and [firmware reference maintenance](fw/README.md).
+References are fetched from GitHub into memory only when firmware candidates are detected or explicitly opened. Each check fetches current references; ordinary game folders make no firmware-reference request. Optional local `fw/hashes/*.json` files provide an offline fallback. Extract the separate firmware-hashes ZIP beside `NxFileViewer.exe` to install them. See [firmware verification](docs/Firmware-verification.md) and [reference maintenance](fw/README.md).
 
-### Title information and NCZ loading
+## Batch check
 
-Choose Tinfoil, GitHub TitleDB or NLib in **Settings → Miscellaneous → Title name source**. GitHub catalogs are cached for offline use; renaming falls back to local NACP names if online requests fail. See [title providers](docs/Title-providers.md).
+Choose a directory or ZIP/7z archive. Subdirectories and archives can be included or excluded.
 
-Solid NCZ decoding reuses a temporary decoded prefix for backward reads. First-time forward skips still require decoding and temporary disk usage can approach the payload size. See [NCZ reader changes](docs/NSZ-reader-update.md). ZstdSharp remains 0.8.8 and compressed NACP support is retained.
+- **Read file list** scans package metadata without running game-package integrity checks.
+- **Read file list and verify integrity** combines scanning and verification.
+- **Verify integrity of all files** checks the scanned list later, including rows hidden by filters.
+- Firmware candidates are identified and verified during scanning.
+- Successfully verified physical packages can be compressed, decompressed or moved; relative subdirectories are preserved.
+- Right-click a row for individual actions: open in File check, verify, convert, move, open the title website, check naming or rename.
 
-## Screenshots
+The Columns button shows or hides additional overview fields. Click headers to sort, Shift-click for multiple sort columns, and drag headers to reorder. Combine search, file-type and integrity filters with Only errors. CSV export follows the current filtering and sorting and includes all overview fields. Hover over cells or headers to read their full text. Horizontal/vertical scrolling and Shift + mouse wheel support wide tables. Overview metadata is retained for quick selection without reopening NSZ files.
 
-### NSZ conversion plugin
+The last five batch sessions can be displayed or resumed. Disable history under Settings → Program if desired; existing saved sessions remain available when re-enabled. See [batch history](docs/Batch-history.md).
 
-Use **Tools → NSZ** to compress/decompress an opened NSP, NSZ, XCI or XCZ, with source and output integrity checks. Folder checks offer corresponding actions for valid files. The official CLI can be installed/updated independently; source deletion after successful verification is optional; existing targets can be replaced or saved with numbering. See [NSZ plugin setup and workflow](docs/NSZ-plugin.md).
+## Renaming
 
-![Overview](./screenshots/Overview.png)
+Configure naming patterns under **Settings → Naming settings**; the Renaming page links to these settings. Pattern and character-replacement sections remain visible.
 
-![Content](./screenshots/Content.png)
+An optional target directory changes the destination root. Without one, each file's current directory is used. Patterns support relative subdirectories, such as `DLC/{WTitle}.{Ext:L}` or `{WAppTitle}/DLC/{WTitle}.{Ext:L}`. Use the target-directory field for absolute paths; absolute paths and `..` are rejected inside patterns. See [naming patterns and batch naming](docs/Renaming.md).
 
-![Content](./screenshots/Rename.png)
+The result table shows old path, new path, status and errors. Paths use `QUELL::` for the source root and `ZIEL::` for a different destination root; these display markers are retained across interface languages. Simulation creates no folders or files. Actual renaming creates missing destination folders and never overwrites an existing target. Online title failures fall back to local NACP names when available.
 
-![Settings](./screenshots/Settings.png)
+In Batch check, Check naming compares physical NSP/NSZ/XCI/XCZ packages with the saved patterns and target directory. Naming columns appear at the end of the table; additional proposed-path/error columns can be enabled. The context-menu check shows a result dialog. Individual renaming previews the paths and requires Yes or Cancel confirmation. Rename all differing files checks eligible rows again against current settings. Firmware and archive members are excluded; naming checks are independent of integrity verification.
 
-## Requirements
+## Keys and title sources
 
-If application doesn't start, please install the *.NET Desktop Runtime 8* which can be downloaded from the official Microsoft website [here](https://dotnet.microsoft.com/download/dotnet/8.0).
+Settings shows the actual `prod.keys` and `title.keys` files in use, structural validation results, missing master-key revisions and firmware estimates. Select your own locations or use configured download URLs, including anonymous FTP. Missing required keys are shown on Start and file/batch views.
 
-## Contribute
+An explicit settings action copies the current key files to `%USERPROFILE%/.switch` for other applications. Existing files require replacement confirmation; source files remain unchanged. Key values are masked in saved session logs.
 
-Feel free to contribute to this project to make this program better.
+Title-name providers are Tinfoil, GitHub TitleDB, NLib API and Custom. The title website is selected independently from Tinfoil, NX Content or Custom. Presets have fixed URLs; only Custom displays an editable template. See [title providers](docs/Title-providers.md).
 
-I designed the application so that it can be easily localized in several languages.
-If you want this app in your language, send me your translations ;).
+## Plugin nicoboss/nsz
 
-## Development
+The separately installed [nicoboss/nsz](https://github.com/nicoboss/nsz) plugin converts physical NSP/XCI and NSZ/XCZ packages. It uses the viewer's current `prod.keys`. Settings → Plugins → nicoboss/nsz provides compression level, Automatic/Solid/Block mode, block size and a custom executable option. Installation, updates and rollback are under **Settings → Updates → Plugins → nicoboss/nsz**.
 
-### Requirements
+Conversion verifies both source and output. Existing targets offer replacement, numbering or cancellation. Optional source deletion occurs only after successful conversion and verification. Progress distinguishes source verification, conversion and output verification, with CLI percentage/speed/ETA when available. Verified downloads survive failed startup checks and are reused; the official GUI package can provide CLI mode for the recognized standalone Python-runtime failure. Temporary ASCII aliases avoid Unicode filename failures in bundled executables. See [plugin setup and conversion](docs/NSZ-plugin.md).
 
- - Microsoft Visual Studio 2022+
+## Updates and local storage
 
-### Build and tests
+Settings → Updates groups application updates, plugin installation/update/rollback, TitleDB refresh and firmware-reference actions. Automatic application checks are optional and never install without confirmation. Published pre-releases can be included explicitly. Updates verify SHA-256, version and architecture before replacement and restart. See [application updates and compatible release packages](docs/Application-updates.md).
+
+Check online hashes reads firmware references without saving them; Update offline hashes explicitly replaces the local set and retains a backup.
+
+Settings, Plugins, Cache, Temp, History, Logs and Updates are stored beside the executable. The program directory must be writable; there is no AppData import or storage fallback.
+
+Each launch creates a UTF-8 log in `Logs`, with timestamps and severity at the selected logging level. Settings → Program controls retention from 1 to 100 launches (default 5). Older session logs are removed after settings load and when a smaller retention count is applied. Logs are flushed immediately and key values are redacted. The Log tab follows new messages automatically.
+
+## Requirements and development
+
+Windows and the [.NET Desktop Runtime 8](https://dotnet.microsoft.com/download/dotnet/8.0) are required if the downloaded application does not start. Development requires the .NET 8 SDK and optionally Visual Studio 2022 or later.
 
 ```powershell
-dotnet build src/NxFileViewer.sln --no-restore
-dotnet test src/NxFileViewer.sln --no-restore
-```
-
-Restore dependencies first on a fresh checkout. The local `/test/` folder is ignored and contains only personal test data; automated tests under `src/*.Test` remain part of the repository. See [4.0.0-beta.1 release notes](CHANGELOG.md).
-
-### GitHub Actions downloads
-
-After a push to master, the Build workflow provides the x64 and x86 application ZIPs and the optional firmware-hashes ZIP as three separate artifacts. Each download is the original `NxFileViewer_v<version>_x64.zip` or `_x86.zip`, plus `NxFileViewer_v<version>_firmware-hashes.zip`, without an additional ZIP wrapper. Artifacts are retained for seven days; permanent downloads belong in GitHub Releases.
-
-Release builds map source paths to `/_/NxFileViewer/` in diagnostics and embed debug symbols. Local builds and GitHub Actions therefore retain source filenames and line numbers without exposing the checkout location. Runtime paths for opened files remain visible in logs.
-
-NSZ plugins are installed in `Plugins/NSZ` next to the executable. Move this subfolder together with the application; plugin state uses relative paths. No AppData import or fallback is performed. Settings, plugins, caches and application temporary files stay in the program directory, which must be writable.
-
-### Publishing
-
-Run the PowerShell script below.
-
-```PowerShell
+dotnet restore src/NxFileViewer.sln
+dotnet build src/NxFileViewer.sln -c Release --no-restore
+dotnet test src/NxFileViewer.sln -c Release --no-restore
 .\Publish.ps1
 ```
 
-## Credits
+Publish.ps1 creates x64/x86 application ZIPs and a separate optional firmware-hashes ZIP. The Build workflow exposes these as separate artifacts retained for seven days; attach release ZIPs to GitHub Releases for permanent downloads and application updates. Source paths in Release diagnostics are mapped to `/_/NxFileViewer/`, with debug symbols embedded in the executable. Runtime file paths remain visible.
 
-- Special thanks to [Thealexbarney](https://github.com/Thealexbarney) for his powerful and easy to use [LibHac](https://github.com/Thealexbarney/LibHac) library.
-- Special thanks to [nicoboss](https://github.com/nicoboss/) who took a lot of time to explain me the [NSZ](https://github.com/nicoboss/nsz) format and many other things.
-- Thanks to all the Switch scene :)
+The ignored `/test/` directory contains personal test data; automated tests under `src/*.Test` are part of the repository.
 
-- NSZ-Konvertierung: vorhandene Ziele ersetzen, nummerieren oder abbrechen; Quelldateien auf Wunsch erst nach erfolgreicher Prüfung löschen. Die Stapelübersicht folgt der ausgewählten Datei.
+## Screenshots
 
-### Single-window workspace
+Screenshots illustrate the viewer and may show an earlier interface.
 
-The start page, file verification, batch verification (including firmware), renaming and settings share one main window. Switch with the Main menu or the tabs. Switching retains batch results, running operations and settings drafts. Apply saves settings and returns to Start; Cancel discards the draft without closing the application. Existing menu commands and shortcuts navigate to the embedded pages. File pickers and confirmation prompts remain dialogs.
+![Overview](screenshots/Overview.png)
+![Content](screenshots/Content.png)
+![Renaming](screenshots/Rename.png)
+![Settings](screenshots/Settings.png)
 
-NSZ Plugin settings include Automatic, Solid/Blockless and Block compression modes, with a block-size selector (default 1 MiB). NSZ uses the same detected `prod.keys` as the viewer.
+## Contributing and credits
 
-### Application updates
+Contributions and translations are welcome.
 
-The viewer checks regular GitHub Releases on startup (optional in Settings). Use **Application updates → Download and install** for a newer version. The update verifies the matching x64/x86 ZIP, backs up and replaces the EXE, then restarts. Keys, settings and plugins remain in the program directory. See [update workflow and compatible release assets](docs/Application-updates.md).
-
-Plugin settings have their own **Plugins** page, reachable from Start, Main menu, Options or its tab. NSZ settings and plugin update/rollback actions are grouped there. General and plugin settings use separate drafts; applying one preserves changes already saved in the other.
-
-### Update center
-
-The **Updates** tab, Start page and Main menu provide one page for application updates, NSZ plugin update/rollback, GitHub TitleDB refresh and firmware-hash actions. TitleDB refresh downloads the saved region and US fallback even when the existing catalog is fresh, then invalidates cached title responses. Firmware online checks do not persist data. **Update offline hashes** explicitly saves a validated reference set under `fw/hashes` and retains the previous folder as a backup.
-
-The batch table uses horizontal and vertical scroll bars for optional columns; Shift + mouse wheel scrolls horizontally. The overview panel scrolls vertically. On first launch, or when remembering window placement is disabled, the application starts maximized. A saved window size/state is respected.
-
-Settings groups Program, Updates and Plugins into nested tabs. Existing menu shortcuts select the matching tab. Installed NSZ status explicitly includes the installation label, version (or custom executable label), and executable path.
-
-ZIP and 7z are supported in individual and batch mode. NCA-only firmware archives open their version/integrity details automatically; individual firmware NCAs list all matching firmware versions by content hash. See [firmware verification](docs/Firmware-verification.md).
-
-Application updates optionally include pre-releases: enable the option under Settings → Updates and apply it before checking. Stable releases remain the default.
-
-Already viewed ZIP/7z entries keep their extracted files and loaded content until the archive is closed or reopened. Batch file types include the archive origin, such as NSP (ZIP) or NSZ (7z); filters accept either package type or archive type.
+Thanks to [Thealexbarney](https://github.com/Thealexbarney) for LibHac, [nicoboss](https://github.com/nicoboss) for NSZ and format guidance, and the Nintendo Switch community.

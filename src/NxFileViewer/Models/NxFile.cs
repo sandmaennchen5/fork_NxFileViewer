@@ -1,4 +1,4 @@
-﻿
+
 using System;
 using System.IO;
 using Emignatik.NxFileViewer.Models.Overview;
@@ -21,7 +21,7 @@ public class NxFile : IDisposable
         FilePath = filePath;
         RootItem = rootItem;
         Overview = overview;
-        FileName = Path.GetFileName(filePath);
+        FileName = Path.GetFileName(filePath.TrimEnd('/'));
     }
 
     /// <summary>

@@ -8,6 +8,7 @@
         xmlns:windows="clr-namespace:Emignatik.NxFileViewer.Views.Windows"
         xmlns:keysManagement="clr-namespace:Emignatik.NxFileViewer.Services.KeysManagement"
         xmlns:settings="clr-namespace:Emignatik.NxFileViewer.Settings"
+        xmlns:bindingExtensions="clr-namespace:Emignatik.NxFileViewer.Utils.MVVM.BindingExtensions"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance windows:SettingsWindowViewModel}">
 
@@ -34,6 +35,7 @@
 
 
                         <StackPanel Orientation="Vertical" DockPanel.Dock="Top">
+                            <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Keys_CopyToSwitch}" Command="{Binding CopyKeysToSwitchCommand}" HorizontalAlignment="Left" Padding="12,5" Margin="0,6,0,10"/>
                             <CheckBox IsChecked="{Binding EditedSettings.AlwaysReloadKeysBeforeOpen}"
                                         Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_CheckBox_AlwaysReloadKeysBeforeOpen}" />
                             <CheckBox IsChecked="{Binding EditedSettings.InjectTicketKeys}"
@@ -157,6 +159,7 @@
 
                     <GroupBox Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_Miscellaneous}">
                         <StackPanel>
+                            <CheckBox Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchHistory_Title}" IsChecked="{Binding EditedSettings.EnableBatchHistory}" Margin="0,0,0,8"/>
                             <StackPanel>
                                 <TextBlock Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_Title_Language}" />
                                 <ComboBox ItemsSource="{Binding Path=AvailableLanguages}" SelectedItem="{Binding Path=SelectedLanguage}" DisplayMemberPath="DisplayName" HorizontalAlignment="Left"/>
@@ -173,56 +176,29 @@
                                     <customControls:TipLabel ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_ToolTip_LogLevel}"/>
                                 </StackPanel>
                                 <ComboBox ItemsSource="{Binding Path=LogLevels}" SelectedItem="{Binding Path=EditedSettings.LogLevel}" MinWidth="100" HorizontalAlignment="Left" />
+                                <TextBlock Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_LogFileRetention}" />
+                                <TextBox Text="{Binding EditedSettings.LogFileRetentionCount, ValidatesOnExceptions=True}" Width="80" HorizontalAlignment="Left" />
                             </StackPanel>
 
                             <StackPanel>
                                 <TextBlock Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_TitlePageUrl}" />
-                                <TextBox Text="{Binding Path=EditedSettings.TitlePageUrl, UpdateSourceTrigger=PropertyChanged}" />
+                                <ComboBox x:Name="TitlePageSource" ItemsSource="{Binding TitlePageOptions}" DisplayMemberPath="DisplayName" SelectedValuePath="Value" SelectedValue="{Binding SelectedTitlePageSource}" />
+                                <TextBox Text="{Binding EditedSettings.TitlePageUrl, UpdateSourceTrigger=PropertyChanged}" Visibility="{Binding IsCustomTitlePage, Converter={StaticResource FalseToCollapseVisibilityConverter}}" Margin="0,6,0,0" />
                             </StackPanel>
 
                             <StackPanel>
                                 <TextBlock Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_TitleInfoProvider}" />
-                                <ComboBox ItemsSource="{Binding TitleProviderOptions}" SelectedValuePath="Value" SelectedValue="{Binding EditedSettings.TitleInfoProvider}" DisplayMemberPath="DisplayName" />
+                                <ComboBox ItemsSource="{Binding TitleProviderOptions}" SelectedValuePath="Value" SelectedValue="{Binding SelectedTitleInfoSource}" DisplayMemberPath="DisplayName" />
                             </StackPanel>
-
                             <StackPanel>
-                                <StackPanel.Style>
-                                    <Style TargetType="StackPanel">
-                                        <Setter Property="Visibility" Value="Collapsed" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding EditedSettings.TitleInfoProvider}" Value="{x:Static settings:TitleInfoProvider.Tinfoil}"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </StackPanel.Style>
-                                <TextBlock Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_TitleInfoApiUrl}" />
-                                <TextBox Text="{Binding Path=EditedSettings.TitleInfoApiUrl, UpdateSourceTrigger=PropertyChanged}" />
+                                <StackPanel.Style><Style TargetType="StackPanel"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding EditedSettings.TitleInfoProvider}" Value="{x:Static settings:TitleInfoProvider.Custom}"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></StackPanel.Style>
+                                <TextBlock Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_TitleInfoApiUrl}"/>
+                                <TextBox Text="{Binding EditedSettings.TitleInfoApiUrl, UpdateSourceTrigger=PropertyChanged}"/>
                             </StackPanel>
-
                             <StackPanel>
-                                <StackPanel.Style>
-                                    <Style TargetType="StackPanel">
-                                        <Setter Property="Visibility" Value="Collapsed" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding EditedSettings.TitleInfoProvider}" Value="{x:Static settings:TitleInfoProvider.GitHubTitleDb}"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </StackPanel.Style>
-                                <TextBlock Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_TitleDbRegion}" />
-                                <ComboBox ItemsSource="{Binding TitleDbRegions}" SelectedItem="{Binding EditedSettings.TitleDbRegion}" />
-                                <TextBlock TextWrapping="Wrap" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_TitleDbCacheTip}" />
-                            </StackPanel>
-
-                            <StackPanel>
-                                <StackPanel.Style>
-                                    <Style TargetType="StackPanel">
-                                        <Setter Property="Visibility" Value="Collapsed" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding EditedSettings.TitleInfoProvider}" Value="{x:Static settings:TitleInfoProvider.NLib}"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </StackPanel.Style>
-                                <TextBlock Style="{StaticResource Title2}" Text="NLib API URL" />
-                                <TextBox Text="{Binding EditedSettings.NLibApiUrl, UpdateSourceTrigger=PropertyChanged}" />
+                                <StackPanel.Style><Style TargetType="StackPanel"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding EditedSettings.TitleInfoProvider}" Value="{x:Static settings:TitleInfoProvider.GitHubTitleDb}"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></StackPanel.Style>
+                                <TextBlock Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_TitleDbRegion}"/>
+                                <ComboBox ItemsSource="{Binding TitleDbRegions}" SelectedItem="{Binding EditedSettings.TitleDbRegion}"/>
                             </StackPanel>
 
                         </StackPanel>
@@ -247,6 +223,130 @@
 
     </Grid>
     </TabItem>
+    <TabItem x:Name="NamingSettingsTab" Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RenamingTool_GroupBoxNamingSettings}">
+        <Grid>
+            <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+            <ScrollViewer VerticalScrollBarVisibility="Auto">                <GroupBox Grid.Row="0" Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RenamingTool_GroupBoxNamingSettings}">
+                    <StackPanel >
+
+                        <GroupBox>
+                            <GroupBox.Header>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RenamingTool_Patterns}" Style="{StaticResource Title1}"/>
+                                    <customControls:TipLabel ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RenamingTool_ToolTip_Patterns}"/>
+                                </StackPanel>
+                            </GroupBox.Header>
+                            <StackPanel>
+                                <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RenamingTool_ApplicationPattern}" Style="{StaticResource Title2}" />
+                        <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" Text="{Binding Path=EditedSettings.RenamingOptions.ApplicationPattern}" bindingExtensions:TextBoxExtension.FlushOnEnterKeyPressed ="True" />
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                        
+                                        <customControls:TipLabel ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RenamingTool_ToolTip_BasePattern}"/>
+                                    </StackPanel>
+                                </Grid>
+                                <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RenamingTool_PatchPattern}" Style="{StaticResource Title2}" />
+                        <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" Text="{Binding Path=EditedSettings.RenamingOptions.PatchPattern}" bindingExtensions:TextBoxExtension.FlushOnEnterKeyPressed ="True" />
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                        
+                                        <customControls:TipLabel ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RenamingTool_ToolTip_PatchPattern}"/>
+                                    </StackPanel>
+                                </Grid>
+                                <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RenamingTool_AddonPattern}" Style="{StaticResource Title2}" />
+                        <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" Text="{Binding Path=EditedSettings.RenamingOptions.AddonPattern}" bindingExtensions:TextBoxExtension.FlushOnEnterKeyPressed ="True" />
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                        
+                                        <customControls:TipLabel ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RenamingTool_ToolTip_AddonPattern}"/>
+                                    </StackPanel>
+
+                                </Grid>
+                            </StackPanel>
+                        </GroupBox>
+
+                        <GroupBox>
+                            <GroupBox.Header>
+                                <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RenamingTool_Miscellaneous}" Style="{StaticResource Title1}"/>
+                            </GroupBox.Header>
+                            <StackPanel>
+                        <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="2" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition />
+                                        <RowDefinition Height="2" />
+                                        <RowDefinition />
+                                        <RowDefinition Height="2" />
+                                        <RowDefinition />
+                                    </Grid.RowDefinitions>
+
+
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RenamingTool_InvalidWindowsCharReplacement}" Style="{StaticResource Title2}" Margin="0" HorizontalAlignment="Right"/>
+                                    <TextBox Grid.Row="0" Grid.Column="2"
+                                             Text="{Binding Path=EditedSettings.RenamingOptions.InvalidFileNameCharsReplacement}"
+                                             MinWidth="20" VerticalAlignment="Center" HorizontalAlignment="Left"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RenamingTool_ReplaceWhiteSpaceChars}" Style="{StaticResource Title2}" Margin="0" HorizontalAlignment="Right"/>
+                                    <CheckBox Grid.Row="2" Grid.Column="2" x:Name="ReplaceWhiteSpacesCheckBox"
+                                              IsChecked="{Binding Path=EditedSettings.RenamingOptions.ReplaceWhiteSpaceChars}"/>
+
+                                    <TextBlock Grid.Row="4" Grid.Column="0" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RenamingTool_ReplaceWhiteSpaceCharsWith}" Margin="0" HorizontalAlignment="Right">
+                                        <TextBlock.Style>
+                                            <Style BasedOn="{StaticResource Title2}" TargetType="TextBlock">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsChecked, ElementName=ReplaceWhiteSpacesCheckBox}" Value="False">
+                                                        <Setter Property="IsEnabled" Value="False"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                    <TextBox Grid.Row="4" Grid.Column="2" MinWidth="20" VerticalAlignment="Center" Text="{Binding Path=EditedSettings.RenamingOptions.WhiteSpaceCharsReplacement}" HorizontalAlignment="Left">
+                                        <TextBox.Style>
+                                            <Style TargetType="TextBox">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsChecked, ElementName=ReplaceWhiteSpacesCheckBox}" Value="False">
+                                                        <Setter Property="IsEnabled" Value="False"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBox.Style>
+                                    </TextBox>
+
+                                </Grid>
+                            </StackPanel>
+                        </GroupBox>
+                    </StackPanel>
+                </GroupBox></ScrollViewer>
+        <Grid Grid.Row="1" Margin="0,5">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Button Grid.Column="0" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_Button_Reset}" Command="{Binding Path=ResetSettingsCommand}" Style="{StaticResource OkCancelButton}" />
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Left" >
+                <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_Button_Apply}" Command="{Binding Path=ApplySettingsCommand}" Style="{StaticResource OkCancelButton}" />
+                <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_Button_Cancel}" Command="{Binding Path=CancelSettingsCommand}" Style="{StaticResource OkCancelButton}"/>
+            </StackPanel>
+        </Grid>
+        </Grid>
+    </TabItem>
     <TabItem Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.DataUpdate_Title}">
         <Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                     <GroupBox Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Update_Title}">
@@ -261,10 +361,18 @@
                         </StackPanel>
                     </GroupBox>
             <ContentControl x:Name="SettingsUpdatesContent" Grid.Row="1"/>
-            <WrapPanel Grid.Row="2" Margin="8">
-                <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_Button_Apply}" Command="{Binding ApplySettingsCommand}" Padding="12,5"/>
-                <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_Button_Cancel}" Command="{Binding CancelSettingsCommand}" Padding="12,5" Margin="8,0,0,0"/>
-            </WrapPanel>
+            <Grid Grid.Row="2" Margin="0,5">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Button Grid.Column="0" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_Button_Reset}" Command="{Binding Path=ResetSettingsCommand}" Style="{StaticResource OkCancelButton}" />
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Left" >
+                <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_Button_Apply}" Command="{Binding Path=ApplySettingsCommand}" Style="{StaticResource OkCancelButton}" />
+                <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_Button_Cancel}" Command="{Binding Path=CancelSettingsCommand}" Style="{StaticResource OkCancelButton}"/>
+            </StackPanel>
+        </Grid>
         </Grid>
     </TabItem>
     <TabItem Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Workspace_Plugins}">

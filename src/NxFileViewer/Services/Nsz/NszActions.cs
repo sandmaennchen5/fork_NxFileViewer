@@ -13,6 +13,8 @@ using Emignatik.NxFileViewer.Settings;
 using Emignatik.NxFileViewer.Utils.MVVM;
 using Emignatik.NxFileViewer.Utils.MVVM.Commands;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
+using Emignatik.NxFileViewer.Styling.Theme;
 
 namespace Emignatik.NxFileViewer.Services.Nsz;
 
@@ -79,8 +81,7 @@ public sealed class NszActions : NotifyPropertyChangedBase
         var destination = _prompts.PromptSelectDir(LocalizationManager.Instance.Current.Keys.Nsz_SelectDestination);
         if (destination == null) return Array.Empty<ConversionAttempt>();
         destination = Path.GetFullPath(destination);
-        var deleteSource = MessageBox.Show(LocalizationManager.Instance.Current.Keys.Nsz_DeleteSourcePrompt,
-            "NSZ", MessageBoxButton.YesNoCancel, MessageBoxImage.Question, MessageBoxResult.No);
+        var deleteSource = Emignatik.NxFileViewer.Views.Windows.ThemedDialog.Confirm("NSZ", LocalizationManager.Instance.Current.Keys.Nsz_DeleteSourcePrompt);
         if (deleteSource == MessageBoxResult.Cancel) return Array.Empty<ConversionAttempt>();
         if (deleteSource == MessageBoxResult.Yes && _opening.OpenedFile != null &&
             paths.Contains(_opening.OpenedFile.FilePath, StringComparer.OrdinalIgnoreCase)) _opening.SafeClose();
@@ -130,13 +131,13 @@ public sealed class NszActions : NotifyPropertyChangedBase
         var success = attempts.Count(a => a.Result != null);
         var deletionErrors = attempts.Where(a => a.Result?.SourceDeletionError != null).ToArray();
         if (deletionErrors.Length > 0)
-            MessageBox.Show(LocalizationManager.Instance.Current.Keys.Nsz_SourceDeleteFailed + Environment.NewLine +
+            Emignatik.NxFileViewer.Views.Windows.ThemedDialog.Notice(LocalizationManager.Instance.Current.Keys.Nsz_SourceDeleteFailed + Environment.NewLine +
                 string.Join(Environment.NewLine, deletionErrors.Select(a => a.SourcePath + ": " + a.Result!.SourceDeletionError)),
-                "NSZ", MessageBoxButton.OK, MessageBoxImage.Warning);
+                "NSZ", MessageBoxImage.Warning);
         if (attempts.Count > 0 || cancelled)
-            MessageBox.Show(string.Format(LocalizationManager.Instance.Current.Keys.Nsz_Summary,
+            Emignatik.NxFileViewer.Views.Windows.ThemedDialog.Notice(string.Format(LocalizationManager.Instance.Current.Keys.Nsz_Summary,
                 success, attempts.Count(a => a.Error != null), paths.Length - attempts.Count),
-                "NSZ", MessageBoxButton.OK, MessageBoxImage.Information);
+                "NSZ", MessageBoxImage.Information);
         return attempts;
     }
 
@@ -163,6 +164,7 @@ public sealed class NszActions : NotifyPropertyChangedBase
             button.Click += (_, _) => { result = option.Item2; dialog.Close(); };
             buttons.Children.Add(button);
         }
+        App.ServiceProvider.GetRequiredService<IThemeService>().RegisterWindow(dialog);
         dialog.ShowDialog();
         return result;
     }
@@ -174,7 +176,7 @@ public sealed class NszActions : NotifyPropertyChangedBase
         {
             await _background.RunAsync(new RunnableRelay((progress, token) =>
                 _manager.UpdateAsync(progress, token).GetAwaiter().GetResult()) { SupportsCancellation = true });
-            MessageBox.Show(Status, "NSZ", MessageBoxButton.OK, MessageBoxImage.Information);
+            Emignatik.NxFileViewer.Views.Windows.ThemedDialog.Notice(Status, "NSZ", MessageBoxImage.Information);
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) { ShowError(ex); }
@@ -189,7 +191,7 @@ public sealed class NszActions : NotifyPropertyChangedBase
             _manager.Rollback();
             // Keep the chosen previous version until updates are explicitly requested again.
             _settings.NszCheckUpdates = false;
-            MessageBox.Show(Status, "NSZ", MessageBoxButton.OK, MessageBoxImage.Information);
+            Emignatik.NxFileViewer.Views.Windows.ThemedDialog.Notice(Status, "NSZ", MessageBoxImage.Information);
         }
         catch (Exception ex) { ShowError(ex); }
         finally { Refresh(); }
@@ -198,6 +200,6 @@ public sealed class NszActions : NotifyPropertyChangedBase
     private void ShowError(Exception ex)
     {
         _logger.LogError(ex, "NSZ operation failed.");
-        MessageBox.Show(ex.Message, "NSZ", MessageBoxButton.OK, MessageBoxImage.Error);
+        Emignatik.NxFileViewer.Views.Windows.ThemedDialog.Notice(ex.Message, "NSZ", MessageBoxImage.Error);
     }
 }

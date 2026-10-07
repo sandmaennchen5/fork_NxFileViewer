@@ -15,9 +15,7 @@
             <Button Grid.Column="2" Margin="8,0,0,0" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Firmware_BrowseZip}" Command="{Binding BrowseFirmwareZipCommand}" Padding="14,3"/>
         </Grid>
         <WrapPanel Grid.Row="1" Margin="0,8">
-            <CheckBox Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_IncludeSubdirectories}" IsChecked="{Binding IncludeSubdirectories}"/>
-            <CheckBox Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_ShowOnlyErrors}" IsChecked="{Binding ShowOnlyErrors}" Margin="18,0,0,0"/>
-            <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchTable_Search}" VerticalAlignment="Center" Margin="18,0,5,0"/>
+            <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchTable_Search}" VerticalAlignment="Center" Margin="0,0,5,0"/>
             <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged, Delay=200}" Width="180" Margin="0,0,8,0"/>
             <ComboBox ItemsSource="{Binding FileTypeFilters}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding FileTypeFilter}" Width="95" Margin="0,0,8,0"
                       ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_FileType}"/>
@@ -26,10 +24,25 @@
             <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchTable_ResetFilters}" Command="{Binding ResetFiltersCommand}" Padding="10,3" Margin="0,0,8,0"/>
             <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchTable_Columns}" Click="OpenColumns" Padding="10,3" Margin="0,0,8,0"/>
             <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchTable_ResetSort}" Click="ResetSort" Padding="10,3"/>
+            <CheckBox Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Batch_IncludeArchives}" IsChecked="{Binding IncludeArchives}" Margin="18,0,18,0"/>
+            <CheckBox Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_IncludeSubdirectories}" IsChecked="{Binding IncludeSubdirectories}"/>
+            <CheckBox Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_ShowOnlyErrors}" IsChecked="{Binding ShowOnlyErrors}" Margin="18,0,0,0"/>
         </WrapPanel>
         <Grid Grid.Row="2">
             <Grid.ColumnDefinitions><ColumnDefinition Width="3*"/><ColumnDefinition Width="5"/><ColumnDefinition Width="2*"/></Grid.ColumnDefinitions>
             <DataGrid x:Name="ResultsGrid" ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto" MinColumnWidth="80" PreviewMouseWheel="ScrollTable" CanUserSortColumns="True" CanUserReorderColumns="True" EnableColumnVirtualization="True" ItemsSource="{Binding ResultsView}" SelectedItem="{Binding SelectedResult}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False">
+                <DataGrid.RowStyle>
+                    <Style TargetType="DataGridRow">
+                        <EventSetter Event="PreviewMouseRightButtonDown" Handler="OpenFileActions"/>
+                        <Setter Property="ToolTip" Value="{Binding Diagnostic}"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding HasMissingKeys}" Value="True">
+                                <Setter Property="Foreground" Value="{DynamicResource FontBrush.Error}"/>
+                                <Setter Property="FontWeight" Value="Bold"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </DataGrid.RowStyle>
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_File}" Binding="{Binding FileName}" Width="220"/>
                     <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_FileType}" Binding="{Binding FileType}" Width="110"/>
@@ -54,6 +67,9 @@
                     <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.AvailableLanguages}" Binding="{Binding Languages}" SortMemberPath="Languages" Width="150" Visibility="Collapsed"/>
                     <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.FileInfo_FileSize}" Binding="{Binding FileSize, StringFormat={}{0:N0}}" SortMemberPath="FileSize" Width="110" Visibility="Collapsed"/>
                     <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.FileInfo_CompressionRatio}" Binding="{Binding CompressionRatio, StringFormat={}{0:P1}}" SortMemberPath="CompressionRatio" Width="110" Visibility="Collapsed"/>
+                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchNaming_Title}" Binding="{Binding NamingStatus}" Width="110"/>
+                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RenamingTool_NewName}" Binding="{Binding ProposedPath}" Width="260" Visibility="Collapsed"/>
+                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchNaming_Error}" Binding="{Binding NamingError}" Width="220" Visibility="Collapsed"/>
                 </DataGrid.Columns>
             </DataGrid>
             <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch"/>
@@ -67,25 +83,21 @@
             </TabControl>
         </Grid>
         <WrapPanel Grid.Row="3" Margin="0,10,0,0">
-            <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_Export}" Command="{Binding ExportCommand}" Padding="12,4" DockPanel.Dock="Left"/>
-            <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_MoveValid}" Command="{Binding MoveValidCommand}" Padding="12,4" Margin="8,0,0,0" DockPanel.Dock="Left"/>
-            <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nsz_CompressValid}" Command="{Binding CompressValidCommand}" Padding="12,4" Margin="8,0,0,0"/>
-            <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nsz_DecompressValid}" Command="{Binding DecompressValidCommand}" Padding="12,4" Margin="8,0,0,0"/>
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.CancelAction}" Command="{Binding BackgroundTask.CancelCommand}" Padding="12,4" Margin="0,0,8,0"/>
-                <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_Start}" Command="{Binding StartCommand}" Padding="12,4"/>
-            </StackPanel>
+            <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchNaming_Check}" Command="{Binding CheckNamingCommand}" Padding="12,4" Margin="0,0,8,8"/>
+            <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchNaming_RenameAll}" Command="{Binding RenameAllCommand}" Padding="12,4" Margin="0,0,8,8"/>
+            <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Batch_Scan}" Command="{Binding StartCommand}" Padding="12,4" Margin="0,0,8,8"/>
+            <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Batch_ScanAndVerify}" Command="{Binding ScanAndVerifyCommand}" Padding="12,4" Margin="0,0,8,8"/>
+            <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Batch_VerifyAll}" Command="{Binding VerifyAllCommand}" Padding="12,4" Margin="0,0,8,8"/>
+            <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nsz_CompressValid}" Command="{Binding CompressValidCommand}" Padding="12,4" Margin="0,0,8,8"/>
+            <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nsz_DecompressValid}" Command="{Binding DecompressValidCommand}" Padding="12,4" Margin="0,0,8,8"/>
+            <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_MoveValid}" Command="{Binding MoveValidCommand}" Padding="12,4" Margin="0,0,8,8"/>
+            <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_Export}" Command="{Binding ExportCommand}" Padding="12,4" Margin="0,0,8,8"/>
+            <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.CancelAction}" Command="{Binding BackgroundTask.CancelCommand}" Padding="12,4" Margin="0,0,8,8"/>
         </WrapPanel>
-        <StatusBar Grid.Row="4" Margin="-10,10,-10,-10">
-            <StatusBarItem>
-                <TextBlock Text="{Binding BackgroundTask.ProgressText}" ToolTip="{Binding BackgroundTask.ProgressText}"/>
-            </StatusBarItem>
-            <StatusBarItem DockPanel.Dock="Right" HorizontalAlignment="Right">
-                <customControls:ProgressBarExt Width="100" Minimum="0" Maximum="100"
-                    Visibility="{Binding BackgroundTask.IsRunning, Converter={StaticResource FalseToCollapseVisibilityConverter}}"
-                    Value="{Binding BackgroundTask.ProgressValue, Mode=OneWay}" ValueText="{Binding BackgroundTask.ProgressValueText, Mode=OneWay}"
-                    IsIndeterminate="{Binding BackgroundTask.IsIndeterminate, Mode=OneWay}"/>
-            </StatusBarItem>
-        </StatusBar>
-    </Grid>
+        <DockPanel Grid.Row="4" Margin="0,10,0,0" Visibility="{Binding IsHistoryEnabled, Converter={StaticResource FalseToCollapseVisibilityConverter}}">
+            <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center" Margin="0,0,8,0" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchHistory_Title}"/>
+            <Button DockPanel.Dock="Right" Margin="8,0,0,0" Padding="12,4" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchHistory_Resume}" Command="{Binding ResumeHistoryCommand}"/>
+            <Button DockPanel.Dock="Right" Margin="8,0,0,0" Padding="12,4" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchHistory_Show}" Command="{Binding LoadHistoryCommand}"/>
+            <ComboBox ItemsSource="{Binding History}" SelectedItem="{Binding SelectedHistory}" DisplayMemberPath="Label" IsEnabled="{Binding BackgroundTask.IsRunning, Converter={StaticResource BoolInverterConverter}}"/>
+        </DockPanel>    </Grid>
 </UserControl>

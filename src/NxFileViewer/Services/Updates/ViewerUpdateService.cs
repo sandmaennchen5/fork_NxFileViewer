@@ -33,7 +33,7 @@ public sealed class ViewerUpdateService
         client.DefaultRequestHeaders.UserAgent.ParseAdd("NxFileViewer-Updater/1.0");
         return client;
     }
-    public async Task<ViewerRelease?> CheckAsync(Version current, string architecture, CancellationToken token, bool includePrereleases = false)
+    public async Task<ViewerRelease?> CheckAsync(Version current, string architecture, CancellationToken token, bool includePrereleases = false, string? currentTag = null)
     {
         if (includePrereleases)
         {
@@ -47,30 +47,32 @@ public sealed class ViewerUpdateService
                 foreach (var item in releases.RootElement.EnumerateArray())
                 {
                     // A release for another architecture must not hide compatible releases.
-                    var candidate = SelectRelease(item, current, architecture, true, skipMissingPackage: true);
+                    var candidate = SelectRelease(item, current, architecture, true, skipMissingPackage: true, currentTag: currentTag);
                     if (candidate != null) candidates.Add(candidate);
                 }
                 if (releases.RootElement.GetArrayLength() < 100) break;
             }
-            return candidates.OrderByDescending(r => r.Version).ThenBy(r => r.IsPrerelease).FirstOrDefault();
+            return candidates.OrderByDescending(r => ReleaseVersion(r)).ThenBy(r => r.IsPrerelease).FirstOrDefault();
         }
         using var response = await _client.GetAsync($"https://api.github.com/repos/{Repository}/releases/latest", token).ConfigureAwait(false);
         if (response.StatusCode == HttpStatusCode.NotFound) return null;
         response.EnsureSuccessStatusCode();
         using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(token).ConfigureAwait(false));
-        return SelectRelease(json.RootElement, current, architecture);
+        return SelectRelease(json.RootElement, current, architecture, currentTag: currentTag);
     }
-    public static ViewerRelease? SelectRelease(JsonElement release, Version current, string architecture, bool includePrereleases = false, bool skipMissingPackage = false)
+    public static ViewerRelease? SelectRelease(JsonElement release, Version current, string architecture, bool includePrereleases = false, bool skipMissingPackage = false, string? currentTag = null)
     {
         if (architecture is not ("x64" or "x86")) throw new NotSupportedException("Unsupported update architecture.");
         if (release.GetProperty("draft").GetBoolean()) return null;
         var tag = release.GetProperty("tag_name").GetString()!;
         if (tag.Contains('/') || tag.Contains('\\')) return null;
-        var prerelease = release.GetProperty("prerelease").GetBoolean() || tag.Contains('-');
+        var prerelease = release.GetProperty("prerelease").GetBoolean() || tag.Split('+')[0].Contains('-');
         if (prerelease && !includePrereleases) return null;
-        if (!Version.TryParse(tag.TrimStart('v', 'V').Split('-', '+')[0], out var version)) return null;
-        version = Normalize(version);
-        if (version <= Normalize(current)) return null;
+        if (!ViewerVersion.TryParse(tag, out var candidateVersion)) return null;
+        var version = candidateVersion.Numeric;
+        var installedVersion = ViewerVersion.TryParse(currentTag, out var parsedCurrent) && parsedCurrent.Numeric == Normalize(current)
+            ? parsedCurrent : ViewerVersion.FromNumeric(current);
+        if (candidateVersion.CompareTo(installedVersion) <= 0) return null;
         var name = $"NxFileViewer_v{version.Major}.{version.Minor}.{version.Build}_{architecture}.zip";
         var assets = release.GetProperty("assets").EnumerateArray().ToArray();
         var taggedName = $"NxFileViewer_v{tag.TrimStart('v', 'V')}_{architecture}.zip";
@@ -87,6 +89,8 @@ public sealed class ViewerUpdateService
         var digest = asset.TryGetProperty("digest", out var hash) ? hash.GetString() : null;
         return new(version, name, url, digest) { Tag = tag, IsPrerelease = prerelease };
     }
+    private static ViewerVersion ReleaseVersion(ViewerRelease release) =>
+        ViewerVersion.TryParse(release.Tag, out var parsed) ? parsed : ViewerVersion.FromNumeric(release.Version);
     private static Version Normalize(Version version) => new(version.Major, version.Minor, Math.Max(0, version.Build));
     private static void ValidateDownloadUrl(Uri url)
     {
@@ -140,6 +144,11 @@ public sealed class ViewerUpdateService
                     (pe.PEHeaders.CoffHeader.Characteristics & Characteristics.Dll) != 0 || pe.PEHeaders.CorHeader != null) throw new InvalidDataException("Update executable architecture mismatch.");
             }
             var info = System.Diagnostics.FileVersionInfo.GetVersionInfo(exe);
+            if (!string.IsNullOrEmpty(release.Tag) &&
+                (!ViewerVersion.TryParse(release.Tag, out var expectedVersion) ||
+                 !ViewerVersion.TryParse(info.ProductVersion, out var actualVersion) ||
+                 expectedVersion.CompareTo(actualVersion) != 0))
+                throw new InvalidDataException("Update executable preview version does not match release tag.");
             if (new Version(info.FileMajorPart, info.FileMinorPart, info.FileBuildPart) != Normalize(release.Version))
                 throw new InvalidDataException("Update executable version does not match release.");
             File.Delete(archive);
@@ -157,8 +166,10 @@ public sealed class ViewerUpdateService
     {
         using var zip = ZipFile.OpenRead(archive);
         var folder = Path.GetFileNameWithoutExtension(assetName);
-        var files = zip.Entries.Where(e => !e.FullName.EndsWith('/')).ToArray();
-        if (files.Length != 1 || (files[0].FullName != folder + "/NxFileViewer.exe" && files[0].FullName != "NxFileViewer.exe") ||
+        // Compress-Archive on Windows writes backslashes; ZIP tools also use forward slashes.
+        var files = zip.Entries.Where(e => !e.FullName.Replace('\\', '/').EndsWith('/')).ToArray();
+        var executablePath = files.Length == 1 ? files[0].FullName.Replace('\\', '/') : null;
+        if (files.Length != 1 || (executablePath != folder + "/NxFileViewer.exe" && executablePath != "NxFileViewer.exe") ||
             files[0].Length == 0 || files[0].Length > 256L * 1024 * 1024)
             throw new InvalidDataException("Expected a single-file NxFileViewer release ZIP.");
         token.ThrowIfCancellationRequested();

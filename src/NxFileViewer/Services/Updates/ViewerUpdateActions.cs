@@ -62,18 +62,18 @@ public sealed class ViewerUpdateActions : NotifyPropertyChangedBase
             var architecture = RuntimeInformation.ProcessArchitecture switch
             { Architecture.X64 => "x64", Architecture.X86 => "x86", _ => throw new NotSupportedException("No release package for this architecture.") };
             var includePrereleases = _settings.IncludeViewerPrereleases;
-            _release = await _service.CheckAsync(Assembly.GetExecutingAssembly().GetName().Version!, architecture, timeout.Token, includePrereleases);
+            _release = await _service.CheckAsync(Assembly.GetExecutingAssembly().GetName().Version!, architecture, timeout.Token, includePrereleases, Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion);
             if (includePrereleases != _settings.IncludeViewerPrereleases) { _release = null; Status = ""; return; }
             Status = _release == null ? LocalizationManager.Instance.Current.Keys.Update_Current :
                 string.Format(LocalizationManager.Instance.Current.Keys.Update_Available, ReleaseLabel(_release));
-            if (!automatic) MessageBox.Show(Application.Current.MainWindow, Status, "NxFileViewer Update", MessageBoxButton.OK, MessageBoxImage.Information);
+            if (!automatic) Emignatik.NxFileViewer.Views.Windows.ThemedDialog.Notice(Status, "NxFileViewer Update", MessageBoxImage.Information);
         }
         catch (Exception ex)
         {
             _release = null;
             Status = LocalizationManager.Instance.Current.Keys.Update_Failed;
             _logger.LogWarning(ex, "Viewer update check failed.");
-            if (!automatic) MessageBox.Show(Status + Environment.NewLine + ex.Message, "NxFileViewer Update", MessageBoxButton.OK, MessageBoxImage.Warning);
+            if (!automatic) Emignatik.NxFileViewer.Views.Windows.ThemedDialog.Notice(Status + Environment.NewLine + ex.Message, "NxFileViewer Update", MessageBoxImage.Warning);
         }
         finally { SetBusy(false); }
     }
@@ -83,9 +83,7 @@ public sealed class ViewerUpdateActions : NotifyPropertyChangedBase
     {
         if (!InstallCommand.CanExecute(null)) return;
         var release = _release!;
-        if (MessageBox.Show(Application.Current.MainWindow,
-            string.Format(LocalizationManager.Instance.Current.Keys.Update_Confirm, ReleaseLabel(release)),
-            "NxFileViewer Update", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) != MessageBoxResult.Yes) return;
+        if (Emignatik.NxFileViewer.Views.Windows.ThemedDialog.Confirm("NxFileViewer Update", string.Format(LocalizationManager.Instance.Current.Keys.Update_Confirm, ReleaseLabel(release)), false) != MessageBoxResult.Yes) return;
         SetBusy(true);
         var main = Application.Current.MainWindow;
         try
@@ -129,7 +127,7 @@ public sealed class ViewerUpdateActions : NotifyPropertyChangedBase
         {
             Status = LocalizationManager.Instance.Current.Keys.Update_Failed;
             _logger.LogError(ex, "Viewer installation failed.");
-            MessageBox.Show(Status + Environment.NewLine + ex.Message, "NxFileViewer Update", MessageBoxButton.OK, MessageBoxImage.Error);
+            Emignatik.NxFileViewer.Views.Windows.ThemedDialog.Notice(Status + Environment.NewLine + ex.Message, "NxFileViewer Update", MessageBoxImage.Error);
         }
         finally { main.IsEnabled = true; SetBusy(false); }
     }

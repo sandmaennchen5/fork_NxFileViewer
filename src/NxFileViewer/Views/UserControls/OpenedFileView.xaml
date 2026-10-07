@@ -11,7 +11,7 @@
              d:DesignHeight="500" d:DesignWidth="400" d:DataContext="{d:DesignInstance userControls:OpenedFileViewModel}">
     <TabControl SelectedIndex="{Binding InitialDetailsTabIndex, Mode=OneWay}" Background="{DynamicResource Surface.Static.Background}" BorderBrush="{DynamicResource Control.Static.Border}">
         <TabItem>
-            <TabItem.Style><Style TargetType="TabItem"><Style.Triggers><DataTrigger Binding="{Binding IsFirmwareOnly}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></TabItem.Style>
+            <TabItem.Style><Style TargetType="TabItem" BasedOn="{StaticResource {x:Type TabItem}}"><Style.Triggers><DataTrigger Binding="{Binding IsFirmwareOnly}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></TabItem.Style>
             <TabItem.Header>
                 <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.TabOverview}" ToolTip="{Binding Path=FilePath}">
                     <TextBlock.ContextMenu>
@@ -25,11 +25,11 @@
             <userControls:FileOverviewView DataContext="{Binding Path=FileOverview}"/>
         </TabItem>
         <TabItem Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.TabContent}">
-            <TabItem.Style><Style TargetType="TabItem"><Style.Triggers><DataTrigger Binding="{Binding IsFirmwareOnly}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></TabItem.Style>
+            <TabItem.Style><Style TargetType="TabItem" BasedOn="{StaticResource {x:Type TabItem}}"><Style.Triggers><DataTrigger Binding="{Binding IsFirmwareOnly}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></TabItem.Style>
             <userControls:ContentView DataContext="{Binding Path=Content}"/>
         </TabItem>
         <TabItem Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Firmware_Title}">
-            <TabItem.Style><Style TargetType="TabItem"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding HasFirmwareInfo}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></TabItem.Style>
+            <TabItem.Style><Style TargetType="TabItem" BasedOn="{StaticResource {x:Type TabItem}}"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding HasFirmwareInfo}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></TabItem.Style>
             <Grid Margin="12"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                 <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Firmware_Versions}" FontWeight="Bold"/>
                 <TextBox Grid.Row="1" Text="{Binding FirmwareVersion, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" Margin="0,8"/>

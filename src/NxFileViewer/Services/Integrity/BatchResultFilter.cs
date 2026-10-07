@@ -8,7 +8,7 @@ public static class BatchResultFilter
 {
     public static bool Matches(BatchIntegrityResult result, string search, string fileType, string integrity, bool onlyErrors)
     {
-        if (onlyErrors && result.Integrity == NcasIntegrity.Original && !result.ConversionFailed) return false;
+        if (onlyErrors && result.Integrity == NcasIntegrity.Original && !result.ConversionFailed && result.NamingError == null) return false;
         if (fileType.Length > 0 && !result.FileType.Equals(fileType, StringComparison.OrdinalIgnoreCase) &&
             !result.FileType.StartsWith(fileType + " (", StringComparison.OrdinalIgnoreCase) &&
             !result.FileType.EndsWith(" (" + fileType + ")", StringComparison.OrdinalIgnoreCase)) return false;
@@ -17,7 +17,8 @@ public static class BatchResultFilter
         var text = string.Join(" ", result.FilePath, result.Title, result.TitleId, result.Publisher,
             result.Version, result.DisplayVersion, result.SystemVersion, result.MasterKey, result.BuildId,
             result.Distribution, result.Languages, result.FileType, result.PackageType, result.Structure,
-            result.Compression, result.Integrity, result.Error, result.ConversionStatus, result.FirmwareDetails);
+            result.Compression, result.Integrity, result.Error, result.ConversionStatus, result.FirmwareDetails,
+            result.NamingStatus, result.NamingError, result.ProposedPath);
         return search.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)
             .All(word => text.Contains(word, StringComparison.OrdinalIgnoreCase));
     }

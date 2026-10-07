@@ -160,16 +160,20 @@ public sealed class ViewerUpdateTest : IDisposable
         }
         return archive;
     }
-    [Fact]
-    public void ExtractsOnlyExpectedExecutableToFixedPath()
+    [Theory]
+    [InlineData("NxFileViewer_v3.0.5_x64/NxFileViewer.exe")]
+    [InlineData("NxFileViewer_v3.0.5_x64\\NxFileViewer.exe")]
+    public void ExtractsOnlyExpectedExecutableToFixedPath(string entry)
     {
-        var exe = ViewerUpdateService.ExtractExecutable(Zip("NxFileViewer_v3.0.5_x64/NxFileViewer.exe"), _root,
+        var exe = ViewerUpdateService.ExtractExecutable(Zip(entry), _root,
             "NxFileViewer_v3.0.5_x64.zip", TestContext.Current.CancellationToken);
         Assert.Equal(Path.Combine(_root, "new.exe"), exe);
         Assert.Equal("new executable content", File.ReadAllText(exe));
     }
     [Theory]
     [InlineData("../prod.keys")]
+    [InlineData("..\\prod.keys")]
+    [InlineData("NxFileViewer_v3.0.5_x64\\..\\..\\NxFileViewer.exe")]
     [InlineData("NxFileViewer_v3.0.5_x64/../../NxFileViewer.exe")]
     [InlineData("other/NxFileViewer.exe")]
     public void RejectsUntrustedArchivePaths(string entry) =>

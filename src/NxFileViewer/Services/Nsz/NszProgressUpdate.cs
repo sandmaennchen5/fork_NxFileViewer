@@ -26,7 +26,15 @@ public sealed record NszProgressUpdate(double Fraction, string Details)
 
 public sealed class NszProgressScope(IProgressReporter parent, string prefix, double offset, double scale) : IProgressReporter
 {
-    public void SetMode(bool isIndeterminate) => parent.SetMode(isIndeterminate);
-    public void SetText(string text) => parent.SetText(prefix + " — " + text);
-    public void SetPercentage(double value) => parent.SetPercentage(offset + scale * Math.Clamp(value, 0, 1));
+    private string _text = "";
+    private double? _fraction;
+    public void SetMode(bool isIndeterminate) { if (isIndeterminate) _fraction = null; parent.SetMode(isIndeterminate); ReportText(); }
+    public void SetText(string text) { _text = text; ReportText(); }
+    public void SetPercentage(double value)
+    {
+        _fraction = Math.Clamp(value, 0, 1);
+        parent.SetPercentage(offset + scale * _fraction.Value);
+        ReportText();
+    }
+    private void ReportText() => parent.SetText(prefix + (_fraction.HasValue ? " [" + (_fraction.Value * 100).ToString("0.0", CultureInfo.CurrentCulture) + " %]" : " […]") + " — " + _text);
 }

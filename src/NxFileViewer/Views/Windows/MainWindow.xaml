@@ -31,107 +31,17 @@
             <RowDefinition Height="Auto" />
             <!-- Content -->
             <RowDefinition Height="*" />
-            <!-- Grid Splitter Row-->
-            <RowDefinition Height="Auto" />
-            <!-- Log Row -->
-            <RowDefinition Height="0" />
             <!-- Status Bar -->
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <Menu Grid.Row="0">
-            <MenuItem Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Workspace_Menu}">
-                <MenuItem Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Workspace_Home}" Click="NavigateHome"/>
-                <MenuItem Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Workspace_File}" Click="NavigateFile"/>
-                <MenuItem Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_Title}" Click="NavigateBatch"/>
-                <MenuItem Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RenamingTool_WindowTitle}" Click="NavigateRename"/>
-                <MenuItem Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_Title}" Click="NavigateSettings"/>
-                <MenuItem Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Workspace_Plugins}" Click="NavigatePlugins"/>
-                <MenuItem Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.DataUpdate_Title}" Click="NavigateUpdates"/>
-            </MenuItem>
-            <MenuItem Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.MenuItem_File}">
-                <MenuItem Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.MenuItem_Open}"
-                          Command="{Binding Path=OpenFileCommand}" InputGestureText="Ctrl+O">
-                    <MenuItem.Icon>
-                        <Image Source="/Styling/Icons/open_16x16.png" />
-                    </MenuItem.Icon>
-                </MenuItem>
-                <MenuItem Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.MenuItem_OpenLast}"
-                          Command="{Binding Path=OpenLastFileCommand}" InputGestureText="Ctrl+Shift+O">
-                    <MenuItem.Icon>
-                        <Image Source="/Styling/Icons/reload_last_16x16.png" />
-                    </MenuItem.Icon>
-                </MenuItem>
-                <MenuItem Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.MenuItem_Close}" Command="{Binding Path=CloseFileCommand}" InputGestureText="Ctrl+Shift+C">
-                    <MenuItem.Icon>
-                        <Image Source="/Styling/Icons/close_16x16.png" />
-                    </MenuItem.Icon>
-                </MenuItem>
-                <MenuItem Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.MenuItem_Exit}" Command="{Binding Path=ExitAppCommand}" InputGestureText="Alt+F4">
-                    <MenuItem.Icon>
-                        <Image Source="/Styling/Icons/exit_16x16.png" />
-                    </MenuItem.Icon>
-                </MenuItem>
-            </MenuItem>
-            <MenuItem Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.MenuItem_Tools}">
-                <MenuItem Header="NSZ">
-                    <MenuItem Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nsz_Compress}" Command="{Binding Nsz.CompressCommand}"/>
-                    <MenuItem Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nsz_Decompress}" Command="{Binding Nsz.DecompressCommand}"/>
-                    <Separator/>
-                    <MenuItem Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nsz_Update}" Command="{Binding Nsz.UpdateCommand}"/>
-                    <MenuItem Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nsz_Rollback}" Command="{Binding Nsz.RollbackCommand}"/>
-                    <MenuItem Header="{Binding Nsz.Status}" IsEnabled="False"/>
-                </MenuItem>
-                <MenuItem Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.MenuItem_CheckIntegrity}"
-                          Command="{Binding Path=VerifyNcasIntegrityCommand}" InputGestureText="F5">
-                    <MenuItem.Icon>
-                        <Image Source="/Styling/Icons/safe_16x16.png" />
-                    </MenuItem.Icon>
-                </MenuItem>
-                <MenuItem Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.MenuItem_CheckDirectoryIntegrity}" Command="{Binding Path=ShowBatchIntegrityWindowCommand}">
-                    <MenuItem.Icon><Image Source="/Styling/Icons/safe_16x16.png" /></MenuItem.Icon>
-                </MenuItem>
-                <MenuItem Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Firmware_Title}" Command="{Binding Path=ShowBatchIntegrityWindowCommand}"/>
-                <MenuItem Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.MenuItem_ReloadKeys}"
-                          Command="{Binding Path=LoadKeysCommand}" InputGestureText="F10">
-                    <MenuItem.Icon>
-                        <Image Source="/Styling/Icons/refresh_16x16.png" />
-                    </MenuItem.Icon>
-                </MenuItem>
-                <MenuItem Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.MenuItem_OpenTitleWebPage}"
-                          Command="{Binding Path=OpenTitleWebPageCommand}" InputGestureText="F9">
-                    <MenuItem.Icon>
-                        <Image Source="/Styling/Icons/navigate_16x16.png" />
-                    </MenuItem.Icon>
-                </MenuItem>
-                <MenuItem Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.MenuItem_ShowRenameToolWindow}"
-                          Command="{Binding Path=ShowRenameToolWindowCommand}" InputGestureText="F2">
-                    <MenuItem.Icon>
-                        <Image Source="/Styling/Icons/rename_16x16.png" />
-                    </MenuItem.Icon>
-                </MenuItem>
-            </MenuItem>
-            <MenuItem Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Update_Title}">
-                <MenuItem Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.DataUpdate_Title}" Click="NavigateUpdates"/>
-                <MenuItem Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Update_Check}" Command="{Binding ViewerUpdates.CheckCommand}"/>
-                <MenuItem Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Update_Install}" Command="{Binding ViewerUpdates.InstallCommand}"/>
-                <Separator/>
-                <MenuItem Header="{Binding ViewerUpdates.Status}" IsEnabled="False"/>
-            </MenuItem>
-            <MenuItem Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.MenuItem_Options}">
-                <MenuItem Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Workspace_Plugins}" Click="NavigatePlugins"/>
-                <MenuItem Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.DataUpdate_Title}" Click="NavigateUpdates"/>
-                <MenuItem Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.MenuItem_Settings}" Command="{Binding Path=ShowSettingsWindowCommand}" InputGestureText="Alt+S">
-                    <MenuItem.Icon>
-                        <Image Source="/Styling/Icons/settings_16x16.png" />
-                    </MenuItem.Icon>
-                </MenuItem>
-            </MenuItem>
-        </Menu>
+
 
         <TabControl x:Name="WorkspaceTabs" Grid.Row="1" SelectionChanged="WorkspaceSelectionChanged">
-            <TabItem x:Name="HomeTab" Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Workspace_Home}">
+            <TabItem x:Name="HomeTab">
+                <TabItem.Header><StackPanel Orientation="Horizontal"><Image Source="/Styling/Icons/FolderDirectoryEntryItem.png" Width="16" Height="16" Margin="0,0,7,0"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Workspace_Home}" VerticalAlignment="Center"/></StackPanel></TabItem.Header>
                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="600">
+                    <Image Source="/Styling/Icons/Icon.ico" Width="72" Height="72" Margin="0,0,0,16"/>
                     <TextBlock Text="NxFileViewer" FontSize="30" Margin="0,0,0,24" HorizontalAlignment="Center"/>
                     <Border BorderBrush="{DynamicResource FontBrush.Warning}" BorderThickness="1" Padding="12" Margin="0,0,0,12"
                             Visibility="{Binding HasProdKeysProblems, Converter={StaticResource FalseToCollapseVisibilityConverter}}">
@@ -148,26 +58,40 @@
                     </Border>
                     <TextBlock Text="{Binding ViewerUpdates.Status}" TextWrapping="Wrap" HorizontalAlignment="Center" Margin="0,0,0,12"/>
                     <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Update_Install}" Command="{Binding ViewerUpdates.InstallCommand}" Padding="12,5" Margin="0,0,0,12"/>
-                    <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Workspace_File}" Click="NavigateFile" Padding="24,12" Margin="0,5"/>
-                    <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_Title}" Click="NavigateBatch" Padding="24,12" Margin="0,5"/>
-                    <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RenamingTool_WindowTitle}" Click="NavigateRename" Padding="24,12" Margin="0,5"/>
-                    <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_Title}" Click="NavigateSettings" Padding="24,12" Margin="0,5"/>
-                    <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Workspace_Plugins}" Click="NavigatePlugins" Padding="24,12" Margin="0,5"/>
-                    <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.DataUpdate_Title}" Click="NavigateUpdates" Padding="24,12" Margin="0,5"/>
+                    <Button Click="NavigateFile" Padding="24,12" Margin="0,5"><StackPanel Orientation="Horizontal"><Image Source="/Styling/Icons/open_16x16.png" Width="20" Height="20" Margin="0,0,12,0"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Workspace_File}" VerticalAlignment="Center"/></StackPanel></Button>
+                    <Button Click="NavigateBatch" Padding="24,12" Margin="0,5"><StackPanel Orientation="Horizontal"><Image Source="/Styling/Icons/safe_16x16.png" Width="20" Height="20" Margin="0,0,12,0"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_Title}" VerticalAlignment="Center"/></StackPanel></Button>
+                    <Button Click="NavigateRename" Padding="24,12" Margin="0,5"><StackPanel Orientation="Horizontal"><Image Source="/Styling/Icons/rename_16x16.png" Width="20" Height="20" Margin="0,0,12,0"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RenamingTool_WindowTitle}" VerticalAlignment="Center"/></StackPanel></Button>
+                    <Button Click="NavigateSettings" Padding="24,12" Margin="0,5"><StackPanel Orientation="Horizontal"><Image Source="/Styling/Icons/settings_16x16.png" Width="20" Height="20" Margin="0,0,12,0"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_Title}" VerticalAlignment="Center"/></StackPanel></Button>
+                    <Button Click="NavigatePlugins" Padding="24,12" Margin="0,5"><StackPanel Orientation="Horizontal"><Image Source="/Styling/Icons/settings_16x16.png" Width="20" Height="20" Margin="0,0,12,0"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Workspace_Plugins}" VerticalAlignment="Center"/></StackPanel></Button>
+                    <Button Click="NavigateUpdates" Padding="24,12" Margin="0,5"><StackPanel Orientation="Horizontal"><Image Source="/Styling/Icons/refresh_16x16.png" Width="20" Height="20" Margin="0,0,12,0"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.DataUpdate_Title}" VerticalAlignment="Center"/></StackPanel></Button>
                 </StackPanel>
             </TabItem>
-            <TabItem x:Name="FileTab" Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Workspace_File}">
+            <TabItem x:Name="FileTab">
+                <TabItem.Header><StackPanel Orientation="Horizontal"><Image Source="/Styling/Icons/open_16x16.png" Width="16" Height="16" Margin="0,0,7,0"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Workspace_File}" VerticalAlignment="Center"/></StackPanel></TabItem.Header>
                 <Grid>
-                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-                    <ComboBox ItemsSource="{Binding ArchiveEntries}" SelectedItem="{Binding SelectedArchiveEntry}" Margin="8"
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                    <WrapPanel Margin="8,8,8,0">
+                        <Button Command="{Binding OpenFileCommand}" IsEnabled="{Binding BackgroundTaskRunner.IsRunning, Converter={StaticResource BoolInverterConverter}}" Padding="12,4" Margin="0,0,8,0" ToolTip="Ctrl+O"><StackPanel Orientation="Horizontal"><Image Source="/Styling/Icons/open_16x16.png" Width="16" Height="16" Margin="0,0,7,0"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.MenuItem_Open}" VerticalAlignment="Center"/></StackPanel></Button>
+                        <Button Command="{Binding OpenLastFileCommand}" IsEnabled="{Binding BackgroundTaskRunner.IsRunning, Converter={StaticResource BoolInverterConverter}}" Padding="12,4" Margin="0,0,8,0" ToolTip="Ctrl+Shift+O"><StackPanel Orientation="Horizontal"><Image Source="/Styling/Icons/reload_last_16x16.png" Width="16" Height="16" Margin="0,0,7,0"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.MenuItem_OpenLast}" VerticalAlignment="Center"/></StackPanel></Button>
+                        <Button Command="{Binding CloseFileCommand}" IsEnabled="{Binding BackgroundTaskRunner.IsRunning, Converter={StaticResource BoolInverterConverter}}" Padding="12,4" Margin="0,0,8,0" ToolTip="Ctrl+Shift+C"><StackPanel Orientation="Horizontal"><Image Source="/Styling/Icons/close_16x16.png" Width="16" Height="16" Margin="0,0,7,0"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.MenuItem_Close}" VerticalAlignment="Center"/></StackPanel></Button>
+                        <Button Command="{Binding VerifyNcasIntegrityCommand}" Padding="12,4" Margin="0,0,8,0" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.MenuItem_CheckIntegrity}"/>
+                        <Button Command="{Binding Nsz.CompressCommand}" Padding="12,4" Margin="0,0,8,0"><StackPanel Orientation="Horizontal"><Image Source="/Styling/Icons/NspItem.png" Width="16" Height="16" Margin="0,0,7,0"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nsz_Compress}" VerticalAlignment="Center"/></StackPanel></Button>
+                        <Button Command="{Binding Nsz.DecompressCommand}" Padding="12,4" Margin="0,0,8,0"><StackPanel Orientation="Horizontal"><Image Source="/Styling/Icons/NspItem.png" Width="16" Height="16" Margin="0,0,7,0"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nsz_Decompress}" VerticalAlignment="Center"/></StackPanel></Button>
+                        <Button Command="{Binding OpenTitleWebPageCommand}" Padding="12,4" Margin="0,0,8,0"><StackPanel Orientation="Horizontal"><Image Source="/Styling/Icons/navigate_16x16.png" Width="16" Height="16" Margin="0,0,7,0"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.MenuItem_OpenTitleWebPage}" VerticalAlignment="Center"/></StackPanel></Button>
+                    <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.CancelAction}"
+                            Command="{Binding BackgroundTaskRunner.CancelCommand}" Margin="0" Padding="12,4"
+                            Visibility="{Binding BackgroundTaskRunner.IsRunning, Converter={StaticResource FalseToCollapseVisibilityConverter}}"/>
+                    </WrapPanel>
+                    <ComboBox Grid.Row="1" ItemsSource="{Binding ArchiveEntries}" SelectedItem="{Binding SelectedArchiveEntry}" Margin="8"
+                              HorizontalAlignment="Left" MaxWidth="650"
                               Visibility="{Binding HasArchiveEntries, Converter={StaticResource FalseToCollapseVisibilityConverter}}"/>
-                    <Grid Grid.Row="1">
+                    <Grid Grid.Row="2">
         <StackPanel  HorizontalAlignment="Center" VerticalAlignment="Center">
             <TextBlock Style="{StaticResource WatermarkText}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.DragMeAFile}" />
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Visibility="{Binding Path=NoProdKeysLoaded, Converter={StaticResource FalseToCollapseVisibilityConverter}}">
-                <TextBlock Foreground="{StaticResource FontBrush.Warning}">⚠</TextBlock>
+                <TextBlock Foreground="{DynamicResource FontBrush.Warning}">⚠</TextBlock>
                 <TextBlock  Margin="5,0,0,0">
-                    <Hyperlink Foreground="{StaticResource FontBrush.Warning}" Command="{Binding ShowSettingsWindowCommand}">
+                    <Hyperlink Foreground="{DynamicResource FontBrush.Warning}" Command="{Binding ShowSettingsWindowCommand}">
                         <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.WarnNoProdKeysFileFound}" />
                     </Hyperlink>
                 </TextBlock>
@@ -181,17 +105,42 @@
 
                 </Grid>
             </TabItem>
-            <TabItem x:Name="BatchTab" Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_Title}"/>
-            <TabItem x:Name="RenameTab" Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RenamingTool_WindowTitle}"/>
-            <TabItem x:Name="SettingsTab" Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_Title}"/>
-            <TabItem Visibility="Collapsed" x:Name="PluginsTab" Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Workspace_Plugins}"/>
-            <TabItem Visibility="Collapsed" x:Name="UpdatesTab" Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.DataUpdate_Title}"/>
+            <TabItem x:Name="BatchTab">
+                <TabItem.Header><StackPanel Orientation="Horizontal"><Image Source="/Styling/Icons/safe_16x16.png" Width="16" Height="16" Margin="0,0,7,0"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_Title}" VerticalAlignment="Center"/></StackPanel></TabItem.Header></TabItem>
+            <TabItem x:Name="RenameTab">
+                <TabItem.Header><StackPanel Orientation="Horizontal"><Image Source="/Styling/Icons/rename_16x16.png" Width="16" Height="16" Margin="0,0,7,0"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RenamingTool_WindowTitle}" VerticalAlignment="Center"/></StackPanel></TabItem.Header></TabItem>
+            <TabItem x:Name="SettingsTab">
+                <TabItem.Header><StackPanel Orientation="Horizontal"><Image Source="/Styling/Icons/settings_16x16.png" Width="16" Height="16" Margin="0,0,7,0"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_Title}" VerticalAlignment="Center"/></StackPanel></TabItem.Header></TabItem>
+            <TabItem x:Name="LogTab">
+                <TabItem.Header><StackPanel Orientation="Horizontal"><Image Source="/Styling/Icons/FileDirectoryEntryItem.png" Width="16" Height="16" Margin="0,0,7,0"/><TextBlock Text="Log" VerticalAlignment="Center"/></StackPanel></TabItem.Header>
+                <userControls:LoggingView Margin="8" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" LogSource="{Binding LogSource, Mode=OneWay}" />
+            </TabItem>
+            <TabItem Visibility="Collapsed" x:Name="PluginsTab">
+                <TabItem.Header><StackPanel Orientation="Horizontal"><Image Source="/Styling/Icons/settings_16x16.png" Width="16" Height="16" Margin="0,0,7,0"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Workspace_Plugins}" VerticalAlignment="Center"/></StackPanel></TabItem.Header></TabItem>
+            <TabItem Visibility="Collapsed" x:Name="UpdatesTab">
+                <TabItem.Header><StackPanel Orientation="Horizontal"><Image Source="/Styling/Icons/refresh_16x16.png" Width="16" Height="16" Margin="0,0,7,0"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.DataUpdate_Title}" VerticalAlignment="Center"/></StackPanel></TabItem.Header></TabItem>
+            <TabItem x:Name="InfoTab">
+                <TabItem.Header><StackPanel Orientation="Horizontal"><TextBlock Text="ⓘ" Margin="0,0,7,0"/><TextBlock Text="Info"/></StackPanel></TabItem.Header>
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="24" MaxWidth="900" HorizontalAlignment="Left">
+                        <Image Source="/Styling/Icons/Icon.ico" Width="72" Height="72" HorizontalAlignment="Left" Margin="0,0,0,16"/>
+                        <TextBlock Text="{Binding ProgramVersion}" FontSize="28" Margin="0,0,0,16"/>
+                        <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Info_Description}" TextWrapping="Wrap" Margin="0,0,0,16"/>
+                        <TextBlock Text="GitHub: sandmaennchen5/fork_NxFileViewer" Margin="0,0,0,8"/>
+                        <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Info_Shortcuts}" Style="{StaticResource Title2}" Margin="0,16,0,12"/>
+                        <DockPanel Margin="0,0,0,10"><TextBlock Text="Ctrl+O" Width="160" FontWeight="Bold"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.MenuItem_Open}"/></DockPanel>
+                        <DockPanel Margin="0,0,0,10"><TextBlock Text="Ctrl+Shift+O" Width="160" FontWeight="Bold"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.MenuItem_OpenLast}"/></DockPanel>
+                        <DockPanel Margin="0,0,0,10"><TextBlock Text="Ctrl+Shift+C" Width="160" FontWeight="Bold"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.MenuItem_Close}"/></DockPanel>
+                        <DockPanel Margin="0,0,0,10"><TextBlock Text="F5" Width="160" FontWeight="Bold"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.MenuItem_CheckIntegrity}"/></DockPanel>
+                        <DockPanel Margin="0,0,0,10"><TextBlock Text="F9" Width="160" FontWeight="Bold"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.MenuItem_OpenTitleWebPage}"/></DockPanel>
+                        <DockPanel Margin="0,0,0,10"><TextBlock Text="F10" Width="160" FontWeight="Bold"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.MenuItem_ReloadKeys}"/></DockPanel>
+                        <DockPanel Margin="0,0,0,10"><TextBlock Text="F2" Width="160" FontWeight="Bold"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.MenuItem_ShowRenameToolWindow}"/></DockPanel>
+                        <DockPanel Margin="0,0,0,10"><TextBlock Text="Alt+S" Width="160" FontWeight="Bold"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_Title}"/></DockPanel>
+                    </StackPanel></ScrollViewer></TabItem>
         </TabControl>
 
-        <customControls:GridSplitterEx Grid.Row="2" ResizeDirection="Rows" TriggerAnimation="{Binding Path=ErrorAnimationEnabled, Mode=TwoWay}" />
-        <userControls:LoggingView Grid.Row="3" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" LogSource="{Binding LogSource, Mode=OneWay}" />
 
-        <StatusBar Grid.Row="4">
+        <StatusBar Grid.Row="2">
             <!-- Status Text -->
             <StatusBarItem VerticalAlignment="Center">
                 <TextBlock Text="{Binding Path=BackgroundTaskRunner.ProgressText, FallbackValue=Ready.}" ToolTip="{Binding Path=BackgroundTaskRunner.ProgressText, FallbackValue=Ready.}" />

@@ -12,6 +12,14 @@ public sealed record BatchIntegrityResult(
     NcasIntegrity Integrity,
     string? Error)
 {
+    public bool? NamingMatches { get; init; }
+    public string? ProposedPath { get; init; }
+    public string? NamingError { get; init; }
+    public string? Diagnostic => Error ?? NamingError;
+    public string NamingStatus => NamingError != null ? Localization.LocalizationManager.Instance.Current.Keys.RenamingTool_StatusError
+        : NamingMatches == true ? Localization.LocalizationManager.Instance.Current.Keys.BatchNaming_Matches
+        : NamingMatches == false ? Localization.LocalizationManager.Instance.Current.Keys.BatchNaming_Differs : "—";
+    public string? SourceFingerprint { get; init; }
     public string Title { get; init; } = "";
     public string TitleId { get; init; } = "";
     public string Publisher { get; init; } = "";
@@ -30,7 +38,8 @@ public sealed record BatchIntegrityResult(
     public string? ConvertedPath { get; init; }
     public long? SourceSize { get; init; }
     public long? OutputSize { get; init; }
+    public bool HasMissingKeys { get; init; }
     public bool IsFirmware { get; init; }
     public string? FirmwareDetails { get; init; }
-    public string FileName => Path.GetFileName(FilePath);
+    public string FileName => Path.GetFileName(FilePath.TrimEnd('/'));
 }

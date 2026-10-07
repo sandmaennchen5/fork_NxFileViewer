@@ -8,6 +8,18 @@ namespace Emignatik.NxFileViewer.Settings;
 
 public class AppSettings : NotifyPropertyChangedBase, IAppSettings
 {
+    private int _logFileRetentionCount = 5;
+    public int LogFileRetentionCount
+    {
+        get => _logFileRetentionCount;
+        set { _logFileRetentionCount = System.Math.Clamp(value, 1, 100); NotifyPropertyChanged(); }
+    }
+    private bool _enableBatchHistory = true;
+    public bool EnableBatchHistory
+    {
+        get => _enableBatchHistory;
+        set { _enableBatchHistory = value; NotifyPropertyChanged(); }
+    }
     private bool _includeViewerPrereleases;
     public bool IncludeViewerPrereleases
     {
@@ -52,6 +64,12 @@ public class AppSettings : NotifyPropertyChangedBase, IAppSettings
     }
     private string _appLanguage = IAutoLocalization<ILocalizationKeysBase>.CULTURE_NAME;
     private string _lastRenamePath = "";
+    private string _targetDirectory = "";
+    public string TargetDirectory
+    {
+        get => _targetDirectory;
+        set { _targetDirectory = value; NotifyPropertyChanged(); }
+    }
     private string _lastOpenedFile = "";
     private string _prodKeysFilePath = "";
     private string _titleKeysFilePath = "";
@@ -299,6 +317,12 @@ public class RenamingOptions : NotifyPropertyChangedBase, IRenamingOptions
     private bool _replaceWhiteSpaceChars = false;
     private string _whiteSpaceCharsReplacement = "_";
     private string _lastRenamePath = "";
+    private string _targetDirectory = "";
+    public string TargetDirectory
+    {
+        get => _targetDirectory;
+        set { _targetDirectory = value; NotifyPropertyChanged(); }
+    }
     private bool _autoCloseOpenedFile = true;
 
     public bool AutoCloseOpenedFile

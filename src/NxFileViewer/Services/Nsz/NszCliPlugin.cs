@@ -4,6 +4,9 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Text.RegularExpressions;
+using System.Text;
+using Microsoft.Extensions.Logging;
 using Emignatik.NxFileViewer.Localization;
 using Emignatik.NxFileViewer.Services.BackgroundTask;
 using Emignatik.NxFileViewer.Services.KeysManagement;
@@ -11,7 +14,7 @@ using Emignatik.NxFileViewer.Settings;
 
 namespace Emignatik.NxFileViewer.Services.Nsz;
 
-public sealed class NszCliPlugin(NszPluginManager manager, IKeySetProviderService keys, IAppSettings settings) : INszPlugin
+public sealed class NszCliPlugin(NszPluginManager manager, IKeySetProviderService keys, IAppSettings settings, ILogger<NszCliPlugin>? logger = null) : INszPlugin
 {
     public void Convert(string source, string outputDirectory, NszOperation operation,
         IProgressReporter progress, CancellationToken cancellationToken)
@@ -24,21 +27,48 @@ public sealed class NszCliPlugin(NszPluginManager manager, IKeySetProviderServic
         progress.SetMode(true);
         progress.SetText((operation == NszOperation.Compress ? LocalizationManager.Instance.Current.Keys.Nsz_Compress :
             LocalizationManager.Instance.Current.Keys.Nsz_Decompress) + " " + Path.GetFileName(source));
-        var arguments = BuildArguments(source, outputDirectory, keyPath, operation, settings.NszCompressionLevel,
-            settings.NszCompressionMode, settings.NszBlockSizeExponent);
+        using var alias = new NszInputAlias(source, outputDirectory, keyPath, cancellationToken, logger);
+        var arguments = BuildArguments(alias.SourceArgument, ".", alias.KeysArgument, operation, settings.NszCompressionLevel,
+            settings.NszCompressionMode, settings.NszBlockSizeExponent, useRelativePaths: true);
         var action = (operation == NszOperation.Compress ? LocalizationManager.Instance.Current.Keys.Nsz_Compress :
             LocalizationManager.Instance.Current.Keys.Nsz_Decompress) + " " + Path.GetFileName(source);
-        NszProcess.Run(executable, arguments, outputDirectory, cancellationToken, update =>
+        logger?.LogInformation("NSZ {Operation}: source={Source}; output={Output}; keys file={Keys}; executable={Executable}; arguments={Arguments}",
+            operation, source, outputDirectory, keyPath, executable, string.Join(" ", arguments));
+        var timer = Stopwatch.StartNew();
+        var diagnostics = new Queue<string>();
+        var diagnosticGate = new object();
+        try
         {
-            progress.SetMode(false);
-            progress.SetPercentage(update.Fraction);
-            progress.SetText(action + " — " + update.Details);
-        });
+            NszProcess.Run(executable, arguments, outputDirectory, cancellationToken, update =>
+            {
+                progress.SetMode(false);
+                progress.SetPercentage(update.Fraction);
+                progress.SetText(action + " â€” " + update.Details);
+            }, line =>
+            {
+                lock (diagnosticGate)
+                {
+                    diagnostics.Enqueue(line);
+                    while (diagnostics.Count > 30) diagnostics.Dequeue();
+                }
+                logger?.LogInformation("NSZ: {Output}", line);
+            });
+            cancellationToken.ThrowIfCancellationRequested();
+            alias.RestoreOutputName(operation);
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException)
+        {
+            lock (diagnosticGate)
+                logger?.LogError("NSZ process failed after {Seconds:F1} seconds. Last diagnostic messages:\n{Diagnostics}",
+                    timer.Elapsed.TotalSeconds, string.Join(Environment.NewLine, diagnostics));
+            throw;
+        }
+        logger?.LogInformation("NSZ process completed successfully after {Seconds:F1} seconds.", timer.Elapsed.TotalSeconds);
         progress.SetMode(false);
     }
 
     public static IReadOnlyList<string> BuildArguments(string source, string output, string keys,
-        NszOperation operation, int level, NszCompressionMode mode = NszCompressionMode.Auto, int blockSizeExponent = 20)
+        NszOperation operation, int level, NszCompressionMode mode = NszCompressionMode.Auto, int blockSizeExponent = 20, bool useRelativePaths = false)
     {
         var args = new List<string> { operation == NszOperation.Compress ? "-C" : "-D", "--keys", keys, "-o", output };
         if (operation == NszOperation.Compress)
@@ -49,7 +79,7 @@ public sealed class NszCliPlugin(NszPluginManager manager, IKeySetProviderServic
             // Preserve extra partitions/files; NSZ additionally verifies its own round trip.
             args.AddRange(new[] { "-K", "-V", "-l", Math.Clamp(level, 1, 22).ToString(System.Globalization.CultureInfo.InvariantCulture) });
         }
-        args.Add(Path.GetFullPath(source));
+        args.Add(useRelativePaths ? source : Path.GetFullPath(source));
         return args;
     }
 }
@@ -57,16 +87,19 @@ public sealed class NszCliPlugin(NszPluginManager manager, IKeySetProviderServic
 public static class NszProcess
 {
     public static string Run(string executable, IEnumerable<string> arguments, string workingDirectory,
-        CancellationToken cancellationToken, Action<NszProgressUpdate>? onProgress = null)
+        CancellationToken cancellationToken, Action<NszProgressUpdate>? onProgress = null, Action<string>? onDiagnostic = null)
     {
         cancellationToken.ThrowIfCancellationRequested();
         using var temporary = new NszTemporaryDirectory();
         var start = new ProcessStartInfo(executable)
         {
             UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true,
-            RedirectStandardError = true, RedirectStandardInput = true, WorkingDirectory = workingDirectory
+            RedirectStandardError = true, RedirectStandardInput = true, WorkingDirectory = workingDirectory,
+            StandardOutputEncoding = Encoding.UTF8, StandardErrorEncoding = Encoding.UTF8
         };
         start.Environment["PYTHONUNBUFFERED"] = "1";
+        start.Environment["PYTHONUTF8"] = "1";
+        start.Environment["PYTHONIOENCODING"] = "utf-8";
         start.Environment["TEMP"] = temporary.Path;
         start.Environment["TMP"] = temporary.Path;
         start.Environment["TMPDIR"] = temporary.Path;
@@ -77,7 +110,7 @@ public static class NszProcess
         cancellationToken.ThrowIfCancellationRequested();
         process.Start();
         process.StandardInput.Close(); // Avoid an interactive prompt in older releases.
-        // Always drain both streams; retain a bounded help response, never log keys or raw output.
+        // Drain both streams; retain a bounded help response and sanitize diagnostic output.
         var progressGate = new object();
         var timer = Stopwatch.StartNew();
         long lastUpdate = -1000;
@@ -91,8 +124,8 @@ public static class NszProcess
                 onProgress(update);
             }
         }
-        var stdout = Drain(process.StandardOutput, Report);
-        var stderr = Drain(process.StandardError, Report);
+        var stdout = Drain(process.StandardOutput, Report, onDiagnostic, "stdout");
+        var stderr = Drain(process.StandardError, Report, onDiagnostic, "stderr");
         using var registration = cancellationToken.Register(() =>
         {
             try { if (!process.HasExited) process.Kill(entireProcessTree: true); }
@@ -103,6 +136,7 @@ public static class NszProcess
         {
             process.WaitForExitAsync(CancellationToken.None).GetAwaiter().GetResult();
             Task.WhenAll(stdout, stderr).GetAwaiter().GetResult();
+            onDiagnostic?.Invoke("Exit code: " + process.ExitCode);
             cancellationToken.ThrowIfCancellationRequested();
             if (process.ExitCode != 0)
             {
@@ -137,14 +171,19 @@ public static class NszProcess
         }
     }
 
-    private static async Task<string> Drain(StreamReader reader, Action<NszProgressUpdate> report)
+    public static string SanitizeDiagnostic(string line) =>
+        Regex.Replace(line, @"\b[0-9a-fA-F]{32,}\b", "[redacted]");
+
+    private static async Task<string> Drain(StreamReader reader, Action<NszProgressUpdate> report, Action<string>? diagnostic, string stream)
     {
         var retained = new System.Text.StringBuilder();
         var line = new System.Text.StringBuilder();
         var buffer = new char[4096];
         void Emit()
         {
-            if (NszProgressUpdate.TryParse(line.ToString(), out var update)) report(update!);
+            var text = line.ToString();
+            if (NszProgressUpdate.TryParse(text, out var update)) report(update!);
+            else if (!string.IsNullOrWhiteSpace(text)) diagnostic?.Invoke(stream + ": " + SanitizeDiagnostic(text));
             line.Clear();
         }
         int count;

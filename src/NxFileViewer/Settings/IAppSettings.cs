@@ -17,6 +17,8 @@ public interface IAppSettings : INotifyPropertyChanged
     NszCompressionMode NszCompressionMode { get; set; }
     int NszBlockSizeExponent { get; set; }
 
+    bool EnableBatchHistory { get; set; }
+    int LogFileRetentionCount { get; set; }
     string AppLanguage { get; set; }
 
     AppTheme Theme { get; set; }
@@ -64,6 +66,7 @@ public interface IRenamingOptions : INotifyPropertyChanged
     bool AutoCloseOpenedFile { get; set; }
 
     string LastRenamePath { get; set; }
+    string TargetDirectory { get; set; }
 
     string? FileFilters { get; set; }
 

@@ -1,26 +1,43 @@
-# NxFileViewer application updates
+# Application updates and release packages
 
-The viewer checks the latest regular GitHub Release in `sandmaennchen5/fork_NxFileViewer` at startup. Disable **Settings → Updates → Check for application updates on startup** to opt out. Checks are read-only and do not install automatically. The start page and Application updates menu show the result; manual checks are available there and in Settings. Network failures leave the application usable and are logged. Drafts and older/equal numeric versions are ignored. By default only stable releases are checked. Enable **Settings → Updates → Include pre-releases in application updates** and apply settings to include published pre-releases. The option is saved in the configuration and applies to manual and automatic checks; the offered version is labeled as a pre-release. Changing the option discards an existing offer and requires a new check.
+Open **Settings → Updates** to check for an application update or download and install an offered release. Start also links to this page. Automatic startup checks are optional and never install without confirmation. Network failures are logged and leave the viewer usable.
 
-**Download and install** is available for a newer release when no integrity/conversion task is running. Confirm the download/restart. The archive is staged under `Updates/<unique-id>` next to the executable. SHA-256 is verified against GitHub's asset digest before extraction. Missing digests are rejected; re-upload the ZIP asset to GitHub if necessary. The extracted EXE's version and PE architecture must match the release. ZIPs must contain only `NxFileViewer.exe`, either at their root or within their versioned application folder. Unexpected entries and paths are rejected.
+By default only stable releases are offered. Enable **Include pre-releases in application updates** and apply settings to include published previews. Drafts and older/equal semantic versions are ignored; changing the channel invalidates the current offer.
 
-The viewer starts a hidden Windows PowerShell helper and waits for its initialization before closing normally, which saves settings. The helper waits for the viewer process to exit, checks the staged EXE's hash, atomically replaces only `NxFileViewer.exe`, and restarts the viewer. Its previous EXE is retained as `Updates/<unique-id>/previous.exe`. Keys, title.keys, settings, Plugins, Cache, Temp and optional firmware references are not copied, replaced or removed. There is no AppData fallback or privilege elevation; the application directory must be writable.
+## Download, verification and replacement
 
-Replacement errors keep the existing EXE. If launching the updated EXE fails or it exits within two seconds, the helper attempts to restore and restart the previous EXE. This is an early-start check, not a guarantee against later application failures. Installer failures are shown and recorded in `Updates/<unique-id>/error.txt`. Staged files and the previous EXE remain available for diagnosis/recovery.
+Installation requires an idle viewer and a writable program directory. The matching x64/x86 release ZIP is staged under `Updates/<unique-id>` beside the executable. GitHub's SHA-256 asset digest, the full EXE product version (including preview suffix) and PE architecture are checked before installation. Missing digests are rejected.
 
-## Publishing compatible releases
+The ZIP must contain `NxFileViewer.exe`, at its root or under a matching versioned application folder. Debug symbols are embedded in the executable; additional PDB files are not accepted. Unexpected files, unsafe paths and incompatible architectures are rejected; general multi-file application distributions and native ARM64 application releases are unsupported.
 
-Create a GitHub Release with a numeric tag such as `3.0.5` or `v3.0.5`, matching the project version. Upload the app ZIPs produced by `Publish.ps1`:
+A hidden Windows PowerShell helper initializes before the viewer closes, allowing settings to save. It waits for process exit, rechecks the staged EXE hash, backs up and replaces the application, then restarts it. Keys, settings, Plugins, Cache, Temp, History, Logs and firmware references are retained. No AppData fallback or privilege elevation is used.
 
-- `NxFileViewer_v3.0.5_x64.zip`
-- `NxFileViewer_v3.0.5_x86.zip`
+Replacement errors preserve the existing EXE. If the new process fails to launch or exits within two seconds, the helper attempts to restore the previous EXE. This checks early startup only. Staging data, the backup and `error.txt` remain under Updates for recovery or diagnosis.
 
-The firmware-hashes ZIP remains a separate optional download. GitHub Actions artifacts alone are not application updates; attach the ZIPs to the Release. The updater chooses the architecture of the running process. Native ARM64 releases and multi-file application packages are not currently supported. Installation requires the portable executable named `NxFileViewer.exe`.
+## Publishing 4.0.0-beta.2
 
-Tests use mocked release/download responses, malicious/corrupt archives, and isolated dummy EXE files for the actual PowerShell replacement/backup operation. They never replace the user's installed viewer. A complete upgrade and restart from a live newer GitHub Release has not been performed during development.
+The project uses the valid package version `4.0.0-beta.2`. Run `Publish.ps1`, create a GitHub Release with tag `v4.0.0-beta.2`, and mark it as a pre-release. Attach:
 
-## Pre-release packages
+- `NxFileViewer_v4.0.0-beta.2_x64.zip`
+- `NxFileViewer_v4.0.0-beta.2_x86.zip`
+- `NxFileViewer_v4.0.0-beta.2_firmware-hashes.zip` (optional reference add-on)
 
-With pre-releases enabled, the updater reads the paginated GitHub release list, filters drafts and incompatible packages, and selects the highest newer numeric version. A stable release takes precedence over a pre-release with the same numeric version; otherwise the API listing order resolves ties. Tags such as `v3.0.5-beta.1` or `v3.0.5-rc.1` are supported. Packages can use the usual `NxFileViewer_v3.0.5_x64.zip` name or the tagged `NxFileViewer_v3.0.5-beta.1_x64.zip` name, with the matching folder name inside the ZIP (or the EXE directly at the ZIP root).
+Application ZIPs include the portable executable with embedded debug symbols; firmware references stay in their separate ZIP. GitHub Actions artifacts alone are not releases available to the updater. Architecture selection follows the running viewer process.
 
-The EXE version must match the numeric part of the release tag. Each update, including successive preview builds, must increase the numeric application version: suffix-only changes at the installed numeric version are not offered. Existing SHA-256, architecture, archive-content and installer checks also apply to pre-releases.
+## Preview version ordering
+
+The updater uses the installed assembly's informational version, including its beta/RC suffix, and compares it with the release tag using semantic precedence. Examples:
+
+- 4.0.0-beta.2 is newer than 4.0.0-beta.1.
+- 4.0.0-beta.10 is newer than 4.0.0-beta.2.
+- 4.0.0-rc.1 follows 4.0.0-beta.10; stable 4.0.0 follows all 4.0.0 previews.
+- Build metadata after + does not affect ordering.
+- Equal or older versions are never offered.
+
+Preview updates require Include pre-releases to be enabled. Stable-only mode can still offer the final release at the same numeric version to an installed beta. The downloaded EXE must match the full offered version, not just its numeric part.
+
+Older Beta 1 builds still contain the numeric-only comparison and cannot discover Beta 2 automatically. Install Beta 2 manually once; subsequent beta suffix updates can be offered by the updated viewer.
+
+## Validation
+
+Tests use mocked releases/downloads, corrupt and unsafe archives, and isolated dummy EXEs for replacement and backup checks. They never replace an installed user application. A complete live GitHub upgrade/restart has not been validated during development.

@@ -8,8 +8,34 @@ namespace Emignatik.NxFileViewer.Test.Services.Nsz;
 
 public sealed class NszProcessTest
 {
+    [Fact]
+    public void UnicodeDiagnosticsAndPythonUtf8SettingsArePreserved()
+    {
+        var messages = new System.Collections.Concurrent.ConcurrentBag<string>();
+        var output = NszProcess.Run(PowerShell,
+            new[] { "-NoProfile", "-NonInteractive", "-Command",
+                "[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false); [Console]::Out.WriteLine('Asterix & Obelix' + [char]0xA789); [Console]::Error.WriteLine('Unicode: ' + [char]0xA789); [Console]::Out.Write($env:PYTHONUTF8 + ':' + $env:PYTHONIOENCODING)" },
+            Path.GetTempPath(), TestContext.Current.CancellationToken, onDiagnostic: messages.Add);
+        Assert.Contains("Asterix & Obelix꞉", output);
+        Assert.Contains("1:utf-8", output);
+        Assert.Contains(messages, message => message.Contains("Unicode: ꞉"));
+    }
+
     private static string PowerShell => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),
         "WindowsPowerShell", "v1.0", "powershell.exe");
+
+    [Fact]
+    public void FailureDiagnosticsShowCauseAndExitCodeWithoutKeyValues()
+    {
+        var messages = new System.Collections.Concurrent.ConcurrentBag<string>();
+        Assert.Throws<IOException>(() => NszProcess.Run(PowerShell,
+            new[] { "-NoProfile", "-NonInteractive", "-Command", "[Console]::Error.WriteLine('FileNotFoundError: missing.nsz'); [Console]::Error.WriteLine('master_key_00 = 0123456789abcdef0123456789abcdef'); exit 7" },
+            Path.GetTempPath(), TestContext.Current.CancellationToken, onDiagnostic: messages.Add));
+        Assert.Contains(messages, s => s.Contains("FileNotFoundError: missing.nsz"));
+        Assert.Contains(messages, s => s.Contains("Exit code: 7"));
+        Assert.Contains(messages, s => s.Contains("[redacted]"));
+        Assert.DoesNotContain(messages, s => s.Contains("0123456789abcdef0123456789abcdef"));
+    }
 
     [Fact]
     public void LargeStdoutAndStderrAreDrainedWithoutDeadlockAndRetentionIsBounded()

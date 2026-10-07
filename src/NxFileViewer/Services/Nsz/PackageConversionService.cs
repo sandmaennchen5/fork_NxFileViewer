@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Threading;
+using Microsoft.Extensions.Logging;
 using Emignatik.NxFileViewer.Localization;
 using Emignatik.NxFileViewer.Models.Overview;
 using Emignatik.NxFileViewer.Services.BackgroundTask;
@@ -18,7 +19,7 @@ public sealed record PackageConversionResult(string SourcePath, string OutputPat
 
 public enum OutputConflictResolution { Cancel, Replace, Number }
 
-public sealed class PackageConversionService(INszPlugin plugin, IConversionVerifier verifier)
+public sealed class PackageConversionService(INszPlugin plugin, IConversionVerifier verifier, ILogger<PackageConversionService>? logger = null)
 {
     public static string OutputExtension(string source, NszOperation operation) =>
         (Path.GetExtension(source).ToLowerInvariant(), operation) switch
@@ -73,6 +74,7 @@ public sealed class PackageConversionService(INszPlugin plugin, IConversionVerif
         var sourceProgress = new NszProgressScope(progress, "1/3 " + LocalizationManager.Instance.Current.Keys.Nsz_PhaseSource + " " + Path.GetFileName(source), 0, 1.0 / 3);
         sourceProgress.SetMode(false);
         sourceProgress.SetPercentage(0);
+        logger?.LogInformation("NSZ 1/3: verifying source {Source}; destination={Output}", source, output);
         var before = verifier.Verify(source, sourceProgress, cancellationToken);
         if (before.Integrity != NcasIntegrity.Original)
             throw new InvalidDataException(LocalizationManager.Instance.Current.Keys.Nsz_SourceInvalid + " " + before.Integrity);
@@ -82,14 +84,16 @@ public sealed class PackageConversionService(INszPlugin plugin, IConversionVerif
         Directory.CreateDirectory(staging);
         try
         {
+            logger?.LogInformation("NSZ 2/3: {Operation}; source={Source}; staging={Staging}", operation, source, staging);
             plugin.Convert(source, staging, operation, new NszProgressScope(progress, "2/3", 1.0 / 3, 1.0 / 3), cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
             var stagedOutput = Path.Combine(staging, Path.GetFileName(originalOutput));
             if (!File.Exists(stagedOutput) || new FileInfo(stagedOutput).Length == 0)
-                throw new InvalidDataException(LocalizationManager.Instance.Current.Keys.Nsz_OutputMissing);
+                throw new InvalidDataException(LocalizationManager.Instance.Current.Keys.Nsz_OutputMissing + " Expected: " + stagedOutput + "; produced files: " + string.Join(", ", Directory.GetFiles(staging)));
             var outputProgress = new NszProgressScope(progress, "3/3 " + LocalizationManager.Instance.Current.Keys.Nsz_PhaseOutput, 2.0 / 3, 1.0 / 3);
             outputProgress.SetMode(false);
             outputProgress.SetPercentage(0);
+            logger?.LogInformation("NSZ 3/3: verifying output {Output}", stagedOutput);
             var after = verifier.Verify(stagedOutput, outputProgress, cancellationToken);
             if (after.Integrity != NcasIntegrity.Original)
                 throw new InvalidDataException(LocalizationManager.Instance.Current.Keys.Nsz_OutputInvalid + " " + after.Integrity);

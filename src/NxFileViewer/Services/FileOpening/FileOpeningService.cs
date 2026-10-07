@@ -35,6 +35,8 @@ public class FileOpeningService : IFileOpeningService
     public async Task SafeOpenFile(string filePath)
     {
         if (_backgroundTaskRunnerService.IsRunning) return;
+        Application.Current?.Dispatcher.Invoke(() =>
+            (Application.Current.MainWindow as Emignatik.NxFileViewer.Views.Windows.MainWindow)?.Navigate(Emignatik.NxFileViewer.Views.Windows.WorkspaceSection.File));
         var generation = ++_openGeneration;
         try
         {
@@ -52,11 +54,13 @@ public class FileOpeningService : IFileOpeningService
             {
                 var loadingFilePleaseWait = LocalizationManager.Instance.Current.Keys.LoadingFile_PleaseWait;
                 reporter.SetText(loadingFilePleaseWait);
-                return _fileLoader.Load(filePath, token);
+                var file = _fileLoader.Load(filePath, token);
+                try { token.ThrowIfCancellationRequested(); return file; }
+                catch { file.Dispose(); throw; }
             })
             {
                 SupportProgress = false,
-                SupportsCancellation = PackageZip.IsMember(filePath) || PackageZip.IsArchive(filePath) || System.IO.Path.GetExtension(filePath).Equals(".nca", StringComparison.OrdinalIgnoreCase)
+                SupportsCancellation = true
             };
 
             var loaded = await _backgroundTaskRunnerService.RunAsync(runnableRelay);

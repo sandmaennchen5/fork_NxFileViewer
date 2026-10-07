@@ -5,6 +5,46 @@ All notable changes to NxFileViewer will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.0-beta.2] - 2026-10-07
+
+### Added
+
+- Save the last five batch sessions and resume interrupted scans/checks using source fingerprints; history can be disabled in Settings → Program.
+- Support nested ZIP/7z archives up to eight levels and mixed archives containing game packages, firmware archives and firmware folders.
+- Add a renaming result table, an optional target directory and relative pattern subfolders, without overwriting occupied targets.
+- Add batch naming checks and naming-status/proposed-path/error columns. Individual checks show a status dialog; individual renaming requires Yes/Cancel confirmation.
+- Write immediately flushed UTF-8 session logs with redacted key values and configurable retention of 1–100 launches (default 5).
+
+### Changed
+
+- Consolidate navigation into workspace tabs and file-toolbar actions, with matching icons, Start/Info logos and an automatically scrolling Log page.
+- Restrict navigation to the active task page and Log during background work; allow cancelling single-file loads.
+- Rename Batch integrity check to Batch check and organize Plugins around nicoboss/nsz; installation/update/rollback actions are in Settings → Updates.
+- Add combined batch scanning/verification and per-row package actions; reorder filter controls and space wrapped button rows consistently.
+- Show full table text in tooltips and place naming columns at the end. Move naming options to Settings → Naming settings and keep both sections open.
+- Offer named website/metadata sources with editable custom URL templates.
+- Copy current keys to the user's .switch directory with replacement confirmation, retaining source files.
+- Standardize README and documentation in English and update instructions for the current interface and Beta 2 packages.
+
+### Fixed
+
+- Compare complete semantic release versions, including beta/RC identifiers and numeric preview ordering; validate the downloaded executable against the full release version.
+
+- Reuse completed batch overview metadata instead of repeatedly decoding NSZ files.
+- Retain shared archive extraction while entries are open and recognize firmware sets alongside games, including unavailable-reference results.
+- Retain verified plugin downloads across startup failures, preserve GUI fallback runtime files and reuse successful compatibility checks.
+- Use temporary ASCII input/key aliases for bundled NSZ executables, restore output names and detect missing output even on exit code 0; log bounded sanitized diagnostics.
+- Show conversion phases and CLI progress details during long operations.
+- Apply light/dark themes consistently to dialogs, title bars, tab headers and status colors.
+- Hide key warnings without a selected file; highlight required-key errors and report permitted missing delta fragments as information.
+- Accept Windows-style paths in single-executable application-update ZIPs.
+- Refresh localized idle status after language changes (upstream #40) and tolerate malformed optional title ratings (upstream #18).
+
+### Known limitation
+
+- Installed Beta 1 builds require manual installation of Beta 2 once because they still use numeric-only update comparisons. The updated viewer recognizes later beta/RC suffix updates.
+
+
 ## [4.0.0-beta.1] - 2026-10-06
 
 - Individual archive entries retain extracted files, loaded content and view models until close/reopen, avoiding repeated ZIP/7z decompression when switching back. Batch types/CSV include archive origin (e.g. NSP (ZIP)), with package/container filtering.
@@ -38,7 +78,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 - Unified main window with Start, File verification, Batch verification/Firmware, Renaming and Settings pages. Menu entries and tabs switch pages while retaining results, settings drafts and running tasks. Settings Apply/Cancel no longer closes a separate window.
 
-- NSZ-Konvertierung: vorhandene Ziele ersetzen, nummerieren oder abbrechen; Quelldateien auf Wunsch erst nach erfolgreicher Prüfung löschen. Die Stapelübersicht folgt der ausgewählten Datei und verwendet bereits geladene Metadaten ohne erneute NSZ-Dekomprimierung.
+- NSZ conversion offers replacement, numbering or cancellation for existing targets, and optional source deletion after successful verification. Batch overview selection reuses loaded metadata without repeated NSZ decompression.
 
 ### Added
 
@@ -95,49 +135,36 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [3.0.3]
 
-Dieses Release erweitert NxFileViewer um eine Stapelprüfung, modernisiert die Oberfläche und übernimmt Verbesserungen aus verschiedenen Community-Forks.
-Neue Stapel-Integritätsprüfung
-- Ganze Ordner mit Nintendo-Switch-Dateien prüfen
-- Unterstützt NSP, NSZ, XCI und XCZ
-- Unterordner optional einbeziehen
-- Ergebnisse erscheinen während der laufenden Prüfung
-- Anzeige von:
-  - Dateityp
-  - Pakettyp
-  - Komprimierung
-  - Integritätsstatus
-  - Fehlerbeschreibung
-  - vollständigem Dateipfad
-- Filter „Nur fehlerhafte anzeigen“
-- Aktuell geprüfte Datei mit eigener Übersicht rechts
-- Fortschrittsanzeige und Statusleiste
-- Prüfung kann abgebrochen werden
-- Ergebnisse als CSV exportieren
-- Zuletzt verwendeten Stapelordner speichern
-- Fehlerfreie Dateien in einen auswählbaren Zielordner verschieben
-- Unterordnerstruktur bleibt beim Verschieben erhalten
-- Vorhandene Zieldateien werden nicht überschrieben
-- Fehlerhafte Dateien werden niemals automatisch gelöscht oder verschoben
-Oberfläche und Einstellungen
-- Dark-, Light- und System-Theme
-- Dunkle Titelleisten für Hauptfenster, Einstellungen, Umbenennen und Stapelprüfung
-- Fensterposition und Fenstergröße werden gespeichert
-- Verbesserte Darstellung des Stapelfensters im Dark Mode
-- Tinfoil-Titelseiten-URL und Tinfoil-API-URL separat konfigurierbar
-- Aktualisierung von tinfoil.media auf tinfoil.io
-NACP-Verbesserungen
-- Unterstützung komprimierter NACP-Titelblöcke
-- Unterstützung von bis zu 32 Sprachen statt bisher 16
-- Erweiterte Anzeige von NACP-Informationen
-Umbenennen
-- GitHub-Issue #46 behoben
-- Fehlende Leerzeichen bzw. Trennzeichen in online abgerufenen Titeln werden beim Umbenennen korrigiert
-- Normalisierung fehlerhaft zusammengesetzter Dateinamen verbessert
-Abhängigkeiten und Build
-- Projekt auf aktuelle .NET-8-kompatible Pakete aktualisiert
-- ZstdSharp.Port aktualisiert
-- Microsoft.Extensions-Pakete aktualisiert
-- Test-SDK, xUnit und Coverlet aktualisiert
-- LibHac bleibt vorerst auf Version 0.19.0, da kein vollständig kompatibler direkter Ersatz verfügbar ist
+This release adds batch integrity checks, modernizes the interface and incorporates improvements from community forks.
 
-Vielen Dank an das ursprüngliche NxFileViewer-Projekt und alle Community-Mitwirkenden.
+### Batch integrity checks
+
+- Verify complete folders containing NSP, NSZ, XCI and XCZ files, optionally including subdirectories.
+- Display results during verification, including file type, package type, compression, integrity status, errors and full paths.
+- Filter errors, preview the current file, report progress and support cancellation.
+- Export results as CSV and remember the last batch directory.
+- Move valid files to a selected destination while preserving subdirectories.
+- Never overwrite existing targets or automatically delete/move invalid files.
+
+### Interface and settings
+
+- Add dark, light and system themes, including dark title bars for the main, settings, renaming and batch windows.
+- Save window size and position and improve dark-mode batch presentation.
+- Configure Tinfoil title-page and API URLs independently; migrate from tinfoil.media to tinfoil.io.
+
+### NACP improvements
+
+- Support compressed NACP title blocks and up to 32 languages instead of 16.
+- Expand displayed NACP information.
+
+### Renaming
+
+- Fix GitHub issue #46.
+- Restore missing spaces or separators in online titles and improve normalization of incorrectly combined filenames.
+
+### Dependencies and build
+
+- Update .NET 8-compatible dependencies, ZstdSharp.Port, Microsoft.Extensions packages, the test SDK, xUnit and Coverlet.
+- Keep LibHac at 0.19.0 because a fully compatible direct replacement is unavailable.
+
+Thanks to the original NxFileViewer project and all community contributors.

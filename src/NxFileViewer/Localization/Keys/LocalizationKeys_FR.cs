@@ -43,6 +43,14 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
     public string Workspace_Menu => "Menu principal";
     public string Nsz_Replace => "Remplacer";
     public string Nsz_Number => "Enregistrer avec un numéro";
+    public string TitlePage_Custom => "Personnalisée";
+    public string Info_Description => "NxFileViewer affiche et vérifie les fichiers Nintendo Switch : NSP, NSZ, XCI, XCZ, NCA, ZIP et 7z, le firmware et la conversion NSZ.";
+    public string Info_Shortcuts => "Raccourcis clavier";
+    public string BatchHistory_Show => "Afficher";
+    public string BatchHistory_Title => "5 dernières vérifications";
+    public string BatchHistory_Resume => "Reprendre";
+    public string Dialog_Yes => "Oui";
+    public string Dialog_No => "Non";
     public string Nsz_Cancel => "Annuler";
     public string Nsz_DeleteSourcePrompt => "Supprimer les sources après conversion et vérification réussies ? Elles sont conservées en cas d’échec.";
     public string Nsz_SourceDeleted => "Source supprimée";
@@ -54,8 +62,8 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
     public string Nsz_Update => "Installer / mettre à jour le plugin…";
     public string Nsz_Rollback => "Utiliser la version précédente";
     public string Nsz_SelectDestination => "Choisir le dossier de destination";
-    public string Nsz_PythonRuntimeFailed => "NSZ ne peut pas charger sa DLL Python intégrée. Le démarrage échoue avant la vérification des clés ou fichiers. Choisissez une autre CLI NSZ fonctionnelle dans Paramètres → NSZ Plugin.";
-    public string Nsz_NotInstalled => "NSZ non installé. Installation via Outils → NSZ.";
+    public string Nsz_PythonRuntimeFailed => "NSZ ne peut pas charger sa DLL Python intégrée. Le démarrage échoue avant la vérification des clés ou fichiers. Choisissez une autre CLI NSZ fonctionnelle dans Paramètres → Plugin nicoboss/nsz.";
+    public string Nsz_NotInstalled => "Plugin nicoboss/nsz non installé.";
     public string Nsz_Updating => "Mise à jour du plugin NSZ…";
     public string Nsz_SourceSize => "Taille originale (octets)";
     public string Nsz_OutputSize => "Taille finale (octets)";
@@ -95,14 +103,20 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
 
     public string FileNotSupported_Log => "Fichier «{0}» non supporté.";
     public string OpenFile_Filter => "Fichiers Nintendo Switch (*.nsp;*.nsz;*.xci;*.xcz;*.nca;*.zip;*.7z)|*.nsp;*.nsz;*.xci;*.xcz;*.nca;*.zip;*.7z|Tous les fichiers (*.*)|*.*";
-    public string MenuItem_File => "_Fichier";
-    public string MenuItem_Open => "_Ouvrir...";
+    public string MenuItem_File => "Fichier";
+    public string MenuItem_Open => "Ouvrir...";
     public string MenuItem_OpenLast => "Ouvrir le _dernier";
-    public string MenuItem_Close => "_Fermer";
+    public string MenuItem_Close => "Fermer";
     public string MenuItem_Exit => "Q_uitter";
-    public string MenuItem_Tools => "_Outils";
+    public string MenuItem_Tools => "Outils";
     public string MenuItem_CheckIntegrity => "Vérifier l'_intégrité";
     public string MenuItem_CheckDirectoryIntegrity => "Vérifier l’intégrité du dossier…";
+    public string BatchNaming_Title => "Nommage";
+    public string BatchNaming_Matches => "Conforme";
+    public string BatchNaming_Differs => "Non conforme";
+    public string BatchNaming_Check => "Vérifier les noms";
+    public string BatchNaming_RenameAll => "Renommer les fichiers non conformes";
+    public string BatchNaming_Error => "Erreur de nommage";
     public string BatchIntegrity_Title => "Vérification d’intégrité par lot";
     public string BatchIntegrity_SelectDirectory => "Sélectionner le dossier des fichiers Switch";
     public string BatchIntegrity_Browse => "Parcourir…";
@@ -130,11 +144,13 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
     public string FileInfo_SystemUpdate => "Mise à jour système incluse (XCI)";
     public string BatchIntegrity_Export => "Exporter CSV…";
     public string BatchIntegrity_Start => "Démarrer";
+    public string BatchIntegrity_OpenSelected => "Ouvrir dans la vérification de fichier";
+    public string BatchIntegrity_MoveSelected => "Déplacer…";
     public string BatchIntegrity_MoveValid => "Déplacer les fichiers valides…";
     public string BatchIntegrity_SelectMoveDestination => "Sélectionner la destination des fichiers valides";
     public string BatchIntegrity_Moving => "Déplacement";
-    public string MenuItem_Options => "_Options";
-    public string MenuItem_Settings => "_Paramètres";
+    public string MenuItem_Options => "Options";
+    public string MenuItem_Settings => "Paramètres";
     public string MenuItem_ReloadKeys => "Recharger les clés";
     public string MenuItem_OpenTitleWebPage => "Ouvrir la page Web du titre...";
     public string MenuItem_ShowRenameToolWindow => "Outil de renommage...";
@@ -225,6 +241,7 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
                                                     Le fichier de clés sera téléchargé dans le répertoire courant de l'application.
                                                     """;
 
+    public string SettingsView_LogFileRetention => "Conserver les journaux (1–100 lancements)";
     public string SettingsView_LogLevel => "Niveau de log";
     public string SettingsView_ToolTip_LogLevel => "Le niveau de log indique à partir de quel niveau les messages sont logués.";
     public string SettingsView_CheckBox_AlwaysReloadKeysBeforeOpen => "Toujours recharger les clés avant l'ouverture d'un fichier";
@@ -440,6 +457,14 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
     public string Log_SaveStorageCanceled => "Sauvegarde du stockage annulé.";
     public string Log_NcasIntegrityCanceled => "Intégrité des NCAs annulé.";
 
+    public string RenamingTool_TargetDirectory => "Dossier cible (vide = dossier actuel)";
+    public string RenamingTool_FolderTip => "Utilisez / pour les dossiers, par exemple DLC/{WTitle}.{Ext:L}.";
+    public string RenamingTool_OldName => "Ancien nom";
+    public string RenamingTool_NewName => "Nouveau nom";
+    public string RenamingTool_StatusError => "Erreur";
+    public string RenamingTool_StatusUnchanged => "Inchangé";
+    public string RenamingTool_StatusSimulation => "Simulation";
+    public string RenamingTool_StatusRenamed => "Renommé";
     public string RenamingTool_WindowTitle => "Outil de renommage";
     public string RenamingTool_Patterns => "Patterns";
     public string RenamingTool_ApplicationPattern => "Pattern d'application";
@@ -449,6 +474,15 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
     public string RenamingTool_FileFilters => "Filtres";
     public string RenamingTool_ToolTip_Patterns =>
         $$"""
+         Dossier cible et sous-dossiers:
+           Un dossier cible vide utilise le dossier actuel du fichier.
+           Séparez les sous-dossiers par /, par exemple:
+             DLC/{WTitle}.{Ext:L}
+             {WAppTitle}/DLC/{WTitle}.{Ext:L}
+           Utilisez uniquement des dossiers relatifs, sans chemin absolu ni .. .
+           La simulation affiche les chemins complets sans créer de dossiers.
+           Le renommage crée les dossiers manquants sans écraser les fichiers.
+
          Syntaxe d'un mot clé:
             {<MotClé>[:<Format>]}
 
@@ -529,4 +563,13 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
     public string Nsz_PhaseSource => "Vérifier la source";
     public string Nsz_PhaseOutput => "Vérifier le résultat";
     public string Nsz_PhasePublish => "Enregistrer le résultat";
+    public string Batch_IncludeArchives => "Inclure ZIP / 7z";
+    public string Batch_Scan => "Analyser les fichiers";
+    public string Batch_VerifyAll => "Vérifier tous les fichiers";
+    public string File_MissingKeys => "Clés requises manquantes. Le contenu ne peut pas être entièrement lu. Vérifiez prod.keys / title.keys.";
+    public string File_CopyMissingKeys => "Copier les noms des clés manquantes";
+    public string Keys_CopyToSwitch => @"Copier les clés actuelles vers %USERPROFILE%\.switch";
+    public string Keys_ReplaceShared => "Remplacer les clés existantes ? Les fichiers sources seront conservés.";
+    public string Keys_SharedCopied => "Clés disponibles dans le dossier partagé .switch.";
+    public string Batch_ScanAndVerify => "Analyser les fichiers et vérifier leur intégrité";
 }

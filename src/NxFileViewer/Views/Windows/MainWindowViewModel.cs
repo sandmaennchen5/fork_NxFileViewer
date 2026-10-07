@@ -126,6 +126,8 @@ public class MainWindowViewModel : WindowViewModelBase, IFilesDropped
 
     public string ProdKeysValidationSummary => SettingsWindowViewModel.BuildValidationSummary(_keySetProviderService.ProdKeysValidation);
 
+    public string ProgramVersion => _appNameAndVersion;
+
     public string Title
     {
         get => _title;

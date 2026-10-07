@@ -20,6 +20,7 @@ public sealed class NszPluginManager(IAppSettings settings, ILogger<NszPluginMan
     string? rootDirectory = null, HttpClient? httpClient = null, Action<string, CancellationToken>? compatibilityCheck = null)
 {
     private static readonly HttpClient Client = CreateClient();
+    private readonly System.Collections.Generic.Dictionary<string, (long Length, long Modified)> _checkedExecutables = new(StringComparer.OrdinalIgnoreCase);
     private static HttpClient CreateClient()
     {
         var client = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
@@ -88,7 +89,7 @@ public sealed class NszPluginManager(IAppSettings settings, ILogger<NszPluginMan
     {
         if (!string.IsNullOrWhiteSpace(settings.NszExecutablePath))
         {
-            (compatibilityCheck ?? CheckCompatibility)(ExecutablePath, token);
+            (compatibilityCheck ?? CheckManagedCompatibility)(ExecutablePath, token);
             return;
         }
         if (settings.NszCheckUpdates || !File.Exists(ExecutablePath))
@@ -102,7 +103,7 @@ public sealed class NszPluginManager(IAppSettings settings, ILogger<NszPluginMan
                 progress.SetText(LocalizationManager.Instance.Current.Keys.Nsz_OfflineFallback);
             }
         }
-        (compatibilityCheck ?? CheckCompatibility)(ExecutablePath, token);
+        (compatibilityCheck ?? CheckManagedCompatibility)(ExecutablePath, token);
         progress.SetMode(false);
     }
 
@@ -152,7 +153,7 @@ public sealed class NszPluginManager(IAppSettings settings, ILogger<NszPluginMan
             await DownloadVerifiedAsync(client, asset, executable, token).ConfigureAwait(false);
             var sourceName = expectedName;
             var sourceDigest = digest;
-            try { (compatibilityCheck ?? CheckCompatibility)(executable, token); }
+            try { (compatibilityCheck ?? CheckManagedCompatibility)(executable, token); }
             catch (NszRuntimeStartupException) when (arch == "x64")
             {
                 // The official GUI build also supports CLI arguments; do not launch it without --help.
@@ -164,15 +165,15 @@ public sealed class NszPluginManager(IAppSettings settings, ILogger<NszPluginMan
                 await DownloadVerifiedAsync(client, guiAsset, archivePath, token).ConfigureAwait(false);
                 using (var archive = ZipFile.OpenRead(archivePath))
                 {
-                    var candidates = archive.Entries.Where(e => e.Name == "nsz-gui-windows-x64.exe").ToArray();
+                    var candidates = archive.Entries.Where(e => e.FullName.Replace('\\', '/').Split('/')[^1] == "nsz-gui-windows-x64.exe").ToArray();
                     if (candidates.Length != 1) throw new InvalidDataException("Unexpected NSZ GUI package layout.");
-                    executable = Path.Combine(versionDirectory, "nsz-gui-windows-x64.exe");
-                    await using var input = candidates[0].Open();
-                    await using var output = File.Create(executable);
-                    await input.CopyToAsync(output, token).ConfigureAwait(false);
+                    var guiDirectory = Path.Combine(versionDirectory, "gui");
+                    // Preserve runtime DLLs and supporting files shipped beside the executable.
+                    archive.ExtractToDirectory(guiDirectory);
+                    executable = Path.Combine(guiDirectory, candidates[0].FullName.Replace('/', Path.DirectorySeparatorChar));
                 }
                 File.Delete(archivePath);
-                (compatibilityCheck ?? CheckCompatibility)(executable, token);
+                (compatibilityCheck ?? CheckManagedCompatibility)(executable, token);
                 sourceName = guiName;
                 sourceDigest = guiAsset.GetProperty("digest").GetString();
             }
@@ -191,7 +192,7 @@ public sealed class NszPluginManager(IAppSettings settings, ILogger<NszPluginMan
         finally { progress.SetMode(false); }
     }
 
-    private static async Task DownloadVerifiedAsync(HttpClient client, JsonElement asset, string destination, CancellationToken token)
+    private async Task DownloadVerifiedAsync(HttpClient client, JsonElement asset, string destination, CancellationToken token)
     {
         var digest = asset.GetProperty("digest").GetString();
         if (digest == null || !digest.StartsWith("sha256:", StringComparison.Ordinal) || digest.Length != 71)
@@ -199,6 +200,20 @@ public sealed class NszPluginManager(IAppSettings settings, ILogger<NszPluginMan
         var url = new Uri(asset.GetProperty("browser_download_url").GetString()!);
         if (url.Scheme != "https" || url.Host != "github.com" || !url.AbsolutePath.StartsWith("/nicoboss/nsz/releases/download/", StringComparison.Ordinal))
             throw new InvalidDataException("Unexpected NSZ download URL.");
+        var cacheDirectory = Path.Combine(RootDirectory, "Downloads");
+        Directory.CreateDirectory(cacheDirectory);
+        var cached = Path.Combine(cacheDirectory, digest[7..].ToLowerInvariant() + ".download");
+        if (File.Exists(cached))
+        {
+            await using var previous = File.OpenRead(cached);
+            var cachedHash = Convert.ToHexString(await SHA256.HashDataAsync(previous, token).ConfigureAwait(false));
+            if (cachedHash.Equals(digest[7..], StringComparison.OrdinalIgnoreCase))
+            {
+                logger.LogInformation("NSZ: reusing verified download {Asset}", asset.GetProperty("name").GetString());
+                File.Copy(cached, destination, overwrite: true);
+                return;
+            }
+        }
         using var download = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, token).ConfigureAwait(false);
         download.EnsureSuccessStatusCode();
         await using (var output = File.Create(destination))
@@ -206,14 +221,38 @@ public sealed class NszPluginManager(IAppSettings settings, ILogger<NszPluginMan
         await using var input = File.OpenRead(destination);
         var actual = Convert.ToHexString(await SHA256.HashDataAsync(input, token).ConfigureAwait(false));
         if (!actual.Equals(digest[7..], StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("NSZ SHA-256 mismatch.");
+        var cacheStaging = cached + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        try { File.Copy(destination, cacheStaging); File.Move(cacheStaging, cached, overwrite: true); }
+        finally { if (File.Exists(cacheStaging)) File.Delete(cacheStaging); }
     }
 
-    public static void CheckCompatibility(string executable, CancellationToken token)
+    private void CheckManagedCompatibility(string executable, CancellationToken token)
+    {
+        var file = new FileInfo(executable);
+        var stamp = (file.Length, file.LastWriteTimeUtc.Ticks);
+        if (_checkedExecutables.TryGetValue(file.FullName, out var checkedStamp) && checkedStamp == stamp) return;
+        logger.LogInformation("NSZ startup check: {Executable}; first startup may take up to 120 seconds.", executable);
+        try
+        {
+            CheckCompatibility(executable, token, line => logger.LogInformation("NSZ startup: {Output}", line));
+            _checkedExecutables[file.FullName] = stamp;
+            logger.LogInformation("NSZ startup check passed.");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "NSZ startup check failed: {Executable}", executable);
+            throw;
+        }
+    }
+    public static void CheckCompatibility(string executable, CancellationToken token, Action<string>? diagnostic = null)
     {
         if (!File.Exists(executable)) throw new FileNotFoundException(LocalizationManager.Instance.Current.Keys.Nsz_NotInstalled);
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
-        timeout.CancelAfter(TimeSpan.FromSeconds(30));
-        var help = NszProcess.Run(executable, new[] { "--help" }, Path.GetDirectoryName(executable)!, timeout.Token);
+        timeout.CancelAfter(TimeSpan.FromSeconds(120));
+        string help;
+        try { help = NszProcess.Run(executable, new[] { "--help" }, Path.GetDirectoryName(executable)!, timeout.Token, onDiagnostic: diagnostic); }
+        catch (OperationCanceledException ex) when (!token.IsCancellationRequested)
+        { throw new IOException("NSZ startup timed out after 120 seconds: " + executable, ex); }
         if (new[] { "--keys", "--output", "--keep", "--verify", "--solid", "--block", "--bs", "-C", "-D" }.Any(flag => !help.Contains(flag, StringComparison.Ordinal)))
             throw new InvalidDataException(LocalizationManager.Instance.Current.Keys.Nsz_Incompatible);
     }

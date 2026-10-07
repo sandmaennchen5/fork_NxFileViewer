@@ -141,6 +141,7 @@ public partial class App : Application, IAppEvents
 
         // Loads the application settings
         ServiceProvider.GetRequiredService<IAppSettingsManager>().LoadSafe();
+        ServiceProvider.GetRequiredService<AppLoggerProvider>().ConfigureRetention();
 
         // Initialize localization
         ServiceProvider.GetRequiredService<ILocalizationFromSettingsSynchronizerService>().Initialize();
@@ -212,6 +213,7 @@ public partial class App : Application, IAppEvents
     {
         base.OnExit(e);
         NotifyAppShuttingDown();
+        ServiceProvider.GetRequiredService<IAppLoggerProvider>().Dispose();
     }
 
     protected virtual void NotifyAppShuttingDown()

@@ -553,6 +553,8 @@
     </Style>
 
     <Style TargetType="{x:Type DataGridCell}">
+        <Setter Property="ToolTip" Value="{Binding Content.Text, RelativeSource={RelativeSource Self}}" />
+        <Setter Property="ToolTipService.ShowDuration" Value="30000" />
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="Foreground" Value="{DynamicResource Window.Static.Foreground}" />
         <Setter Property="BorderBrush" Value="Transparent" />
@@ -565,6 +567,7 @@
     </Style>
 
     <Style TargetType="{x:Type DataGridColumnHeader}">
+        <Setter Property="ToolTip" Value="{Binding Content, RelativeSource={RelativeSource Self}}" />
         <Setter Property="Background" Value="{DynamicResource Control.Static.Background}" />
         <Setter Property="Foreground" Value="{DynamicResource Control.Static.Foreground}" />
         <Setter Property="BorderBrush" Value="{DynamicResource Control.Static.Border}" />

@@ -39,6 +39,6 @@ dotnet test src/NxFileViewer.sln --no-restore
 
 Synthetic fixtures require no game files or keys. Block tests cover mixed raw/compressed blocks, exact and partial final blocks, reads crossing block boundaries, backwards reads, cache disabled, short reads, truncated raw data, invalid block count and invalid stored size. The source position assertion proves that compressed reads stay inside their block. Existing solid-reader tests check forward reads, backwards reads without further compressed-source reads, shared-source repositioning, EOF and disposal.
 
-Final validation: complete solution build succeeded with zero warnings and zero errors; all 28 tests passed (17 LibHac.NSZ and 11 NxFileViewer).
+Validation at the time of the original reader change: complete solution build succeeded with zero warnings and zero errors; all 28 tests passed (17 LibHac.NSZ and 11 NxFileViewer).
 
 The solid cache plausibly improves the repeated-decoding bottleneck discussed for Issue #52. The block changes align reading with current upstream rules; they do not establish that the specific Until Then file now loads quickly. That file was unavailable for timing.

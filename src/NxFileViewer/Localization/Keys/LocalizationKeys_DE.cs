@@ -43,6 +43,14 @@ public class LocalizationKeys_DE : LocalizationKeysBase, ILocalizationKeys
     public string Workspace_Menu => "Hauptmenü";
     public string Nsz_Replace => "Ersetzen";
     public string Nsz_Number => "Mit Nummerierung speichern";
+    public string TitlePage_Custom => "Eigene";
+    public string Info_Description => "NxFileViewer prüft und zeigt Nintendo-Switch-Dateien an. Unterstützt NSP, NSZ, XCI, XCZ, NCA sowie ZIP- und 7z-Archive, Firmware-Prüfung und NSZ-Konvertierung.";
+    public string Info_Shortcuts => "Tastenkürzel";
+    public string BatchHistory_Show => "Anzeigen";
+    public string BatchHistory_Title => "Letzte 5 Stapelprüfungen";
+    public string BatchHistory_Resume => "Fortsetzen";
+    public string Dialog_Yes => "Ja";
+    public string Dialog_No => "Nein";
     public string Nsz_Cancel => "Abbrechen";
     public string Nsz_DeleteSourcePrompt => "Quelldateien nach erfolgreicher Konvertierung und Prüfung löschen? Bei Fehlern bleiben sie erhalten.";
     public string Nsz_SourceDeleted => "Quelle gelöscht";
@@ -54,9 +62,9 @@ public class LocalizationKeys_DE : LocalizationKeysBase, ILocalizationKeys
     public string Nsz_Update => "Plugin installieren / aktualisieren…";
     public string Nsz_Rollback => "Vorherige Version verwenden";
     public string Nsz_SelectDestination => "Zielordner auswählen";
-    public string Nsz_PythonRuntimeFailed => "Die externe NSZ-EXE konnte ihre eingebettete Python-DLL nicht laden. Das Programm startet nicht; Keys und Eingabedateien wurden noch nicht geprüft. Wähle unter Einstellungen → NSZ Plugin eine andere, auf diesem Rechner lauffähige NSZ-CLI.";
-    public string Nsz_NotInstalled => "NSZ ist nicht installiert. Installation unter Werkzeuge → NSZ.";
-    public string Nsz_Updating => "NSZ-Plugin wird aktualisiert…";
+    public string Nsz_PythonRuntimeFailed => "Die externe NSZ-EXE konnte ihre eingebettete Python-DLL nicht laden. Das Programm startet nicht; Keys und Eingabedateien wurden noch nicht geprüft. Wähle unter Einstellungen → Plugin nicoboss/nsz eine andere, auf diesem Rechner lauffähige NSZ-CLI.";
+    public string Nsz_NotInstalled => "Plugin nicoboss/nsz ist nicht installiert.";
+    public string Nsz_Updating => "Plugin nicoboss/nsz wird aktualisiert…";
     public string Nsz_SourceSize => "Originalgröße (Bytes)";
     public string Nsz_OutputSize => "Zielgröße (Bytes)";
     public string Nsz_Verified => "Ergebnis geprüft";
@@ -95,15 +103,21 @@ public class LocalizationKeys_DE : LocalizationKeysBase, ILocalizationKeys
 
     public string FileNotSupported_Log => "«{0}» Datei wird nicht unterstützt.";
     public string OpenFile_Filter => "Nintendo Switch Dateien (*.nsp;*.nsz;*.xci;*.xcz;*.nca;*.zip;*.7z)|*.nsp;*.nsz;*.xci;*.xcz;*.nca;*.zip;*.7z|Alle Dateien (*.*)|*.*";
-    public string MenuItem_File => "_Datei";
-    public string MenuItem_Open => "_Öffnen...";
-    public string MenuItem_OpenLast => "_Letzte öffnen";
-    public string MenuItem_Close => "_Schließen";
-    public string MenuItem_Exit => "_Beenden";
-    public string MenuItem_Tools => "_Werkzeuge";
-    public string MenuItem_CheckIntegrity => "_Integrität prüfen";
+    public string MenuItem_File => "Datei";
+    public string MenuItem_Open => "Öffnen...";
+    public string MenuItem_OpenLast => "Letzte öffnen";
+    public string MenuItem_Close => "Schließen";
+    public string MenuItem_Exit => "Beenden";
+    public string MenuItem_Tools => "Werkzeuge";
+    public string MenuItem_CheckIntegrity => "Integrität prüfen";
     public string MenuItem_CheckDirectoryIntegrity => "Ordnerintegrität prüfen…";
-    public string BatchIntegrity_Title => "Stapel-Integritätsprüfung";
+    public string BatchNaming_Title => "Benennung";
+    public string BatchNaming_Matches => "Passt";
+    public string BatchNaming_Differs => "Passt nicht";
+    public string BatchNaming_Check => "Benennung prüfen";
+    public string BatchNaming_RenameAll => "Alle abweichenden umbenennen";
+    public string BatchNaming_Error => "Benennungsfehler";
+    public string BatchIntegrity_Title => "Stapelprüfung";
     public string BatchIntegrity_SelectDirectory => "Ordner mit Switch-Dateien auswählen";
     public string BatchIntegrity_Browse => "Durchsuchen…";
     public string BatchIntegrity_IncludeSubdirectories => "Unterordner einbeziehen";
@@ -130,11 +144,13 @@ public class LocalizationKeys_DE : LocalizationKeysBase, ILocalizationKeys
     public string FileInfo_SystemUpdate => "Enthaltenes System-Update (XCI)";
     public string BatchIntegrity_Export => "CSV exportieren…";
     public string BatchIntegrity_Start => "Prüfung starten";
+    public string BatchIntegrity_OpenSelected => "In Dateiprüfung öffnen";
+    public string BatchIntegrity_MoveSelected => "Verschieben…";
     public string BatchIntegrity_MoveValid => "Fehlerfreie verschieben…";
     public string BatchIntegrity_SelectMoveDestination => "Zielordner für fehlerfreie Dateien auswählen";
     public string BatchIntegrity_Moving => "Verschiebe";
-    public string MenuItem_Options => "_Optionen";
-    public string MenuItem_Settings => "_Einstellungen";
+    public string MenuItem_Options => "Optionen";
+    public string MenuItem_Settings => "Einstellungen";
     public string MenuItem_ReloadKeys => "Keys Neuladen";
     public string MenuItem_OpenTitleWebPage => "Titel Webseite öffnen...";
     public string MenuItem_ShowRenameToolWindow => "Umbenennen...";
@@ -224,6 +240,7 @@ public class LocalizationKeys_DE : LocalizationKeysBase, ILocalizationKeys
                                                     Die Keydatei wird im Verzeichnis der aktuellen Anwendung gespeichert.
                                                     """;
 
+    public string SettingsView_LogFileRetention => "Logdateien behalten (1–100 Starts)";
     public string SettingsView_LogLevel => "Protokollierungsgrad ";
     public string SettingsView_ToolTip_LogLevel => "Der Protokollierungsgrad gibt die minimale Ebene an, die protokolliert werden soll.";
     public string SettingsView_CheckBox_AlwaysReloadKeysBeforeOpen => "Keys immer neu laden bevor eine Datei geöffnet wird.";
@@ -440,6 +457,14 @@ public class LocalizationKeys_DE : LocalizationKeysBase, ILocalizationKeys
     public string Log_SaveStorageCanceled => "Speicherung des Speichers abgebrochen.";
     public string Log_NcasIntegrityCanceled => "Integritätsprüfung der NCAs abgebrochen.";
 
+    public string RenamingTool_TargetDirectory => "Zielordner (leer = bisheriger Ordner)";
+    public string RenamingTool_FolderTip => "Unterordner im Muster mit / angeben, z. B. DLC/{WTitle}.{Ext:L} oder {WAppTitle}/DLC/{WTitle}.{Ext:L}.";
+    public string RenamingTool_OldName => "Alter Name";
+    public string RenamingTool_NewName => "Neuer Name";
+    public string RenamingTool_StatusError => "Fehler";
+    public string RenamingTool_StatusUnchanged => "Unverändert";
+    public string RenamingTool_StatusSimulation => "Simulation";
+    public string RenamingTool_StatusRenamed => "Umbenannt";
     public string RenamingTool_WindowTitle => "Umbenennungswerkzeug";
     public string RenamingTool_Patterns => "Muster";
     public string RenamingTool_ApplicationPattern => "Anwendungsmuster";
@@ -449,6 +474,16 @@ public class LocalizationKeys_DE : LocalizationKeysBase, ILocalizationKeys
     public string RenamingTool_FileFilters => "Filter";
     public string RenamingTool_ToolTip_Patterns =>
         $$"""
+         Zielordner und Unterordner:
+           Ein leerer Zielordner verwendet den bisherigen Ordner der Datei.
+           Unterordner im Muster mit / trennen, beispielsweise:
+             DLC/{WTitle}.{Ext:L}
+             {WAppTitle}/DLC/{WTitle}.{Ext:L}
+           Nur relative Unterordner verwenden, keine absoluten Pfade oder .. .
+           Die Simulation zeigt vollständige Pfade und erstellt keine Ordner.
+           Beim Umbenennen werden fehlende Ordner erstellt.
+           Vorhandene Zieldateien werden nicht überschrieben.
+
          Schlüsselwort-Syntax:
             {<Keyword>[:<Format>]}
 
@@ -521,10 +556,19 @@ public class LocalizationKeys_DE : LocalizationKeysBase, ILocalizationKeys
     public string FileRenaming_StringOperatorUnknown => "Operator «{0}» wird nicht erkannt, erlaubte Operatoren sind «{1}».";
     public string FileRenaming_EmptyDirectoryNotAllowed => "Eingabeverzeichnis darf nicht leer sein.";
     public string Window_Tip_Title => "Hinweis";
-    public string Nsz_Installed => "NSZ-Plugin installiert";
+    public string Nsz_Installed => "Plugin nicoboss/nsz installiert";
     public string Nsz_CustomExecutable => "Benutzerdefinierte EXE";
     public string Settings_Program => "Programm";
     public string Nsz_PhaseSource => "Quelldatei prüfen";
     public string Nsz_PhaseOutput => "Ergebnis prüfen";
     public string Nsz_PhasePublish => "Ergebnis übernehmen";
+    public string Batch_IncludeArchives => "ZIP / 7z einbeziehen";
+    public string Batch_Scan => "Dateiliste einlesen";
+    public string Batch_VerifyAll => "Alle auf Integrität prüfen";
+    public string File_MissingKeys => "Passende Schlüssel fehlen. Inhalte können nicht vollständig gelesen werden. Bitte prod.keys / title.keys prüfen.";
+    public string File_CopyMissingKeys => "Fehlende Schlüsselnamen kopieren";
+    public string Keys_CopyToSwitch => @"Aktuelle Keys nach %USERPROFILE%\.switch kopieren";
+    public string Keys_ReplaceShared => "Vorhandene Keys ersetzen? Die Quelldateien bleiben erhalten.";
+    public string Keys_SharedCopied => "Keys sind im gemeinsamen .switch-Ordner verfügbar.";
+    public string Batch_ScanAndVerify => "Dateiliste einlesen und Integrität prüfen";
 }

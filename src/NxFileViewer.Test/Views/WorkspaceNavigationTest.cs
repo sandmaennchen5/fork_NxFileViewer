@@ -39,7 +39,19 @@ public sealed class WorkspaceNavigationTest
                 App.ServiceProvider.GetRequiredService<IShowSettingsWindowCommand>().Execute(null);
                 var settingsPage = Assert.IsType<SettingsWindow>(((TabItem)main.FindName("SettingsTab")).Content);
                 var settings = Assert.IsType<SettingsWindowViewModel>(settingsPage.DataContext);
-                Assert.Equal(3, ((TabControl)settingsPage.FindName("SettingsSections")).Items.Count);
+                Assert.Equal(4, ((TabControl)settingsPage.FindName("SettingsSections")).Items.Count);
+                main.NavigateNamingSettings();
+                var sections = (TabControl)settingsPage.FindName("SettingsSections");
+                Assert.Same(settingsPage.FindName("NamingSettingsTab"), sections.SelectedItem);
+                Assert.Equal(1, sections.SelectedIndex);
+                var originalPattern = settings.EditedSettings.RenamingOptions.ApplicationPattern;
+                settings.EditedSettings.RenamingOptions.ApplicationPattern = "GAME/{Title}.{Ext}";
+                main.Navigate(WorkspaceSection.Rename);
+                main.NavigateNamingSettings();
+                Assert.Equal("GAME/{Title}.{Ext}", settings.EditedSettings.RenamingOptions.ApplicationPattern);
+                settings.CancelSettingsCommand.Execute(null);
+                Assert.Equal(originalPattern, settings.EditedSettings.RenamingOptions.ApplicationPattern);
+                main.Navigate(WorkspaceSection.Settings);
                 Assert.IsType<UpdateCenterView>(((ContentControl)settingsPage.FindName("SettingsUpdatesContent")).Content);
                 Assert.IsType<PluginSettingsView>(((ContentControl)settingsPage.FindName("SettingsPluginsContent")).Content);
                 var originalLevel = settings.EditedSettings.NszCompressionLevel;
@@ -120,6 +132,18 @@ public sealed class WorkspaceNavigationTest
                 var uncachedResult = nszResult with { FilePath = nszPath + ".missing.nsz" };
                 batch.Results.Add(uncachedResult);
                 batch.SelectedResult = uncachedResult;
+                // Per-file conversion must work directly after scanning, but reject missing keys and incompatible types.
+                System.IO.File.WriteAllBytes(nspPath, new byte[] { 0 });
+                try
+                {
+                    var uncheckedNsp = nspResult with { Integrity = Emignatik.NxFileViewer.Models.Overview.NcasIntegrity.Unchecked };
+                    Assert.True(batch.CanActOnFile(uncheckedNsp, Emignatik.NxFileViewer.Services.Nsz.NszOperation.Compress));
+                    Assert.False(batch.CanActOnFile(uncheckedNsp, Emignatik.NxFileViewer.Services.Nsz.NszOperation.Decompress));
+                    Assert.False(batch.CanActOnFile(uncheckedNsp with { HasMissingKeys = true }, Emignatik.NxFileViewer.Services.Nsz.NszOperation.Compress));
+                    Assert.False(batch.CanActOnFile(uncheckedNsp with { IsFirmware = true }, Emignatik.NxFileViewer.Services.Nsz.NszOperation.Compress));
+                    Assert.True(batch.CanOpenInSingle(uncheckedNsp));
+                }
+                finally { System.IO.File.Delete(nspPath); }
                 Assert.Null(batch.PreviewOverview);
                 var detailsTabs = (TabControl)batchPage.FindName("DetailsTabs");
                 var detailsBinding = detailsTabs.GetBindingExpression(TabControl.SelectedIndexProperty)!.ParentBinding;
@@ -194,6 +218,36 @@ public sealed class WorkspaceNavigationTest
                 Assert.Empty(System.Linq.Enumerable.Cast<object>(batch.ResultsView));
                 batch.ResetFiltersCommand.Execute(null);
                 Assert.Equal(2, System.Linq.Enumerable.Count(System.Linq.Enumerable.Cast<object>(batch.ResultsView)));
+                var emptyOverview = new Emignatik.NxFileViewer.Views.UserControls.FileOverviewView { DataContext = null };
+                var keyWarning = Assert.IsType<Border>(((Grid)emptyOverview.Content).Children[0]);
+                Assert.Equal(Visibility.Collapsed, keyWarning.Visibility);
+                var languages = Emignatik.NxFileViewer.Localization.LocalizationManager.Instance;
+                var originalLanguage = languages.Current;
+                try
+                {
+                    languages.Current = System.Linq.Enumerable.First(languages.RealLocalizations, l => l.CultureName.StartsWith("de"));
+                    var runner = new Emignatik.NxFileViewer.Services.BackgroundTask.BackgroundTaskRunner();
+                    var statusChanged = false;
+                    runner.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(runner.ProgressText)) statusChanged = true; };
+                    var germanReady = runner.ProgressText;
+                    languages.Current = System.Linq.Enumerable.First(languages.RealLocalizations, l => l.CultureName.StartsWith("en"));
+                    Assert.True(statusChanged);
+                    Assert.Equal(languages.Current.Keys.Status_Ready, runner.ProgressText);
+                    Assert.NotEqual(germanReady, runner.ProgressText);
+                }
+                finally { languages.Current = originalLanguage; }
+                var historyEnabled = actual.EnableBatchHistory;
+                try
+                {
+                    actual.EnableBatchHistory = false;
+                    Assert.False(batch.IsHistoryEnabled);
+                    Assert.Empty(batch.History);
+                    Assert.False(batch.ResumeHistoryCommand.CanExecute(null));
+                    Assert.False(batch.LoadHistoryCommand.CanExecute(null));
+                    actual.EnableBatchHistory = true;
+                    Assert.True(batch.IsHistoryEnabled);
+                }
+                finally { actual.EnableBatchHistory = historyEnabled; }
                 main.Close();
             }
             catch (Exception ex) { error = ex; }

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Windows;
 using System.Windows.Input;
 using Emignatik.NxFileViewer.Localization;
 using Emignatik.NxFileViewer.Localization.Keys;
@@ -41,6 +42,8 @@ public class SettingsWindowViewModel : WindowViewModelBase
         _keySetProviderService = keySetProviderService ?? throw new ArgumentNullException(nameof(keySetProviderService));
         _fileLocationOpenerService = fileLocationOpenerService ?? throw new ArgumentNullException(nameof(fileLocationOpenerService));
 
+        CopyKeysToSwitchCommand = new RelayCommand(CopyKeysToSwitch, () => !_backgroundTaskRunnerService.IsRunning &&
+            (File.Exists(ActualProdKeysFilePath) || File.Exists(ActualTitleKeysFilePath)));
         BrowseProdKeysCommand = new RelayCommand(BrowseProdKeys);
         BrowseTitleKeysCommand = new RelayCommand(BrowseTitleKeys);
         BrowseNszCommand = new RelayCommand(() =>
@@ -62,6 +65,7 @@ public class SettingsWindowViewModel : WindowViewModelBase
         {
             if (args.PropertyName == nameof(IMainBackgroundTaskRunnerService.IsRunning))
             {
+                CopyKeysToSwitchCommand.TriggerCanExecuteChanged();
                 DownloadProdKeysCommand.TriggerCanExecuteChanged();
                 DownloadTitleKeysCommand.TriggerCanExecuteChanged();
             }
@@ -69,6 +73,7 @@ public class SettingsWindowViewModel : WindowViewModelBase
 
         _keySetProviderService.PropertyChanged += (_, args) =>
         {
+            CopyKeysToSwitchCommand.TriggerCanExecuteChanged();
             if (args.PropertyName == nameof(IKeySetProviderService.ActualProdKeysFilePath))
                 NotifyPropertyChanged(nameof(ActualProdKeysFilePath));
             else if (args.PropertyName == nameof(IKeySetProviderService.ActualTitleKeysFilePath))
@@ -87,6 +92,50 @@ public class SettingsWindowViewModel : WindowViewModelBase
         };
     }
 
+    private const string TinfoilPage = "https://tinfoil.io/Title/{TitleId}";
+    private const string NxContentPage = "https://nx-content.ghostland.at/?game={TitleId}";
+    private int _titlePageSource;
+    private string _customTitlePageUrl = TinfoilPage;
+    public IReadOnlyList<TitlePageOption> TitlePageOptions => new[]
+    {
+        new TitlePageOption(0, "Tinfoil"), new TitlePageOption(1, "NX Content"),
+        new TitlePageOption(2, LocalizationManager.Instance.Current.Keys.TitlePage_Custom)
+    };
+    public int SelectedTitlePageSource
+    {
+        get => _titlePageSource;
+        set
+        {
+            if (_titlePageSource == value) return;
+            if (_titlePageSource == 2) _customTitlePageUrl = EditedSettings.TitlePageUrl;
+            _titlePageSource = value;
+            EditedSettings.TitlePageUrl = value == 0 ? TinfoilPage : value == 1 ? NxContentPage : _customTitlePageUrl;
+            NotifyPropertyChanged();
+            NotifyPropertyChanged(nameof(IsCustomTitlePage));
+        }
+    }
+    public bool IsCustomTitlePage => _titlePageSource == 2;
+    public RelayCommand CopyKeysToSwitchCommand { get; }
+    private void CopyKeysToSwitch()
+    {
+        var keys = LocalizationManager.Instance.Current.Keys;
+        var files = new[] { (Source: ActualProdKeysFilePath, Name: "prod.keys"), (Source: ActualTitleKeysFilePath, Name: "title.keys") };
+        try
+        {
+            var existing = new List<string>();
+            foreach (var file in files)
+            {
+                var target = Path.Combine(SharedKeyFiles.DirectoryPath, file.Name);
+                if (File.Exists(file.Source) && File.Exists(target) && !Path.GetFullPath(file.Source!).Equals(target, StringComparison.OrdinalIgnoreCase)) existing.Add(target);
+            }
+            if (existing.Count > 0 && ThemedDialog.Confirm("Keys", keys.Keys_ReplaceShared + Environment.NewLine + string.Join(Environment.NewLine, existing), false) != MessageBoxResult.Yes) return;
+            foreach (var file in files)
+                if (File.Exists(file.Source)) SharedKeyFiles.Copy(file.Source!, Path.Combine(SharedKeyFiles.DirectoryPath, file.Name), overwrite: existing.Contains(Path.Combine(SharedKeyFiles.DirectoryPath, file.Name)));
+            ThemedDialog.Notice(keys.Keys_SharedCopied + Environment.NewLine + SharedKeyFiles.DirectoryPath, "Keys", MessageBoxImage.Information);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        { ThemedDialog.Notice(ex.Message, "Keys", MessageBoxImage.Error); }
+    }
     public IAppSettings EditedSettings
     {
         get => _editedSettings;
@@ -94,6 +143,11 @@ public class SettingsWindowViewModel : WindowViewModelBase
         private set
         {
             _editedSettings = value;
+            _titlePageSource = value.TitlePageUrl == TinfoilPage ? 0 : value.TitlePageUrl == NxContentPage ? 1 : 2;
+            _customTitlePageUrl = _titlePageSource == 2 ? value.TitlePageUrl : TinfoilPage;
+            NotifyPropertyChanged(nameof(SelectedTitlePageSource));
+            NotifyPropertyChanged(nameof(IsCustomTitlePage));
+            NotifyPropertyChanged(nameof(SelectedTitleInfoSource));
             NotifyPropertyChanged();
         }
     }
@@ -145,7 +199,18 @@ public class SettingsWindowViewModel : WindowViewModelBase
         new TitleProviderOption(TitleInfoProvider.Tinfoil, "Tinfoil"),
         new TitleProviderOption(TitleInfoProvider.GitHubTitleDb, "TitleDB (GitHub)"),
         new TitleProviderOption(TitleInfoProvider.NLib, "NLib API"),
+        new TitleProviderOption(TitleInfoProvider.Custom, LocalizationManager.Instance.Current.Keys.TitlePage_Custom),
     };
+    public TitleInfoProvider SelectedTitleInfoSource
+    {
+        get => EditedSettings.TitleInfoProvider;
+        set {
+            EditedSettings.TitleInfoProvider = value;
+            if (value == TitleInfoProvider.Tinfoil) EditedSettings.TitleInfoApiUrl = "https://tinfoil.io/api/title/{TitleId}";
+            if (value == TitleInfoProvider.NLib) EditedSettings.NLibApiUrl = "https://api.nlib.cc/nx/{TitleId}?lang={Language}";
+            NotifyPropertyChanged();
+        }
+    }
     public IEnumerable<string> TitleDbRegions { get; } = new[] { "DE.de", "US.en", "GB.en", "FR.fr", "ES.es", "IT.it", "JP.ja" };
 
     public IEnumerable<ThemeOption> ThemeOptions { get; } = new[]
@@ -369,3 +434,5 @@ public sealed record TitleProviderOption(TitleInfoProvider Value, string Display
 
 public sealed record NszModeOption(NszCompressionMode Value, string DisplayName);
 public sealed record NszBlockSizeOption(int Value, string DisplayName);
+
+public sealed record TitlePageOption(int Value, string DisplayName);

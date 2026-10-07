@@ -38,13 +38,18 @@ internal class FileLoader : IFileLoader
         if (PackageZip.IsMember(filePath) || PackageZip.IsArchive(filePath))
         {
             var archive = PackageZip.ArchivePath(filePath);
-            var entries = PackageZip.GetEntries(archive);
-            if (!PackageZip.IsMember(filePath) && entries.Count > 0 && PackageZip.GetEntries(archive, includeNca: false).Count == 0)
+            var entries = PackageZip.GetEntries(archive, token: token, includeFirmware: true);
+            if (!PackageZip.IsMember(filePath) && entries.Count > 0 && !entries.Any(entry => entry.Contains(PackageZip.Separator, StringComparison.Ordinal)) && PackageZip.GetEntries(archive, includeNca: false, token: token).Count == 0)
             {
-                var (verifier, notice) = _firmwareReferences.Load(token);
-                token.ThrowIfCancellationRequested();
-                var result = verifier?.Verify(archive, token) ?? UnavailableFirmware(archive, notice);
-                return FirmwareFile(archive, result with { FirmwareDetails = notice + Environment.NewLine + result.FirmwareDetails });
+                var firmwareExtraction = PackageZip.Extract(archive, entries[0], token);
+                try
+                {
+                    var (verifier, notice) = _firmwareReferences.Load(token);
+                    token.ThrowIfCancellationRequested();
+                    var result = verifier?.Verify(archive, token) ?? UnavailableFirmware(archive, notice);
+                    return FirmwareFile(archive, result with { FirmwareDetails = notice + Environment.NewLine + result.FirmwareDetails }, firmwareExtraction);
+                }
+                catch { firmwareExtraction.Dispose(); throw; }
             }
             var entry = PackageZip.IsMember(filePath) ? filePath.Split(PackageZip.Separator, 2)[1] :
                 entries.Count > 0 ? entries[0] : throw new FileNotSupportedException(filePath);
@@ -52,6 +57,15 @@ internal class FileLoader : IFileLoader
             NxFile? loaded = null;
             try
             {
+                if (Directory.Exists(extracted.FilePath) || PackageZip.IsArchive(extracted.FilePath))
+                {
+                    var (verifier, notice) = _firmwareReferences.Load(token);
+                    var logical = PackageZip.MemberPath(archive, entry);
+                    var result = verifier?.Verify(extracted.FilePath, token) ?? UnavailableFirmware(logical, notice);
+                    var firmwareFile = FirmwareFile(logical, result with { FilePath = logical, FileType = Directory.Exists(extracted.FilePath) ? "Folder (" + Path.GetExtension(archive).TrimStart('.').ToUpperInvariant() + ")" : PackageZip.DisplayFileType(logical), FirmwareDetails = notice + Environment.NewLine + result.FirmwareDetails }, extracted);
+                    firmwareFile.ArchivePath = archive; firmwareFile.ArchiveEntry = entry; firmwareFile.ArchiveEntries = entries;
+                    return firmwareFile;
+                }
                 loaded = Load(extracted.FilePath, token);
                 return new NxFile(PackageZip.MemberPath(archive, entry), loaded.RootItem, loaded.Overview)
                 { OwnedResource = extracted, ArchivePath = archive, ArchiveEntry = entry, ArchiveEntries = entries, FirmwareResult = loaded.FirmwareResult };
@@ -86,7 +100,7 @@ internal class FileLoader : IFileLoader
             FileOverview fileOverview;
             if (System.IO.Path.GetExtension(filePath).Equals(".nca", StringComparison.OrdinalIgnoreCase))
             {
-                try { rootItem = _fileItemLoader.LoadNca(filePath); }
+                try { rootItem = _fileItemLoader.LoadNca(filePath, token); }
                 catch (Exception ex) when (ncaFirmware?.IsFirmware == true && ex is not OperationCanceledException)
                 {
                     // A hash-proven firmware NCA can still be identified when keys cannot decrypt its header.
@@ -101,13 +115,13 @@ internal class FileLoader : IFileLoader
                     throw new FileNotSupportedException(filePath);
 
                 case PackageType.XCI:
-                    var xciItem = _fileItemLoader.LoadXci(filePath);
+                    var xciItem = _fileItemLoader.LoadXci(filePath, token);
                     rootItem = xciItem;
                     fileOverview = _fileOverviewLoader.Load(xciItem);
 
                     break;
                 case PackageType.NSP:
-                    var nspItem = _fileItemLoader.LoadNsp(filePath);
+                    var nspItem = _fileItemLoader.LoadNsp(filePath, token);
                     rootItem = nspItem;
                     fileOverview = _fileOverviewLoader.Load(nspItem);
                     break;
@@ -116,6 +130,7 @@ internal class FileLoader : IFileLoader
                     throw new ArgumentOutOfRangeException();
             }
 
+            token.ThrowIfCancellationRequested();
             foreach (var missingKey in missingKeys)
                 fileOverview.MissingKeys.Add(missingKey);
 
@@ -133,10 +148,12 @@ internal class FileLoader : IFileLoader
         new(path, Path.GetExtension(path).TrimStart('.').ToUpperInvariant(), "Firmware", "?", "SHA-256", NcasIntegrity.Unchecked, notice)
         { IsFirmware = true, FirmwareDetails = notice };
 
-    private static NxFile FirmwareFile(string path, BatchIntegrityResult result)
+    private static NxFile FirmwareFile(string path, BatchIntegrityResult result, IDisposable? resource = null)
     {
         var root = new FirmwareFileItem(path);
-        return new NxFile(path, root, new FileOverview(root) { FileSize = new FileInfo(path).Length, NcasIntegrity = result.Integrity })
-        { FirmwareResult = result };
+        var physical = resource is ExtractedPackage extracted ? extracted.FilePath : path;
+        var size = Directory.Exists(physical) ? Directory.GetFiles(physical).Sum(file => new FileInfo(file).Length) : new FileInfo(physical).Length;
+        return new NxFile(path, root, new FileOverview(root) { FileSize = size, NcasIntegrity = result.Integrity })
+        { FirmwareResult = result, OwnedResource = resource };
     }
 }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -31,6 +31,8 @@ public class FileOverviewViewModel : ViewModelBase
         _fileOverview = fileOverview ?? throw new ArgumentNullException(nameof(fileOverview));
 
         _brushesProvider = serviceProvider.GetRequiredService<IBrushesProvider>();
+        ThemeObserver.Observe(serviceProvider.GetService<IThemeService>(), this,
+            static view => view.NotifyPropertyChanged(nameof(NcasIntegrityValidityColor)));
         VerifyNcasIntegrityCommand = serviceProvider.GetRequiredService<IVerifyNcasIntegrityCommand>();
         CopyMissingKeysCommand = new RelayCommand(CopyMissingKeys);
 
@@ -49,6 +51,8 @@ public class FileOverviewViewModel : ViewModelBase
 
         UpdateMissingKeys();
     }
+
+    public bool HasMissingKeys => _fileOverview.MissingKeys.Count > 0;
 
     public string MissingKeys
     {
@@ -142,6 +146,7 @@ public class FileOverviewViewModel : ViewModelBase
         }
 
         MissingKeys = string.Join(Environment.NewLine, missingKeys);
+        NotifyPropertyChanged(nameof(HasMissingKeys));
     }
 
     private void CopyMissingKeys()

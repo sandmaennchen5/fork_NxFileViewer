@@ -1,26 +1,26 @@
-# Selectable title metadata sources
+# Title metadata and website sources
 
-In Settings, under Miscellaneous, select **Title name source**:
+Choose **Title name source** under **Settings → Program**. Presets are named choices; editable URL fields are shown where applicable.
 
-- **Tinfoil** uses the existing configurable Title information API URL. Existing settings retain this source and URL.
-- **TitleDB (GitHub)** downloads the selected regional JSON catalog, defaults to DE.de, and looks up entries by their embedded title ID rather than their NSU dictionary key. Missing titles are also looked up in US.en. Catalogs are cached in `Cache/TitleDB` next to the executable, refreshed after 24 hours, and retained when an update fails. Failed refreshes with existing cached data wait five minutes before retrying. Catalog files are replaced only after valid parsing; unwritable cache storage does not prevent using downloaded titles in memory.
-- **NLib API** defaults to `https://api.nlib.cc/nx/{TitleId}?lang={Language}`. The URL is editable for other deployments. Language follows the app language or system language for automatic selection, with English as fallback for unsupported languages. The adapter maps NLib's `icon` field.
+- **Tinfoil** uses the built-in Tinfoil API template.
+- **TitleDB (GitHub)** downloads the selected regional catalog (default DE.de) and looks up embedded title IDs, with US.en fallback. Valid catalogs are cached under `Cache/TitleDB` beside the executable and refreshed after 24 hours. Failed refreshes retain old catalogs and retry after five minutes when cached data exists.
+- **NLib API** uses `https://api.nlib.cc/nx/{TitleId}?lang={Language}`. Language follows the interface/system language, with English fallback for unsupported languages. NLib's icon field is mapped to the title image.
+- **Custom** allows editing a title API template, initially based on Tinfoil.
 
-Applying settings changes the metadata source for subsequent requests. The per-title memory cache includes provider, source URL, region and app language, and expires after 24 hours. The separate title-web-page URL remains configurable independently.
+Applying settings changes subsequent requests. The per-title memory cache includes provider, URL, region and language, and expires after 24 hours. Optional numeric/string ratings are accepted; malformed optional ratings do not discard otherwise valid title information.
 
-If online information is unavailable, renaming uses the local NACP title when present. A DLC with neither online nor local title information still uses the existing NO_TITLE placeholder.
+If online information is unavailable, renaming uses local NACP titles when present. DLC without either source uses the existing NO_TITLE placeholder. Unwritable cache storage does not prevent using downloaded titles in memory; no alternative storage location is selected.
 
-Sources reviewed:
+## Title websites
 
-- https://github.com/blawar/titledb
-- https://github.com/ghost-land/Nlib-API
-
-Verification on 2026-10-05: both live sources returned Until Then for title ID 010019C023004000. Solution build passed with zero warnings and errors; all 94 tests passed for version 3.0.4. Tests cover provider routing, NLib language/icon mapping, indexing by title ID, cache persistence across restarts, stale cache during outages, rejection of malformed updates, English fallback, settings persistence and source switching, plus the existing offline-renaming regression tests.
-
-Version 3.0.4 includes these settings. Older Publish packages need rebuilding to include them.
-
-No AppData import or fallback is used. If the program cache directory is unwritable, titles may still be used in memory and the failed save is logged; no other cache location is selected.
+The independent title-page selector offers **Tinfoil**, **NX Content** and **Custom**. Preset URLs are fixed; Custom shows an editable template initialized from Tinfoil. `{TitleId}` is replaced when opening the browser. Website selection does not change the metadata provider used for renaming.
 
 ## Manual refresh
 
-Use **Updates → Refresh TitleDB** to force a new download for the saved TitleDB region and US.en fallback. This works independently of the selected title provider and does not change it. Validated catalogs replace their cache files atomically under `Cache/TitleDB` next to the viewer. Failed downloads or invalid JSON retain previous catalogs. Cached per-title responses are invalidated afterwards, including if only one region succeeded.
+Use **Settings → Updates → Refresh TitleDB** to download the saved region and US.en fallback even when existing catalogs are fresh. Valid catalogs replace cache files atomically; failures retain the previous catalog. Per-title responses are invalidated afterwards, including partial refresh success. The selected provider is unchanged.
+
+## Sources and validation
+
+Catalogs use [blawar/TitleDB](https://github.com/blawar/titledb); the NLib adapter targets [NLib API](https://github.com/ghost-land/Nlib-API).
+
+Automated tests cover routing, language/icon mapping, embedded title-ID lookup, persistent/stale caches, malformed updates, fallback, settings changes, optional ratings and offline renaming. Tests use synthetic or mocked responses rather than requiring live services.

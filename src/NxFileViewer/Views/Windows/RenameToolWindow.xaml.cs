@@ -1,4 +1,5 @@
 using System.Windows.Controls;
+using System.Windows;
 
 namespace Emignatik.NxFileViewer.Views.Windows;
 
@@ -6,4 +7,8 @@ namespace Emignatik.NxFileViewer.Views.Windows;
 public partial class RenameToolWindow : UserControl
 {
     public RenameToolWindow() => InitializeComponent();
+    private void OpenNamingSettings(object sender, RoutedEventArgs e)
+    {
+        if (Window.GetWindow(this) is MainWindow main) main.NavigateNamingSettings();
+    }
 }

@@ -71,7 +71,7 @@ public sealed class NszPluginManagerTest : IDisposable
         _handler.Tag = "2.0.0"; _handler.BadDigest = true;
         await Assert.ThrowsAsync<InvalidDataException>(Update);
         Assert.Equal(first, _manager.ExecutablePath);
-        Assert.Single(Directory.GetDirectories(_root));
+        Assert.Single(Directory.GetDirectories(_root, "version-*"));
         Assert.Equal(1, _checks);
     }
 
@@ -83,7 +83,7 @@ public sealed class NszPluginManagerTest : IDisposable
         _handler.Tag = "2.0.0"; _incompatible = true;
         await Assert.ThrowsAsync<InvalidDataException>(Update);
         Assert.Equal(first, _manager.ExecutablePath);
-        Assert.Single(Directory.GetDirectories(_root));
+        Assert.Single(Directory.GetDirectories(_root, "version-*"));
     }
 
     [Fact]
@@ -151,9 +151,23 @@ public sealed class NszPluginManagerTest : IDisposable
         _guiIncompatible = !badDigest;
         await Assert.ThrowsAsync<InvalidDataException>(Update);
         Assert.Equal(original, _manager.ExecutablePath);
-        Assert.Single(Directory.GetDirectories(_root));
+        Assert.Single(Directory.GetDirectories(_root, "version-*"));
     }
 
+    [Fact]
+    public async Task FailedStartupRetainsVerifiedDownloadsForRetry()
+    {
+        _runtimeFailure = true;
+        _guiIncompatible = true;
+        await Assert.ThrowsAsync<InvalidDataException>(Update);
+        Assert.Equal(2, _handler.Downloads);
+        Assert.False(File.Exists(_manager.ExecutablePath));
+        Assert.Equal(2, Directory.GetFiles(Path.Combine(_root, "Downloads"), "*.download").Length);
+        _guiIncompatible = false;
+        await Update();
+        Assert.Equal(2, _handler.Downloads);
+        Assert.True(File.Exists(_manager.ExecutablePath));
+    }
     [Fact]
     public void DefaultPluginDirectoryIsNextToExecutable() => Assert.Equal(
         Path.Combine(AppContext.BaseDirectory, "Plugins", "NSZ"),
