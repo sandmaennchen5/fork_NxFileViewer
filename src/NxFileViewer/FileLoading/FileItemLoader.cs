@@ -46,6 +46,12 @@ public class FileItemLoader : IFileItemLoader
     public NspItem LoadNsp(string path, CancellationToken token) => WithCancellation(token, () => LoadNsp(path));
     public XciItem LoadXci(string path, CancellationToken token) => WithCancellation(token, () => LoadXci(path));
     public StandaloneNcaFileItem LoadNca(string path, CancellationToken token) => WithCancellation(token, () => LoadNca(path));
+    public SdCardItem LoadSdCard(string contents, CancellationToken token) => WithCancellation(token, () =>
+    {
+        var item = SdCardItem.Open(contents, _keySetProviderService.GetKeySet(_appSettings.AlwaysReloadKeysBeforeOpen));
+        try { BuildPartitionChildItems(item); token.ThrowIfCancellationRequested(); return item; }
+        catch { item.Dispose(); throw; }
+    });
 
     public FileItemLoader(IKeySetProviderService keySetProviderService, ILoggerFactory loggerFactory, IAppSettings appSettings)
     {
@@ -139,7 +145,9 @@ public class FileItemLoader : IFileItemLoader
             var remainingEntries = new List<DirectoryEntryEx>();
 
             // First loop on *.tik files to inject title keys in KeySet
-            foreach (var partitionFileEntry in partitionFileSystem.EnumerateEntries().Where(e => e.Type == DirectoryEntryType.File))
+            foreach (var partitionFileEntry in (parentItem is SdCardItem sd
+                ? sd.EnumerateContent(_loadToken.Value)
+                : partitionFileSystem.EnumerateEntries()).Where(e => e.Type == DirectoryEntryType.File))
             {
                 _loadToken.Value.ThrowIfCancellationRequested();
                 var fileName = partitionFileEntry.Name;

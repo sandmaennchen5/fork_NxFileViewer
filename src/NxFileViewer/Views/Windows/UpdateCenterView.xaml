@@ -21,7 +21,7 @@
                         </WrapPanel>
                     </StackPanel></GroupBox>
                     <GroupBox Header="nicoboss/nsz"><StackPanel Margin="10">
-                    <CheckBox Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nsz_CheckUpdates}" IsChecked="{Binding DataContext.EditedSettings.NszCheckUpdates, RelativeSource={RelativeSource AncestorType={x:Type windows:SettingsWindow}}}" Margin="0,0,0,8"/>
+                    <CheckBox x:Name="NszCheckUpdatesBox" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nsz_CheckUpdates}" IsChecked="{Binding NszCheckUpdates, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8"/>
                     <TextBlock Text="{Binding Nsz.Status}" TextWrapping="Wrap" Margin="0,0,0,8"/>
                     <WrapPanel>
                         <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nsz_Update}" Command="{Binding Nsz.UpdateCommand}" Padding="12,5" Margin="0,0,8,0"/>

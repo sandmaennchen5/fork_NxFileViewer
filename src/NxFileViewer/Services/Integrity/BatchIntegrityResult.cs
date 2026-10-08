@@ -1,4 +1,7 @@
 using System.IO;
+using System;
+using System.ComponentModel;
+using System.Text.Json.Serialization;
 using Emignatik.NxFileViewer.Models.Overview;
 
 namespace Emignatik.NxFileViewer.Services.Integrity;
@@ -10,8 +13,23 @@ public sealed record BatchIntegrityResult(
     string Structure,
     string Compression,
     NcasIntegrity Integrity,
-    string? Error)
+    string? Error) : INotifyPropertyChanged
 {
+    public BatchPackageSummary[] Packages { get; init; } = Array.Empty<BatchPackageSummary>();
+    [JsonIgnore] public bool HasMultiplePackages => Packages.Length > 1;
+    private bool _packagesExpanded;
+    [JsonIgnore]
+    public bool PackagesExpanded
+    {
+        get => _packagesExpanded;
+        set
+        {
+            if (_packagesExpanded == value) return;
+            _packagesExpanded = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(PackagesExpanded)));
+        }
+    }
+    public event PropertyChangedEventHandler? PropertyChanged;
     public bool IsNand { get; init; }
     public string? NandDetails { get; init; }
     public bool? NamingMatches { get; init; }
@@ -45,3 +63,5 @@ public sealed record BatchIntegrityResult(
     public string? FirmwareDetails { get; init; }
     public string FileName => Path.GetFileName(FilePath.TrimEnd('/'));
 }
+
+public sealed record BatchPackageSummary(string Title, string TitleId, string Type, string Version);

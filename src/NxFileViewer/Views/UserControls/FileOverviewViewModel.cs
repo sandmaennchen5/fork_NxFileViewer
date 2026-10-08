@@ -25,6 +25,7 @@ public class FileOverviewViewModel : ViewModelBase
 
     private CnmtContainerViewModel? _selectedCnmtContainer;
     private string _missingKeys = "";
+    private bool _missingKeysWarningDismissed;
 
     public FileOverviewViewModel(FileOverview fileOverview, IServiceProvider serviceProvider)
     {
@@ -36,6 +37,11 @@ public class FileOverviewViewModel : ViewModelBase
             static view => view.NotifyPropertyChanged(nameof(NcasIntegrityValidityColor)));
         VerifyNcasIntegrityCommand = serviceProvider.GetRequiredService<IVerifyNcasIntegrityCommand>();
         CopyMissingKeysCommand = new RelayCommand(CopyMissingKeys);
+        DismissMissingKeysWarningCommand = new RelayCommand(() =>
+        {
+            _missingKeysWarningDismissed = true;
+            NotifyPropertyChanged(nameof(IsMissingKeysWarningVisible));
+        });
 
         _fileOverview.PropertyChanged += OnFileOverviewPropertyChanged;
         _fileOverview.MissingKeys.CollectionChanged += (_, _) =>
@@ -49,6 +55,14 @@ public class FileOverviewViewModel : ViewModelBase
         }
 
         SelectedCnmtContainer = CnmtContainers.FirstOrDefault();
+        if (_fileOverview.RootItem is Models.TreeItems.Impl.NroFileItem nro)
+        {
+            HomebrewTitle = nro.Titles.FirstOrDefault() is { } title ? new TitleInfoViewModel(title, serviceProvider) : null;
+            SaveHomebrewImageCommand = serviceProvider.GetRequiredService<ISaveTitleImageCommand>();
+            SaveHomebrewImageCommand.Title = HomebrewTitle?.Title;
+            CopyHomebrewImageCommand = serviceProvider.GetRequiredService<ICopyImageCommand>();
+            CopyHomebrewImageCommand.Image = HomebrewTitle?.Icon;
+        }
 
         foreach (var nca in _fileOverview.RootItem.FindChildrenOfType<Emignatik.NxFileViewer.Models.TreeItems.Impl.NcaItem>(includeItem: true))
             System.Windows.WeakEventManager<INotifyPropertyChanged, PropertyChangedEventArgs>.AddHandler(nca, nameof(INotifyPropertyChanged.PropertyChanged), OnNcaSignatureChanged);
@@ -56,6 +70,18 @@ public class FileOverviewViewModel : ViewModelBase
     }
 
     public bool HasMissingKeys => _fileOverview.MissingKeys.Count > 0;
+    public bool IsMissingKeysWarningVisible => HasMissingKeys && !_missingKeysWarningDismissed;
+    public bool IsHomebrew => _fileOverview.RootItem is Models.TreeItems.Impl.NroFileItem;
+    public bool HasPackageDetails => !IsHomebrew && _fileOverview.RootItem is not Models.TreeItems.Impl.SaveBackupFileItem;
+    public bool HasInstalledTitlesWithoutMeta => _fileOverview.InstalledTitlesWithoutMeta.Count > 0;
+    public IReadOnlyList<InstalledTitleInfo> InstalledTitleFallbacks => _fileOverview.InstalledTitlesWithoutMeta;
+    public string InstalledTitlesWithoutMeta => string.Join(Environment.NewLine, _fileOverview.InstalledTitlesWithoutMeta.Select(t => $"{t.TitleId}  {t.Title}  {t.Publisher}  {t.DisplayVersion}"));
+    public TitleInfoViewModel? HomebrewTitle { get; }
+    public ISaveTitleImageCommand? SaveHomebrewImageCommand { get; }
+    public ICopyImageCommand? CopyHomebrewImageCommand { get; }
+    public string HomebrewVersion => (_fileOverview.RootItem as Models.TreeItems.Impl.NroFileItem)?.DisplayVersion ?? "";
+    public string HomebrewBuildId => (_fileOverview.RootItem as Models.TreeItems.Impl.NroFileItem)?.BuildId ?? "";
+    public string HomebrewLanguages => string.Join(", ", (_fileOverview.RootItem as Models.TreeItems.Impl.NroFileItem)?.Titles.Select(t => t.Language.ToString()) ?? []);
 
     public string MissingKeys
     {
@@ -73,9 +99,12 @@ public class FileOverviewViewModel : ViewModelBase
     public IVerifyNcasIntegrityCommand VerifyNcasIntegrityCommand { get; }
 
     public RelayCommand CopyMissingKeysCommand { get; }
+    public RelayCommand DismissMissingKeysWarningCommand { get; }
 
 
-    public string FileType => _fileOverview.FileType.ToString();
+    public string FileType => _fileOverview.RootItem is Models.TreeItems.Impl.SaveBackupFileItem backup
+        ? backup.IsLikely ? LocalizationManager.Instance.Current.Keys.File_SaveBackupSuspected : LocalizationManager.Instance.Current.Keys.File_SaveBackup
+        : _fileOverview.FileType.ToString();
 
     public string CompressionType => _fileOverview.NcaCompressionType.ToString();
 
@@ -160,6 +189,7 @@ public class FileOverviewViewModel : ViewModelBase
 
     private void UpdateMissingKeys()
     {
+        _missingKeysWarningDismissed = false;
         var missingKeys = new List<string>();
         foreach (var missingKey in _fileOverview.MissingKeys)
         {
@@ -168,6 +198,7 @@ public class FileOverviewViewModel : ViewModelBase
 
         MissingKeys = string.Join(Environment.NewLine, missingKeys);
         NotifyPropertyChanged(nameof(HasMissingKeys));
+        NotifyPropertyChanged(nameof(IsMissingKeysWarningVisible));
     }
 
     private void CopyMissingKeys()

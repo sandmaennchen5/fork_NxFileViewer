@@ -151,7 +151,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
     public string SearchText { get => _searchText; set { _searchText = value ?? ""; NotifyPropertyChanged(); ResultsView.Refresh(); } }
     public string FileTypeFilter { get => _fileTypeFilter; set { _fileTypeFilter = value ?? ""; NotifyPropertyChanged(); ResultsView.Refresh(); } }
     public string IntegrityFilter { get => _integrityFilter; set { _integrityFilter = value ?? ""; NotifyPropertyChanged(); ResultsView.Refresh(); } }
-    public IReadOnlyList<BatchFilterOption> FileTypeFilters { get; } = new[] { "", "NSP", "NSZ", "XCI", "XCZ", "NAND", "ZIP", "7Z", "Folder" }.Select(value => new BatchFilterOption(value)).ToArray();
+    public IReadOnlyList<BatchFilterOption> FileTypeFilters { get; } = new[] { "", "NSP", "NSZ", "XCI", "XCZ", "NRO", "NAX0", "NAND", "ZIP", "7Z", "Folder" }.Select(value => new BatchFilterOption(value)).ToArray();
     public IReadOnlyList<BatchFilterOption> IntegrityFilters { get; } = new[] { new BatchFilterOption("") }.Concat(Enum.GetValues<NcasIntegrity>().Select(value => new BatchFilterOption(value.ToString()))).ToArray();
     public RelayCommand ResetFiltersCommand => new(() => { SearchText = ""; FileTypeFilter = ""; IntegrityFilter = ""; NamingFilter = ""; ShowOnlyErrors = false; });
     public bool ShowOnlyErrors
@@ -313,6 +313,8 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
                 {
                     Title = Join(package => package.Titles.FirstOrDefault()?.AppName),
                     TitleId = Join(package => package.TitleId),
+                    Packages = packages.Select(package => new BatchPackageSummary(
+                        package.Titles.FirstOrDefault()?.AppName ?? "—", package.TitleId, package.Type, package.TitleVersion ?? "—")).ToArray(),
                     Publisher = Join(package => package.Titles.FirstOrDefault()?.Publisher),
                     Version = Join(package => package.TitleVersion),
                     DisplayVersion = Join(package => package.DisplayVersion),
@@ -324,6 +326,18 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
                     FileSize = _previewFile?.FilePath == result.FilePath ? _previewFile.Overview.FileSize : null,
                     CompressionRatio = _previewFile?.FilePath == result.FilePath ? _previewFile.Overview.CompressionRatio : null
                 };
+                if (overview.IsHomebrew)
+                    result = result with { Title = overview.HomebrewTitle?.AppName ?? "", Publisher = overview.HomebrewTitle?.Publisher ?? "",
+                        DisplayVersion = overview.HomebrewVersion, BuildId = overview.HomebrewBuildId, Languages = overview.HomebrewLanguages, Distribution = "Homebrew" };
+                else if (result.FileType == "NAX0")
+                {
+                    result = result with { Distribution = "Filesystem" };
+                    if (packages.Count == 0)
+                        result = result with { Title = string.Join(" / ", overview.InstalledTitleFallbacks.Select(t => t.Title)),
+                            TitleId = string.Join(" / ", overview.InstalledTitleFallbacks.Select(t => t.TitleId)),
+                            Publisher = string.Join(" / ", overview.InstalledTitleFallbacks.Select(t => t.Publisher)),
+                            DisplayVersion = string.Join(" / ", overview.InstalledTitleFallbacks.Select(t => t.DisplayVersion)) };
+                }
             }
             var existing = Results.FirstOrDefault(r => r.FilePath.Equals(result.FilePath, StringComparison.OrdinalIgnoreCase));
             if (existing != null) Results[Results.IndexOf(existing)] = result;
@@ -367,7 +381,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
             PreviewOverview = completed;
     }
     public bool CanActOnFile(BatchIntegrityResult file, NszOperation? operation = null) => !BackgroundTask.IsRunning &&
-        !file.IsFirmware && !file.IsNand && !file.HasMissingKeys && File.Exists(file.FilePath) &&
+        !file.IsFirmware && !file.IsNand && file.FileType != "NAX0" && !file.HasMissingKeys && File.Exists(file.FilePath) &&
         (operation == null || PackageConversionService.Supports(file.FilePath, operation.Value));
     public bool CanCheckNaming(BatchIntegrityResult file) => !BackgroundTask.IsRunning &&
         !file.IsFirmware && !file.IsNand && !file.HasMissingKeys &&
@@ -485,7 +499,8 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
             + (outcome.Exception == null ? "" : $"\n\n{outcome.Exception.Message}");
     }
 
-    public bool CanOpenInSingle(BatchIntegrityResult file) => !BackgroundTask.IsRunning && File.Exists(PackageZip.ArchivePath(file.FilePath));
+    public bool CanOpenInSingle(BatchIntegrityResult file) => !BackgroundTask.IsRunning &&
+        (File.Exists(PackageZip.ArchivePath(file.FilePath)) || SdCardSource.FindContents(file.FilePath) != null);
     public async void OpenInSingle(BatchIntegrityResult file)
     {
         if (!CanOpenInSingle(file)) return;
@@ -516,7 +531,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         catch (Exception ex) { _logger.LogError(ex, "Failed to verify selected file."); }
     }
     private bool CanMoveValid() => !BackgroundTask.IsRunning &&
-        Results.Any(result => !result.IsFirmware && !result.IsNand && result.Integrity == NcasIntegrity.Original && File.Exists(result.FilePath));
+        Results.Any(result => !result.IsFirmware && !result.IsNand && result.FileType != "NAX0" && result.Integrity == NcasIntegrity.Original && File.Exists(result.FilePath));
 
     private bool CanConvertValid(NszOperation operation) => !BackgroundTask.IsRunning && Results.Any(result =>
         !result.IsFirmware && !result.IsNand && result.Integrity == NcasIntegrity.Original && File.Exists(result.FilePath) &&
@@ -566,7 +581,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
             : selected.FilePath.Equals(opening.OpenedFile.FilePath, StringComparison.OrdinalIgnoreCase))) opening.SafeClose();
         ClearPreview();
         var validFiles = (selected == null ? Results.AsEnumerable() : new[] { selected }).Where(result =>
-            !result.IsFirmware && !result.IsNand && (selected != null || result.Integrity == NcasIntegrity.Original) && File.Exists(result.FilePath)).ToArray();
+            !result.IsFirmware && !result.IsNand && result.FileType != "NAX0" && (selected != null || result.Integrity == NcasIntegrity.Original) && File.Exists(result.FilePath)).ToArray();
         var runnable = new RunnableRelay<int>((reporter, cancellationToken) =>
         {
             var moved = 0;

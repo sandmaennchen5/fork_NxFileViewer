@@ -131,7 +131,29 @@ public sealed class WorkspaceNavigationTest
                 Assert.IsType<RenameToolWindow>(((TabItem)main.FindName("RenameTab")).Content);
                 main.Navigate(WorkspaceSection.Updates);
                 var updates = Assert.IsType<UpdateCenterView>(((TabItem)main.FindName("UpdatesTab")).Content);
-                Assert.IsType<UpdateCenterViewModel>(updates.DataContext);
+                var updateModel = Assert.IsType<UpdateCenterViewModel>(updates.DataContext);
+                var originalCheckUpdates = actual.NszCheckUpdates;
+                var updateCheckbox = (CheckBox)updates.FindName("NszCheckUpdatesBox");
+                var updateBinding = updateCheckbox.GetBindingExpression(CheckBox.IsCheckedProperty)!.ParentBinding;
+                Assert.Equal(nameof(UpdateCenterViewModel.NszCheckUpdates), updateBinding.Path.Path);
+                Assert.Null(updateBinding.RelativeSource);
+                updateModel.NszCheckUpdates = false;
+                Assert.False(actual.NszCheckUpdates);
+                var settingsManager = App.ServiceProvider.GetRequiredService<IAppSettingsManager>();
+                Assert.False(settingsManager.Clone().NszCheckUpdates);
+                var savedSettingsPath = System.IO.Path.Combine(Emignatik.NxFileViewer.Utils.PathHelper.CurrentAppDir,
+                    AppDomain.CurrentDomain.FriendlyName + ".settings.json");
+                using (var saved = System.Text.Json.JsonDocument.Parse(System.IO.File.ReadAllText(savedSettingsPath)))
+                    Assert.False(saved.RootElement.GetProperty(nameof(IAppSettings.NszCheckUpdates)).GetBoolean());
+                settings.ApplySettingsCommand.Execute(null);
+                Assert.False(actual.NszCheckUpdates);
+                var embeddedUpdates = (UpdateCenterView)((ContentControl)settingsPage.FindName("SettingsUpdatesContent")).Content;
+                var embeddedModel = Assert.IsType<UpdateCenterViewModel>(embeddedUpdates.DataContext);
+                Assert.False(embeddedModel.NszCheckUpdates);
+                embeddedModel.NszCheckUpdates = true;
+                Assert.True(actual.NszCheckUpdates);
+                Assert.True(updateModel.NszCheckUpdates);
+                updateModel.NszCheckUpdates = originalCheckUpdates;
                 main.Navigate(WorkspaceSection.Home);
                 main.Navigate(WorkspaceSection.Updates);
                 Assert.Same(updates, ((TabItem)main.FindName("UpdatesTab")).Content);

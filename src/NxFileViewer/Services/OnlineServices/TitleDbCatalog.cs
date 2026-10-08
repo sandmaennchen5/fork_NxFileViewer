@@ -15,6 +15,15 @@ internal sealed class TitleDbCatalog(string cacheDirectory, ILogger? logger)
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly Dictionary<string, (Dictionary<string, OnlineTitleInfo> Titles, DateTime RefreshAfter)> _catalogs = new();
 
+    public static IReadOnlyDictionary<string, OnlineTitleInfo> ReadLocal(string region)
+    {
+        if (!Regex.IsMatch(region, "^[A-Z]{2}\\.[a-z]{2}$")) return new Dictionary<string, OnlineTitleInfo>();
+        var path = Path.Combine(AppContext.BaseDirectory, "Cache", "TitleDB", region + ".json");
+        try { return File.Exists(path) ? Parse(File.ReadAllText(path)) : new Dictionary<string, OnlineTitleInfo>(); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        { return new Dictionary<string, OnlineTitleInfo>(); }
+    }
+
     public async Task<OnlineTitleInfo?> FindAsync(string region, string titleId, HttpClient client)
     {
         if (!Regex.IsMatch(region, "^[A-Z]{2}\\.[a-z]{2}$"))

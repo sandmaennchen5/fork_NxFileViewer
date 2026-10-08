@@ -111,7 +111,8 @@ public class CnmtContainerViewModel : ViewModelBase
         }
     }
 
-    public string Distribution => _cnmtContainer.CnmtItem.ParentItem.ParentItem.DistributionType.ToString();
+    public string Distribution => _cnmtContainer.CnmtItem.ParentItem.ParentItem.ParentItem is SdCardItem
+        ? "Filesystem" : _cnmtContainer.CnmtItem.ParentItem.ParentItem.DistributionType.ToString();
 
     /// <summary>
     /// End user displayed version

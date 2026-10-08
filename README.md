@@ -23,6 +23,16 @@ The interface supports English, French, German and Spanish, with light, dark and
 
 The built-in solid NCZ reader caches a decoded prefix under `Temp/NCZ` to avoid repeated full decompression on backward reads. The first forward skip still requires decoding the preceding data, and temporary disk usage can approach the payload size. Block NCZ files use bounded block reads and indexed lookup. ZstdSharp.Port remains at 0.8.8. See [NCZ reader notes](docs/NSZ-reader-update.md).
 
+## Homebrew and Switch SD cards
+
+NRO files can be opened individually, in ZIP/7z archives and in batch checks. The overview reads embedded NACP title names, author/publisher, display version, languages, build ID and icon. Embedded assets are optional; NRO files do not need keys and do not receive NCA signature or integrity verification.
+
+Use **Open SD card** in File check to select the SD root, `Nintendo` or `Nintendo/Contents`. Batch check also recognizes these folders. Registered NAX0 contents are opened read-only using `sd_seed` and the SD content keys derived from the current `prod.keys`; a separate `console.keys` file is not needed. The seed must belong to the source console. Keep the original `Nintendo/Contents/registered/...` paths, which are part of NAX0 encryption. Opening an individual NAX0 file within that tree opens its containing SD content set.
+
+SD discovery includes the original `/Nintendo` directory, RAW emuMMC under `/emuMMC/RAW1/Nintendo` through `RAW3`, and file emuMMC under `/emuMMC/SD00/Nintendo` through `SD99`. Select the SD root, `emuMMC`, an individual slot, or its Nintendo/Contents folder. File check offers a selector for the discovered content sets and initially opens the first available set (original Nintendo first). Batch creates a separate NAX0 row per discovered content set, even with recursive scanning disabled. Each source requires its matching seed in the active `prod.keys`.
+
+FAT32 split NCA directories (`00`, `01`, ...) are supported even when copied folders lost their archive attribute. The content tree and title selector expose the installed titles; control metadata without a corresponding Meta NCA is displayed separately. NRO and NAX0 have dedicated batch filters; SD contents cannot be renamed or converted through package actions.
+
 ## Batch check
 
 Choose a directory or ZIP/7z archive. Subdirectories and archives can be included or excluded.

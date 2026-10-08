@@ -150,7 +150,7 @@ public static class PackageZip
         return packages;
     }
     private static bool IsSupported(string name, bool includeNca) => Path.GetExtension(name).ToLowerInvariant() is
-        ".nsp" or ".nsz" or ".xci" or ".xcz" || (includeNca && name.EndsWith(".nca", StringComparison.OrdinalIgnoreCase)) ||
+        ".nsp" or ".nsz" or ".xci" or ".xcz" or ".nro" || (includeNca && name.EndsWith(".nca", StringComparison.OrdinalIgnoreCase)) ||
         Services.Nand.NandDetection.IsCandidateName(name);
     private static void ValidateName(string name)
     {

@@ -27,9 +27,15 @@
         </Grid.RowDefinitions>
 
         <Border Grid.Row="0" BorderBrush="{DynamicResource FontBrush.Error}" BorderThickness="1" Padding="10" Margin="4,4,4,8"
-                Visibility="{Binding HasMissingKeys, Converter={StaticResource FalseToCollapseVisibilityConverter}, FallbackValue=Collapsed, TargetNullValue=Collapsed}">
+                Visibility="{Binding IsMissingKeysWarningVisible, Converter={StaticResource FalseToCollapseVisibilityConverter}, FallbackValue=Collapsed, TargetNullValue=Collapsed}">
             <StackPanel>
-                <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.File_MissingKeys}" Foreground="{DynamicResource FontBrush.Error}" FontWeight="Bold" TextWrapping="Wrap"/>
+                <DockPanel>
+                    <Button DockPanel.Dock="Right" Content="×" Command="{Binding DismissMissingKeysWarningCommand}"
+                            ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.MenuItem_Close}"
+                            AutomationProperties.Name="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.MenuItem_Close}"
+                            Width="26" Height="26" Margin="8,0,0,0" Padding="0" VerticalAlignment="Top"/>
+                    <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.File_MissingKeys}" Foreground="{DynamicResource FontBrush.Error}" FontWeight="Bold" TextWrapping="Wrap"/>
+                </DockPanel>
                 <ScrollViewer MaxHeight="120" VerticalScrollBarVisibility="Auto">
                     <TextBlock Text="{Binding MissingKeys}" TextWrapping="Wrap" Margin="0,6,0,0"/>
                 </ScrollViewer>
@@ -97,12 +103,28 @@
             </Grid>
         </GroupBox>
 
-        <customControls:MaskableGroupBox Grid.Row="2" Grid.Column="0" Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Packages_Title}" IsMasked="{Binding Path=IsSuperPackage, Converter={StaticResource BoolInverterConverter}}">
+        <GroupBox Grid.Row="2" Header="Homebrew (NRO)" Visibility="{Binding IsHomebrew, Converter={StaticResource FalseToCollapseVisibilityConverter}}">
+            <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="8">
+                <Image Source="{Binding HomebrewTitle.Icon}" Width="160" Height="160" HorizontalAlignment="Left"/>
+                <StackPanel Orientation="Horizontal"><Button Command="{Binding SaveHomebrewImageCommand}" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.ContextMenu_SaveImage}"/><Button Command="{Binding CopyHomebrewImageCommand}" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.ContextMenu_CopyImage}"/></StackPanel>
+                <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.AppTitle}"/>
+                <TextBox Text="{Binding HomebrewTitle.AppName, Mode=OneWay}" Style="{StaticResource ReadOnlyTextBox}"/>
+                <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Publisher}"/>
+                <TextBox Text="{Binding HomebrewTitle.Publisher, Mode=OneWay}" Style="{StaticResource ReadOnlyTextBox}"/>
+                <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.DisplayVersion}"/>
+                <TextBox Text="{Binding HomebrewVersion, Mode=OneWay}" Style="{StaticResource ReadOnlyTextBox}"/>
+                <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.AvailableLanguages}"/>
+                <TextBox Text="{Binding HomebrewLanguages, Mode=OneWay}" Style="{StaticResource ReadOnlyTextBox}"/>
+                <TextBlock Text="Build ID"/><TextBox Text="{Binding HomebrewBuildId, Mode=OneWay}" Style="{StaticResource ReadOnlyTextBox}"/>
+            </StackPanel></ScrollViewer>
+        </GroupBox>
+        <customControls:MaskableGroupBox Grid.Row="2" Grid.Column="0" Visibility="{Binding HasPackageDetails, Converter={StaticResource FalseToCollapseVisibilityConverter}}" Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Packages_Title}" IsMasked="{Binding Path=IsSuperPackage, Converter={StaticResource BoolInverterConverter}}">
 
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
                 <Grid Grid.Row="0" Visibility="{Binding Path=IsSuperPackage, Converter={StaticResource FalseToCollapseVisibilityConverter}}">
@@ -124,6 +146,8 @@
                 </Grid>
 
                 <userControls:CnmtContainerView Grid.Row="1" DataContext="{Binding Path=SelectedCnmtContainer}" />
+                <TextBox Grid.Row="2" MaxHeight="160" Text="{Binding InstalledTitlesWithoutMeta, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
+                         Visibility="{Binding HasInstalledTitlesWithoutMeta, Converter={StaticResource FalseToCollapseVisibilityConverter}}"/>
 
             </Grid>
         </customControls:MaskableGroupBox>

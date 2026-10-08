@@ -27,6 +27,7 @@ public interface IFileItemLoader
     /// <returns></returns>
     NspItem LoadNsp(string nspFilePath);
     StandaloneNcaFileItem LoadNca(string filePath);
+    SdCardItem LoadSdCard(string contents, CancellationToken token) => throw new NotSupportedException();
     NspItem LoadNsp(string path, CancellationToken token) { token.ThrowIfCancellationRequested(); return LoadNsp(path); }
     XciItem LoadXci(string path, CancellationToken token) { token.ThrowIfCancellationRequested(); return LoadXci(path); }
     StandaloneNcaFileItem LoadNca(string path, CancellationToken token) { token.ThrowIfCancellationRequested(); return LoadNca(path); }

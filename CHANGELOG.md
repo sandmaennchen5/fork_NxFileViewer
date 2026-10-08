@@ -5,6 +5,26 @@ All notable changes to NxFileViewer will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Read NRO homebrew metadata and icons in individual, ZIP/7z archive and batch mode, including embedded NACP titles, publisher, display version, languages and build ID. NRO files do not require keys or receive NCA signature/integrity verification.
+- Open and verify installed SD-card NAX0 content using the matching `sd_seed` and SD content keys from the active `prod.keys`. Support FAT32 split content, including copied folders without their archive attribute, and show control metadata without a corresponding Meta NCA. Add an SD-card folder picker, content-set selector and dedicated NRO/NAX0 batch filters; exclude SD contents from package rename/conversion actions.
+- Discover original Nintendo SD contents and RAW/file emuMMC content sets. Individual mode can switch between discovered sets; batch mode lists each set separately, including when recursive scanning is disabled, and the last SD source can be reopened.
+- Recognize JKSV ZIP/7z save backups through valid metadata or a supported legacy save layout, without assigning a game title. Show timestamped legacy archives under JKSV/oldJKSV as likely save backups when their contents pass the fallback checks; distinguish these candidates from content-confirmed backups and exclude saves from NCA verification and game-package actions.
+- Add a native, read-only NAND explorer with a folder tree, file list and individual file export. Browse USER/SYSTEM and other supported FAT32 partitions in dumps, split dumps and Windows drive/device sources; decrypt supported partitions with their BIS keys without mounting or modifying the source.
+- Show title IDs from readable save/NCA headers, resolve title names through the local regional TitleDB, and show user IDs from save headers while retaining the original filenames.
+- Open recognized SaveFS containers directly from NAND and browse their internal folders. Export individual files or the complete save, preserving directory structure and empty folders. Complete exports use a new timestamped destination and staging cleanup on cancellation/failure; existing destinations are not overwritten.
+- Expand multi-package batch rows to show each contained title, title ID, package type and version. Retain package details in batch history without persisting the expanded state.
+
+### Fixed
+
+- Allow missing-key warnings to be dismissed in individual and batch file overviews, and keep batch overview content scrollable so warnings do not squeeze the remaining details. Refresh warnings when the selected file or key diagnostics change.
+- Show an on-screen warning when loading runs out of disk space, including the affected path. Stop an affected batch scan as interrupted instead of reporting successful completion or continuing after the disk-full error.
+- Automatically load the new NAND partition root when its selection changes, synchronize both partition selectors, and leave the SaveFS view when switching partitions.
+- Persist changes to the NSZ “check for stable updates before conversion” checkbox immediately on both update pages, and preserve the active choice when applying general settings.
+
 ## [4.0.0] - 2026-10-07
 
 ### Added

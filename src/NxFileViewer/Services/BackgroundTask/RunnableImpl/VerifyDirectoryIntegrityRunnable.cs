@@ -20,7 +20,7 @@ namespace Emignatik.NxFileViewer.Services.BackgroundTask.RunnableImpl;
 public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrityRunnable
 {
     private static readonly HashSet<string> SupportedExtensions = new(StringComparer.OrdinalIgnoreCase)
-        { ".nsp", ".nsz", ".xci", ".xcz" };
+        { ".nsp", ".nsz", ".xci", ".xcz", ".nro" };
 
     private readonly IFileLoader _fileLoader;
     private readonly IServiceProvider _serviceProvider;
@@ -70,11 +70,12 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
 
         var option = _includeSubdirectories ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
         FirmwareIntegrityVerifier? firmware = null;
+        var sdSources = SdCardSource.FindAllContents(_directory);
         var allFiles = _selectedFiles?.Select(PackageZip.ArchivePath).Distinct(StringComparer.OrdinalIgnoreCase).ToArray() ??
             (Directory.Exists(_directory) ? Directory.GetFiles(_directory, "*", option) : new[] { _directory });
-        var folderCandidates = allFiles.Where(p => p.EndsWith(".nca", StringComparison.OrdinalIgnoreCase))
+        var folderCandidates = allFiles.Where(p => p.EndsWith(".nca", StringComparison.OrdinalIgnoreCase) && SdCardSource.ContentsForFile(p) == null)
             .Select(Path.GetDirectoryName).Where(p => p != null).Select(p => p!)
-            .Concat(_selectedFiles?.Where(Directory.Exists) ?? Array.Empty<string>()).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+            .Concat(_selectedFiles?.Where(p => Directory.Exists(p) && SdCardSource.FindContents(p) == null) ?? Array.Empty<string>()).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         var zipCandidates = allFiles.Where(p => (_selectedFiles != null || _includeArchives) && PackageZip.IsArchive(p))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var firmwareZips = zipCandidates.Where(p => ContainsNca(p) && ExpandPackages(p, cancellationToken).SequenceEqual(new[] { p }))
@@ -114,9 +115,11 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
             cancellationToken.ThrowIfCancellationRequested();
         }
         // Loose NCA folders and NCA ZIPs are candidates even without bundled hash lists.
-        var files = _selectedFiles?.ToArray() ?? expanded.Concat(folderCandidates).OrderBy(path => path, StringComparer.OrdinalIgnoreCase).ToArray();
+        var files = _selectedFiles?.ToArray() ?? expanded.Concat(folderCandidates)
+            .Concat(sdSources.Select(source => source.ContentsPath)).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(path => path, StringComparer.OrdinalIgnoreCase).ToArray();
         files = files.Where(file => _skipCompleted?.Invoke(file) != true).ToArray();
         var results = new List<BatchIntegrityResult>(files.Length);
+        var diskFull = false;
 
         for (var index = 0; index < files.Length; index++)
         {
@@ -127,7 +130,15 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
 
             try
             {
-                if (Directory.Exists(file) || firmwareZips.Contains(file) || archivedFirmware.Contains(file))
+                if (!PackageZip.IsMember(file) && SaveBackupDetection.IsBackup(file, cancellationToken))
+                {
+                    results.Add(new BatchIntegrityResult(file, PackageZip.DisplayFileType(file),
+                        SaveBackupDetection.IsLikelyLegacyBackup(file, cancellationToken)
+                            ? LocalizationManager.Instance.Current.Keys.File_SaveBackupSuspected
+                            : LocalizationManager.Instance.Current.Keys.File_SaveBackup, "SaveBackup", "None", NcasIntegrity.NoNca, null)
+                        { FileSize = new FileInfo(file).Length });
+                }
+                else if ((Directory.Exists(file) && SdCardSource.FindContents(file) == null) || firmwareZips.Contains(file) || archivedFirmware.Contains(file))
                 {
                     if (firmware == null) throw new InvalidDataException(referenceNotice);
                     using var extractedFirmware = archivedFirmware.Contains(file)
@@ -154,7 +165,7 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
                             // A UI preview failure must not invalidate the package analysis.
                             _logger.LogWarning(previewException, "Failed to display preview for {FilePath}", file);
                         }
-                        if (_verifyIntegrity && nxFile.NandResult == null)
+                        if (_verifyIntegrity && nxFile.NandResult == null && nxFile.RootItem is not Models.TreeItems.Impl.NroFileItem)
                         {
                             var verifier = _serviceProvider.GetRequiredService<IVerifyNcasIntegrityRunnable>();
                             verifier.Setup(nxFile.Overview, _appSettings.IgnoreMissingDeltaFragments);
@@ -163,16 +174,20 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
                         var missingKeys = nxFile.Overview.MissingKeys.Count > 0;
                         var integrityError = missingKeys ? LocalizationManager.Instance.Current.Keys.File_MissingKeys + Environment.NewLine +
                             string.Join(", ", nxFile.Overview.MissingKeys.Select(k => k.KeyName).Distinct()) :
-                            (_verifyIntegrity && nxFile.NandResult == null ? BuildIntegrityError(nxFile.Overview) : null);
+                            (_verifyIntegrity && nxFile.NandResult == null && nxFile.RootItem is not Models.TreeItems.Impl.NroFileItem ? BuildIntegrityError(nxFile.Overview) : null);
                         results.Add(new BatchIntegrityResult(
                             file,
-                            nxFile.NandResult == null ? PackageZip.DisplayFileType(file) : "NAND" + (PackageZip.IsMember(file) ? " (" + Path.GetExtension(PackageZip.ArchivePath(file)).TrimStart('.').ToUpperInvariant() + ")" : ""),
+                            nxFile.RootItem is Models.TreeItems.Impl.SdCardItem ? "NAX0" : nxFile.NandResult == null ? PackageZip.DisplayFileType(file) : "NAND" + (PackageZip.IsMember(file) ? " (" + Path.GetExtension(PackageZip.ArchivePath(file)).TrimStart('.').ToUpperInvariant() + ")" : ""),
                             nxFile.NandResult == null ? nxFile.Overview.FileType.ToString() : "NAND",
                             nxFile.NandResult?.Type ?? nxFile.Overview.PackageStructure.ToString(),
                             nxFile.Overview.NcaCompressionType.ToString(),
                             missingKeys ? NcasIntegrity.Error : nxFile.Overview.NcasIntegrity,
                             integrityError) { HasMissingKeys = missingKeys, IsNand = nxFile.NandResult != null,
                                 NandDetails = nxFile.NandResult?.Information, FileSize = nxFile.NandResult?.Size });
+                        if (nxFile.RootItem is Models.TreeItems.Impl.NroFileItem nro)
+                            results[^1] = results[^1] with { Title = nro.Titles.FirstOrDefault()?.AppName ?? "", Publisher = nro.Titles.FirstOrDefault()?.Publisher ?? "",
+                                DisplayVersion = nro.DisplayVersion, BuildId = nro.BuildId, Languages = string.Join(", ", nro.Titles.Select(t => t.Language)),
+                                Distribution = "Homebrew", FileSize = nxFile.Overview.FileSize };
                     }
                     finally { if (!retained) nxFile.Dispose(); }
                 }
@@ -184,19 +199,23 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to check integrity of {FilePath}", file);
+                diskFull = Services.FileOpening.LoadingSpaceWarning.IsDiskFull(ex);
+                if (diskFull) Services.FileOpening.LoadingSpaceWarning.Show(file);
+                var isSdSource = SdCardSource.FindContents(file) != null;
                 results.Add(new BatchIntegrityResult(
                     file,
-                    PackageZip.DisplayFileType(file),
-                    NxFileType.Unknown.ToString(),
-                    "Unknown",
+                    isSdSource ? "NAX0" : PackageZip.DisplayFileType(file),
+                    isSdSource ? "NAX0" : NxFileType.Unknown.ToString(),
+                    isSdSource ? "Filesystem" : "Unknown",
                     "Unknown",
                     NcasIntegrity.Error,
-                    ex.Message) { IsFirmware = Directory.Exists(file) || firmwareZips.Contains(file) || archivedFirmware.Contains(file), FirmwareDetails = ex.Message });
+                    ex.Message) { IsFirmware = (Directory.Exists(file) && SdCardSource.FindContents(file) == null) || firmwareZips.Contains(file) || archivedFirmware.Contains(file), FirmwareDetails = ex.Message });
             }
 
             results[^1] = results[^1] with { SourceFingerprint = fingerprint != null &&
                 fingerprint == BatchHistoryStore.Fingerprint(file) ? fingerprint : null };
             _resultCompleted?.Invoke(results[^1]);
+            if (diskFull) throw new IOException(LocalizationManager.Instance.Current.Keys.LoadingError_DiskFull, unchecked((int)0x80070070));
 
             progressReporter.SetPercentage(files.Length == 0 ? 1 : (double)(index + 1) / files.Length);
         }
@@ -230,6 +249,7 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
         if (!PackageZip.IsArchive(path)) return new[] { path };
         try
         {
+            if (SaveBackupDetection.IsBackup(path, token)) return new[] { path };
             var entries = PackageZip.GetEntries(path, includeNca: false, token: token, includeFirmware: true);
             if (entries.Count > 0) return entries.Select(entry => PackageZip.MemberPath(path, entry)).ToArray();
         }
@@ -241,7 +261,7 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
 
     private static string? BuildIntegrityError(FileOverview overview)
     {
-        if (overview.NcasIntegrity == NcasIntegrity.Original)
+        if (overview.NcasIntegrity is NcasIntegrity.Original or NcasIntegrity.NoNca)
             return null;
 
         var messages = overview.RootItem.FindChildrenOfType<IItem>(includeItem: true)

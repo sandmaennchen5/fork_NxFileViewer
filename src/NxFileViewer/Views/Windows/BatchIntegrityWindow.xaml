@@ -41,7 +41,11 @@
                     <Style TargetType="DataGridRow">
                         <EventSetter Event="PreviewMouseRightButtonDown" Handler="OpenFileActions"/>
                         <Setter Property="ToolTip" Value="{Binding Diagnostic}"/>
+                        <Setter Property="DetailsVisibility" Value="Collapsed"/>
                         <Style.Triggers>
+                            <DataTrigger Binding="{Binding PackagesExpanded}" Value="True">
+                                <Setter Property="DetailsVisibility" Value="Visible"/>
+                            </DataTrigger>
                             <DataTrigger Binding="{Binding HasMissingKeys}" Value="True">
                                 <Setter Property="Foreground" Value="{DynamicResource FontBrush.Error}"/>
                                 <Setter Property="FontWeight" Value="Bold"/>
@@ -49,8 +53,44 @@
                         </Style.Triggers>
                     </Style>
                 </DataGrid.RowStyle>
+                <DataGrid.RowDetailsTemplate>
+                    <DataTemplate>
+                        <Border Margin="24,4,8,8" Padding="8" BorderThickness="1" BorderBrush="{DynamicResource Control.Static.Border}">
+                            <DataGrid ItemsSource="{Binding Packages}" AutoGenerateColumns="False" IsReadOnly="True"
+                                      CanUserAddRows="False" CanUserDeleteRows="False" HeadersVisibility="Column"
+                                      MaxHeight="280" ScrollViewer.VerticalScrollBarVisibility="Auto">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.AppTitle}" Binding="{Binding Title}" Width="2*"/>
+                                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.CnmtOverview_TitleId}" Binding="{Binding TitleId}" Width="150"/>
+                                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_PackageType}" Binding="{Binding Type}" Width="110"/>
+                                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.CnmtOverview_TitleVersion}" Binding="{Binding Version}" Width="90"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Border>
+                    </DataTemplate>
+                </DataGrid.RowDetailsTemplate>
                 <DataGrid.Columns>
-                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_File}" Binding="{Binding FileName}" Width="220"/>
+                    <DataGridTemplateColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_File}" SortMemberPath="FileName" Width="220">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <DockPanel>
+                                    <ToggleButton DockPanel.Dock="Left" IsChecked="{Binding PackagesExpanded, Mode=TwoWay}"
+                                                  Width="22" Height="22" Padding="0" Margin="0,0,4,0"
+                                                  ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Batch_MultiPackageDetails}"
+                                                  AutomationProperties.Name="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Batch_MultiPackageDetails}"
+                                                  Visibility="{Binding HasMultiplePackages, Converter={StaticResource FalseToCollapseVisibilityConverter}}">
+                                        <ToggleButton.Style>
+                                            <Style TargetType="ToggleButton">
+                                                <Setter Property="Content" Value="▶"/>
+                                                <Style.Triggers><Trigger Property="IsChecked" Value="True"><Setter Property="Content" Value="▼"/></Trigger></Style.Triggers>
+                                            </Style>
+                                        </ToggleButton.Style>
+                                    </ToggleButton>
+                                    <TextBlock Text="{Binding FileName}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding FileName}"/>
+                                </DockPanel>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
                     <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_FileType}" Binding="{Binding FileType}" Width="110"/>
                     <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_PackageType}" Binding="{Binding PackageType}" Width="110"/>
                     <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.PackageStructure_Title}" Binding="{Binding Structure}" Width="110"/>

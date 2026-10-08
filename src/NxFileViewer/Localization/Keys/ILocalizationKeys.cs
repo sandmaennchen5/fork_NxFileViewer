@@ -7,6 +7,11 @@ namespace Emignatik.NxFileViewer.Localization.Keys;
 public interface ILocalizationKeys : ILocalizationKeysBase
 {
     string Nand_Detected { get; }
+    string Nand_OpenSave { get; }
+    string Nand_LeaveSave { get; }
+    string Nand_ExportSave { get; }
+    string Nand_ExplorerTitle { get; }
+    string Nand_ExplorerUserId { get; }
     string Nand_NameCandidate { get; }
     string Nand_Installed { get; }
     string Nand_Updating { get; }
@@ -20,6 +25,12 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string Nand_NewTarget { get; }
     string Nand_SourceMissing { get; }
     string Nand_NotInstalled { get; }
+    string Nand_OpenDrive { get; }
+    string Nand_Explorer { get; }
+    string Nand_ExplorerUp { get; }
+    string Nand_ExportFile { get; }
+    string Nand_ExplorerFolder { get; }
+    string Nand_DriveTip { get; }
     string Nand_KeysMissing { get; }
     string Nand_ExportFailed { get; }
     string Nand_ExportDone { get; }
@@ -134,6 +145,7 @@ public interface ILocalizationKeys : ILocalizationKeysBase
 
     string FileNotSupported_Log { get; }
     string OpenFile_Filter { get; }
+    string OpenSdCard { get; }
 
     string MenuItem_File { get; }
     string MenuItem_Open { get; }
@@ -320,6 +332,7 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string SettingsLoadingError { get; }
     string SettingsSavingError { get; }
 
+    string LoadingError_DiskFull { get; }
     string LoadingError_Failed { get; }
     string LoadingError_FailedToCheckIfXciPartitionExists { get; }
     string LoadingError_FailedToOpenXciPartition { get; }
@@ -510,6 +523,9 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string Batch_IncludeArchives { get; }
     string Batch_Scan { get; }
     string Batch_VerifyAll { get; }
+    string File_SaveBackupSuspected { get; }
+    string Batch_MultiPackageDetails { get; }
+    string File_SaveBackup { get; }
     string File_MissingKeys { get; }
     string File_CopyMissingKeys { get; }
     string Keys_ProgramFolder { get; }

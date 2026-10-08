@@ -38,6 +38,9 @@ public class FileOverviewLoader : IFileOverviewLoader
         return new FileOverviewLoaderInternal(_logger, _settings.IgnoreMissingDeltaFragments).CreateNspOverview(nspItem);
     }
 
+    public FileOverview Load(SdCardItem sdCardItem) =>
+        new FileOverviewLoaderInternal(_logger, _settings.IgnoreMissingDeltaFragments).CreateSdOverview(sdCardItem);
+
     private class FileOverviewLoaderInternal
     {
         private readonly ILogger _logger;
@@ -75,10 +78,25 @@ public class FileOverviewLoader : IFileOverviewLoader
             return FillOverview(fileOverview, nspItem);
         }
 
+        public FileOverview CreateSdOverview(SdCardItem item) => FillOverview(new FileOverview(item), item);
+
         private FileOverview FillOverview(FileOverview fileOverview, PartitionFileSystemItemBase partitionItem)
         {
             var cnmtContainers = BuildCnmtContainers(partitionItem).ToArray();
             fileOverview.CnmtContainers.AddRange(cnmtContainers);
+            if (partitionItem is SdCardItem)
+            {
+                var referenced = cnmtContainers.SelectMany(c => c.CnmtItem.ChildItems).Select(c => c.NcaId).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                foreach (var nca in partitionItem.NcaChildItems.Where(n => n.ContentType == NcaContentType.Control && !referenced.Contains(n.Id)))
+                {
+                    var nacp = nca.FindNacpItem();
+                    if (nacp == null) continue;
+                    var details = LoadContentDetails(nacp);
+                    var title = details.Titles.FirstOrDefault();
+                    fileOverview.InstalledTitlesWithoutMeta.Add(new InstalledTitleInfo(nca.Nca.Header.TitleId.ToString("x16"),
+                        title?.AppName ?? "", title?.Publisher ?? "", nacp.DisplayVersion));
+                }
+            }
             return fileOverview;
         }
 

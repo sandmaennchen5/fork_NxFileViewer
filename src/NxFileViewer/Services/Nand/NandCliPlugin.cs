@@ -11,6 +11,7 @@ using Emignatik.NxFileViewer.Localization;
 using Emignatik.NxFileViewer.Services.BackgroundTask;
 using Emignatik.NxFileViewer.Settings;
 using Emignatik.NxFileViewer.Services.KeysManagement;
+using Emignatik.NxFileViewer.Services.OnlineServices;
 
 namespace Emignatik.NxFileViewer.Services.Nand;
 
@@ -18,6 +19,100 @@ public sealed class NandCliPlugin(IAppSettings settings, INandProcessRunner? pro
     NandPluginManager? manager = null, IKeySetProviderService? keyProvider = null)
 {
     private readonly INandProcessRunner _processRunner = processRunner ?? new NandProcessRunner();
+    public IReadOnlyList<NandExplorerPartition> ExplorerPartitions(string source, CancellationToken token)
+    {
+        using var explorer = new NandExplorer(source, token);
+        return explorer.GetPartitions(source);
+    }
+    private byte[]? ExplorerKey(string partition)
+    {
+        var index = partition switch { "PRODINFOF" => "00", "SAFE" => "01", "SYSTEM" => "02", "USER" => "03", _ => null };
+        if (index == null) return null;
+        var path = string.IsNullOrWhiteSpace(settings.NandBisKeysPath) ? keyProvider?.ActualProdKeysFilePath : settings.NandBisKeysPath;
+        if (path == null || !File.Exists(path)) return null;
+        var lines = File.ReadAllLines(path);
+        foreach (var line in lines)
+        {
+            var match = Regex.Match(line, @"^\s*bis_key_" + index + @"\s*=\s*([0-9a-fA-F]{64})\s*(?:[#;].*)?$", RegexOptions.IgnoreCase);
+            if (match.Success) return Convert.FromHexString(match.Groups[1].Value);
+        }
+        string? Part(string name) => lines.Select(line => Regex.Match(line,
+                @"^\s*BIS Key " + int.Parse(index) + @"\s*\(" + name + @"\)\s*:\s*([0-9a-fA-F]{32})\s*$", RegexOptions.IgnoreCase))
+            .FirstOrDefault(match => match.Success)?.Groups[1].Value;
+        var crypt = Part("crypt"); var tweak = Part("tweak");
+        if (crypt != null && tweak != null) return Convert.FromHexString(crypt + tweak);
+        return null;
+    }
+    public IReadOnlyList<NandExplorerEntry> ListExplorer(string source, NandExplorerPartition partition, string path, CancellationToken token)
+    {
+        using var explorer = new NandExplorer(source, token);
+        explorer.OpenPartition(partition, ExplorerKey(partition.Name));
+        var entries = explorer.List(path);
+        var titles = TitleDbCatalog.ReadLocal(settings.TitleDbRegion);
+        var keys = new LibHac.Common.Keys.KeySet();
+        try { keys = keyProvider?.GetKeySet() ?? keys; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException) { }
+        return entries.Select(entry =>
+        {
+            token.ThrowIfCancellationRequested();
+            if (entry.IsDirectory) return entry;
+            try
+            {
+                ulong titleId;
+                string userId = "";
+                using var storage = new LibHac.Fs.MemoryStorage(explorer.ReadPrefix(entry, 0x8000));
+                if (entry.Path.StartsWith("/save/", StringComparison.OrdinalIgnoreCase))
+                {
+                    var header = new LibHac.Tools.FsSystem.Save.Header(storage, keys);
+                    titleId = header.ExtraData.TitleId;
+                    if (header.ExtraData.UserId != Guid.Empty) userId = Convert.ToHexString(header.ExtraData.UserId.ToByteArray());
+                }
+                else if (entry.Name.EndsWith(".nca", StringComparison.OrdinalIgnoreCase))
+                    titleId = new LibHac.Tools.FsSystem.NcaUtils.Nca(keys, storage).Header.TitleId;
+                else return entry;
+                var id = titleId.ToString("X16");
+                titles.TryGetValue(id, out var title);
+                if (title == null) titles.TryGetValue((titleId & ~0xfffUL).ToString("X16"), out title);
+                return entry with { TitleId = id, Title = title?.Name ?? "", UserId = userId,
+                    IsSave = entry.Path.StartsWith("/save/", StringComparison.OrdinalIgnoreCase) };
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException && ex is not OutOfMemoryException)
+            {
+                // An unreadable metadata header must not hide the file from the explorer.
+                return entry;
+            }
+        }).ToArray();
+    }
+    public void ExportExplorer(string source, NandExplorerPartition partition, NandExplorerEntry entry, string destination, CancellationToken token)
+    {
+        using var explorer = new NandExplorer(source, token);
+        explorer.OpenPartition(partition, ExplorerKey(partition.Name));
+        using var output = new FileStream(destination, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+        try { explorer.Export(entry, output); }
+        catch { output.Dispose(); File.Delete(destination); throw; }
+    }
+    private T WithSave<T>(string source, NandExplorerPartition partition, NandExplorerEntry entry,
+        CancellationToken token, Func<NandSaveExplorer, T> action)
+    {
+        if (!entry.IsSave || entry.IsDirectory) throw new InvalidOperationException("Select a readable save file.");
+        using var explorer = new NandExplorer(source, token);
+        explorer.OpenPartition(partition, ExplorerKey(partition.Name));
+        using var stream = explorer.OpenFile(entry);
+        using var save = new NandSaveExplorer(stream, keyProvider?.GetKeySet() ?? new LibHac.Common.Keys.KeySet(), token);
+        return action(save);
+    }
+    public IReadOnlyList<NandExplorerEntry> ListSave(string source, NandExplorerPartition partition,
+        NandExplorerEntry save, string path, CancellationToken token) => WithSave(source, partition, save, token, reader => reader.List(path));
+    public void ExportSaveFile(string source, NandExplorerPartition partition, NandExplorerEntry save,
+        string path, string destination, CancellationToken token) => WithSave(source, partition, save, token, reader =>
+        {
+            using var output = new FileStream(destination, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+            try { reader.Export(path, output); }
+            catch { output.Dispose(); File.Delete(destination); throw; }
+            return true;
+        });
+    public void ExportSave(string source, NandExplorerPartition partition, NandExplorerEntry save,
+        string destination, CancellationToken token) => WithSave(source, partition, save, token, reader => { reader.ExportAll(destination); return true; });
     public static IReadOnlyList<string> PartitionNames { get; } = new[]
     {
         "BOOT0", "BOOT1", "PRODINFO", "PRODINFOF", "SAFE", "SYSTEM", "USER",

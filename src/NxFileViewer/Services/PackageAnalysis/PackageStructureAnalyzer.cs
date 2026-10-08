@@ -16,6 +16,7 @@ public static class PackageStructureAnalyzer
     {
         NspItem nsp => AnalyzeNspNames(nsp.ChildItems.Select(item => item.Name)),
         XciItem xci => AnalyzeXciPartitions(xci.ChildItems.Select(item => item.XciPartitionType)),
+        NroFileItem => PackageStructure.Homebrew,
         _ when string.Equals(rootItem.Format, "NAX0", StringComparison.OrdinalIgnoreCase) => PackageStructure.Filesystem,
         _ => PackageStructure.Unknown
     };

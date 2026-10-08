@@ -11,6 +11,8 @@ namespace Emignatik.NxFileViewer.Models;
 /// </summary>
 public class NxFile : IDisposable
 {
+    public System.Collections.Generic.IReadOnlyList<FileLoading.SdContentSource> SdSources { get; set; } = Array.Empty<FileLoading.SdContentSource>();
+    public string? SdContentsPath { get; set; }
     public Services.Nand.NandDetectionResult? NandResult { get; set; }
     public string? NandPhysicalPath { get; set; }
     public Services.Integrity.BatchIntegrityResult? FirmwareResult { get; set; }

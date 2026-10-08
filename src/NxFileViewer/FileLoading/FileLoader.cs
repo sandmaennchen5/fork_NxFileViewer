@@ -35,6 +35,31 @@ internal class FileLoader : IFileLoader
     public NxFile Load(string filePath, System.Threading.CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
+        if (!PackageZip.IsMember(filePath) && SaveBackupDetection.IsBackup(filePath, token))
+        {
+            var root = new SaveBackupFileItem(filePath, SaveBackupDetection.IsLikelyLegacyBackup(filePath, token));
+            return new NxFile(filePath, root, new FileOverview(root)
+            { FileSize = new FileInfo(filePath).Length, NcasIntegrity = NcasIntegrity.NoNca });
+        }
+        var sdContents = SdCardSource.FindContents(filePath);
+        if (sdContents != null || SdCardSource.IsNax0(filePath))
+        {
+            sdContents ??= SdCardSource.ContentsForFile(filePath) ?? throw new InvalidDataException("Open the SD card root or Nintendo/Contents folder; the original NAX0 path is required.");
+            var sdMissingKeys = new HashSet<MissingKey>();
+            MissingKeyExceptionHandler sdHandler = (_, args) => sdMissingKeys.Add(new MissingKey(args.Exception.Name, args.Exception.Type));
+            _fileItemLoader.MissingKey += sdHandler;
+            SdCardItem sdItem;
+            try { sdItem = _fileItemLoader.LoadSdCard(sdContents, token); }
+            finally { _fileItemLoader.MissingKey -= sdHandler; }
+            try
+            {
+                var overview = _fileOverviewLoader.Load(sdItem);
+                overview.FileSize = sdItem.NcaChildItems.Sum(item => item.Size);
+                foreach (var key in sdMissingKeys) overview.MissingKeys.Add(key);
+                return new NxFile(filePath, sdItem, overview) { SdContentsPath = sdContents, SdSources = SdCardSource.FindRelatedContents(sdContents) };
+            }
+            catch { sdItem.Dispose(); throw; }
+        }
         if (PackageZip.IsMember(filePath) || PackageZip.IsArchive(filePath))
         {
             var archive = PackageZip.ArchivePath(filePath);
@@ -120,6 +145,10 @@ internal class FileLoader : IFileLoader
             }
             else switch (_packageTypeAnalyzer.GetType(filePath))
             {
+                case PackageType.NRO:
+                    rootItem = new NroFileItem(filePath, token);
+                    fileOverview = new FileOverview(rootItem) { NcasIntegrity = NcasIntegrity.NoNca };
+                    break;
                 case PackageType.UNKNOWN:
                     throw new FileNotSupportedException(filePath);
 

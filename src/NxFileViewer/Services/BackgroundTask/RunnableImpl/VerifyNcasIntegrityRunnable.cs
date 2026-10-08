@@ -89,6 +89,11 @@ public class VerifyNcasIntegrityRunnable : IVerifyNcasIntegrityRunnable
             }
         }
 
+        if (fileOverview.RootItem is SdCardItem sd)
+        {
+            var referenced = ncaItemsToProcess.Select(entry => entry.Item1).ToHashSet();
+            foreach (var nca in sd.NcaChildItems.Where(nca => !referenced.Contains(nca))) ncaItemsToProcess.Add((nca, null));
+        }
         var atLeastOneModified = false; var atLeastOneCorrupted = false; var atLeastOneError = false;
 
         try

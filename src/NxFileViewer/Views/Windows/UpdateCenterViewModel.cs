@@ -22,14 +22,17 @@ public sealed class UpdateCenterViewModel : ViewModelBase
     private readonly ITitleDbUpdater _titles;
     private readonly ICachedOnlineTitleInfoService _cache;
     private readonly IAppSettings _settings;
+    private readonly IAppSettingsManager? _settingsManager;
     private readonly ILogger<UpdateCenterViewModel> _logger;
     private string _titleStatus = "";
     private string _firmwareStatus = "";
     public UpdateCenterViewModel(IMainBackgroundTaskRunnerService background, ITitleDbUpdater titles,
         ICachedOnlineTitleInfoService cache, IAppSettings settings, NszActions nsz,
-        ViewerUpdateActions viewer, ILogger<UpdateCenterViewModel> logger, Emignatik.NxFileViewer.Services.Nand.NandPluginActions nand)
+        ViewerUpdateActions viewer, ILogger<UpdateCenterViewModel> logger, Emignatik.NxFileViewer.Services.Nand.NandPluginActions nand,
+        IAppSettingsManager? settingsManager = null)
     {
         _background = background; _titles = titles; _cache = cache; _settings = settings; _logger = logger;
+        _settingsManager = settingsManager;
         Nsz = nsz; Viewer = viewer;
         Nand = nand;
         RefreshTitlesCommand = new RelayCommand(RefreshTitles, () => !background.IsRunning);
@@ -41,10 +44,24 @@ public sealed class UpdateCenterViewModel : ViewModelBase
             CheckFirmwareCommand.TriggerCanExecuteChanged(true);
             SaveFirmwareCommand.TriggerCanExecuteChanged(true);
         };
-        settings.PropertyChanged += (_, args) => { if (args.PropertyName == nameof(IAppSettings.TitleDbRegion)) RefreshInstalledData(); };
+        settings.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(IAppSettings.TitleDbRegion)) RefreshInstalledData();
+            if (args.PropertyName == nameof(IAppSettings.NszCheckUpdates)) NotifyPropertyChanged(nameof(NszCheckUpdates));
+        };
         RefreshInstalledData();
     }
     public IMainBackgroundTaskRunnerService Background => _background;
+    public bool NszCheckUpdates
+    {
+        get => _settings.NszCheckUpdates;
+        set
+        {
+            if (_settings.NszCheckUpdates == value) return;
+            _settings.NszCheckUpdates = value;
+            _settingsManager?.SaveSafe();
+        }
+    }
     public NszActions Nsz { get; }
     public Emignatik.NxFileViewer.Services.Nand.NandPluginActions Nand { get; }
     public ViewerUpdateActions Viewer { get; }

@@ -86,6 +86,7 @@ public class FileOpeningService : IFileOpeningService
         catch (Exception ex)
         {
             _logger.LogError(ex, LocalizationManager.Instance.Current.Keys.LoadingError_Failed.SafeFormat(filePath, ex.Message), ex);
+            if (LoadingSpaceWarning.IsDiskFull(ex)) LoadingSpaceWarning.Show(filePath);
         }
     }
 
