@@ -41,7 +41,7 @@ public class NspItem : PartitionFileSystemItemBase
 
     public static NspItem FromFile(string nspFilePath, KeySet keySet)
     {
-        var localStorage = new LocalStorage(nspFilePath, FileAccess.Read);
+        var localStorage = Services.Mtp.MtpDirectSource.OpenStorage(nspFilePath);
         try
         {
             var partitionFileSystem = localStorage.LoadPartition();

@@ -192,6 +192,7 @@ public sealed class NandViewModel : NotifyPropertyChangedBase
             Information = string.Join(Environment.NewLine, partitions.Select(p => $"{p.Name}: {p.Size:N0} bytes"));
             Partitions = partitions.Select(p => p.Name).ToArray(); SelectedPartition = Partitions.FirstOrDefault();
         }
+        catch (UnauthorizedAccessException) { ThemedDialog.Notice(LocalizationManager.Instance.Current.Keys.Nand_DriveAccessDenied, "NAND Explorer", MessageBoxImage.Error); }
         catch (Exception ex) { ThemedDialog.Notice(ex.Message, "NAND Explorer", MessageBoxImage.Error); }
     }
     public void SetFile(NxFile file)

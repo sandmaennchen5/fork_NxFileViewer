@@ -41,7 +41,7 @@ public class XciItem : ItemBase
 
     public static XciItem FromFile(string xciFilePath, KeySet keySet)
     {
-        var fileStorage = new LocalStorage(xciFilePath, FileAccess.Read);
+        var fileStorage = Services.Mtp.MtpDirectSource.OpenStorage(xciFilePath);
         try
         {
 

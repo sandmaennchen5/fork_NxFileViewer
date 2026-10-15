@@ -7,8 +7,22 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+Planned version: **4.0.1**.
+
+- NAND drive selection lists physical disks without drive letters or successful read probes, including offline Hekate UMS devices. Model/capacity are shown when available; refresh and a clear administrator-access message are included.
+
+- Batch source selection offers Auto, Regular folder and Switch SD to override SD-root detection, including MTP imports. Switch SD applies enabled area filtering even without SD markers; Regular folder bypasses it.
+
+- Settings can restrict whole Switch-SD batch scans to selected areas: `/switch`, `/Nintendo`, `/emuMMC`, `/tools`, root `hbmenu.nro`, `/DBIsaves`, `/dumps`, and `/nxdt_rw_poc`. Users can add custom folders or individual files, including nested paths, one per line. The saved filter also excludes unselected areas before MTP copying; explicitly selected files/subfolders remain independently accessible.
+
+- Sphaira MTP offers optional experimental direct reading for individual NSP/NSZ, XCI/XCZ and NCA files or folders containing these files in single and batch views. Local cache remains the default; archives, NAND and SD structures require it. Direct sources are read-only; Windows may still buffer transfers internally.
+
+- External NxNandManager and NSZ GUI launches reuse the active NxFileViewer keys in a temporary, isolated key environment (NAND BIS override takes priority).
+
 ### Added
 
+- Add “Sphaira (MTP)” selection to individual and batch checks, using native Windows virtual-device browsing and read-only file transfers. Import supported contents to a selectable local/network cache with progress, cancellation and cleanup; preserve Nintendo/Contents paths and split NCA parts for the existing SD reader, including MTP views that provide NCAs without a NAX0 wrapper.
+- Add an optional batch checkbox to group files by their source folder or ZIP/7z archive, with collapsible groups and file counts. Preserve filters, sorting and per-file actions inside groups.
 - Read NRO homebrew metadata and icons in individual, ZIP/7z archive and batch mode, including embedded NACP titles, publisher, display version, languages and build ID. NRO files do not require keys or receive NCA signature/integrity verification.
 - Open and verify installed SD-card NAX0 content using the matching `sd_seed` and SD content keys from the active `prod.keys`. Support FAT32 split content, including copied folders without their archive attribute, and show control metadata without a corresponding Meta NCA. Add an SD-card folder picker, content-set selector and dedicated NRO/NAX0 batch filters; exclude SD contents from package rename/conversion actions.
 - Discover original Nintendo SD contents and RAW/file emuMMC content sets. Individual mode can switch between discovered sets; batch mode lists each set separately, including when recursive scanning is disabled, and the last SD source can be reopened.
@@ -20,6 +34,13 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Fixed
 
+- Reuse archive extractions and recursive content lists throughout a load or consecutive batch entries from the same archive, preventing repeated unpacking of large nested firmware archives. Keep single-archive batch discovery and subsequent loading in the same operation, including ZIPs at the archive root and in subfolders. Release retained sessions on completion, cancellation or switching archives.
+- Show archive listing and ZIP/7z extraction/copy progress in the status bar during single-file opening, batch scans and overview loading, including the current entry, file count, byte counts and percentage.
+- Detect ZIP/7z readers from archive signatures so incorrectly named archives, including nested firmware archives with a ZIP extension but 7z contents, remain readable.
+- Automatically size the expanded SuperNSP/SuperXCI package columns to their headers and contents, with horizontal scrolling for long titles.
+- Restore UTF-8 localization text and keep the ungrouped batch table visible when optional source grouping is disabled.
+- Make the arrow beside multi-package filenames reliably expand/collapse the contained package list and select the matching overview; keep result-row hashes stable while expansion and UI subscriptions change.
+- Restore batch overview loading on selection when no cached model is available. Reuse cached models for subsequent selections, retain stored summaries for missing sources or load failures, and prevent delayed loads from replacing the latest selection.
 - Allow missing-key warnings to be dismissed in individual and batch file overviews, and keep batch overview content scrollable so warnings do not squeeze the remaining details. Refresh warnings when the selected file or key diagnostics change.
 - Show an on-screen warning when loading runs out of disk space, including the affected path. Stop an affected batch scan as interrupted instead of reporting successful completion or continuing after the disk-full error.
 - Automatically load the new NAND partition root when its selection changes, synchronize both partition selectors, and leave the SaveFS view when switching partitions.

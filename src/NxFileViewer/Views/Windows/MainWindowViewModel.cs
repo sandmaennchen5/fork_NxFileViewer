@@ -86,6 +86,11 @@ public class MainWindowViewModel : WindowViewModelBase, IFilesDropped
         _appSettings = appSettings ?? throw new ArgumentNullException(nameof(appSettings));
         _fileOpeningService = fileOpeningService ?? throw new ArgumentNullException(nameof(fileOpeningService));
         OpenFileCommand = openFileCommand ?? throw new ArgumentNullException(nameof(openFileCommand));
+        OpenSphairaCommand = new Utils.MVVM.Commands.RelayCommand(async () =>
+        {
+            var path = await Services.Mtp.SphairaMtpActions.SelectAndImport(serviceProvider, backgroundTaskRunnerService);
+            if (path != null) await _fileOpeningService.SafeOpenFile(Services.Mtp.SphairaMtpActions.SinglePath(path));
+        });
         OpenSdCardCommand = new Utils.MVVM.Commands.RelayCommand(() =>
         {
             var dialog = new Microsoft.Win32.OpenFolderDialog { Title = LocalizationManager.Instance.Current.Keys.OpenSdCard };
@@ -128,6 +133,7 @@ public class MainWindowViewModel : WindowViewModelBase, IFilesDropped
     public NszActions Nsz => ServiceProvider.GetRequiredService<NszActions>();
 
     public IOpenFileCommand OpenFileCommand { get; }
+    public Utils.MVVM.Commands.RelayCommand OpenSphairaCommand { get; }
     public Utils.MVVM.Commands.RelayCommand OpenSdCardCommand { get; }
 
     public IExitAppCommand ExitAppCommand { get; }

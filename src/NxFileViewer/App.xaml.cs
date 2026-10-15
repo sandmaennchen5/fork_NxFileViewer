@@ -50,6 +50,7 @@ public partial class App : Application, IAppEvents
 
             .AddSingleton<IKeySetProviderService, KeySetProviderService>()
             .AddSingleton<IFileOpeningService, FileOpeningService>()
+            .AddSingleton<Services.Mtp.MtpImportService>()
             .AddSingleton<NszPluginManager>()
             .AddSingleton<INszPlugin, NszCliPlugin>()
             .AddSingleton<IConversionVerifier, ConversionVerifier>()

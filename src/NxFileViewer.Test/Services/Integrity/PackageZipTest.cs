@@ -42,6 +42,139 @@ public sealed class PackageZipTest : IDisposable
         input.CopyTo(output);
         return outer;
     }
+    [Fact]
+    public void BatchDiscoveryAndLoadingShareRootAndSubfolderZipExtractions()
+    {
+        var inner = CreatePackageArchive(false);
+        var outer = Path.Combine(_root, "root-and-subfolder.zip");
+        using (var zip = ZipFile.Open(outer, ZipArchiveMode.Create))
+            foreach (var name in new[] { "one.zip", "subfolder/two.zip" })
+            {
+                using var output = zip.CreateEntry(name).Open();
+                using var input = File.OpenRead(inner);
+                input.CopyTo(output);
+            }
+        var reporter = new ArchiveProgressCapture();
+        var rows = new VerifyDirectoryIntegrityRunnable(CreateLoader(), null!, new AppSettings(),
+            NullLogger<VerifyDirectoryIntegrityRunnable>.Instance)
+            .Setup(outer, false, verifyIntegrity: false).Run(reporter, TestContext.Current.CancellationToken);
+        Assert.Equal(4, rows.Count);
+        Assert.All(rows, row => Assert.Null(row.Error));
+        Assert.Equal(4, rows.Select(row => row.FilePath).Distinct().Count());
+        Assert.Equal(6, reporter.Percentages.Count(value => value == 0));
+        Assert.Contains(rows, row => row.FilePath.Contains("subfolder/two.zip::", StringComparison.Ordinal));
+        Assert.Contains(rows, row => row.FilePath.Contains("::one.zip::", StringComparison.Ordinal));
+    }
+    [Fact]
+    public void BatchArchiveSwitchReleasesPreviousExtraction()
+    {
+        var first = CreatePackageArchive(false);
+        var second = CreatePackageArchive(false);
+        var temp = Path.Combine(_root, "batch-operations");
+        using var operations = new PackageZip.BatchOperations();
+        operations.Select(PackageZip.MemberPath(first, "first.nsp"));
+        string firstPath;
+        using (var extracted = PackageZip.Extract(first, PackageZip.GetFileEntries(first)[0], TestContext.Current.CancellationToken, temp)) firstPath = extracted.FilePath;
+        Assert.True(File.Exists(firstPath));
+        operations.Select(PackageZip.MemberPath(second, "first.nsp"));
+        Assert.False(File.Exists(firstPath));
+        string secondPath;
+        using (var extracted = PackageZip.Extract(second, PackageZip.GetFileEntries(second)[0], TestContext.Current.CancellationToken, temp)) secondPath = extracted.FilePath;
+        Assert.True(File.Exists(secondPath));
+        operations.Dispose();
+        Assert.False(File.Exists(secondPath));
+        Assert.Empty(Directory.GetDirectories(temp));
+    }
+    [Fact]
+    public void ListingAndLoadingMultipleInnerArchivesReuseEachExtractionOnce()
+    {
+        var inner = CreatePackageArchive(false);
+        var outer = Path.Combine(_root, "multiple-inner.zip");
+        using (var zip = ZipFile.Open(outer, ZipArchiveMode.Create))
+            foreach (var name in new[] { "one.zip", "two.zip" })
+            {
+                using var output = zip.CreateEntry(name).Open();
+                using var input = File.OpenRead(inner);
+                input.CopyTo(output);
+            }
+        var temp = Path.Combine(AppContext.BaseDirectory, "Temp", "ZIP");
+        var before = Directory.Exists(temp) ? Directory.GetDirectories(temp).Order().ToArray() : Array.Empty<string>();
+        var reporter = new ArchiveProgressCapture();
+        using (PackageZip.ReportProgress(reporter))
+        using (PackageZip.BeginOperation())
+        {
+            var entries = PackageZip.GetEntries(outer, token: TestContext.Current.CancellationToken, includeFirmware: true);
+            Assert.Equal(4, entries.Count);
+            // Listing extracts the two outer members, but not their package contents.
+            Assert.Equal(2, reporter.Percentages.Count(value => value == 0));
+            var updates = reporter.Percentages.Count;
+            Assert.Equal(entries, PackageZip.GetEntries(outer, token: TestContext.Current.CancellationToken, includeFirmware: true));
+            Assert.Equal(updates, reporter.Percentages.Count);
+            using var first = CreateLoader().Load(PackageZip.MemberPath(outer, entries[0]), TestContext.Current.CancellationToken);
+            using var last = CreateLoader().Load(PackageZip.MemberPath(outer, entries[^1]), TestContext.Current.CancellationToken);
+            Assert.IsType<NspItem>(first.RootItem);
+            Assert.IsType<NspItem>(last.RootItem);
+            Assert.Equal(6, reporter.Percentages.Count(value => value == 0));
+            var afterLoads = reporter.Percentages.Count;
+            using var repeated = CreateLoader().Load(PackageZip.MemberPath(outer, entries[0]), TestContext.Current.CancellationToken);
+            Assert.Equal(afterLoads, reporter.Percentages.Count);
+        }
+        Assert.Equal(before, Directory.GetDirectories(temp).Order().ToArray());
+    }
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void NestedExtractionReportsReadingCopyBytesAndCompletionWithoutLeakingScope(bool sevenZip)
+    {
+        var path = WrapArchive(CreatePackageArchive(sevenZip));
+        var reporter = new ArchiveProgressCapture();
+        using (PackageZip.ReportProgress(reporter))
+        using (var file = CreateLoader().Load(path, TestContext.Current.CancellationToken))
+        {
+            Assert.Contains(reporter.Texts, text => text.Contains(Path.GetFileName(path), StringComparison.Ordinal));
+            Assert.Contains(reporter.Texts, text => text.Contains("nested/inner.zip", StringComparison.Ordinal));
+            Assert.Contains(reporter.Texts, text => text.Contains("/", StringComparison.Ordinal));
+            Assert.Contains(0d, reporter.Percentages);
+            Assert.Contains(1d, reporter.Percentages);
+            Assert.All(reporter.Percentages, value => Assert.InRange(value, 0, 1));
+            Assert.Contains(false, reporter.Modes);
+            Assert.Contains(true, reporter.Modes);
+        }
+        var messages = reporter.Texts.Count;
+        PackageZip.GetFileEntries(path);
+        Assert.Equal(messages, reporter.Texts.Count);
+    }
+    private sealed class ArchiveProgressCapture : IProgressReporter
+    {
+        public System.Collections.Generic.List<string> Texts { get; } = new();
+        public System.Collections.Generic.List<double> Percentages { get; } = new();
+        public System.Collections.Generic.List<bool> Modes { get; } = new();
+        public void SetText(string text) => Texts.Add(text);
+        public void SetPercentage(double value) => Percentages.Add(value);
+        public void SetMode(bool value) => Modes.Add(value);
+    }
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ArchiveSignatureOverridesWrongExtensionIncludingNestedFirmware(bool sevenZip)
+    {
+        var original = sevenZip ? Create7z() : CreatePackageArchive(false);
+        var originalEntryCount = PackageZip.GetFileEntries(original).Count;
+        var renamed = Path.Combine(_root, "renamed" + (sevenZip ? ".zip" : ".7z"));
+        File.Move(original, renamed);
+        Assert.Equal(originalEntryCount, PackageZip.GetFileEntries(renamed).Count);
+        using var file = CreateLoader().Load(renamed, TestContext.Current.CancellationToken);
+        Assert.Equal(originalEntryCount, file.ArchiveEntries.Count);
+        Assert.IsType<NspItem>(file.RootItem);
+        var outer = WrapArchive(renamed);
+        Assert.Equal(originalEntryCount, PackageZip.GetEntries(outer, false, TestContext.Current.CancellationToken).Count);
+        var firmware = Create7z(true);
+        var misleadingFirmware = Path.Combine(_root, "firmware.zip");
+        File.Move(firmware, misleadingFirmware);
+        Assert.Equal(2, PackageZip.GetFileEntries(misleadingFirmware).Count);
+        Assert.Contains("nested/inner.zip", PackageZip.GetEntries(WrapArchive(misleadingFirmware), false,
+            TestContext.Current.CancellationToken, includeFirmware: true));
+    }
     [Fact] public void NestedZipPackagesLoadInSingleAndBatchAndShareExtraction()
     {
         var outer = WrapArchive(CreatePackageArchive(false));

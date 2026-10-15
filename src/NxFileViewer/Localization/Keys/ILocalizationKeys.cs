@@ -524,6 +524,19 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string Batch_Scan { get; }
     string Batch_VerifyAll { get; }
     string File_SaveBackupSuspected { get; }
+    string Mtp_Title { get; }
+    string Mtp_Tip { get; }
+    string Mtp_Devices { get; }
+    string Mtp_Select { get; }
+    string Mtp_SelectContent { get; }
+    string Mtp_Listing { get; }
+    string Mtp_NoFiles { get; }
+    string Mtp_NoDevice { get; }
+    string Mtp_Copying { get; }
+    string Mtp_Cache { get; }
+    string Archive_Reading { get; }
+    string Archive_Extracting { get; }
+    string Batch_GroupFiles { get; }
     string Batch_MultiPackageDetails { get; }
     string File_SaveBackup { get; }
     string File_MissingKeys { get; }
@@ -538,4 +551,19 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string Keys_ReplaceShared { get; }
     string Keys_SharedCopied { get; }
     string Batch_ScanAndVerify { get; }
+    string Mtp_Direct { get; }
+    string Mtp_DirectTip { get; }
+    string Mtp_DirectUnsupported { get; }
+    string SdBatch_Title { get; }
+    string SdBatch_Enable { get; }
+    string SdBatch_Tip { get; }
+    string SdBatch_Custom { get; }
+    string SdBatch_CustomTip { get; }
+    string SdBatch_InvalidPath { get; }
+    string SdBatch_SourceAuto { get; }
+    string SdBatch_SourceFolder { get; }
+    string SdBatch_SourceSd { get; }
+    string SdBatch_SourceTip { get; }
+    string Nand_DriveRefresh { get; }
+    string Nand_DriveAccessDenied { get; }
 }

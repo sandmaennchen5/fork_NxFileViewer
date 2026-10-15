@@ -17,7 +17,7 @@ public class PackageTypeAnalyzer : IPackageTypeAnalyzer
 
     public PackageType GetType(string filePath)
     {
-        using var fileStream = File.OpenRead(filePath);
+        using var fileStream = Services.Mtp.MtpDirectSource.OpenRead(filePath);
         var buffer = new byte[0x104];
         var read = fileStream.Read(buffer);
         if (read >= 0x14 && Encoding.ASCII.GetString(buffer, 0x10, 4) == "NRO0")

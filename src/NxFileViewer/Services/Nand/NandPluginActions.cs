@@ -1,4 +1,5 @@
 using System;
+using Emignatik.NxFileViewer.Services.KeysManagement;
 using Emignatik.NxFileViewer.Localization;
 using Emignatik.NxFileViewer.Services.BackgroundTask;
 using Emignatik.NxFileViewer.Services.BackgroundTask.RunnableImpl;
@@ -13,10 +14,10 @@ public sealed class NandPluginActions : NotifyPropertyChangedBase
     private readonly NandPluginManager _manager;
     private readonly IMainBackgroundTaskRunnerService _runner;
     private string _result = "";
-    public NandPluginActions(NandPluginManager manager, IMainBackgroundTaskRunnerService runner, IAppSettings settings)
+    public NandPluginActions(NandPluginManager manager, IMainBackgroundTaskRunnerService runner, IAppSettings settings, IKeySetProviderService keys)
     {
         _manager = manager; _runner = runner;
-        OpenGuiCommand = new RelayCommand(() => { try { PluginGuiLauncher.Open(manager.ExecutablePath, true); } catch (Exception ex) { _result = ex.Message; Refresh(); } }, () => !runner.IsRunning && CanOpenGui());
+        OpenGuiCommand = new RelayCommand(() => { try { PluginGuiLauncher.Open(manager.ExecutablePath, true, string.IsNullOrWhiteSpace(settings.NandBisKeysPath) ? keys.ActualProdKeysFilePath : settings.NandBisKeysPath); } catch (Exception ex) { _result = ex.Message; Refresh(); } }, () => !runner.IsRunning && CanOpenGui());
         UpdateCommand = new RelayCommand(Update, () => !runner.IsRunning && string.IsNullOrWhiteSpace(settings.NandExecutablePath));
         RollbackCommand = new RelayCommand(() =>
         {

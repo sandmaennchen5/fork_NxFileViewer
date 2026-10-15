@@ -35,11 +35,18 @@ public sealed class SdCardItem : PartitionFileSystemItemBase
             yield return new DirectoryEntryEx(Path.GetFileName(physical), relative, DirectoryEntryType.File, size);
         }
     }
-    public static SdCardItem Open(string contents, KeySet keys)
+    public static SdCardItem Open(string contents, KeySet keys, bool allowPlainNca = false)
     {
-        if (keys.SdCardEncryptionSeed.IsZeros()) throw new InvalidDataException("Missing sd_seed in prod.keys for this SD card.");
-        keys.DeriveSdCardKeys();
-        if (keys.SdCardEncryptionKeys[1].IsZeros()) throw new InvalidDataException("Missing SD content encryption keys in prod.keys.");
+        var registered = Path.Combine(contents, "registered");
+        var sourceFiles = allowPlainNca ? Directory.EnumerateFiles(registered, "*.nca", SearchOption.AllDirectories)
+            .Concat(Directory.EnumerateDirectories(registered, "*.nca", SearchOption.AllDirectories)).ToArray() : Array.Empty<string>();
+        var plain = sourceFiles.Length > 0 && sourceFiles.All(path => !FileLoading.SdCardSource.IsNax0(path));
+        if (!plain)
+        {
+            if (keys.SdCardEncryptionSeed.IsZeros()) throw new InvalidDataException("Missing sd_seed in prod.keys for this SD card.");
+            keys.DeriveSdCardKeys();
+            if (keys.SdCardEncryptionKeys[1].IsZeros()) throw new InvalidDataException("Missing SD content encryption keys in prod.keys.");
+        }
         var local = new UniqueRef<IAttributeFileSystem>(new SdLocalFileSystem(contents));
         ConcatenationFileSystem concatenation;
         try
@@ -51,7 +58,7 @@ public sealed class SdCardItem : PartitionFileSystemItemBase
             concatenation = new ConcatenationFileSystem(ref local, chunkSizes.FirstOrDefault(0xffff0000L));
         }
         finally { local.Destroy(); }
-        try { return new SdCardItem(new AesXtsFileSystem(concatenation, keys.SdCardEncryptionKeys[1].Data.ToArray(), 0x4000), contents, keys); }
+        try { return new SdCardItem(plain ? concatenation : new AesXtsFileSystem(concatenation, keys.SdCardEncryptionKeys[1].Data.ToArray(), 0x4000), contents, keys); }
         catch { concatenation.Dispose(); throw; }
     }
     public override string Name { get; }

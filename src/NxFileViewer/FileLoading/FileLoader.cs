@@ -34,7 +34,9 @@ internal class FileLoader : IFileLoader
 
     public NxFile Load(string filePath, System.Threading.CancellationToken token)
     {
+        using var archiveOperation = PackageZip.BeginOperation();
         token.ThrowIfCancellationRequested();
+        PackageZip.ReportLoading(filePath);
         if (!PackageZip.IsMember(filePath) && SaveBackupDetection.IsBackup(filePath, token))
         {
             var root = new SaveBackupFileItem(filePath, SaveBackupDetection.IsLikelyLegacyBackup(filePath, token));
@@ -79,6 +81,7 @@ internal class FileLoader : IFileLoader
             var entry = PackageZip.IsMember(filePath) ? filePath.Split(PackageZip.Separator, 2)[1] :
                 entries.Count > 0 ? entries[0] : throw new FileNotSupportedException(filePath);
             var extracted = PackageZip.Extract(archive, entry, token);
+            PackageZip.ReportLoading(extracted.FilePath);
             NxFile? loaded = null;
             try
             {
@@ -100,7 +103,7 @@ internal class FileLoader : IFileLoader
         }
         _logger.LogInformation(LocalizationManager.Instance.Current.Keys.Log_OpeningFile.SafeFormat(filePath));
 
-        var nand = Services.Nand.NandDetection.Detect(filePath, token);
+        var nand = Services.Mtp.MtpDirectSource.IsDirect(filePath) ? null : Services.Nand.NandDetection.Detect(filePath, token);
         if (nand != null)
         {
             var root = new NandFileItem(filePath);
@@ -109,7 +112,7 @@ internal class FileLoader : IFileLoader
         }
 
         BatchIntegrityResult? ncaFirmware = null;
-        if (Path.GetExtension(filePath).Equals(".nca", StringComparison.OrdinalIgnoreCase))
+        if (!Services.Mtp.MtpDirectSource.IsDirect(filePath) && Path.GetExtension(filePath).Equals(".nca", StringComparison.OrdinalIgnoreCase))
         {
             var (verifier, notice) = _firmwareReferences.Load(token);
             token.ThrowIfCancellationRequested();
@@ -172,7 +175,7 @@ internal class FileLoader : IFileLoader
             foreach (var missingKey in missingKeys)
                 fileOverview.MissingKeys.Add(missingKey);
 
-            fileOverview.FileSize = new System.IO.FileInfo(filePath).Length;
+            fileOverview.FileSize = Services.Mtp.MtpDirectSource.Length(filePath);
 
             var openedFile = new NxFile(filePath, rootItem, fileOverview) { FirmwareResult = ncaFirmware };
             return openedFile;

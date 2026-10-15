@@ -52,6 +52,7 @@ public class FileOpeningService : IFileOpeningService
 
             var runnableRelay = new RunnableRelay<NxFile>((reporter, token) =>
             {
+                using var archiveProgress = PackageZip.ReportProgress(reporter);
                 var loadingFilePleaseWait = LocalizationManager.Instance.Current.Keys.LoadingFile_PleaseWait;
                 reporter.SetText(loadingFilePleaseWait);
                 var file = _fileLoader.Load(filePath, token);
@@ -59,7 +60,7 @@ public class FileOpeningService : IFileOpeningService
                 catch { file.Dispose(); throw; }
             })
             {
-                SupportProgress = false,
+                SupportProgress = true,
                 SupportsCancellation = true
             };
 

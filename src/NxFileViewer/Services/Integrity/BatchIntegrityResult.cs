@@ -15,6 +15,9 @@ public sealed record BatchIntegrityResult(
     NcasIntegrity Integrity,
     string? Error) : INotifyPropertyChanged
 {
+    // WPF indexes rows by hash. UI subscriptions and expansion must not change it.
+    public override int GetHashCode() => StringComparer.OrdinalIgnoreCase.GetHashCode(FilePath);
+    [JsonIgnore] public string SourceGroupKey => BatchSourceGrouping.Key(FilePath);
     public BatchPackageSummary[] Packages { get; init; } = Array.Empty<BatchPackageSummary>();
     [JsonIgnore] public bool HasMultiplePackages => Packages.Length > 1;
     private bool _packagesExpanded;

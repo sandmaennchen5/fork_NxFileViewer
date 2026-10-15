@@ -1,4 +1,5 @@
 using System;
+using Emignatik.NxFileViewer.Services.KeysManagement;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -32,11 +33,11 @@ public sealed class NszActions : NotifyPropertyChangedBase
 
     public NszActions(NszPluginManager manager, PackageConversionService converter,
         IMainBackgroundTaskRunnerService background, IPromptService prompts, IFileOpeningService opening,
-        ILogger<NszActions> logger, IAppSettings settings)
+        ILogger<NszActions> logger, IAppSettings settings, IKeySetProviderService keys)
     {
         _manager = manager; _converter = converter; _background = background; _prompts = prompts;
         _opening = opening; _logger = logger; _settings = settings;
-        OpenGuiCommand = new RelayCommand(() => { try { PluginGuiLauncher.Open(_manager.GuiExecutablePath, false); } catch (Exception ex) { ShowError(ex); } }, () => !_background.IsRunning && File.Exists(_manager.GuiExecutablePath));
+        OpenGuiCommand = new RelayCommand(() => { try { PluginGuiLauncher.Open(_manager.GuiExecutablePath, false, keys.ActualProdKeysFilePath); } catch (Exception ex) { ShowError(ex); } }, () => !_background.IsRunning && File.Exists(_manager.GuiExecutablePath));
         CompressCommand = new RelayCommand(() => ConvertOpened(NszOperation.Compress), () => CanConvertOpened(NszOperation.Compress));
         DecompressCommand = new RelayCommand(() => ConvertOpened(NszOperation.Decompress), () => CanConvertOpened(NszOperation.Decompress));
         UpdateCommand = new RelayCommand(Update, () => !_background.IsRunning && string.IsNullOrWhiteSpace(settings.NszExecutablePath));

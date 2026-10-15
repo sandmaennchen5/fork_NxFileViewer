@@ -50,6 +50,8 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
     }
     public RelayCommand ResumeHistoryCommand { get; }
     public RelayCommand LoadHistoryCommand { get; }
+    private bool _groupFiles;
+    private int _previewRequest;
     private bool _showOnlyErrors;
     private NxFile? _previewFile;
     private bool _closed;
@@ -73,6 +75,11 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         ResultsView = CollectionViewSource.GetDefaultView(Results);
         ResultsView.Filter = ShouldDisplayResult;
         BrowseCommand = new RelayCommand(Browse);
+        BrowseSphairaCommand = new RelayCommand(async () =>
+        {
+            var path = await Services.Mtp.SphairaMtpActions.SelectAndImport(_serviceProvider, BackgroundTask, batch: true);
+            if (path != null) InputDirectory = Directory.Exists(path) || PackageZip.IsArchive(path) ? path : Path.GetDirectoryName(path)!;
+        });
         BrowseFirmwareZipCommand = new RelayCommand(() =>
         {
             var dialog = new Microsoft.Win32.OpenFileDialog { Filter = "ZIP / 7z (*.zip;*.7z)|*.zip;*.7z", Title = LocalizationManager.Instance.Current.Keys.BatchIntegrity_Title };
@@ -96,6 +103,22 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
     public IMainBackgroundTaskRunnerService BackgroundTask { get; }
     public ObservableCollection<BatchIntegrityResult> Results { get; } = new();
     public ICollectionView ResultsView { get; }
+    public bool GroupFiles
+    {
+        get => _groupFiles;
+        set
+        {
+            if (_groupFiles == value) return;
+            _groupFiles = value;
+            using (ResultsView.DeferRefresh())
+            {
+                ResultsView.GroupDescriptions.Clear();
+                if (value) ResultsView.GroupDescriptions.Add(new PropertyGroupDescription(nameof(BatchIntegrityResult.SourceGroupKey)) { StringComparison = StringComparison.OrdinalIgnoreCase });
+            }
+            NotifyPropertyChanged();
+        }
+    }
+    public RelayCommand BrowseSphairaCommand { get; }
     public RelayCommand BrowseFirmwareZipCommand { get; }
     private BatchIntegrityResult? _selectedResult;
     public BatchIntegrityResult? SelectedResult
@@ -126,6 +149,11 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
     public RelayCommand ScanAndVerifyCommand { get; }
     public RelayCommand VerifyAllCommand { get; }
     public bool IncludeArchives { get; set; } = true;
+    public SdBatchSourceMode SdSourceMode
+    {
+        get => _appSettings.SdBatchSourceMode;
+        set { _appSettings.SdBatchSourceMode = value; NotifyPropertyChanged(); }
+    }
     public RelayCommand CheckNamingCommand { get; }
     public RelayCommand RenameAllCommand { get; }
     public RelayCommand ExportCommand { get; }
@@ -370,22 +398,49 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         if (!BackgroundTask.IsRunning) ClearPreview();
     }
 
-    private void UpdateSelectedPreview()
+    private async void UpdateSelectedPreview()
     {
+        var request = ++_previewRequest;
         PreviewOverview = null;
         var selected = SelectedResult;
         if (_closed || selected == null || selected.IsFirmware || selected.IsNand) return;
-        // Completed results are snapshots. Selection must never reopen a package,
-        // including when its source was moved/deleted after the check.
         if (_completedPreviews.TryGetValue(selected.FilePath, out var completed))
+        {
             PreviewOverview = completed;
+            return;
+        }
+        if (BackgroundTask.IsRunning || (!Directory.Exists(selected.FilePath) && !File.Exists(PackageZip.ArchivePath(selected.FilePath)))) return;
+        try
+        {
+            using var file = await BackgroundTask.RunAsync(new RunnableRelay<NxFile>((reporter, token) =>
+            {
+                using var archiveProgress = PackageZip.ReportProgress(reporter);
+                return _serviceProvider.GetRequiredService<IFileLoader>().Load(selected.FilePath, token);
+            }) { SupportsCancellation = true, SupportProgress = true });
+            if (_closed) return;
+            var overview = new FileOverviewViewModel(file.Overview, _serviceProvider);
+            _completedPreviews[selected.FilePath] = overview;
+            if (request == _previewRequest && SelectedResult?.FilePath.Equals(selected.FilePath, StringComparison.OrdinalIgnoreCase) == true)
+                PreviewOverview = overview;
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Unable to load batch overview for {FilePath}; retaining stored summary.", selected.FilePath);
+            if (Services.FileOpening.LoadingSpaceWarning.IsDiskFull(ex)) Services.FileOpening.LoadingSpaceWarning.Show(selected.FilePath);
+        }
+        finally
+        {
+            if (!_closed && request != _previewRequest && SelectedResult != null && PreviewOverview == null && !BackgroundTask.IsRunning)
+                UpdateSelectedPreview();
+        }
     }
     public bool CanActOnFile(BatchIntegrityResult file, NszOperation? operation = null) => !BackgroundTask.IsRunning &&
-        !file.IsFirmware && !file.IsNand && file.FileType != "NAX0" && !file.HasMissingKeys && File.Exists(file.FilePath) &&
+        !file.IsFirmware && !file.IsNand && file.FileType != "NAX0" && !file.HasMissingKeys && !Services.Mtp.MtpDirectSource.IsDirect(file.FilePath) && File.Exists(file.FilePath) &&
         (operation == null || PackageConversionService.Supports(file.FilePath, operation.Value));
     public bool CanCheckNaming(BatchIntegrityResult file) => !BackgroundTask.IsRunning &&
         !file.IsFirmware && !file.IsNand && !file.HasMissingKeys &&
-        File.Exists(file.FilePath) && Path.GetExtension(file.FilePath).ToLowerInvariant() is ".nsp" or ".nsz" or ".xci" or ".xcz";
+        !Services.Mtp.MtpDirectSource.IsDirect(file.FilePath) && File.Exists(file.FilePath) && Path.GetExtension(file.FilePath).ToLowerInvariant() is ".nsp" or ".nsz" or ".xci" or ".xcz";
     private bool CanProcessNaming() => Results.Any(CanCheckNaming);
     public void CheckSelectedNaming(BatchIntegrityResult file) => ProcessNaming(false, file);
     public void RenameSelected(BatchIntegrityResult file) => ProcessNaming(true, file);
@@ -531,17 +586,17 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         catch (Exception ex) { _logger.LogError(ex, "Failed to verify selected file."); }
     }
     private bool CanMoveValid() => !BackgroundTask.IsRunning &&
-        Results.Any(result => !result.IsFirmware && !result.IsNand && result.FileType != "NAX0" && result.Integrity == NcasIntegrity.Original && File.Exists(result.FilePath));
+        Results.Any(result => !result.IsFirmware && !result.IsNand && result.FileType != "NAX0" && result.Integrity == NcasIntegrity.Original && !Services.Mtp.MtpDirectSource.IsDirect(result.FilePath) && File.Exists(result.FilePath));
 
     private bool CanConvertValid(NszOperation operation) => !BackgroundTask.IsRunning && Results.Any(result =>
-        !result.IsFirmware && !result.IsNand && result.Integrity == NcasIntegrity.Original && File.Exists(result.FilePath) &&
+        !result.IsFirmware && !result.IsNand && result.Integrity == NcasIntegrity.Original && !Services.Mtp.MtpDirectSource.IsDirect(result.FilePath) && File.Exists(result.FilePath) &&
         PackageConversionService.Supports(result.FilePath, operation));
 
     private async void ConvertValid(NszOperation operation, BatchIntegrityResult? selected = null)
     {
         if (selected == null ? !CanConvertValid(operation) : !CanActOnFile(selected, operation)) return;
         var paths = (selected == null ? Results.AsEnumerable() : new[] { selected }).Where(result => !result.IsFirmware && !result.IsNand && (selected != null || result.Integrity == NcasIntegrity.Original) &&
-            File.Exists(result.FilePath) && PackageConversionService.Supports(result.FilePath, operation))
+            !Services.Mtp.MtpDirectSource.IsDirect(result.FilePath) && File.Exists(result.FilePath) && PackageConversionService.Supports(result.FilePath, operation))
             .Select(result => result.FilePath).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         ClearPreview();
         var attempts = await _serviceProvider.GetRequiredService<NszActions>().ConvertFilesAsync(paths, operation, selected == null ? InputDirectory : null);
@@ -581,7 +636,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
             : selected.FilePath.Equals(opening.OpenedFile.FilePath, StringComparison.OrdinalIgnoreCase))) opening.SafeClose();
         ClearPreview();
         var validFiles = (selected == null ? Results.AsEnumerable() : new[] { selected }).Where(result =>
-            !result.IsFirmware && !result.IsNand && result.FileType != "NAX0" && (selected != null || result.Integrity == NcasIntegrity.Original) && File.Exists(result.FilePath)).ToArray();
+            !result.IsFirmware && !result.IsNand && result.FileType != "NAX0" && (selected != null || result.Integrity == NcasIntegrity.Original) && !Services.Mtp.MtpDirectSource.IsDirect(result.FilePath) && File.Exists(result.FilePath)).ToArray();
         var runnable = new RunnableRelay<int>((reporter, cancellationToken) =>
         {
             var moved = 0;
@@ -608,7 +663,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         try
         {
             await BackgroundTask.RunAsync(runnable);
-            foreach (var movedResult in Results.Where(result => !result.IsFirmware && !result.IsNand && !File.Exists(result.FilePath)).ToArray())
+            foreach (var movedResult in Results.Where(result => !result.IsFirmware && !result.IsNand && !!Services.Mtp.MtpDirectSource.IsDirect(result.FilePath) && File.Exists(result.FilePath)).ToArray())
                 Results.Remove(movedResult);
         }
         catch (OperationCanceledException) { }

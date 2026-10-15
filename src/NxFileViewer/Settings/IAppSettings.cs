@@ -19,6 +19,19 @@ public interface IAppSettings : INotifyPropertyChanged
     NszCompressionMode NszCompressionMode { get; set; }
     int NszBlockSizeExponent { get; set; }
 
+    SdBatchSourceMode SdBatchSourceMode { get; set; }
+    string SdBatchCustomPaths { get; set; }
+    bool SdBatchSelectedAreasOnly { get; set; }
+    bool SdBatchSwitch { get; set; }
+    bool SdBatchNintendo { get; set; }
+    bool SdBatchEmuMmc { get; set; }
+    bool SdBatchHbmenu { get; set; }
+    bool SdBatchTools { get; set; }
+    bool SdBatchDumps { get; set; }
+    bool SdBatchNxdtRwPoc { get; set; }
+    bool SdBatchDbiRootSaves { get; set; }
+
+
     bool EnableBatchHistory { get; set; }
     int LogFileRetentionCount { get; set; }
     string AppLanguage { get; set; }

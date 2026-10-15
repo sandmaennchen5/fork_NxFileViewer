@@ -26,6 +26,73 @@ public class AppSettings : NotifyPropertyChangedBase, IAppSettings
         get => _logFileRetentionCount;
         set { _logFileRetentionCount = System.Math.Clamp(value, 1, 100); NotifyPropertyChanged(); }
     }
+    private SdBatchSourceMode _sdBatchSourceMode;
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public SdBatchSourceMode SdBatchSourceMode
+    {
+        get => _sdBatchSourceMode;
+        set { _sdBatchSourceMode = System.Enum.IsDefined(value) ? value : default; NotifyPropertyChanged(); }
+    }
+    private string _sdBatchCustomPaths = "";
+    public string SdBatchCustomPaths
+    {
+        get => _sdBatchCustomPaths;
+        set { _sdBatchCustomPaths = value ?? ""; NotifyPropertyChanged(); }
+    }
+    private bool _sdBatchSelectedAreasOnly = false;
+    public bool SdBatchSelectedAreasOnly
+    {
+        get => _sdBatchSelectedAreasOnly;
+        set { _sdBatchSelectedAreasOnly = value; NotifyPropertyChanged(); }
+    }
+    private bool _sdBatchSwitch = true;
+    public bool SdBatchSwitch
+    {
+        get => _sdBatchSwitch;
+        set { _sdBatchSwitch = value; NotifyPropertyChanged(); }
+    }
+    private bool _sdBatchNintendo = true;
+    public bool SdBatchNintendo
+    {
+        get => _sdBatchNintendo;
+        set { _sdBatchNintendo = value; NotifyPropertyChanged(); }
+    }
+    private bool _sdBatchEmuMmc = true;
+    public bool SdBatchEmuMmc
+    {
+        get => _sdBatchEmuMmc;
+        set { _sdBatchEmuMmc = value; NotifyPropertyChanged(); }
+    }
+    private bool _sdBatchHbmenu = true;
+    public bool SdBatchHbmenu
+    {
+        get => _sdBatchHbmenu;
+        set { _sdBatchHbmenu = value; NotifyPropertyChanged(); }
+    }
+    private bool _sdBatchTools = true;
+    public bool SdBatchTools
+    {
+        get => _sdBatchTools;
+        set { _sdBatchTools = value; NotifyPropertyChanged(); }
+    }
+    private bool _sdBatchDumps;
+    public bool SdBatchDumps
+    {
+        get => _sdBatchDumps;
+        set { _sdBatchDumps = value; NotifyPropertyChanged(); }
+    }
+    private bool _sdBatchNxdtRwPoc;
+    public bool SdBatchNxdtRwPoc
+    {
+        get => _sdBatchNxdtRwPoc;
+        set { _sdBatchNxdtRwPoc = value; NotifyPropertyChanged(); }
+    }
+    private bool _sdBatchDbiRootSaves;
+    public bool SdBatchDbiRootSaves
+    {
+        get => _sdBatchDbiRootSaves;
+        set { _sdBatchDbiRootSaves = value; NotifyPropertyChanged(); }
+    }
     private bool _enableBatchHistory = true;
     public bool EnableBatchHistory
     {

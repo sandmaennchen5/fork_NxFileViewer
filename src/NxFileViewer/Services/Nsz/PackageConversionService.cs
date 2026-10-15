@@ -33,7 +33,7 @@ public sealed class PackageConversionService(INszPlugin plugin, IConversionVerif
 
     public static bool Supports(string source, NszOperation operation)
     {
-        if (Emignatik.NxFileViewer.FileLoading.PackageZip.IsMember(source)) return false;
+        if (Mtp.MtpDirectSource.IsDirect(source) || Emignatik.NxFileViewer.FileLoading.PackageZip.IsMember(source)) return false;
         try { OutputExtension(source, operation); return true; }
         catch (ArgumentException) { return false; }
     }
@@ -43,6 +43,7 @@ public sealed class PackageConversionService(INszPlugin plugin, IConversionVerif
         Func<string, OutputConflictResolution>? resolveConflict = null, bool deleteSource = false)
     {
         source = Path.GetFullPath(source);
+        if (Mtp.MtpDirectSource.IsDirect(source)) throw new IOException("Direct MTP sources are read-only. Use local cache for conversion.");
         var output = Path.Combine(Path.GetFullPath(destinationDirectory),
             Path.GetFileNameWithoutExtension(source) + OutputExtension(source, operation));
         var originalOutput = output;

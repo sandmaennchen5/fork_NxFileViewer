@@ -48,7 +48,8 @@ public class FileItemLoader : IFileItemLoader
     public StandaloneNcaFileItem LoadNca(string path, CancellationToken token) => WithCancellation(token, () => LoadNca(path));
     public SdCardItem LoadSdCard(string contents, CancellationToken token) => WithCancellation(token, () =>
     {
-        var item = SdCardItem.Open(contents, _keySetProviderService.GetKeySet(_appSettings.AlwaysReloadKeysBeforeOpen));
+        var item = SdCardItem.Open(contents, _keySetProviderService.GetKeySet(_appSettings.AlwaysReloadKeysBeforeOpen),
+            System.IO.File.Exists(System.IO.Path.Combine(contents, ".nxfileviewer-mtp")));
         try { BuildPartitionChildItems(item); token.ThrowIfCancellationRequested(); return item; }
         catch { item.Dispose(); throw; }
     });

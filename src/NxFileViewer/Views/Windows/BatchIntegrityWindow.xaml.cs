@@ -14,7 +14,36 @@ namespace Emignatik.NxFileViewer.Views.Windows;
 // Embedded workspace page; its view model survives navigation.
 public partial class BatchIntegrityWindow : UserControl
 {
-    public BatchIntegrityWindow() => InitializeComponent();
+    public BatchIntegrityWindow()
+    {
+        InitializeComponent();
+        DataContextChanged += (_, _) =>
+        {
+            if (DataContext is BatchIntegrityWindowViewModel model)
+            {
+                System.ComponentModel.PropertyChangedEventManager.AddHandler(model, OnGroupingChanged, nameof(model.GroupFiles));
+                UpdateGrouping(model.GroupFiles);
+            }
+        };
+    }
+    private void OnGroupingChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    { if (DataContext is BatchIntegrityWindowViewModel model) UpdateGrouping(model.GroupFiles); }
+    private void UpdateGrouping(bool grouped)
+    {
+        ResultsGrid.GroupStyle.Clear();
+        if (grouped) ResultsGrid.GroupStyle.Add((GroupStyle)FindResource("SourceGroupStyle"));
+    }
+
+    private void TogglePackages(object sender, RoutedEventArgs e)
+    {
+        if (sender is System.Windows.Controls.Primitives.ToggleButton { DataContext: BatchIntegrityResult result } button)
+        {
+            result.PackagesExpanded = button.IsChecked == true;
+            ResultsGrid.SetCurrentValue(DataGrid.SelectedItemProperty, result);
+            if (DataContext is BatchIntegrityWindowViewModel model) model.SelectedResult = result;
+        }
+        e.Handled = true;
+    }
 
     private void OpenFileActions(object sender, MouseButtonEventArgs e)
     {

@@ -11,7 +11,7 @@ namespace Emignatik.NxFileViewer.Models.TreeItems.Impl;
 
 public sealed class StandaloneNcaFileItem : PartitionFileSystemItemBase
 {
-    private readonly LocalStorage? _storage;
+    private readonly IStorage? _storage;
     public StandaloneNcaFileItem(string path, KeySet keys)
         : base(new LocalFileSystem(Path.GetDirectoryName(Path.GetFullPath(path))!), null)
     {
@@ -19,9 +19,9 @@ public sealed class StandaloneNcaFileItem : PartitionFileSystemItemBase
         KeySet = keys;
         try
         {
-            _storage = new LocalStorage(path, FileAccess.Read);
+            _storage = Services.Mtp.MtpDirectSource.OpenStorage(path);
             NcaItem = new NcaItem(new Nca(keys, _storage), new DirectoryEntryEx(
-                Name, "/" + Name, DirectoryEntryType.File, new FileInfo(path).Length), this);
+                Name, "/" + Name, DirectoryEntryType.File, Services.Mtp.MtpDirectSource.Length(path)), this);
         }
         catch { Dispose(); throw; }
     }

@@ -35,6 +35,32 @@ public sealed class WorkspaceNavigationTest
                 var batchTab = (TabItem)main.FindName("BatchTab");
                 var batchPage = Assert.IsType<BatchIntegrityWindow>(batchTab.Content);
                 var batch = Assert.IsType<BatchIntegrityWindowViewModel>(batchPage.DataContext);
+                var singleMtp = Assert.IsType<Button>(main.FindName("SphairaSingleButton"));
+                Assert.Equal("OpenSphairaCommand", singleMtp.GetBindingExpression(Button.CommandProperty)!.ParentBinding.Path.Path);
+                var batchMtp = Assert.IsType<Button>(batchPage.FindName("SphairaBatchButton"));
+                Assert.Equal(nameof(BatchIntegrityWindowViewModel.BrowseSphairaCommand), batchMtp.GetBindingExpression(Button.CommandProperty)!.ParentBinding.Path.Path);
+                Assert.NotNull(App.ServiceProvider.GetRequiredService<Emignatik.NxFileViewer.Services.Mtp.MtpImportService>());
+                var mtpWindow = new SphairaMtpWindow();
+                Assert.Equal("Sphaira (MTP)", mtpWindow.Title);
+                Assert.False(mtpWindow.DirectRead);
+                mtpWindow.Close();
+                var nandDevice = new Emignatik.NxFileViewer.Services.Nand.NandDriveChoice(@"\\.\PhysicalDrive40", "SD GPP hekate", 12UL * 1024 * 1024 * 1024);
+                var drivePicker = new NandDriveWindow(new[] { nandDevice });
+                var deviceCombo = Assert.IsType<ComboBox>(Assert.IsType<StackPanel>(drivePicker.Content).Children[1]);
+                deviceCombo.SelectedItem = nandDevice; deviceCombo.Text = nandDevice.DisplayName;
+                Assert.Equal(nandDevice.Path, drivePicker.Source);
+                deviceCombo.SelectedItem = null; deviceCombo.Text = @"\\.\PhysicalDrive41";
+                Assert.Equal(@"\\.\PhysicalDrive41", drivePicker.Source);
+                drivePicker.Close();
+                var sourcePicker = Assert.IsType<ComboBox>(batchPage.FindName("SdSourceModePicker"));
+                Assert.Equal("SdSourceMode", sourcePicker.GetBindingExpression(ComboBox.SelectedValueProperty)!.ParentBinding.Path.Path);
+                Assert.Equal(3, sourcePicker.Items.Count);
+                var previousMode = batch.SdSourceMode;
+                Assert.Equal(SdBatchSourceMode.SwitchSd, Assert.IsType<ComboBoxItem>(sourcePicker.Items[2]).Tag);
+                batch.SdSourceMode = SdBatchSourceMode.SwitchSd;
+                Assert.Equal(SdBatchSourceMode.SwitchSd, batch.SdSourceMode);
+                Assert.Equal(SdBatchSourceMode.SwitchSd, App.ServiceProvider.GetRequiredService<IAppSettings>().SdBatchSourceMode);
+                batch.SdSourceMode = previousMode;
                 batch.InputDirectory = "retained batch directory";
                 App.ServiceProvider.GetRequiredService<IShowSettingsWindowCommand>().Execute(null);
                 var settingsPage = Assert.IsType<SettingsWindow>(((TabItem)main.FindName("SettingsTab")).Content);
@@ -70,6 +96,16 @@ public sealed class WorkspaceNavigationTest
                 settings.ApplySettingsCommand.Execute(null);
                 Assert.False(closed);
                 var actual = App.ServiceProvider.GetRequiredService<IAppSettings>();
+                var areaCheckbox = Assert.IsType<CheckBox>(settingsPage.FindName("SdBatchAreasEnabled"));
+                Assert.Equal("EditedSettings.SdBatchSelectedAreasOnly", areaCheckbox.GetBindingExpression(CheckBox.IsCheckedProperty)!.ParentBinding.Path.Path);
+                var originalSdEnabled = actual.SdBatchSelectedAreasOnly; var originalSdNintendo = actual.SdBatchNintendo; var originalSdCustom = actual.SdBatchCustomPaths;
+                var customPathsBox = Assert.IsType<TextBox>(settingsPage.FindName("SdBatchCustomPaths"));
+                Assert.Equal("EditedSettings.SdBatchCustomPaths", customPathsBox.GetBindingExpression(TextBox.TextProperty)!.ParentBinding.Path.Path);
+                settings.EditedSettings.SdBatchSelectedAreasOnly = true; settings.EditedSettings.SdBatchNintendo = false; settings.EditedSettings.SdBatchCustomPaths = "/backup/saves\n/config/game.nsp";
+                settings.ApplySettingsCommand.Execute(null);
+                Assert.True(actual.SdBatchSelectedAreasOnly); Assert.False(actual.SdBatchNintendo); Assert.Equal("/backup/saves\n/config/game.nsp", actual.SdBatchCustomPaths);
+                actual.SdBatchSelectedAreasOnly = originalSdEnabled; actual.SdBatchNintendo = originalSdNintendo; actual.SdBatchCustomPaths = originalSdCustom;
+                settings.CancelSettingsCommand.Execute(null);
                 var originalTitleUrl = actual.TitlePageUrl;
                 settings.EditedSettings.TitlePageUrl = "https://example.com/general-draft";
                 main.Navigate(WorkspaceSection.Plugins);
@@ -250,9 +286,49 @@ public sealed class WorkspaceNavigationTest
                 grid.Measure(new Size(500, 200));
                 grid.Arrange(new Rect(0, 0, 500, 200));
                 grid.UpdateLayout();
+                batch.Results.Clear();
+                var multiResult = nszResult with { Packages = new[] {
+                    new Emignatik.NxFileViewer.Services.Integrity.BatchPackageSummary("Game", "0100000000000000", "Application", "0"),
+                    new Emignatik.NxFileViewer.Services.Integrity.BatchPackageSummary("Update", "0100000000000800", "Patch", "65536") } };
+                batch.Results.Add(multiResult);
+                grid.Items.Refresh(); grid.UpdateLayout();
+                var multiRow = Assert.IsType<DataGridRow>(grid.ItemContainerGenerator.ContainerFromItem(multiResult));
+                var cellPresenter = Assert.IsType<ContentPresenter>(grid.Columns[0].GetCellContent(multiRow));
+                cellPresenter.ApplyTemplate();
+                var cell = Assert.IsType<DockPanel>(System.Windows.Media.VisualTreeHelper.GetChild(cellPresenter, 0));
+                var arrow = System.Linq.Enumerable.Single(System.Linq.Enumerable.OfType<System.Windows.Controls.Primitives.ToggleButton>(cell.Children));
+                arrow.SetCurrentValue(System.Windows.Controls.Primitives.ToggleButton.IsCheckedProperty, true);
+                arrow.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+                grid.UpdateLayout();
+                Assert.True(multiResult.PackagesExpanded);
+                Assert.Equal(Visibility.Visible, multiRow.DetailsVisibility);
+                Assert.Same(multiResult, batch.SelectedResult);
+                Assert.Same(capturedNsz, batch.PreviewOverview);
+                var detailsContent = Assert.IsType<Border>(grid.RowDetailsTemplate.LoadContent());
+                var packageGrid = Assert.IsType<DataGrid>(detailsContent.Child);
+                packageGrid.ItemsSource = new[] { new Emignatik.NxFileViewer.Services.Integrity.BatchPackageSummary(
+                    "Asterix & Obelix Slap Them All! — A long title that must remain readable", "01002B401285E000", "Application", "196608") };
+                Assert.All(packageGrid.Columns, column => Assert.True(column.Width.IsAuto));
+                Assert.Equal(ScrollBarVisibility.Auto, ScrollViewer.GetHorizontalScrollBarVisibility(packageGrid));
+                packageGrid.Measure(new Size(1000, 280));
+                packageGrid.Arrange(new Rect(0, 0, 1000, 280));
+                packageGrid.UpdateLayout();
+                Assert.True(packageGrid.Columns[0].ActualWidth > 240);
+                Assert.All(packageGrid.Columns, column => Assert.True(column.ActualWidth >= 90));
+                arrow.SetCurrentValue(System.Windows.Controls.Primitives.ToggleButton.IsCheckedProperty, false);
+                arrow.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+                grid.UpdateLayout();
+                Assert.False(multiResult.PackagesExpanded);
+                Assert.Equal(Visibility.Collapsed, multiRow.DetailsVisibility);
                 var findScroll = typeof(BatchIntegrityWindow).GetMethod("FindScrollViewer", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
                 var scroll = Assert.IsType<ScrollViewer>(findScroll.Invoke(null, new object[] { grid }));
                 Assert.True(scroll.ScrollableWidth > 0);
+                Assert.Empty(grid.GroupStyle);
+                Assert.All(System.Linq.Enumerable.Where(grid.Columns, column => column.Visibility == Visibility.Visible), column => Assert.True(column.ActualWidth > 0));
+                foreach (var localization in Emignatik.NxFileViewer.Localization.LocalizationManager.Instance.RealLocalizations)
+                    foreach (var property in localization.Keys.GetType().GetProperties())
+                        if (property.GetIndexParameters().Length == 0 && property.PropertyType == typeof(string) && property.GetValue(localization.Keys) is string text)
+                        { Assert.DoesNotContain("Ã", text); Assert.DoesNotContain("â€", text); }
                 Assert.Contains(grid.Columns, column => column.SortMemberPath == "TitleId" && column.Visibility == Visibility.Collapsed);
                 var titleColumn = System.Linq.Enumerable.First(grid.Columns, column => column.SortMemberPath == "Title");
                 titleColumn.Visibility = Visibility.Visible;
@@ -280,6 +356,43 @@ public sealed class WorkspaceNavigationTest
                 Assert.Empty(System.Linq.Enumerable.Cast<object>(batch.ResultsView));
                 batch.ResetFiltersCommand.Execute(null);
                 Assert.Equal(2, System.Linq.Enumerable.Count(System.Linq.Enumerable.Cast<object>(batch.ResultsView)));
+                batch.Results.Clear();
+                batch.Results.Add(nszResult with { FilePath = @"C:\batch\folder\one.nsz" });
+                batch.Results.Add(nszResult with { FilePath = @"C:\batch\folder\two.nsz" });
+                batch.Results.Add(nszResult with { FilePath = @"C:\batch\bundle.zip::one.nsp" });
+                batch.Results.Add(nszResult with { FilePath = @"C:\batch\bundle.zip::nested/two.nsp" });
+                batch.GroupFiles = true;
+                Assert.Single(grid.GroupStyle);
+                Assert.Equal(2, batch.ResultsView.Groups!.Count);
+                Assert.All(System.Linq.Enumerable.Cast<System.Windows.Data.CollectionViewGroup>(batch.ResultsView.Groups), group => Assert.Equal(2, group.ItemCount));
+                batch.SearchText = "one";
+                Assert.All(System.Linq.Enumerable.Cast<System.Windows.Data.CollectionViewGroup>(batch.ResultsView.Groups), group => Assert.Equal(1, group.ItemCount));
+                batch.ResetFiltersCommand.Execute(null);
+                batch.GroupFiles = false;
+                Assert.Empty(grid.GroupStyle);
+                Assert.Null(batch.ResultsView.Groups);
+                var previewLoader = new PreviewLoader();
+                var previewRunner = new ImmediatePreviewRunner();
+                var reloadBatch = new BatchIntegrityWindowViewModel(
+                    App.ServiceProvider.GetRequiredService<Emignatik.NxFileViewer.Services.Prompting.IPromptService>(),
+                    new PreviewServices(previewLoader), previewRunner,
+                    Microsoft.Extensions.Logging.Abstractions.NullLogger<BatchIntegrityWindowViewModel>.Instance,
+                    new AppSettings { EnableBatchHistory = false });
+                var reloadPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), Guid.NewGuid() + ".nsz");
+                System.IO.File.WriteAllText(reloadPath, "synthetic source");
+                try
+                {
+                    var reloadRow = nszResult with { FilePath = reloadPath };
+                    reloadBatch.SelectedResult = reloadRow;
+                    Assert.NotNull(reloadBatch.PreviewOverview);
+                    Assert.Equal(1, previewLoader.LoadCount);
+                    reloadBatch.SelectedResult = firmwareResult;
+                    reloadBatch.SelectedResult = reloadRow;
+                    Assert.NotNull(reloadBatch.PreviewOverview);
+                    Assert.Equal(1, previewLoader.LoadCount);
+                    reloadBatch.ClosePreview();
+                }
+                finally { System.IO.File.Delete(reloadPath); }
                 var emptyOverview = new Emignatik.NxFileViewer.Views.UserControls.FileOverviewView { DataContext = null };
                 var keyWarning = Assert.IsType<Border>(((Grid)emptyOverview.Content).Children[0]);
                 Assert.Equal(Visibility.Collapsed, keyWarning.Visibility);
@@ -338,6 +451,35 @@ public sealed class WorkspaceNavigationTest
         thread.Start();
         Assert.True(thread.Join(TimeSpan.FromSeconds(30)), "Workspace test timed out.");
         if (error != null) throw new InvalidOperationException("Workspace UI test failed.", error);
+    }
+    private sealed class PreviewLoader : Emignatik.NxFileViewer.FileLoading.IFileLoader
+    {
+        public int LoadCount { get; private set; }
+        public Emignatik.NxFileViewer.Models.NxFile Load(string path)
+        {
+            LoadCount++;
+            var root = new PreviewItem();
+            return new Emignatik.NxFileViewer.Models.NxFile(path, root, new Emignatik.NxFileViewer.Models.Overview.FileOverview(root));
+        }
+    }
+    private sealed class PreviewServices(PreviewLoader loader) : IServiceProvider
+    {
+        public object? GetService(Type type) => type == typeof(Emignatik.NxFileViewer.FileLoading.IFileLoader) ? loader : App.ServiceProvider.GetService(type);
+    }
+    private sealed class ImmediatePreviewRunner : Emignatik.NxFileViewer.Services.BackgroundTask.IMainBackgroundTaskRunnerService
+    {
+        private readonly Emignatik.NxFileViewer.Services.BackgroundTask.BackgroundTaskRunner _reporter = new();
+        public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged { add { } remove { } }
+        public string ProgressText => "";
+        public double ProgressValue => 0;
+        public string ProgressValueText => "";
+        public bool IsRunning => false;
+        public bool IsIndeterminate => false;
+        public System.Windows.Input.ICommand CancelCommand => _reporter.CancelCommand;
+        public System.Threading.Tasks.Task RunAsync(Emignatik.NxFileViewer.Services.BackgroundTask.IRunnable runnable)
+        { runnable.Run(_reporter, CancellationToken.None); return System.Threading.Tasks.Task.CompletedTask; }
+        public System.Threading.Tasks.Task<T> RunAsync<T>(Emignatik.NxFileViewer.Services.BackgroundTask.IRunnable<T> runnable)
+            => System.Threading.Tasks.Task.FromResult(runnable.Run(_reporter, CancellationToken.None));
     }
     private sealed class PreviewItem : Emignatik.NxFileViewer.Models.TreeItems.ItemBase
     {

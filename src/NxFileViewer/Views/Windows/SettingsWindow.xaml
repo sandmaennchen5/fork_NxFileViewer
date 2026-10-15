@@ -160,6 +160,28 @@
                     <GroupBox Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_Miscellaneous}">
                         <StackPanel>
                             <CheckBox Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchHistory_Title}" IsChecked="{Binding EditedSettings.EnableBatchHistory}" Margin="0,0,0,8"/>
+                            <GroupBox Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SdBatch_Title}" Margin="0,0,0,12">
+                                <StackPanel Margin="8">
+                                    <CheckBox x:Name="SdBatchAreasEnabled" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SdBatch_Enable}" IsChecked="{Binding EditedSettings.SdBatchSelectedAreasOnly}"/>
+                                    <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SdBatch_Tip}" TextWrapping="Wrap" Margin="0,6,0,8"/>
+                                    <WrapPanel IsEnabled="{Binding EditedSettings.SdBatchSelectedAreasOnly}">
+                                        <CheckBox Content="/switch" IsChecked="{Binding EditedSettings.SdBatchSwitch}" Margin="0,0,16,8"/>
+                                        <CheckBox Content="/Nintendo" IsChecked="{Binding EditedSettings.SdBatchNintendo}" Margin="0,0,16,8"/>
+                                        <CheckBox Content="/emuMMC" IsChecked="{Binding EditedSettings.SdBatchEmuMmc}" Margin="0,0,16,8"/>
+                                        <CheckBox Content="/tools" IsChecked="{Binding EditedSettings.SdBatchTools}" Margin="0,0,16,8"/>
+                                        <CheckBox Content="hbmenu.nro" IsChecked="{Binding EditedSettings.SdBatchHbmenu}" Margin="0,0,16,8"/>
+                                        <CheckBox Content="/DBIsaves" IsChecked="{Binding EditedSettings.SdBatchDbiRootSaves}" Margin="0,0,16,8"/>
+                                        <CheckBox Content="/dumps" IsChecked="{Binding EditedSettings.SdBatchDumps}" Margin="0,0,16,8"/>
+                                        <CheckBox Content="/nxdt_rw_poc" IsChecked="{Binding EditedSettings.SdBatchNxdtRwPoc}" Margin="0,0,16,8"/>
+                                    </WrapPanel>
+                                    <Expander Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SdBatch_Custom}" IsExpanded="False" IsEnabled="{Binding EditedSettings.SdBatchSelectedAreasOnly}" Margin="0,4,0,0">
+                                        <StackPanel Margin="0,6,0,0">
+                                            <TextBox x:Name="SdBatchCustomPaths" Text="{Binding EditedSettings.SdBatchCustomPaths, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" Height="100" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"/>
+                                            <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SdBatch_CustomTip}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                        </StackPanel>
+                                    </Expander>
+                                </StackPanel>
+                            </GroupBox>
                             <StackPanel>
                                 <TextBlock Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_Title_Language}" />
                                 <ComboBox ItemsSource="{Binding Path=AvailableLanguages}" SelectedItem="{Binding Path=SelectedLanguage}" DisplayMemberPath="DisplayName" HorizontalAlignment="Left"/>

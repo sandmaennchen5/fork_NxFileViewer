@@ -81,6 +81,21 @@ public sealed class SwitchSourcesTest : IDisposable
         Assert.Equal("Test homebrew", result.Title); Assert.Equal("Homebrew", result.Distribution);
     }
     [Fact]
+    public void MtpProvidedNcaContentsBypassNaxLayerWithoutSdSeedAndRemainReadOnly()
+    {
+        var registered = Directory.CreateDirectory(Path.Combine(_root, "registered")).FullName;
+        var bytes = Encoding.UTF8.GetBytes("synthetic MTP-provided NCA bytes");
+        File.WriteAllBytes(Path.Combine(registered, "content.nca"), bytes);
+        using var sd = SdCardItem.Open(_root, KeySet.CreateDefaultKeySet(), allowPlainNca: true);
+        using var denied = new UniqueRef<IFile>();
+        Assert.True(sd.PartitionFileSystem.OpenFile(ref denied.Ref, "/registered/content.nca".ToU8Span(), OpenMode.Write).IsFailure());
+        using var opened = new UniqueRef<IFile>();
+        sd.PartitionFileSystem.OpenFile(ref opened.Ref, "/registered/content.nca".ToU8Span(), OpenMode.Read).ThrowIfFailure();
+        var actual = new byte[bytes.Length];
+        opened.Get.Read(out var read, 0, actual).ThrowIfFailure();
+        Assert.Equal(bytes.Length, read); Assert.Equal(bytes, actual);
+    }
+    [Fact]
     public void SdRequiresSeedInProdKeys()
     {
         Directory.CreateDirectory(Path.Combine(_root, "registered"));

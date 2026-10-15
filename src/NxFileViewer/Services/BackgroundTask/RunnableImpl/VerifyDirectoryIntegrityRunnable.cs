@@ -65,22 +65,33 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
 
     public IReadOnlyList<BatchIntegrityResult> Run(IProgressReporter progressReporter, CancellationToken cancellationToken)
     {
+        using var archiveProgress = PackageZip.ReportProgress(progressReporter);
         if (_directory == null)
             throw new InvalidOperationException($"{nameof(Setup)} should be called first.");
 
+        // Keep discovery and processing in the same operation for a single source archive.
+        // Directory scans still release sessions when advancing to another archive.
+        var selectedArchives = _selectedFiles?.Select(PackageZip.ArchivePath).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        var singleArchive = selectedArchives == null ? PackageZip.IsArchive(_directory)
+            : selectedArchives.Length == 1 && PackageZip.IsArchive(selectedArchives[0]);
+        using var discoveryOperation = singleArchive ? PackageZip.BeginOperation() : null;
+
         var option = _includeSubdirectories ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
         FirmwareIntegrityVerifier? firmware = null;
-        var sdSources = SdCardSource.FindAllContents(_directory);
+        var areas = SdBatchAreas.From(_appSettings);
+        var filterAreas = areas.AppliesTo(_directory);
+        var sdSources = SdCardSource.FindAllContents(_directory).Where(source => !filterAreas || areas.IncludesPath(_directory, source.ContentsPath)).ToArray();
         var allFiles = _selectedFiles?.Select(PackageZip.ArchivePath).Distinct(StringComparer.OrdinalIgnoreCase).ToArray() ??
-            (Directory.Exists(_directory) ? Directory.GetFiles(_directory, "*", option) : new[] { _directory });
-        var folderCandidates = allFiles.Where(p => p.EndsWith(".nca", StringComparison.OrdinalIgnoreCase) && SdCardSource.ContentsForFile(p) == null)
+            (Directory.Exists(_directory) ? areas.EnumerateFiles(_directory, option).ToArray() : new[] { _directory });
+        if (filterAreas) allFiles = allFiles.Where(path => areas.IncludesPath(_directory, path)).ToArray();
+        var folderCandidates = allFiles.Where(p => !Services.Mtp.MtpDirectSource.IsDirect(p) && p.EndsWith(".nca", StringComparison.OrdinalIgnoreCase) && SdCardSource.ContentsForFile(p) == null)
             .Select(Path.GetDirectoryName).Where(p => p != null).Select(p => p!)
             .Concat(_selectedFiles?.Where(p => Directory.Exists(p) && SdCardSource.FindContents(p) == null) ?? Array.Empty<string>()).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         var zipCandidates = allFiles.Where(p => (_selectedFiles != null || _includeArchives) && PackageZip.IsArchive(p))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var firmwareZips = zipCandidates.Where(p => ContainsNca(p) && ExpandPackages(p, cancellationToken).SequenceEqual(new[] { p }))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var expanded = allFiles.Where(path => SupportedExtensions.Contains(Path.GetExtension(path)) || zipCandidates.Contains(path) ||
+        var expanded = allFiles.Where(path => Services.Mtp.MtpDirectSource.IsDirect(path) || SupportedExtensions.Contains(Path.GetExtension(path)) || zipCandidates.Contains(path) ||
                 IsNandFile(path, cancellationToken))
             .SelectMany(path => ExpandPackages(path, cancellationToken)).ToArray();
         var archivedFirmware = (_selectedFiles ?? expanded).Where(path => PackageZip.IsMember(path) &&
@@ -115,16 +126,18 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
             cancellationToken.ThrowIfCancellationRequested();
         }
         // Loose NCA folders and NCA ZIPs are candidates even without bundled hash lists.
-        var files = _selectedFiles?.ToArray() ?? expanded.Concat(folderCandidates)
+        var files = _selectedFiles?.Where(path => !filterAreas || areas.IncludesPath(_directory, PackageZip.ArchivePath(path))).ToArray() ?? expanded.Concat(folderCandidates)
             .Concat(sdSources.Select(source => source.ContentsPath)).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(path => path, StringComparer.OrdinalIgnoreCase).ToArray();
         files = files.Where(file => _skipCompleted?.Invoke(file) != true).ToArray();
         var results = new List<BatchIntegrityResult>(files.Length);
         var diskFull = false;
+        using var archiveOperations = new PackageZip.BatchOperations();
 
         for (var index = 0; index < files.Length; index++)
         {
             cancellationToken.ThrowIfCancellationRequested();
             var file = files[index];
+            archiveOperations.Select(file);
             var fingerprint = BatchHistoryStore.Fingerprint(file);
             progressReporter.SetText($"Checking {index + 1}/{files.Length}: {Path.GetFileName(file)}");
 
