@@ -665,4 +665,15 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
     public string SdBatch_SourceTip => "Batch source type, including MTP. Auto detects Nintendo, emuMMC or hbmenu.nro at the root. Switch SD applies the SD area filter regardless of contents. Regular folder bypasses the SD area filter. Enable the area filter in Settings.";
     public string Nand_DriveRefresh => "Refresh drives";
     public string Nand_DriveAccessDenied => "The device was detected, but Windows denied read access. Run NxFileViewer as administrator and select the drive again. Access remains read-only.";
+    public string Associations_Title => "Windows file associations";
+    public string Associations_Register => "Register NxFileViewer Fork";
+    public string Associations_Tip => "Registers a separate fork identity for .nsp, .nsz, .xci, .xcz and .nro using the current executable path. Then choose NxFileViewer Fork in Windows: Open with → Choose another app → Always. Register again after moving the app. This button takes effect immediately.";
+    public string Associations_Done => "NxFileViewer Fork was registered for .nsp, .nsz, .xci, .xcz and .nro. Select it as the default using Open with → Choose another app → Always.";
+    public string Home_PluginLaunchTitle => "Launch plugins directly";
+    public string Home_PluginLaunchTip => "Opens the installed program in its own window.";
+    public string Home_NandDescription => "Manage NAND, partitions and saves";
+    public string Home_NszDescription => "Compress and decompress game files";
+    public string Home_LaunchExternal => "Open externally ↗";
+    public string Home_NandLaunchTip => "Starts NxNandManager separately with configured keys. Available when installed and no background task is running.";
+    public string Home_NszLaunchTip => "Starts the NSZ interface separately with active prod.keys. Requires an installed NSZ GUI build and no running background task.";
 }

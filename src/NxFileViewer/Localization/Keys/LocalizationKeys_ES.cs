@@ -665,4 +665,15 @@ public class LocalizationKeys_ES : LocalizationKeysBase, ILocalizationKeys
     public string SdBatch_SourceTip => "Tipo de fuente por lotes, también por MTP. Auto detecta Nintendo, emuMMC o hbmenu.nro en la raíz. SD Switch aplica el filtro SD independientemente del contenido. Carpeta normal omite el filtro SD. Active el filtro en Ajustes.";
     public string Nand_DriveRefresh => "Actualizar unidades";
     public string Nand_DriveAccessDenied => "Se detectó el disco, pero Windows denegó la lectura. Ejecute NxFileViewer como administrador y seleccione la unidad de nuevo. Acceso de solo lectura.";
+    public string Associations_Title => "Asociaciones de archivos de Windows";
+    public string Associations_Register => "Registrar NxFileViewer Fork";
+    public string Associations_Tip => "Registra una identidad propia para .nsp, .nsz, .xci, .xcz y .nro con la ruta EXE actual. Después elija NxFileViewer Fork en Abrir con → Elegir otra aplicación → Siempre. Registre de nuevo si mueve la aplicación. Efecto inmediato.";
+    public string Associations_Done => "NxFileViewer Fork registrado para .nsp, .nsz, .xci, .xcz y .nro. Elíjalo por defecto mediante Abrir con → Elegir otra aplicación → Siempre.";
+    public string Home_PluginLaunchTitle => "Iniciar plugins directamente";
+    public string Home_PluginLaunchTip => "Abre el programa instalado en su propia ventana.";
+    public string Home_NandDescription => "Gestionar NAND, particiones y partidas";
+    public string Home_NszDescription => "Comprimir y descomprimir juegos";
+    public string Home_LaunchExternal => "Abrir externamente ↗";
+    public string Home_NandLaunchTip => "Inicia NxNandManager con las claves configuradas. Disponible si está instalado y no hay tareas en curso.";
+    public string Home_NszLaunchTip => "Inicia NSZ con las prod.keys activas. Requiere una versión GUI instalada y ninguna tarea en curso.";
 }

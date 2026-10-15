@@ -63,6 +63,13 @@ public class SettingsWindowViewModel : WindowViewModelBase
             var dialog = new OpenFileDialog { Filter = "NSZ CLI (*.exe)|*.exe" };
             if (dialog.ShowDialog() == true) EditedSettings.NszExecutablePath = dialog.FileName;
         });
+        RegisterFileAssociationsCommand = new RelayCommand(() => {
+            var keys = LocalizationManager.Instance.Current.Keys;
+            try {
+                Services.FileAssociations.ForkFileAssociations.RegisterCurrentExecutable();
+                ThemedDialog.Notice(keys.Associations_Done, keys.Associations_Title, MessageBoxImage.Information);
+            } catch (Exception ex) { ThemedDialog.Notice(ex.Message, keys.Associations_Title, MessageBoxImage.Error); }
+        });
         ApplySettingsCommand = new RelayCommand(ApplySettings);
         CancelSettingsCommand = new RelayCommand(CancelSettings);
         ResetSettingsCommand = new RelayCommand(ResetSettings);
@@ -203,6 +210,7 @@ public class SettingsWindowViewModel : WindowViewModelBase
     public ICommand BrowseNandCommand { get; }
     public ICommand BrowseBisKeysCommand { get; }
 
+    public ICommand RegisterFileAssociationsCommand { get; }
     public ICommand ApplySettingsCommand { get; }
 
     public ICommand CancelSettingsCommand { get; }

@@ -65,11 +65,14 @@ public sealed class WorkspaceNavigationTest
                 App.ServiceProvider.GetRequiredService<IShowSettingsWindowCommand>().Execute(null);
                 var settingsPage = Assert.IsType<SettingsWindow>(((TabItem)main.FindName("SettingsTab")).Content);
                 var settings = Assert.IsType<SettingsWindowViewModel>(settingsPage.DataContext);
-                Assert.Equal(4, ((TabControl)settingsPage.FindName("SettingsSections")).Items.Count);
+                Assert.Equal(5, ((TabControl)settingsPage.FindName("SettingsSections")).Items.Count);
+                Assert.Same(settingsPage.FindName("KeysSettingsTab"), ((TabControl)settingsPage.FindName("SettingsSections")).Items[1]);
+                Assert.IsType<GroupBox>(settingsPage.FindName("ProdKeysSettingsGroup"));
+                Assert.IsType<GroupBox>(settingsPage.FindName("TitleKeysSettingsGroup"));
                 main.NavigateNamingSettings();
                 var sections = (TabControl)settingsPage.FindName("SettingsSections");
                 Assert.Same(settingsPage.FindName("NamingSettingsTab"), sections.SelectedItem);
-                Assert.Equal(1, sections.SelectedIndex);
+                Assert.Equal(2, sections.SelectedIndex);
                 var originalPattern = settings.EditedSettings.RenamingOptions.ApplicationPattern;
                 settings.EditedSettings.RenamingOptions.ApplicationPattern = "GAME/{Title}.{Ext}";
                 main.Navigate(WorkspaceSection.Rename);
@@ -96,6 +99,9 @@ public sealed class WorkspaceNavigationTest
                 settings.ApplySettingsCommand.Execute(null);
                 Assert.False(closed);
                 var actual = App.ServiceProvider.GetRequiredService<IAppSettings>();
+                var associationButton = Assert.IsType<Button>(settingsPage.FindName("RegisterForkAssociations"));
+                Assert.Equal("RegisterFileAssociationsCommand", associationButton.GetBindingExpression(Button.CommandProperty)!.ParentBinding.Path.Path);
+                Assert.NotNull(settings.RegisterFileAssociationsCommand);
                 var areaCheckbox = Assert.IsType<CheckBox>(settingsPage.FindName("SdBatchAreasEnabled"));
                 Assert.Equal("EditedSettings.SdBatchSelectedAreasOnly", areaCheckbox.GetBindingExpression(CheckBox.IsCheckedProperty)!.ParentBinding.Path.Path);
                 var originalSdEnabled = actual.SdBatchSelectedAreasOnly; var originalSdNintendo = actual.SdBatchNintendo; var originalSdCustom = actual.SdBatchCustomPaths;

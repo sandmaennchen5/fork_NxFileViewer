@@ -145,6 +145,9 @@ public partial class App : Application, IAppEvents
     {
         base.OnStartup(e);
 
+        try { Services.FileAssociations.ForkAssociationLauncher.RefreshInstalled(); }
+        catch (Exception ex) { _logger.LogWarning(ex, "Could not refresh the file-association launcher."); }
+
         // Loads the application settings
         ServiceProvider.GetRequiredService<IAppSettingsManager>().LoadSafe();
         KeyDownloads.MigrateLegacyHost(ServiceProvider.GetRequiredService<IAppSettings>());

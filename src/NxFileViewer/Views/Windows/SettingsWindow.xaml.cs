@@ -9,8 +9,11 @@ public partial class SettingsWindow : UserControl
     {
         InitializeComponent();
         Loaded += (_, _) => RefreshKeyLocations();
+        SettingsSections.SelectionChanged += (_, args) => {
+            if (ReferenceEquals(args.OriginalSource, SettingsSections) && SettingsSections.SelectedItem == KeysSettingsTab)
+                RefreshKeyLocations();
+        };
     }
 
     private void RefreshKeyLocations() => (DataContext as SettingsWindowViewModel)?.RefreshKeyLocations();
-    private void KeyLocationsExpanded(object sender, System.Windows.RoutedEventArgs e) => RefreshKeyLocations();
 }

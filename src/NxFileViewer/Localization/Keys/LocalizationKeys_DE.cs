@@ -666,4 +666,15 @@ public class LocalizationKeys_DE : LocalizationKeysBase, ILocalizationKeys
     public string SdBatch_SourceTip => "Quelltyp für die Stapelprüfung, auch über MTP. Automatisch: Nintendo, emuMMC oder hbmenu.nro in der Wurzel. Switch-SD: SD-Bereichsfilter unabhängig vom Inhalt anwenden. Normaler Ordner: keinen SD-Bereichsfilter anwenden. Der Bereichsfilter muss in den Einstellungen aktiviert sein.";
     public string Nand_DriveRefresh => "Laufwerke aktualisieren";
     public string Nand_DriveAccessDenied => "Der Datenträger wurde erkannt, aber Windows verweigert den Lesezugriff. NxFileViewer als Administrator starten und das Laufwerk erneut auswählen. Es wird nur lesend geöffnet.";
+    public string Associations_Title => "Windows-Dateizuordnungen";
+    public string Associations_Register => "NxFileViewer Fork registrieren";
+    public string Associations_Tip => "Für .nsp, .nsz, .xci, .xcz und .nro wird eine eigene Fork-Kennung mit dem aktuellen EXE-Pfad registriert. Danach in Windows über Öffnen mit → Andere App auswählen → Immer den NxFileViewer Fork wählen. Nach einem Ordnerwechsel erneut registrieren. Die Schaltfläche wirkt sofort.";
+    public string Associations_Done => "NxFileViewer Fork wurde für .nsp, .nsz, .xci, .xcz und .nro registriert. Wähle ihn jetzt über Öffnen mit → Andere App auswählen → Immer als Standard-App aus.";
+    public string Home_PluginLaunchTitle => "Plugins direkt starten";
+    public string Home_PluginLaunchTip => "Öffnet das installierte Programm in einem eigenen Fenster.";
+    public string Home_NandDescription => "NAND, Partitionen und Spielstände verwalten";
+    public string Home_NszDescription => "Spieldateien komprimieren und dekomprimieren";
+    public string Home_LaunchExternal => "Extern öffnen ↗";
+    public string Home_NandLaunchTip => "Startet NxNandManager separat mit den konfigurierten Keys. Nur verfügbar, wenn installiert und keine Hintergrundaufgabe läuft.";
+    public string Home_NszLaunchTip => "Startet die NSZ-Oberfläche separat mit den aktiven prod.keys. Benötigt eine installierte NSZ-GUI-Version und eine freie Hintergrundverarbeitung.";
 }

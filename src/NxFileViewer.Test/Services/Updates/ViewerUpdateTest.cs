@@ -208,6 +208,8 @@ public sealed class ViewerUpdateTest : IDisposable
         Directory.CreateDirectory(stage);
         var target = Path.Combine(_root, "NxFileViewer.exe");
         File.WriteAllText(target, "previous executable");
+        var associationLauncher = Emignatik.NxFileViewer.Services.FileAssociations.ForkAssociationLauncher.Ensure(target);
+        var originalLauncher = File.ReadAllBytes(associationLauncher);
         File.WriteAllText(Path.Combine(_root, "prod.keys"), "private user data");
         Directory.CreateDirectory(Path.Combine(_root, "Plugins"));
         File.WriteAllText(Path.Combine(_root, "Plugins", "plugin.txt"), "plugin data");
@@ -234,6 +236,7 @@ public sealed class ViewerUpdateTest : IDisposable
             (File.Exists(Path.Combine(stage, "error.txt")) ? File.ReadAllText(Path.Combine(stage, "error.txt")) : ""));
         Assert.Equal(validHash ? "new executable" : "previous executable", File.ReadAllText(target));
         if (validHash) Assert.Equal("previous executable", File.ReadAllText(Path.Combine(stage, "previous.exe")));
+        Assert.Equal(originalLauncher, File.ReadAllBytes(associationLauncher));
         Assert.Equal("private user data", File.ReadAllText(Path.Combine(_root, "prod.keys")));
         Assert.Equal("plugin data", File.ReadAllText(Path.Combine(_root, "Plugins", "plugin.txt")));
     }

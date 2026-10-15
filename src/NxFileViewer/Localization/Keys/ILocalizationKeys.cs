@@ -566,4 +566,15 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string SdBatch_SourceTip { get; }
     string Nand_DriveRefresh { get; }
     string Nand_DriveAccessDenied { get; }
+    string Associations_Title { get; }
+    string Associations_Register { get; }
+    string Associations_Tip { get; }
+    string Associations_Done { get; }
+    string Home_PluginLaunchTitle { get; }
+    string Home_PluginLaunchTip { get; }
+    string Home_NandDescription { get; }
+    string Home_NszDescription { get; }
+    string Home_LaunchExternal { get; }
+    string Home_NandLaunchTip { get; }
+    string Home_NszLaunchTip { get; }
 }

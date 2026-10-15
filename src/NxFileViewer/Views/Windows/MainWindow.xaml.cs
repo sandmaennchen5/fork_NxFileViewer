@@ -46,7 +46,8 @@ public partial class MainWindow : Window
             EnsurePage(section);
             EnsurePage(WorkspaceSection.Settings);
             WorkspaceTabs.SelectedIndex = (int)WorkspaceSection.Settings;
-            ((SettingsWindow)SettingsTab.Content).SettingsSections.SelectedIndex = section == WorkspaceSection.Updates ? 2 : 3;
+            var page = (SettingsWindow)SettingsTab.Content;
+            page.SettingsSections.SelectedItem = section == WorkspaceSection.Updates ? page.UpdatesSettingsTab : page.PluginsSettingsTab;
             return;
         }
         WorkspaceTabs.SelectedIndex = (int)section;

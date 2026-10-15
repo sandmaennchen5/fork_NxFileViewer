@@ -7,21 +7,11 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
-Planned version: **4.0.1**.
-
-- NAND drive selection lists physical disks without drive letters or successful read probes, including offline Hekate UMS devices. Model/capacity are shown when available; refresh and a clear administrator-access message are included.
-
-- Batch source selection offers Auto, Regular folder and Switch SD to override SD-root detection, including MTP imports. Switch SD applies enabled area filtering even without SD markers; Regular folder bypasses it.
-
-- Settings can restrict whole Switch-SD batch scans to selected areas: `/switch`, `/Nintendo`, `/emuMMC`, `/tools`, root `hbmenu.nro`, `/DBIsaves`, `/dumps`, and `/nxdt_rw_poc`. Users can add custom folders or individual files, including nested paths, one per line. The saved filter also excludes unselected areas before MTP copying; explicitly selected files/subfolders remain independently accessible.
-
-- Sphaira MTP offers optional experimental direct reading for individual NSP/NSZ, XCI/XCZ and NCA files or folders containing these files in single and batch views. Local cache remains the default; archives, NAND and SD structures require it. Direct sources are read-only; Windows may still buffer transfers internally.
-
-- External NxNandManager and NSZ GUI launches reuse the active NxFileViewer keys in a temporary, isolated key environment (NAND BIS override takes priority).
+## [4.0.1-beta1] - 2026-10-15
 
 ### Added
 
-- Add “Sphaira (MTP)” selection to individual and batch checks, using native Windows virtual-device browsing and read-only file transfers. Import supported contents to a selectable local/network cache with progress, cancellation and cleanup; preserve Nintendo/Contents paths and split NCA parts for the existing SD reader, including MTP views that provide NCAs without a NAX0 wrapper.
+- Add “Sphaira (MTP)” selection to individual and batch checks, using native Windows virtual-device browsing and read-only file transfers. Import supported contents to a selectable local/network cache with progress, cancellation and cleanup; preserve Nintendo/Contents paths and split NCA parts for the existing SD reader, including MTP views that provide NCAs without a NAX0 wrapper. Offer an experimental direct-read mode for individual NSP/NSZ, XCI/XCZ and NCA files and folders containing these files. Cache remains the default and is required for archives, NAND and SD structures; Windows may still buffer direct reads internally.
 - Add an optional batch checkbox to group files by their source folder or ZIP/7z archive, with collapsible groups and file counts. Preserve filters, sorting and per-file actions inside groups.
 - Read NRO homebrew metadata and icons in individual, ZIP/7z archive and batch mode, including embedded NACP titles, publisher, display version, languages and build ID. NRO files do not require keys or receive NCA signature/integrity verification.
 - Open and verify installed SD-card NAX0 content using the matching `sd_seed` and SD content keys from the active `prod.keys`. Support FAT32 split content, including copied folders without their archive attribute, and show control metadata without a corresponding Meta NCA. Add an SD-card folder picker, content-set selector and dedicated NRO/NAX0 batch filters; exclude SD contents from package rename/conversion actions.
@@ -31,6 +21,13 @@ Planned version: **4.0.1**.
 - Show title IDs from readable save/NCA headers, resolve title names through the local regional TitleDB, and show user IDs from save headers while retaining the original filenames.
 - Open recognized SaveFS containers directly from NAND and browse their internal folders. Export individual files or the complete save, preserving directory structure and empty folders. Complete exports use a new timestamped destination and staging cleanup on cancellation/failure; existing destinations are not overwritten.
 - Expand multi-package batch rows to show each contained title, title ID, package type and version. Retain package details in batch history without persisting the expanded state.
+- Add configurable Switch-SD batch areas for `/switch`, `/Nintendo`, `/emuMMC`, `/tools`, root `hbmenu.nro`, `/DBIsaves`, `/dumps` and `/nxdt_rw_poc`, plus editable custom folders/files with nested paths. Save the selection and filter excluded areas before MTP copying. The source selector offers automatic detection, regular-folder scanning and explicit Switch-SD filtering.
+- Register `.nsp`, `.nsz`, `.xci`, `.xcz` and `.nro` for the current Windows user as “NxFileViewer Fork”. An embedded native launcher gives the fork a separate app identity while retaining `NxFileViewer.exe`; installed launchers refresh automatically when their embedded version changes. Existing single-EXE update packages remain compatible, and Windows default-app selection stays user controlled.
+
+### Changed
+
+- Move key settings into a dedicated Keys tab immediately after Program. Keep prod.keys and title.keys sections visible without expanders and refresh key locations on entering the tab.
+- Distinguish external NxNandManager and NSZ launches on Start with compact buttons, separate icons, purpose descriptions and an explicit external-launch action. Launch installed GUIs with NxFileViewer’s active keys in an isolated temporary environment; the NAND BIS-key override takes priority.
 
 ### Fixed
 
@@ -45,6 +42,7 @@ Planned version: **4.0.1**.
 - Show an on-screen warning when loading runs out of disk space, including the affected path. Stop an affected batch scan as interrupted instead of reporting successful completion or continuing after the disk-full error.
 - Automatically load the new NAND partition root when its selection changes, synchronize both partition selectors, and leave the SaveFS view when switching partitions.
 - Persist changes to the NSZ “check for stable updates before conversion” checkbox immediately on both update pages, and preserve the active choice when applying general settings.
+- List physical NAND drives without requiring drive letters or a successful initial read probe, including offline Hekate UMS devices. Show model/capacity when available, allow refreshing the list and explain when administrator rights are required.
 
 ## [4.0.0] - 2026-10-07
 
