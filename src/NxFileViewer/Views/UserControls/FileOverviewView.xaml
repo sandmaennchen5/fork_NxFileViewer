@@ -66,7 +66,7 @@
                     <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.PackageStructure_Title}" Margin="0,1,2,0"/><customControls:TipLabel ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.ToolTip_PackageStructure}"/></StackPanel>
                     <TextBox Text="{Binding Path=PackageStructure, Mode=OneWay}" Style="{StaticResource ReadOnlyTextBox}" MinWidth="70"/>
                 </StackPanel>
-                <StackPanel Grid.Row="0" Grid.Column="4" Orientation="Vertical" HorizontalAlignment="Stretch">
+                <StackPanel Grid.Row="1" Grid.Column="2" Orientation="Vertical" HorizontalAlignment="Stretch" Margin="0,4,0,0">
                     <TextBlock Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Title_FileInfo_Compression}" Margin="0,1,2,0" />
                     <TextBox Text="{Binding Path=CompressionType, Mode=OneWay}" Style="{StaticResource ReadOnlyTextBox}" MinWidth="60"/>
                 </StackPanel>
@@ -80,7 +80,7 @@
                         </Grid.ColumnDefinitions>
                         <TextBox Grid.Column="0" MinWidth="80" Style="{StaticResource ReadOnlyTextBox}" Text="{Binding Path=NcasIntegrity, Mode=OneWay, Converter={StaticResource NcasIntegrityConverter}}"
                                  Foreground="{Binding NcasIntegrityValidityColor}" HorizontalAlignment="Stretch" />
-                        <customControls:PlayStopButton Grid.Column="1" Width="16" Height="16" Margin="2,0,0,0" Command="{Binding Path=VerifyNcasIntegrityCommand}" />
+                        <customControls:PlayStopButton Visibility="{Binding VerifyControlsVisibility}" Grid.Column="1" Width="16" Height="16" Margin="2,0,0,0" Command="{Binding Path=VerifyNcasIntegrityCommand}" />
                         <customControls:TipLabel Grid.Column="2" ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.ToolTip_NcasIntegrity}" />
                     </Grid>
                 </StackPanel>
@@ -88,7 +88,7 @@
                     <TextBlock Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.FileInfo_FileSize}" />
                     <TextBox Text="{Binding Path=FileSize, Mode=OneWay}" Style="{StaticResource ReadOnlyTextBox}"/>
                 </StackPanel>
-                <StackPanel Grid.Row="1" Grid.Column="2" Margin="0,4,0,0" ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.ToolTip_NcaSignature}">
+                <StackPanel Grid.Row="0" Grid.Column="4" ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.ToolTip_NcaSignature}">
                     <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Signature_Title}"/><customControls:TipLabel ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.ToolTip_NcaSignature}"/></StackPanel>
                     <TextBox Text="{Binding NcaSignature, Mode=OneWay}" Style="{StaticResource ReadOnlyTextBox}"/>
                 </StackPanel>                <StackPanel Grid.Row="1" Grid.Column="4" Grid.ColumnSpan="3" Orientation="Vertical" HorizontalAlignment="Stretch" Margin="0,4,0,0">
@@ -105,8 +105,9 @@
 
         <GroupBox Grid.Row="2" Header="Homebrew (NRO)" Visibility="{Binding IsHomebrew, Converter={StaticResource FalseToCollapseVisibilityConverter}}">
             <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="8">
-                <Image Source="{Binding HomebrewTitle.Icon}" Width="160" Height="160" HorizontalAlignment="Left"/>
-                <StackPanel Orientation="Horizontal"><Button Command="{Binding SaveHomebrewImageCommand}" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.ContextMenu_SaveImage}"/><Button Command="{Binding CopyHomebrewImageCommand}" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.ContextMenu_CopyImage}"/></StackPanel>
+                <TextBlock Visibility="{Binding HistoryNoticeVisibility}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchHistory_LoadedNotice}" TextWrapping="Wrap" TextAlignment="Center" Width="200" Padding="12" Margin="0,8"/>
+                <Image Visibility="{Binding LogoVisibility}" Source="{Binding HomebrewTitle.Icon}" Width="160" Height="160" HorizontalAlignment="Left"/>
+                <StackPanel Visibility="{Binding LogoVisibility}" Orientation="Horizontal"><Button Command="{Binding SaveHomebrewImageCommand}" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.ContextMenu_SaveImage}"/><Button Command="{Binding CopyHomebrewImageCommand}" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.ContextMenu_CopyImage}"/></StackPanel>
                 <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.AppTitle}"/>
                 <TextBox Text="{Binding HomebrewTitle.AppName, Mode=OneWay}" Style="{StaticResource ReadOnlyTextBox}"/>
                 <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Publisher}"/>
@@ -138,14 +139,14 @@
                                Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.AvailableContents}" 
                                HorizontalAlignment="Right" Margin="0,0,2,0" VerticalAlignment="Center" />
 
-                    <ComboBox Grid.Column="1" HorizontalAlignment="Center" MinWidth="100" VerticalAlignment="Center"
+                    <ComboBox x:Name="PackagePicker" Grid.Column="1" HorizontalAlignment="Center" MinWidth="100" VerticalAlignment="Center"
                               ItemsSource="{Binding Path=CnmtContainers}" DisplayMemberPath="DisplayName" SelectedItem="{Binding Path=SelectedCnmtContainer}" />
 
                     <customControls:TipLabel Grid.Column="2" ToolTip="{Binding Path=MultiContentPackageToolTip}" HorizontalAlignment="Left"/>
 
                 </Grid>
 
-                <userControls:CnmtContainerView Grid.Row="1" DataContext="{Binding Path=SelectedCnmtContainer}" />
+                <userControls:CnmtContainerView x:Name="PackageOverview" Grid.Row="1" DataContext="{Binding Path=SelectedCnmtContainer}" />
                 <TextBox Grid.Row="2" MaxHeight="160" Text="{Binding InstalledTitlesWithoutMeta, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
                          Visibility="{Binding HasInstalledTitlesWithoutMeta, Converter={StaticResource FalseToCollapseVisibilityConverter}}"/>
 

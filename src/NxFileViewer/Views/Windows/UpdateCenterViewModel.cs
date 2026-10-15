@@ -125,7 +125,7 @@ public sealed class UpdateCenterViewModel : ViewModelBase
                 using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
                 using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
                 timeout.CancelAfter(TimeSpan.FromMinutes(2));
-                var manifests = GitHubFirmwareReferences.LoadManifestsAsync(client, timeout.Token).GetAwaiter().GetResult();
+                var manifests = GitHubFirmwareReferences.LoadManifestsAsync(client, timeout.Token, GitHubUpdateRequests.For(null)).GetAwaiter().GetResult();
                 onlineVersion = InstalledDataStatus.HighestFirmwareVersion(manifests.Values);
                 if (save) FirmwareReferenceStore.Save(manifests, AppContext.BaseDirectory, token);
                 return manifests.Count;

@@ -11,6 +11,7 @@ public sealed record BatchHistoryEntry(Guid Id, DateTime UpdatedUtc, string Sour
     bool IncludeArchives, bool VerifyIntegrity, bool IgnoreMissingDeltaFragments, string State,
     BatchIntegrityResult[] Results, Dictionary<string, string> Fingerprints)
 {
+    public string[] SourcePaths { get; init; } = Array.Empty<string>();
     public string Label => $"{UpdatedUtc.ToLocalTime():g} — {Source} ({Results.Length}) — {State}";
     public bool CanSkip(string path, bool ignoreMissingDeltaFragments)
     {
@@ -24,19 +25,19 @@ public sealed record BatchHistoryEntry(Guid Id, DateTime UpdatedUtc, string Sour
 public sealed class BatchHistoryStore(string path)
 {
     public static string DefaultPath => Path.Combine(AppContext.BaseDirectory, "History", "batch-integrity.json");
-    public IReadOnlyList<BatchHistoryEntry> Load()
+    public IReadOnlyList<BatchHistoryEntry> Load(int limit = 5)
     {
         if (!File.Exists(path)) return Array.Empty<BatchHistoryEntry>();
         return (JsonSerializer.Deserialize<BatchHistoryEntry[]>(File.ReadAllText(path)) ?? Array.Empty<BatchHistoryEntry>())
             .Where(e => e != null && e.Results != null && e.Fingerprints != null && !string.IsNullOrWhiteSpace(e.Source))
             .Select(e => e with { Fingerprints = new Dictionary<string, string>(e.Fingerprints, StringComparer.OrdinalIgnoreCase) })
-            .OrderByDescending(e => e.UpdatedUtc).Take(5).ToArray();
+            .OrderByDescending(e => e.UpdatedUtc).Take(Math.Clamp(limit, 1, 100)).ToArray();
     }
-    public void Save(BatchHistoryEntry entry)
+    public void Save(BatchHistoryEntry entry, int limit = 5)
     {
-        var entries = Load().Where(e => e.Id != entry.Id).Prepend(entry).Where(e => e != null && e.Results != null && e.Fingerprints != null && !string.IsNullOrWhiteSpace(e.Source))
+        var entries = Load(limit).Where(e => e.Id != entry.Id).Prepend(entry).Where(e => e != null && e.Results != null && e.Fingerprints != null && !string.IsNullOrWhiteSpace(e.Source))
             .Select(e => e with { Fingerprints = new Dictionary<string, string>(e.Fingerprints, StringComparer.OrdinalIgnoreCase) })
-            .OrderByDescending(e => e.UpdatedUtc).Take(5).ToArray();
+            .OrderByDescending(e => e.UpdatedUtc).Take(Math.Clamp(limit, 1, 100)).ToArray();
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
         var temp = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
         try { File.WriteAllText(temp, JsonSerializer.Serialize(entries)); File.Move(temp, path, true); }

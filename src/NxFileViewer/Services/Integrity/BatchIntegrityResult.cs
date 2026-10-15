@@ -43,6 +43,28 @@ public sealed record BatchIntegrityResult(
         : NamingMatches == true ? Localization.LocalizationManager.Instance.Current.Keys.BatchNaming_Matches
         : NamingMatches == false ? Localization.LocalizationManager.Instance.Current.Keys.BatchNaming_Differs : "—";
     public string? SourceFingerprint { get; init; }
+    [JsonIgnore] public string TypeDisplay => IsFirmware ? "FIRMWARE" : PackageType;
+    public string ContentType { get; init; } = "";
+    public Security.ProgramSecurityLevel? Permission { get; init; }
+    [JsonIgnore] public string PermissionDisplay => BatchContentMetadata.PermissionDisplay(Permission);
+    public string BaseTitleId { get; init; } = "";
+    public string MinimumApplicationVersion { get; init; } = "";
+    public string SystemUpdateVersion { get; init; } = "";
+    public bool? IsDemo { get; init; }
+    public string FileSystemPermissions { get; init; } = "";
+    public string AcidSignatureValidity { get; init; } = "";
+    public LibHac.Common.Validity? NcaSignatureValidity { get; init; }
+    [JsonIgnore] public string NcaSignature => NcaSignatureValidity switch
+    {
+        LibHac.Common.Validity.Valid => Localization.LocalizationManager.Instance.Current.Keys.Signature_Passed,
+        LibHac.Common.Validity.Invalid => Localization.LocalizationManager.Instance.Current.Keys.Signature_NotPassed,
+        _ => Localization.LocalizationManager.Instance.Current.Keys.Signature_Unchecked
+    };
+    public string MissingKeys { get; init; } = "";
+    [JsonIgnore] public string FileSizeDisplay => FileSize is { } size ? Utils.FileSizeHelper.ToFileSize(size) : "—";
+    [JsonIgnore] public string SourceSizeDisplay => SourceSize is { } size ? Utils.FileSizeHelper.ToFileSize(size) : "—";
+    [JsonIgnore] public string OutputSizeDisplay => OutputSize is { } size ? Utils.FileSizeHelper.ToFileSize(size) : "—";
+    public BatchTitleSummary[] Titles { get; init; } = Array.Empty<BatchTitleSummary>();
     public string Title { get; init; } = "";
     public string TitleId { get; init; } = "";
     public string Publisher { get; init; } = "";
@@ -67,4 +89,26 @@ public sealed record BatchIntegrityResult(
     public string FileName => Path.GetFileName(FilePath.TrimEnd('/'));
 }
 
-public sealed record BatchPackageSummary(string Title, string TitleId, string Type, string Version);
+public sealed record BatchPackageSummary(string Title, string TitleId, string Type, string Version)
+{
+    [JsonIgnore] public string ContentType => Type switch { "Application" => "Base", "Patch" => "Update", "AddOnContent" => "DLC", _ => Type };
+    [JsonIgnore] public string DisplayName => $"{ContentType} — {TitleId} — {Title}";
+    public BatchTitleSummary[] Titles { get; init; } = Array.Empty<BatchTitleSummary>();
+    [JsonIgnore] public long? VersionNumber => long.TryParse(Version, out var value) ? value : null;
+    public string BaseTitleId { get; init; } = "";
+    public string MinimumApplicationVersion { get; init; } = "";
+    public bool? IsDemo { get; init; }
+    public string FileSystemPermissions { get; init; } = "";
+    public string AcidSignatureValidity { get; init; } = "";
+    public string SystemVersion { get; init; } = "";
+    public string MasterKey { get; init; } = "";
+    public string BuildId { get; init; } = "";
+    public string Distribution { get; init; } = "";
+    public Security.ProgramSecurityLevel? Permission { get; init; }
+    [JsonIgnore] public string PermissionDisplay => BatchContentMetadata.PermissionDisplay(Permission);
+    public string Publisher { get; init; } = "";
+    public string DisplayVersion { get; init; } = "";
+    public string Languages { get; init; } = "";
+}
+
+public sealed record BatchTitleSummary(string Language, string Title, string Publisher);

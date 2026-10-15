@@ -26,24 +26,28 @@ public sealed class ViewerUpdateService
     public const string Repository = "sandmaennchen5/fork_NxFileViewer";
     private static readonly HttpClient Client = CreateClient();
     private readonly HttpClient _client;
-    public ViewerUpdateService(HttpClient? client = null) => _client = client ?? Client;
+    private readonly GitHubUpdateRequests _requests;
+    public string LastCheckNotice { get; private set; } = "";
+    public ViewerUpdateService(HttpClient? client = null) { _client = client ?? Client; _requests = GitHubUpdateRequests.For(client); }
     private static HttpClient CreateClient()
     {
         var client = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
         client.DefaultRequestHeaders.UserAgent.ParseAdd("NxFileViewer-Updater/1.0");
         return client;
     }
-    public async Task<ViewerRelease?> CheckAsync(Version current, string architecture, CancellationToken token, bool includePrereleases = false, string? currentTag = null, bool selfContained = false)
+    public async Task<ViewerRelease?> CheckAsync(Version current, string architecture, CancellationToken token, bool includePrereleases = false, string? currentTag = null, bool selfContained = false, bool automatic = false)
     {
+        LastCheckNotice = "";
         if (includePrereleases)
         {
             var candidates = new List<ViewerRelease>();
             for (var page = 1; ; page++)
             {
-                using var listing = await _client.GetAsync($"https://api.github.com/repos/{Repository}/releases?per_page=100&page={page}", token).ConfigureAwait(false);
-                if (listing.StatusCode == HttpStatusCode.NotFound) return null;
-                listing.EnsureSuccessStatusCode();
-                using var releases = JsonDocument.Parse(await listing.Content.ReadAsStringAsync(token).ConfigureAwait(false));
+                GitHubUpdateResponse listing;
+                try { listing = await _requests.GetAsync($"https://api.github.com/repos/{Repository}/releases?per_page=100&page={page}", automatic, token).ConfigureAwait(false); }
+                catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound) { return null; }
+                if (listing.Notice.Length > 0) LastCheckNotice = listing.Notice;
+                using var releases = JsonDocument.Parse(listing.Body);
                 foreach (var item in releases.RootElement.EnumerateArray())
                 {
                     // A release for another architecture must not hide compatible releases.
@@ -54,10 +58,11 @@ public sealed class ViewerUpdateService
             }
             return candidates.OrderByDescending(r => ReleaseVersion(r)).ThenBy(r => r.IsPrerelease).FirstOrDefault();
         }
-        using var response = await _client.GetAsync($"https://api.github.com/repos/{Repository}/releases/latest", token).ConfigureAwait(false);
-        if (response.StatusCode == HttpStatusCode.NotFound) return null;
-        response.EnsureSuccessStatusCode();
-        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(token).ConfigureAwait(false));
+        GitHubUpdateResponse response;
+        try { response = await _requests.GetAsync($"https://api.github.com/repos/{Repository}/releases/latest", automatic, token).ConfigureAwait(false); }
+        catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound) { return null; }
+        LastCheckNotice = response.Notice;
+        using var json = JsonDocument.Parse(response.Body);
         return SelectRelease(json.RootElement, current, architecture, currentTag: currentTag, selfContained: selfContained);
     }
     public static ViewerRelease? SelectRelease(JsonElement release, Version current, string architecture, bool includePrereleases = false, bool skipMissingPackage = false, string? currentTag = null, bool selfContained = false)

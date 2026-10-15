@@ -56,6 +56,8 @@ public class CnmtContainerViewModel : ViewModelBase
 
     public ISaveTitleImageCommand SaveSelectedImageCommand { get; }
 
+    public Visibility HistoryNoticeVisibility => Visibility.Collapsed;
+    public Visibility LogoVisibility => Visibility.Visible;
     public string TitleId => _cnmtContainer.CnmtItem.TitleId;
 
     public string BaseTitleId => _cnmtContainer.CnmtItem.ApplicationTitleId;
@@ -142,6 +144,9 @@ public class CnmtContainerViewModel : ViewModelBase
 
     public Visibility SecurityVisibility => _cnmtContainer.NpdmItem != null && _cnmtContainer.CnmtItem.ContentType is LibHac.Ncm.ContentMetaType.Application or LibHac.Ncm.ContentMetaType.Patch ? Visibility.Visible : Visibility.Collapsed;
 
+    public ProgramSecurityLevel? SecurityAssessment => _cnmtContainer.CnmtItem.ContentType is LibHac.Ncm.ContentMetaType.Application or LibHac.Ncm.ContentMetaType.Patch
+        ? _cnmtContainer.NpdmItem?.SecurityLevel : null;
+    public bool? DemoStatus => _cnmtContainer.NacpContainer == null ? null : IsDemo;
     public string SecurityLevel => _cnmtContainer.NpdmItem?.SecurityLevel switch
     {
         ProgramSecurityLevel.Safe => LocalizationManager.Instance.Current.Keys.Security_Safe,

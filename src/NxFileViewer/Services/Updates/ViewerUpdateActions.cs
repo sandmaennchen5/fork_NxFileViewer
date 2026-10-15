@@ -63,7 +63,6 @@ public sealed class ViewerUpdateActions : NotifyPropertyChangedBase
     {
         if (_busy || (automatic && !_settings.CheckViewerUpdatesOnStartup)) return;
         SetBusy(true);
-        AvailableUpdates = "";
         Status = LocalizationManager.Instance.Current.Keys.Update_Checking;
         try
         {
@@ -71,11 +70,16 @@ public sealed class ViewerUpdateActions : NotifyPropertyChangedBase
             var architecture = RuntimeInformation.ProcessArchitecture switch
             { Architecture.X64 => "x64", Architecture.X86 => "x86", _ => throw new NotSupportedException("No release package for this architecture.") };
             var includePrereleases = _settings.IncludeViewerPrereleases;
-            _release = await _service.CheckAsync(Assembly.GetExecutingAssembly().GetName().Version!, architecture, timeout.Token, includePrereleases, Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion, ViewerDistribution.IsSelfContained);
+            _release = await _service.CheckAsync(Assembly.GetExecutingAssembly().GetName().Version!, architecture, timeout.Token, includePrereleases, Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion, ViewerDistribution.IsSelfContained, automatic);
             if (includePrereleases != _settings.IncludeViewerPrereleases) { _release = null; Status = ""; return; }
             Status = _release == null ? LocalizationManager.Instance.Current.Keys.Update_Current :
                 string.Format(LocalizationManager.Instance.Current.Keys.Update_Available, ReleaseLabel(_release));
+            if (_service.LastCheckNotice.Length > 0) Status += " — " + _service.LastCheckNotice;
 
+        }
+        catch (GitHubRateLimitException ex)
+        {
+            Status = ex.Message;
         }
         catch (Exception ex)
         {
@@ -89,7 +93,7 @@ public sealed class ViewerUpdateActions : NotifyPropertyChangedBase
             try
             {
                 using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(45));
-                var results = await _components.CheckResultsAsync(timeout.Token);
+                var results = await _components.CheckResultsAsync(timeout.Token, automatic);
                 Status += Environment.NewLine + string.Join(Environment.NewLine, results.Select(r => r.Name + ": " + r.Status));
                 AvailableUpdates = UpdateAvailabilitySummary.Format(_release == null ? null : ReleaseLabel(_release), results);
             }

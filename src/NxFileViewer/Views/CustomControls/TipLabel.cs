@@ -33,15 +33,8 @@ public class TipLabel : Label
             _tipWindow.Closed += OnTipWindowClosed;
         }
 
-        var pointToScreen = this.PointToScreen(new Point());
+        _tipWindow.ShowTip(tipText, this);
 
-        _tipWindow.Top = pointToScreen.Y;
-        _tipWindow.Left = pointToScreen.X;
-
-        _tipWindow.TextBox.Text = tipText;
-
-        _tipWindow.Show();
-        _tipWindow.Activate();
     }
 
     private Window? GetAttachedWindow()

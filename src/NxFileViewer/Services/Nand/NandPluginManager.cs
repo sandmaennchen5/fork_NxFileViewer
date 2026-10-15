@@ -89,9 +89,8 @@ public sealed class NandPluginManager(IAppSettings settings, string? rootDirecto
         progress.SetMode(true);
         progress.SetText(LocalizationManager.Instance.Current.Keys.Nand_Updating);
         var client = httpClient ?? Client;
-        using var response = await client.GetAsync("https://api.github.com/repos/THZoria/NxNandManager/releases/latest", token).ConfigureAwait(false);
-        response.EnsureSuccessStatusCode();
-        using var release = JsonDocument.Parse(await response.Content.ReadAsStringAsync(token).ConfigureAwait(false));
+        var response = await Emignatik.NxFileViewer.Services.Updates.GitHubUpdateRequests.For(httpClient).GetAsync("https://api.github.com/repos/THZoria/NxNandManager/releases/latest", false, token).ConfigureAwait(false);
+        using var release = JsonDocument.Parse(response.Body);
         var root = release.RootElement;
         if (root.GetProperty("draft").GetBoolean() || root.GetProperty("prerelease").GetBoolean()) throw new InvalidDataException("NAND release is not stable.");
         var tag = root.GetProperty("tag_name").GetString()!;

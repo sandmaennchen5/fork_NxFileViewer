@@ -35,6 +35,8 @@ public sealed class WorkspaceNavigationTest
                 var batchTab = (TabItem)main.FindName("BatchTab");
                 var batchPage = Assert.IsType<BatchIntegrityWindow>(batchTab.Content);
                 var batch = Assert.IsType<BatchIntegrityWindowViewModel>(batchPage.DataContext);
+                typeof(BatchIntegrityWindow).GetMethod("ResetColumns", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+                    .Invoke(batchPage, new object[] { batchPage, new RoutedEventArgs() });
                 var singleMtp = Assert.IsType<Button>(main.FindName("SphairaSingleButton"));
                 Assert.Equal("OpenSphairaCommand", singleMtp.GetBindingExpression(Button.CommandProperty)!.ParentBinding.Path.Path);
                 var batchMtp = Assert.IsType<Button>(batchPage.FindName("SphairaBatchButton"));
@@ -174,6 +176,27 @@ public sealed class WorkspaceNavigationTest
                 main.Navigate(WorkspaceSection.Updates);
                 var updates = Assert.IsType<UpdateCenterView>(((TabItem)main.FindName("UpdatesTab")).Content);
                 var updateModel = Assert.IsType<UpdateCenterViewModel>(updates.DataContext);
+                var programGroups = Assert.IsType<StackPanel>(settingsPage.FindName("ProgramSettingsGroups"));
+                Assert.Equal(7, programGroups.Children.Count);
+                Assert.All(System.Linq.Enumerable.Cast<UIElement>(programGroups.Children), child => Assert.IsType<GroupBox>(child));
+                foreach (var mode in new[] { "Program", "Windows", "BatchDrop" })
+                {
+                    var autoTip = Assert.IsType<Emignatik.NxFileViewer.Views.CustomControls.TipLabel>(settingsPage.FindName("AutoVerify" + mode + "Tip"));
+                    Assert.False(string.IsNullOrWhiteSpace(autoTip.TipText));
+                    Assert.True(autoTip.TipText!.Length > 80);
+                }
+                var autoProgramBox = Assert.IsType<CheckBox>(settingsPage.FindName("AutoVerifyProgramCheckBox"));
+                var autoWindowsBox = Assert.IsType<CheckBox>(settingsPage.FindName("AutoVerifyWindowsCheckBox"));
+                var autoBatchBox = Assert.IsType<CheckBox>(settingsPage.FindName("AutoVerifyBatchDropCheckBox"));
+                Assert.Equal("EditedSettings.VerifyBatchDrops", autoBatchBox.GetBindingExpression(CheckBox.IsCheckedProperty)!.ParentBinding.Path.Path);
+                settings.EditedSettings.VerifyBatchDrops = true;
+                var historyLimitBox = Assert.IsType<TextBox>(settingsPage.FindName("BatchHistoryLimitBox"));
+                Assert.Equal("EditedSettings.BatchHistoryLimit", historyLimitBox.GetBindingExpression(TextBox.TextProperty)!.ParentBinding.Path.Path);
+                settings.EditedSettings.BatchHistoryLimit = 12;
+                Assert.Equal("EditedSettings.VerifyFilesOpenedInProgram", autoProgramBox.GetBindingExpression(CheckBox.IsCheckedProperty)!.ParentBinding.Path.Path);
+                Assert.Equal("EditedSettings.VerifyFilesOpenedFromWindows", autoWindowsBox.GetBindingExpression(CheckBox.IsCheckedProperty)!.ParentBinding.Path.Path);
+                settings.EditedSettings.VerifyFilesOpenedInProgram = true;
+                settings.EditedSettings.VerifyFilesOpenedFromWindows = false;
                 var originalCheckUpdates = actual.NszCheckUpdates;
                 var updateCheckbox = (CheckBox)updates.FindName("NszCheckUpdatesBox");
                 var updateBinding = updateCheckbox.GetBindingExpression(CheckBox.IsCheckedProperty)!.ParentBinding;
@@ -188,6 +211,25 @@ public sealed class WorkspaceNavigationTest
                 using (var saved = System.Text.Json.JsonDocument.Parse(System.IO.File.ReadAllText(savedSettingsPath)))
                     Assert.False(saved.RootElement.GetProperty(nameof(IAppSettings.NszCheckUpdates)).GetBoolean());
                 settings.ApplySettingsCommand.Execute(null);
+                Assert.True(actual.VerifyFilesOpenedInProgram);
+                Assert.True(actual.VerifyBatchDrops);
+                Assert.Equal(12, actual.BatchHistoryLimit);
+                Assert.Equal(12, batch.HistoryLimit);
+                Assert.False(actual.VerifyFilesOpenedFromWindows);
+                settingsManager.SaveSafe();
+                using (var savedAuto = System.Text.Json.JsonDocument.Parse(System.IO.File.ReadAllText(savedSettingsPath)))
+                {
+                    Assert.True(savedAuto.RootElement.GetProperty(nameof(IAppSettings.VerifyFilesOpenedInProgram)).GetBoolean());
+                    Assert.True(savedAuto.RootElement.GetProperty(nameof(IAppSettings.VerifyBatchDrops)).GetBoolean());
+                    Assert.Equal(12, savedAuto.RootElement.GetProperty(nameof(IAppSettings.BatchHistoryLimit)).GetInt32());
+                    Assert.False(savedAuto.RootElement.GetProperty(nameof(IAppSettings.VerifyFilesOpenedFromWindows)).GetBoolean());
+                }
+                actual.BatchHistoryLimit = 5;
+                settings.EditedSettings.BatchHistoryLimit = 5;
+                actual.VerifyBatchDrops = false;
+                settings.EditedSettings.VerifyBatchDrops = false;
+                actual.VerifyFilesOpenedInProgram = false;
+                settings.EditedSettings.VerifyFilesOpenedInProgram = false;
                 Assert.False(actual.NszCheckUpdates);
                 var embeddedUpdates = (UpdateCenterView)((ContentControl)settingsPage.FindName("SettingsUpdatesContent")).Content;
                 var embeddedModel = Assert.IsType<UpdateCenterViewModel>(embeddedUpdates.DataContext);
@@ -314,13 +356,17 @@ public sealed class WorkspaceNavigationTest
                 var packageGrid = Assert.IsType<DataGrid>(detailsContent.Child);
                 packageGrid.ItemsSource = new[] { new Emignatik.NxFileViewer.Services.Integrity.BatchPackageSummary(
                     "Asterix & Obelix Slap Them All! — A long title that must remain readable", "01002B401285E000", "Application", "196608") };
+                typeof(BatchIntegrityWindow).GetMethod("PackageGridLoaded", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+                    .Invoke(batchPage, new object[] { packageGrid, new RoutedEventArgs() });
+                Assert.Equal(17, packageGrid.Columns.Count);
+                Assert.DoesNotContain(packageGrid.Columns, column => column.SortMemberPath == "SystemUpdateVersion");
                 Assert.All(packageGrid.Columns, column => Assert.True(column.Width.IsAuto));
                 Assert.Equal(ScrollBarVisibility.Auto, ScrollViewer.GetHorizontalScrollBarVisibility(packageGrid));
                 packageGrid.Measure(new Size(1000, 280));
                 packageGrid.Arrange(new Rect(0, 0, 1000, 280));
                 packageGrid.UpdateLayout();
-                Assert.True(packageGrid.Columns[0].ActualWidth > 240);
-                Assert.All(packageGrid.Columns, column => Assert.True(column.ActualWidth >= 90));
+                Assert.True(System.Linq.Enumerable.Single(packageGrid.Columns, column => column.SortMemberPath == "Title").ActualWidth > 240);
+                Assert.All(System.Linq.Enumerable.Where(packageGrid.Columns, column => column.Visibility == Visibility.Visible), column => Assert.True(column.ActualWidth >= 90));
                 arrow.SetCurrentValue(System.Windows.Controls.Primitives.ToggleButton.IsCheckedProperty, false);
                 arrow.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
                 grid.UpdateLayout();
@@ -335,7 +381,18 @@ public sealed class WorkspaceNavigationTest
                     foreach (var property in localization.Keys.GetType().GetProperties())
                         if (property.GetIndexParameters().Length == 0 && property.PropertyType == typeof(string) && property.GetValue(localization.Keys) is string text)
                         { Assert.DoesNotContain("Ã", text); Assert.DoesNotContain("â€", text); }
-                Assert.Contains(grid.Columns, column => column.SortMemberPath == "TitleId" && column.Visibility == Visibility.Collapsed);
+                Assert.Equal(new[] { "FileName", "FileType", "PackageType", "Structure", "NcaSignature", "Integrity", "FileSize", "Compression",
+                    "CompressionRatio", "SystemUpdateVersion", "ContentType", "TitleId", "VersionNumber", "SystemVersion", "BaseTitleId", "MasterKey",
+                    "MinimumApplicationVersion", "Distribution", "BuildId", "IsDemo", "PermissionDisplay",
+                    "FileSystemPermissions", "AcidSignatureValidity", "Title", "Publisher", "DisplayVersion", "Languages", "Error",
+                    "MissingKeys", "FilePath", "NamingStatus", "ProposedPath", "NamingError", "ConversionStatus", "SourceSize", "OutputSize", "ConvertedPath" },
+                    System.Linq.Enumerable.Select(grid.Columns, column => column.SortMemberPath));
+                Assert.Equal(new[] { "FileName", "FileType", "PackageType", "Structure", "NcaSignature", "Integrity", "FileSize", "Compression",
+                    "ContentType", "TitleId", "VersionNumber", "PermissionDisplay", "Title", "Error" },
+                    System.Linq.Enumerable.Select(System.Linq.Enumerable.Where(grid.Columns, column => column.Visibility == Visibility.Visible), column => column.SortMemberPath));
+                Assert.Contains(grid.Columns, column => column.SortMemberPath == "TitleId" && column.Visibility == Visibility.Visible);
+                Assert.Contains(grid.Columns, column => column.SortMemberPath == "ContentType" && column.Visibility == Visibility.Visible);
+                Assert.Contains(grid.Columns, column => column.SortMemberPath == "PermissionDisplay" && column.Visibility == Visibility.Visible);
                 var titleColumn = System.Linq.Enumerable.First(grid.Columns, column => column.SortMemberPath == "Title");
                 titleColumn.Visibility = Visibility.Visible;
                 main.Navigate(WorkspaceSection.Home);
@@ -378,12 +435,14 @@ public sealed class WorkspaceNavigationTest
                 Assert.Empty(grid.GroupStyle);
                 Assert.Null(batch.ResultsView.Groups);
                 var previewLoader = new PreviewLoader();
+                var previewServices = new PreviewServices(previewLoader);
                 var previewRunner = new ImmediatePreviewRunner();
+                var reloadSettings = new AppSettings { EnableBatchHistory = false };
                 var reloadBatch = new BatchIntegrityWindowViewModel(
                     App.ServiceProvider.GetRequiredService<Emignatik.NxFileViewer.Services.Prompting.IPromptService>(),
-                    new PreviewServices(previewLoader), previewRunner,
+                    previewServices, previewRunner,
                     Microsoft.Extensions.Logging.Abstractions.NullLogger<BatchIntegrityWindowViewModel>.Instance,
-                    new AppSettings { EnableBatchHistory = false });
+                    reloadSettings);
                 var reloadPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), Guid.NewGuid() + ".nsz");
                 System.IO.File.WriteAllText(reloadPath, "synthetic source");
                 try
@@ -396,9 +455,91 @@ public sealed class WorkspaceNavigationTest
                     reloadBatch.SelectedResult = reloadRow;
                     Assert.NotNull(reloadBatch.PreviewOverview);
                     Assert.Equal(1, previewLoader.LoadCount);
+                    reloadSettings.EnableBatchHistory = true;
+                    var persistedGame = reloadRow with
+                    {
+                        Title = "Saved title",
+                        Packages = new[]
+                        {
+                            new Emignatik.NxFileViewer.Services.Integrity.BatchPackageSummary("Saved base", "0100000000000000", "Base", "0"),
+                            new Emignatik.NxFileViewer.Services.Integrity.BatchPackageSummary("Saved update", "0100000000000800", "Update", "65536")
+                            {
+                                SystemVersion = "19.0.0", BaseTitleId = "0100000000000000", BuildId = "saved-build",
+                                Titles = new[] { new Emignatik.NxFileViewer.Services.Integrity.BatchTitleSummary("German", "Gespeicherter Titel", "Gespeicherter Verlag"),
+                                    new Emignatik.NxFileViewer.Services.Integrity.BatchTitleSummary("AmericanEnglish", "Saved English title", "Saved English publisher") }
+                            }
+                        }
+                    };
+                    var historyEntry = new Emignatik.NxFileViewer.Services.Integrity.BatchHistoryEntry(Guid.NewGuid(), DateTime.UtcNow,
+                        System.IO.Path.GetDirectoryName(reloadPath)!, false, false, false, false, "Completed", new[] { persistedGame }, new());
+                    reloadBatch.SelectedHistory = System.Text.Json.JsonSerializer.Deserialize<Emignatik.NxFileViewer.Services.Integrity.BatchHistoryEntry>(
+                        System.Text.Json.JsonSerializer.Serialize(historyEntry));
+                    batchPage.DataContext = reloadBatch;
+                    reloadBatch.LoadHistoryCommand.Execute(null);
+                    batchPage.UpdateLayout();
+                    var historyOverview = Assert.IsType<Emignatik.NxFileViewer.Views.UserControls.FileOverviewView>(batchPage.FindName("HistoryOverview"));
+                    Assert.Same(reloadBatch.StoredOverview, historyOverview.DataContext);
+                    var storedPicker = Assert.IsType<ComboBox>(historyOverview.FindName("PackagePicker"));
+                    Assert.Equal(2, storedPicker.Items.Count);
+                    Assert.Same(reloadBatch.StoredOverview!.CnmtContainers[0], storedPicker.SelectedItem);
+                    storedPicker.SelectedIndex = 1;
+                    historyOverview.UpdateLayout();
+                    var storedPackageView = Assert.IsType<Emignatik.NxFileViewer.Views.UserControls.CnmtContainerView>(historyOverview.FindName("PackageOverview"));
+                    var storedPackage = Assert.IsType<Emignatik.NxFileViewer.Views.UserControls.StoredCnmtContainerViewModel>(storedPackageView.DataContext);
+                    Assert.Equal("saved-build", storedPackage.BuildID);
+                    Assert.Equal("Gespeicherter Titel", storedPackage.SelectedTitle!.AppName);
+                    Assert.Equal("Gespeicherter Verlag", storedPackage.SelectedTitle.Publisher);
+                    storedPackage.SelectedTitle = storedPackage.Titles[1];
+                    Assert.Equal("Saved English title", storedPackage.SelectedTitle.AppName);
+                    Assert.Equal("Saved English publisher", storedPackage.SelectedTitle.Publisher);
+                    Assert.Null(storedPackage.SelectedTitle.Icon);
+                    Assert.Equal(Visibility.Collapsed, storedPackage.LogoVisibility);
+                    Assert.Equal(Visibility.Collapsed, reloadBatch.StoredOverview.VerifyControlsVisibility);
+                    var historyNotice = Assert.IsType<TextBlock>(storedPackageView.FindName("HistoryLogoNotice"));
+                    Assert.Equal(Visibility.Visible, historyNotice.Visibility);
+                    Assert.Equal(Emignatik.NxFileViewer.Localization.LocalizationManager.Instance.Current.Keys.BatchHistory_LoadedNotice, historyNotice.Text);
+                    Assert.Null(reloadBatch.PreviewOverview);
+                    Assert.True(reloadBatch.ShowStoredOverview);
+                    Assert.Equal(1, previewLoader.LoadCount); // The existing source must not be reopened.
+                    Assert.Equal(2, reloadBatch.StoredPackages.Count);
+                    reloadBatch.SelectedStoredPackage = reloadBatch.StoredPackages[1];
+                    Assert.Contains(reloadBatch.StoredPackageFields, field => field.Value == "saved-build");
+                    Assert.Contains(reloadBatch.StoredPackageFields, field => field.Value == "Gespeicherter Titel");
+                    Assert.Contains(reloadBatch.StoredPackageFields, field => field.Value == "Gespeicherter Verlag");
+                    var restoredGame = reloadBatch.SelectedResult;
+                    reloadBatch.SelectedResult = firmwareResult;
+                    reloadBatch.SelectedResult = restoredGame;
+                    Assert.Null(reloadBatch.PreviewOverview);
+                    Assert.Equal(1, previewLoader.LoadCount);
+                    reloadSettings.EnableBatchHistory = false;
+                    var secondDropPath = reloadPath + ".nsp";
+                    System.IO.File.WriteAllText(secondDropPath, "second dropped source");
+                    try
+                    {
+                        reloadBatch.LoadDroppedSources(new[] { reloadPath, secondDropPath, reloadPath });
+                        batchPage.UpdateLayout();
+                        Assert.Equal(2, reloadBatch.SourcePaths.Count);
+                        Assert.Equal(2, reloadBatch.Results.Count);
+                        Assert.Equal(3, previewLoader.LoadCount);
+                        Assert.True(reloadBatch.StartCommand.CanExecute(null));
+                        Assert.Equal(0, previewServices.VerificationCalls);
+                        reloadSettings.VerifyBatchDrops = true;
+                        reloadBatch.LoadDroppedSources(new[] { reloadPath, secondDropPath });
+                        Assert.Equal(2, previewServices.VerificationCalls);
+                        Assert.All(reloadBatch.Results, row => Assert.Equal(Emignatik.NxFileViewer.Models.Overview.NcasIntegrity.Original, row.Integrity));
+                        reloadSettings.VerifyBatchDrops = false;
+                        reloadSettings.VerifyFilesOpenedInProgram = true;
+                        reloadSettings.VerifyFilesOpenedFromWindows = true;
+                        reloadBatch.LoadDroppedSources(new[] { reloadPath, secondDropPath });
+                        Assert.Equal(2, previewServices.VerificationCalls);
+                        reloadBatch.InputDirectory = "changed manually";
+                        Assert.Empty(reloadBatch.SourcePaths);
+                    }
+                    finally { System.IO.File.Delete(secondDropPath); }
                     reloadBatch.ClosePreview();
+                    batchPage.DataContext = batch;
                 }
-                finally { System.IO.File.Delete(reloadPath); }
+                finally { batchPage.DataContext = batch; System.IO.File.Delete(reloadPath); }
                 var emptyOverview = new Emignatik.NxFileViewer.Views.UserControls.FileOverviewView { DataContext = null };
                 var keyWarning = Assert.IsType<Border>(((Grid)emptyOverview.Content).Children[0]);
                 Assert.Equal(Visibility.Collapsed, keyWarning.Visibility);
@@ -417,6 +558,33 @@ public sealed class WorkspaceNavigationTest
                     Assert.NotEqual(germanReady, runner.ProgressText);
                 }
                 finally { languages.Current = originalLanguage; }
+                var tipWindow = new TipWindow();
+                var tipTextBox = Assert.IsType<TextBox>(tipWindow.FindName("TextBox"));
+                var tipWorkArea = SystemParameters.WorkArea;
+                var keysTip = languages.Current.Keys.SettingsView_ToolTip_Keys;
+                Assert.Contains(languages.Current.Keys.Keys_CopyToSwitchHelp, keysTip);
+                tipWindow.Configure(keysTip, tipWorkArea, new Point(tipWorkArea.Right - 1, tipWorkArea.Bottom - 1));
+                tipWindow.Show(); tipWindow.UpdateLayout();
+                Assert.Equal(keysTip, tipTextBox.Text);
+                Assert.True(tipWindow.Width > 300);
+                Assert.True(tipWindow.Height > 200);
+                Assert.True(tipWindow.Left >= tipWorkArea.Left);
+                Assert.True(tipWindow.Top >= tipWorkArea.Top);
+                Assert.True(tipWindow.Left + tipWindow.Width <= tipWorkArea.Right + 1);
+                Assert.True(tipWindow.Top + tipWindow.Height <= tipWorkArea.Bottom + 1);
+                Assert.Same(app.FindResource("WindowStyle"), tipWindow.Style);
+                if (tipWindow.Height < tipWindow.MaxHeight - 1)
+                    Assert.True(tipTextBox.ExtentHeight <= tipTextBox.ViewportHeight + 1);
+                var longTip = string.Join("\n", System.Linq.Enumerable.Repeat(keysTip, 20));
+                tipWindow.Configure(longTip, new Rect(-1280, 0, 1280, 720), new Point(-10, 700));
+                tipWindow.UpdateLayout();
+                Assert.Equal(longTip, tipTextBox.Text);
+                Assert.True(tipWindow.Left >= -1280);
+                Assert.True(tipWindow.Left + tipWindow.Width <= 0);
+                Assert.True(tipWindow.Height <= 696);
+                Assert.Equal(ScrollBarVisibility.Auto, tipTextBox.VerticalScrollBarVisibility);
+                Assert.Equal(ScrollBarVisibility.Disabled, tipTextBox.HorizontalScrollBarVisibility);
+                tipWindow.Close();
                 var historyEnabled = actual.EnableBatchHistory;
                 try
                 {
@@ -468,9 +636,24 @@ public sealed class WorkspaceNavigationTest
             return new Emignatik.NxFileViewer.Models.NxFile(path, root, new Emignatik.NxFileViewer.Models.Overview.FileOverview(root));
         }
     }
+    private sealed class PreviewVerifier(Action verified) : Emignatik.NxFileViewer.Services.BackgroundTask.RunnableImpl.IVerifyNcasIntegrityRunnable
+    {
+        private Emignatik.NxFileViewer.Models.Overview.FileOverview? _overview;
+        public bool SupportsCancellation => true;
+        public bool SupportProgress => true;
+        public void Setup(Emignatik.NxFileViewer.Models.Overview.FileOverview overview, bool ignoreMissingDeltaFragments) => _overview = overview;
+        public void Run(Emignatik.NxFileViewer.Services.BackgroundTask.IProgressReporter reporter, CancellationToken token)
+        { verified(); _overview!.NcasIntegrity = Emignatik.NxFileViewer.Models.Overview.NcasIntegrity.Original; }
+    }
     private sealed class PreviewServices(PreviewLoader loader) : IServiceProvider
     {
-        public object? GetService(Type type) => type == typeof(Emignatik.NxFileViewer.FileLoading.IFileLoader) ? loader : App.ServiceProvider.GetService(type);
+        public int VerificationCalls { get; private set; }
+        public object? GetService(Type type) => type == typeof(Emignatik.NxFileViewer.FileLoading.IFileLoader) ? loader
+            : type == typeof(Emignatik.NxFileViewer.Services.BackgroundTask.RunnableImpl.IVerifyDirectoryIntegrityRunnable)
+                ? new Emignatik.NxFileViewer.Services.BackgroundTask.RunnableImpl.VerifyDirectoryIntegrityRunnable(loader, this, new AppSettings(),
+                    Microsoft.Extensions.Logging.Abstractions.NullLogger<Emignatik.NxFileViewer.Services.BackgroundTask.RunnableImpl.VerifyDirectoryIntegrityRunnable>.Instance)
+                : type == typeof(Emignatik.NxFileViewer.Services.BackgroundTask.RunnableImpl.IVerifyNcasIntegrityRunnable)
+                    ? new PreviewVerifier(() => VerificationCalls++) : App.ServiceProvider.GetService(type);
     }
     private sealed class ImmediatePreviewRunner : Emignatik.NxFileViewer.Services.BackgroundTask.IMainBackgroundTaskRunnerService
     {

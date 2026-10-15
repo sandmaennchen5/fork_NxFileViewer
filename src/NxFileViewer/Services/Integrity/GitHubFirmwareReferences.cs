@@ -14,21 +14,17 @@ namespace Emignatik.NxFileViewer.Services.Integrity;
 /// <summary>Downloads a consistent set of manifests into memory only. No disk cache.</summary>
 public static class GitHubFirmwareReferences
 {
-    public static async Task<FirmwareIntegrityVerifier> LoadAsync(HttpClient client, CancellationToken cancellationToken)
+    public static async Task<FirmwareIntegrityVerifier> LoadAsync(HttpClient client, CancellationToken cancellationToken, Emignatik.NxFileViewer.Services.Updates.GitHubUpdateRequests? requests = null)
     {
-        var manifests = await LoadManifestsAsync(client, cancellationToken).ConfigureAwait(false);
+        var manifests = await LoadManifestsAsync(client, cancellationToken, requests).ConfigureAwait(false);
         return new FirmwareIntegrityVerifier(manifests.Values);
     }
 
-    public static async Task<IReadOnlyDictionary<string, string>> LoadManifestsAsync(HttpClient client, CancellationToken cancellationToken)
+    public static async Task<IReadOnlyDictionary<string, string>> LoadManifestsAsync(HttpClient client, CancellationToken cancellationToken, Emignatik.NxFileViewer.Services.Updates.GitHubUpdateRequests? requests = null)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Get,
-            "https://api.github.com/repos/sandmaennchen5/fork_NxFileViewer/contents/fw/hashes?ref=master");
-        request.Headers.UserAgent.ParseAdd("NxFileViewer/3.0.4");
-        request.Headers.CacheControl = new System.Net.Http.Headers.CacheControlHeaderValue { NoCache = true };
-        using var response = await client.SendAsync(request, cancellationToken).ConfigureAwait(false);
-        response.EnsureSuccessStatusCode();
-        using var listing = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false));
+        var response = await (requests ?? Emignatik.NxFileViewer.Services.Updates.GitHubUpdateRequests.For(client)).GetAsync(
+            "https://api.github.com/repos/sandmaennchen5/fork_NxFileViewer/contents/fw/hashes?ref=master", false, cancellationToken).ConfigureAwait(false);
+        using var listing = JsonDocument.Parse(response.Body);
         var entries = listing.RootElement.EnumerateArray()
             .Where(e => e.GetProperty("type").GetString() == "file" && e.GetProperty("name").GetString()!.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
             .Select(e => (Name: e.GetProperty("name").GetString()!, Sha: e.GetProperty("sha").GetString()!)).ToArray();

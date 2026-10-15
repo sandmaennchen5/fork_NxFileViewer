@@ -6,8 +6,8 @@
         xmlns:loc="clr-namespace:Emignatik.NxFileViewer.Localization"
         mc:Ignorable="d"
         Title="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Window_Tip_Title}"
-        Height="200" Width="300" ResizeMode="CanResizeWithGrip" ShowInTaskbar="False" WindowStyle="ToolWindow">
-    <Grid Margin="5">
-        <TextBox x:Name="TextBox" IsReadOnly="True" BorderBrush="{DynamicResource ScrollViewer.Border.Brush}" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap"/>
+        Width="820" MinWidth="320" MinHeight="140" Style="{StaticResource WindowStyle}" ResizeMode="CanResize" ShowInTaskbar="False" WindowStartupLocation="Manual" PreviewKeyDown="TipKeyDown">
+    <Grid Margin="12">
+        <TextBox x:Name="TextBox" IsReadOnly="True" BorderBrush="{DynamicResource ScrollViewer.Border.Brush}" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap"/>
     </Grid>
 </Window>

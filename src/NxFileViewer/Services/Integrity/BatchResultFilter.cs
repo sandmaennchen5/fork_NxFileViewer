@@ -10,7 +10,10 @@ public static class BatchResultFilter
     {
         if (naming.Length > 0 && naming != NamingState(result)) return false;
         if (onlyErrors && result.Integrity == NcasIntegrity.Original && !result.ConversionFailed && result.NamingError == null) return false;
-        if (fileType.Length > 0 && !result.FileType.Equals(fileType, StringComparison.OrdinalIgnoreCase) &&
+        if (fileType == "Games" && !new[] { "NSP", "NSZ", "XCI", "XCZ" }.Any(type =>
+            result.FileType.Equals(type, StringComparison.OrdinalIgnoreCase) ||
+            result.FileType.StartsWith(type + " (", StringComparison.OrdinalIgnoreCase))) return false;
+        if (fileType.Length > 0 && fileType != "Games" && !result.FileType.Equals(fileType, StringComparison.OrdinalIgnoreCase) &&
             !result.FileType.StartsWith(fileType + " (", StringComparison.OrdinalIgnoreCase) &&
             !result.FileType.EndsWith(" (" + fileType + ")", StringComparison.OrdinalIgnoreCase)) return false;
         if (integrity.Length > 0 && result.Integrity.ToString() != integrity) return false;

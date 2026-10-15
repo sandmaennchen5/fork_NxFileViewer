@@ -506,6 +506,7 @@ public class SettingsWindowViewModel : WindowViewModelBase
         {
             // A general-settings draft must not overwrite separately saved plugin settings.
             CopyPluginSettings(_appSettingsManager.Clone(), EditedSettings);
+            EditedSettings.BatchTableLayout = _appSettingsManager.Settings.BatchTableLayout;
             _appSettingsManager.Load(EditedSettings);
         }
         InitializeFromSettings(_appSettingsManager.Clone());

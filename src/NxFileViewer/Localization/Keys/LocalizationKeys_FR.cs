@@ -65,6 +65,8 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
     public string Update_Auto => "Rechercher les mises à jour au démarrage";
     public string Update_Check => "Rechercher les mises à jour";
     public string Update_Install => "Télécharger et installer";
+    public string Update_RateLimited => "Limite de requêtes GitHub atteinte. Réessayez après {0:g}.";
+    public string Update_CachedAt => "Résultat enregistré le {0:g}.";
     public string Update_Checking => "Recherche de mises à jour…";
     public string Update_Current => "Aucune version publiée plus récente.";
     public string Component_UpdateAvailable => "Mise à jour disponible.";
@@ -94,7 +96,10 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
     public string Info_Description => "NxFileViewer affiche et vérifie les fichiers Nintendo Switch : NSP, NSZ, XCI, XCZ, NCA, ZIP et 7z, le firmware et la conversion NSZ.";
     public string Info_Shortcuts => "Raccourcis clavier";
     public string BatchHistory_Show => "Afficher";
-    public string BatchHistory_Title => "5 dernières vérifications";
+    public string BatchHistory_LoadedNotice => "Chargé depuis l’historique.\nLe logo n’a pas été enregistré.";
+    public string BatchHistory_Title => "Dernières vérifications";
+    public string BatchHistory_Enable => "Enregistrer l’historique des vérifications";
+    public string BatchHistory_Limit => "Nombre de vérifications conservées (1–100)";
     public string BatchHistory_Resume => "Reprendre";
     public string Dialog_Yes => "Oui";
     public string Dialog_No => "Non";
@@ -165,13 +170,19 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
     public string BatchNaming_Check => "Vérifier les noms";
     public string BatchNaming_RenameAll => "Renommer les fichiers non conformes";
     public string BatchNaming_Error => "Erreur de nommage";
-    public string BatchIntegrity_Title => "Vérification d’intégrité par lot";
+    public string BatchIntegrity_Title => "Vérification de fichiers par lot";
     public string BatchIntegrity_SelectDirectory => "Sélectionner le dossier des fichiers Switch";
     public string BatchIntegrity_Browse => "Parcourir…";
     public string BatchIntegrity_IncludeSubdirectories => "Inclure les sous-dossiers";
+    public string BatchTable_Games => "Jeux";
+    public string BatchTable_Type => "Type";
+    public string BatchTable_ResetColumns => "Réinitialiser les colonnes";
+    public string BatchTable_ConversionStatus => "État de conversion";
+    public string BatchTable_OutputPath => "Chemin de sortie";
     public string BatchTable_Columns => "Colonnes…";
     public string BatchTable_Search => "Rechercher";
     public string BatchTable_All => "Tous";
+    public string BatchTable_ResetFiltersAndSort => "Réinitialiser les filtres et le tri";
     public string BatchTable_ResetFilters => "Réinitialiser les filtres";
     public string BatchTable_ResetSort => "Réinitialiser le tri";
     public string BatchIntegrity_File => "Fichier";
@@ -274,7 +285,7 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
                                                Afin de pouvoir ouvrir n'importe quel fichier sans erreur, veuillez vous assurer de toujours posséder un fichier "prod.keys" contenant l'ensemble de toutes les clés de tous les firmwares existants.
 
                                                Les fichiers de clé doivent contenir une clé par ligne, sous la forme «NOM_CLE = VALEUR_HEXADECIMAL»."
-                                               """;
+                                               """ + "\n\n" + Keys_CopyToSwitchHelp;
 
     public string SettingsView_ToolTip_ProdKeys => """
                                                    Ce fichier contient les clés communes à toutes les consoles Switch. Ce fichier est requis pour ouvrir les contenus chiffrés.
@@ -283,8 +294,8 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
                                                        2. le répertoire courant du programme
                                                        3. le dossier «%UserProfile%\\.switch»
 
-                                                   Au démarrage, le programme peut automatiquement télécharger le fichier de clés quand aucun n'est trouvé sur le système.
-                                                   Le fichier de clés sera téléchargé dans le répertoire courant de l'application.
+                                                   Les fichiers de clés sont téléchargés uniquement avec les boutons de téléchargement de l’onglet Clés.
+                                                   Aucune clé n’est téléchargée automatiquement au démarrage.
                                                    """;
 
     public string SettingsView_ToolTip_TitleKeys => """
@@ -294,8 +305,8 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
                                                         2. le répertoire courant du programme
                                                         3. le dossier «%UserProfile%\\.switch»
 
-                                                    Au démarrage, le programme peut automatiquement télécharger le fichier de clés quand aucun n'est trouvé sur le système.
-                                                    Le fichier de clés sera téléchargé dans le répertoire courant de l'application.
+                                                    Les fichiers de clés sont téléchargés uniquement avec les boutons de téléchargement de l’onglet Clés.
+                                                    Aucune clé n’est téléchargée automatiquement au démarrage.
                                                     """;
 
     public string SettingsView_LogFileRetention => "Conserver les journaux (1–100 lancements)";
@@ -617,6 +628,18 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
     public string Window_Tip_Title => "Astuce";
     public string Nsz_Installed => "Plugin NSZ installé";
     public string Nsz_CustomExecutable => "Exécutable personnalisé";
+    public string Settings_AutoVerifyBatchDrop => "Fichiers déposés en mode lot";
+    public string Settings_AutoVerifyBatchDropTip => "Concerne plusieurs fichiers, dossiers, sélections mixtes et les fichiers individuels déposés dans l’onglet de lot. Charge les fichiers et vérifie leur intégrité. La vérification peut être annulée.";
+    public string Settings_AutoVerifyProgram => "Fichiers ouverts dans le programme";
+    public string Settings_AutoVerifyProgramTip => "Concerne Ouvrir un fichier et les fichiers individuels déposés par glisser-déposer. La vérification démarre après le chargement et peut être annulée. Les lots et l’historique gardent leur fonctionnement.";
+    public string Settings_AutoVerifyWindows => "Fichiers ouverts depuis Windows";
+    public string Settings_AutoVerifyWindowsTip => "Concerne le double-clic, Ouvrir avec et un chemin de fichier fourni au démarrage. Ce réglage est indépendant de l’ouverture dans le programme.";
+    public string Settings_GroupGeneral => "Général";
+    public string Settings_GroupHistory => "Historique";
+    public string Settings_GroupTitleInfo => "Informations des titres";
+    public string Settings_GroupLogging => "Journalisation";
+    public string Settings_AutoVerifyTitle => "Vérification automatique de l’intégrité";
+    public string BatchHistory_RetentionTip => "La limite modifie immédiatement l’affichage. À la prochaine sauvegarde d’un lot, seules les entrées les plus récentes sont conservées dans cette limite. Les fichiers vérifiés ne sont pas supprimés.";
     public string Settings_Program => "Programme";
     public string Nsz_PhaseSource => "Vérifier la source";
     public string Nsz_PhaseOutput => "Vérifier le résultat";
@@ -648,6 +671,7 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
     public string Keys_DownloadAll => "Télécharger les clés";
     public string Keys_DownloadHost => "IP / nom d’hôte du téléchargement";
     public string Keys_DownloadHostTip => "{IP} dans les URL est remplacé par cette adresse. Destination : chemin personnalisé si défini, sinon dossier du programme.";
+    public string Keys_CopyToSwitchHelp => @"Facultatif : copie les fichiers prod.keys et, si disponible, title.keys actuellement utilisés dans %USERPROFILE%\.switch. Les programmes et autres installations de NxFileViewer qui prennent en charge cet emplacement partagé peuvent les utiliser. Une installation portable peut conserver ses clés dans son propre dossier ; une copie supplémentaire ne permet aucun déchiffrement supplémentaire. Les originaux sont conservés. Les modifications ultérieures ne sont pas synchronisées automatiquement. Une confirmation est demandée avant de remplacer les fichiers existants.";
     public string Keys_CopyToSwitch => @"Copier les clés actuelles vers %USERPROFILE%\.switch";
     public string Keys_ReplaceShared => "Remplacer les clés existantes ? Les fichiers sources seront conservés.";
     public string Keys_SharedCopied => "Clés disponibles dans le dossier partagé .switch.";

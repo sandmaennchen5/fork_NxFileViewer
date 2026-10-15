@@ -35,11 +35,37 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<BatchIntegrityWindowViewModel> _logger;
     private string _inputDirectory = "";
+    private string[] _sourcePaths = Array.Empty<string>();
+    public IReadOnlyList<string> SourcePaths => _sourcePaths;
+    private string? SourceRoot => _sourcePaths.Length == 1 && Directory.Exists(_sourcePaths[0]) ? _sourcePaths[0]
+        : _sourcePaths.Length == 0 && Directory.Exists(InputDirectory) ? InputDirectory : null;
+    public void LoadDroppedSources(IEnumerable<string> sources)
+    {
+        if (BackgroundTask.IsRunning) return;
+        var paths = VerifyBatchSourcesRunnable.Normalize(sources).Where(path => File.Exists(path) || Directory.Exists(path)).ToArray();
+        if (paths.Length == 0) return;
+        InputDirectory = string.Join(" | ", paths);
+        _sourcePaths = paths;
+        NotifyPropertyChanged(nameof(SourcePaths));
+        StartCommand.TriggerCanExecuteChanged(); ScanAndVerifyCommand.TriggerCanExecuteChanged();
+        Start(_appSettings.VerifyBatchDrops, rescan: true);
+    }
     private readonly BatchHistoryStore _historyStore = new(BatchHistoryStore.DefaultPath);
     private readonly Dictionary<string, string> _fingerprints = new(StringComparer.OrdinalIgnoreCase);
     private BatchHistoryEntry? _session;
     private DateTime _lastHistorySave;
     private readonly IAppSettings _appSettings;
+    public string ColumnLayout
+    {
+        get => _appSettings.BatchTableLayout;
+        set
+        {
+            if (_appSettings.BatchTableLayout == value) return;
+            _appSettings.BatchTableLayout = value;
+            _serviceProvider.GetService<IAppSettingsManager>()?.SaveSafe();
+        }
+    }
+    public int HistoryLimit => _appSettings.BatchHistoryLimit;
     public bool IsHistoryEnabled => _appSettings.EnableBatchHistory;
     public ObservableCollection<BatchHistoryEntry> History { get; } = new();
     private BatchHistoryEntry? _selectedHistory;
@@ -57,6 +83,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
     private bool _closed;
     // Overview models contain metadata already read by the checker; retaining them
     // does not require retaining the open NxFile or its decoded NCZ cache.
+    private readonly HashSet<string> _historyPreviewPaths = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, FileOverviewViewModel> _completedPreviews = new(StringComparer.OrdinalIgnoreCase);
     private FileOverviewViewModel? _previewOverview;
 
@@ -98,6 +125,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         _inputDirectory = Directory.Exists(appSettings.LastUsedDir) ? appSettings.LastUsedDir : "";
         BackgroundTask.PropertyChanged += BackgroundTaskOnPropertyChanged;
         PropertyChangedEventManager.AddHandler(appSettings, OnHistorySettingChanged, nameof(IAppSettings.EnableBatchHistory));
+        PropertyChangedEventManager.AddHandler(appSettings, OnHistorySettingChanged, nameof(IAppSettings.BatchHistoryLimit));
     }
 
     public IMainBackgroundTaskRunnerService BackgroundTask { get; }
@@ -128,6 +156,11 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         {
             if (ReferenceEquals(_selectedResult, value)) return;
             _selectedResult = value;
+            StoredOverview = value is { IsFirmware: false, IsNand: false } ? new StoredFileOverviewViewModel(value, _serviceProvider) : null;
+            NotifyPropertyChanged(nameof(StoredOverview));
+            NotifyPropertyChanged(nameof(StoredPackages));
+            NotifyPropertyChanged(nameof(HasStoredPackages));
+            SelectedStoredPackage = value?.Packages.FirstOrDefault();
             SelectedDetailsTabIndex = value?.IsNand == true ? 2 : value?.IsFirmware == true ? 1 : 0;
             NotifyPropertyChanged();
             UpdateSelectedPreview();
@@ -161,9 +194,21 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
     public RelayCommand CompressValidCommand { get; }
     public RelayCommand DecompressValidCommand { get; }
     public bool IncludeSubdirectories { get; set; } = true;
+    public StoredFileOverviewViewModel? StoredOverview { get; private set; }
     public bool ShowStoredOverview => !_closed && PreviewOverview == null && SelectedResult is { IsFirmware: false, IsNand: false };
     public IReadOnlyList<KeyValuePair<string, string>> StoredOverviewFields => ShowStoredOverview
-        ? BatchStoredOverview.Build(SelectedResult!, LocalizationManager.Instance.Current.Keys) : Array.Empty<KeyValuePair<string, string>>();
+        ? (HasStoredPackages ? BatchStoredOverview.BuildFile(SelectedResult!, LocalizationManager.Instance.Current.Keys)
+            : BatchStoredOverview.Build(SelectedResult!, LocalizationManager.Instance.Current.Keys)) : Array.Empty<KeyValuePair<string, string>>();
+    public IReadOnlyList<BatchPackageSummary> StoredPackages => SelectedResult?.Packages ?? Array.Empty<BatchPackageSummary>();
+    public bool HasStoredPackages => StoredPackages.Count > 0;
+    private BatchPackageSummary? _selectedStoredPackage;
+    public BatchPackageSummary? SelectedStoredPackage
+    {
+        get => _selectedStoredPackage;
+        set { _selectedStoredPackage = value; NotifyPropertyChanged(); NotifyPropertyChanged(nameof(StoredPackageFields)); }
+    }
+    public IReadOnlyList<KeyValuePair<string, string>> StoredPackageFields => SelectedStoredPackage is { } package
+        ? BatchStoredOverview.BuildPackage(package, LocalizationManager.Instance.Current.Keys) : Array.Empty<KeyValuePair<string, string>>();
     public FileOverviewViewModel? PreviewOverview
     {
         get => _previewOverview;
@@ -179,7 +224,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
     public string SearchText { get => _searchText; set { _searchText = value ?? ""; NotifyPropertyChanged(); ResultsView.Refresh(); } }
     public string FileTypeFilter { get => _fileTypeFilter; set { _fileTypeFilter = value ?? ""; NotifyPropertyChanged(); ResultsView.Refresh(); } }
     public string IntegrityFilter { get => _integrityFilter; set { _integrityFilter = value ?? ""; NotifyPropertyChanged(); ResultsView.Refresh(); } }
-    public IReadOnlyList<BatchFilterOption> FileTypeFilters { get; } = new[] { "", "NSP", "NSZ", "XCI", "XCZ", "NRO", "NAX0", "NAND", "ZIP", "7Z", "Folder" }.Select(value => new BatchFilterOption(value)).ToArray();
+    public IReadOnlyList<BatchFilterOption> FileTypeFilters { get; } = new[] { "", "Games", "NSP", "NSZ", "XCI", "XCZ", "NRO", "NAX0", "NAND", "ZIP", "7Z", "Folder" }.Select(value => new BatchFilterOption(value)).ToArray();
     public IReadOnlyList<BatchFilterOption> IntegrityFilters { get; } = new[] { new BatchFilterOption("") }.Concat(Enum.GetValues<NcasIntegrity>().Select(value => new BatchFilterOption(value.ToString()))).ToArray();
     public RelayCommand ResetFiltersCommand => new(() => { SearchText = ""; FileTypeFilter = ""; IntegrityFilter = ""; NamingFilter = ""; ShowOnlyErrors = false; });
     public bool ShowOnlyErrors
@@ -196,7 +241,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
     public string InputDirectory
     {
         get => _inputDirectory;
-        set { _inputDirectory = value; NotifyPropertyChanged(); StartCommand.TriggerCanExecuteChanged(); ScanAndVerifyCommand.TriggerCanExecuteChanged(); }
+        set { _inputDirectory = value; _sourcePaths = Array.Empty<string>(); NotifyPropertyChanged(); NotifyPropertyChanged(nameof(SourcePaths)); StartCommand.TriggerCanExecuteChanged(); ScanAndVerifyCommand.TriggerCanExecuteChanged(); }
     }
 
     private void Browse()
@@ -205,16 +250,19 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         if (directory != null) InputDirectory = directory;
     }
 
-    private bool CanStart() => (Directory.Exists(InputDirectory) || (File.Exists(InputDirectory) && PackageZip.IsArchive(InputDirectory))) && !BackgroundTask.IsRunning;
+    private bool CanStart() => !BackgroundTask.IsRunning && (_sourcePaths.Length > 0
+        ? _sourcePaths.Any(path => Directory.Exists(path) || File.Exists(path))
+        : Directory.Exists(InputDirectory) || (File.Exists(InputDirectory) && PackageZip.IsArchive(InputDirectory)));
 
     private async void Start(bool verifyIntegrity, bool rescan = false, bool resume = false)
     {
         var paths = verifyIntegrity && !rescan && !resume ? Results.Select(r => r.FilePath).ToArray() : null;
         if (!resume)
         {
+            _historyPreviewPaths.Clear();
             _fingerprints.Clear();
             _session = new BatchHistoryEntry(Guid.NewGuid(), DateTime.UtcNow, InputDirectory, IncludeSubdirectories, IncludeArchives,
-                verifyIntegrity, _appSettings.IgnoreMissingDeltaFragments, "Running", Array.Empty<BatchIntegrityResult>(), new());
+                verifyIntegrity, _appSettings.IgnoreMissingDeltaFragments, "Running", Array.Empty<BatchIntegrityResult>(), new()) { SourcePaths = _sourcePaths.ToArray() };
         }
         if (!IsHistoryEnabled) _session = null;
         var checkpoint = _session;
@@ -229,9 +277,12 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         ExportCommand.TriggerCanExecuteChanged();
         try
         {
-            var runnable = _serviceProvider.GetRequiredService<IVerifyDirectoryIntegrityRunnable>()
-                .Setup(InputDirectory, IncludeSubdirectories, ShowPreview, ShowCompletedResult, IncludeArchives, verifyIntegrity, paths,
-                    resume ? path => checkpoint?.CanSkip(path, _appSettings.IgnoreMissingDeltaFragments) == true : null);
+            Func<string, bool>? skip = resume ? path => checkpoint?.CanSkip(path, _appSettings.IgnoreMissingDeltaFragments) == true : null;
+            IRunnable<IReadOnlyList<BatchIntegrityResult>> runnable = paths == null && _sourcePaths.Length > 0
+                ? new VerifyBatchSourcesRunnable(_sourcePaths, () => _serviceProvider.GetRequiredService<IVerifyDirectoryIntegrityRunnable>(),
+                    IncludeSubdirectories, IncludeArchives, verifyIntegrity, ShowPreview, ShowCompletedResult, skip)
+                : _serviceProvider.GetRequiredService<IVerifyDirectoryIntegrityRunnable>()
+                    .Setup(InputDirectory, IncludeSubdirectories, ShowPreview, ShowCompletedResult, IncludeArchives, verifyIntegrity, paths, skip);
             await BackgroundTask.RunAsync(runnable);
         }
         catch (OperationCanceledException) { state = "Interrupted"; }
@@ -251,6 +302,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
     private void OnHistorySettingChanged(object? sender, PropertyChangedEventArgs args)
     {
         NotifyPropertyChanged(nameof(IsHistoryEnabled));
+        NotifyPropertyChanged(nameof(HistoryLimit));
         if (!IsHistoryEnabled) { History.Clear(); SelectedHistory = null; _session = null; _fingerprints.Clear(); }
         else ReloadHistory();
     }
@@ -261,7 +313,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         {
             var selectedId = SelectedHistory?.Id;
             History.Clear();
-            foreach (var entry in _historyStore.Load()) History.Add(entry);
+            foreach (var entry in _historyStore.Load(HistoryLimit)) History.Add(entry);
             SelectedHistory = History.FirstOrDefault(e => e.Id == selectedId) ?? History.FirstOrDefault();
             NotifyPropertyChanged(nameof(SelectedHistory));
         }
@@ -275,7 +327,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         {
             _session = _session with { UpdatedUtc = DateTime.UtcNow, State = state, IgnoreMissingDeltaFragments = _appSettings.IgnoreMissingDeltaFragments, Results = Results.ToArray(),
                 Fingerprints = new Dictionary<string, string>(_fingerprints, StringComparer.OrdinalIgnoreCase) };
-            _historyStore.Save(_session);
+            _historyStore.Save(_session, HistoryLimit);
             _lastHistorySave = DateTime.UtcNow;
             ReloadHistory();
         }
@@ -284,7 +336,8 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
     }
     private void ResumeHistory()
     {
-        if (SelectedHistory == null || (!Directory.Exists(SelectedHistory.Source) && !File.Exists(SelectedHistory.Source))) return;
+        if (SelectedHistory == null || !(SelectedHistory.SourcePaths.Length > 0 ? SelectedHistory.SourcePaths : new[] { SelectedHistory.Source })
+            .Any(path => Directory.Exists(path) || File.Exists(path))) return;
         if (RestoreHistory(true)) Start(_session!.VerifyIntegrity, resume: true);
     }
     private bool RestoreHistory(bool prepareResume = false)
@@ -293,10 +346,16 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         var saved = SelectedHistory;
 
         InputDirectory = saved.Source;
+        _sourcePaths = saved.SourcePaths.ToArray();
+        NotifyPropertyChanged(nameof(SourcePaths));
+        StartCommand.TriggerCanExecuteChanged(); ScanAndVerifyCommand.TriggerCanExecuteChanged();
         IncludeArchives = saved.IncludeArchives; IncludeSubdirectories = saved.IncludeSubdirectories;
         NotifyPropertyChanged(nameof(IncludeArchives)); NotifyPropertyChanged(nameof(IncludeSubdirectories));
         SelectedResult = null;
+        ++_previewRequest;
         ClearPreview(); _completedPreviews.Clear(); Results.Clear(); _fingerprints.Clear();
+        _historyPreviewPaths.Clear();
+        foreach (var result in saved.Results) _historyPreviewPaths.Add(result.FilePath);
         foreach (var result in saved.Results)
             Results.Add(!prepareResume || saved.CanSkip(result.FilePath, _appSettings.IgnoreMissingDeltaFragments) ? result :
                 result with { Integrity = NcasIntegrity.Unchecked });
@@ -313,6 +372,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         {
             _previewFile?.Dispose();
             _previewFile = file;
+            _historyPreviewPaths.Remove(file.FilePath);
             if (_closed) return;
             // Follow the package being read, while retaining completed snapshots
             // for manual selection after the scan.
@@ -342,7 +402,23 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
                     Title = Join(package => package.Titles.FirstOrDefault()?.AppName),
                     TitleId = Join(package => package.TitleId),
                     Packages = packages.Select(package => new BatchPackageSummary(
-                        package.Titles.FirstOrDefault()?.AppName ?? "—", package.TitleId, package.Type, package.TitleVersion ?? "—")).ToArray(),
+                        package.Titles.FirstOrDefault()?.AppName ?? "—", package.TitleId,
+                        BatchContentMetadata.Types(new[] { Enum.Parse<LibHac.Ncm.ContentMetaType>(package.Type) }), package.TitleVersion ?? "—")
+                        {
+                            Titles = package.Titles.Select(title => new BatchTitleSummary(title.Language.ToString(), title.AppName, title.Publisher)).ToArray(),
+                            SystemVersion = package.MinimumSystemVersion ?? "", BaseTitleId = package.BaseTitleId,
+                            MasterKey = package.MasterKey, MinimumApplicationVersion = package.MinimumApplicationVersion ?? "",
+                            Distribution = package.Distribution,
+                            BuildId = package.BuildID, IsDemo = package.DemoStatus, Permission = package.SecurityAssessment,
+                            FileSystemPermissions = package.FileSystemPermissions, AcidSignatureValidity = package.AcidSignatureValidity,
+                            Publisher = package.Titles.FirstOrDefault()?.Publisher ?? "", DisplayVersion = package.DisplayVersion ?? "",
+                            Languages = string.Join(", ", package.Titles.Select(title => title.Language.ToString()).Distinct())
+                        }).ToArray(),
+                    BaseTitleId = Join(package => package.BaseTitleId),
+                    MinimumApplicationVersion = Join(package => package.MinimumApplicationVersion),
+                    IsDemo = packages.Any(p => p.DemoStatus == true) ? true : packages.Count > 0 && packages.All(p => p.DemoStatus == false) ? false : null,
+                    FileSystemPermissions = Join(package => package.FileSystemPermissions),
+                    AcidSignatureValidity = Join(package => package.AcidSignatureValidity),
                     Publisher = Join(package => package.Titles.FirstOrDefault()?.Publisher),
                     Version = Join(package => package.TitleVersion),
                     DisplayVersion = Join(package => package.DisplayVersion),
@@ -351,8 +427,8 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
                     BuildId = Join(package => package.BuildID),
                     Distribution = Join(package => package.Distribution),
                     Languages = string.Join(", ", packages.SelectMany(package => package.Titles).Select(title => title.Language.ToString()).Distinct()),
-                    FileSize = _previewFile?.FilePath == result.FilePath ? _previewFile.Overview.FileSize : null,
-                    CompressionRatio = _previewFile?.FilePath == result.FilePath ? _previewFile.Overview.CompressionRatio : null
+                    FileSize = result.FileSize,
+                    CompressionRatio = result.CompressionRatio
                 };
                 if (overview.IsHomebrew)
                     result = result with { Title = overview.HomebrewTitle?.AppName ?? "", Publisher = overview.HomebrewTitle?.Publisher ?? "",
@@ -404,6 +480,8 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         PreviewOverview = null;
         var selected = SelectedResult;
         if (_closed || selected == null || selected.IsFirmware || selected.IsNand) return;
+        // Verlaufsansichten bleiben vollständig offline, auch wenn die Quelle noch erreichbar ist.
+        if (_historyPreviewPaths.Contains(selected.FilePath)) return;
         if (_completedPreviews.TryGetValue(selected.FilePath, out var completed))
         {
             PreviewOverview = completed;
@@ -417,7 +495,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
                 using var archiveProgress = PackageZip.ReportProgress(reporter);
                 return _serviceProvider.GetRequiredService<IFileLoader>().Load(selected.FilePath, token);
             }) { SupportsCancellation = true, SupportProgress = true });
-            if (_closed) return;
+            if (_closed || _historyPreviewPaths.Contains(selected.FilePath)) return;
             var overview = new FileOverviewViewModel(file.Overview, _serviceProvider);
             _completedPreviews[selected.FilePath] = overview;
             if (request == _previewRequest && SelectedResult?.FilePath.Equals(selected.FilePath, StringComparison.OrdinalIgnoreCase) == true)
@@ -599,7 +677,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
             !Services.Mtp.MtpDirectSource.IsDirect(result.FilePath) && File.Exists(result.FilePath) && PackageConversionService.Supports(result.FilePath, operation))
             .Select(result => result.FilePath).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         ClearPreview();
-        var attempts = await _serviceProvider.GetRequiredService<NszActions>().ConvertFilesAsync(paths, operation, selected == null ? InputDirectory : null);
+        var attempts = await _serviceProvider.GetRequiredService<NszActions>().ConvertFilesAsync(paths, operation, selected == null ? SourceRoot : null);
         foreach (var attempt in attempts)
         {
             var existing = Results.FirstOrDefault(result => result.FilePath == attempt.SourcePath);
@@ -628,7 +706,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
             LocalizationManager.Instance.Current.Keys.BatchIntegrity_SelectMoveDestination);
         if (destinationRoot == null) return;
 
-        var sourceRoot = selected == null ? Path.GetFullPath(InputDirectory) : Path.GetDirectoryName(Path.GetFullPath(selected.FilePath))!;
+        var sourceRoot = selected == null ? SourceRoot : Path.GetDirectoryName(Path.GetFullPath(selected.FilePath));
         var destinationRootFull = Path.GetFullPath(destinationRoot);
         var opening = _serviceProvider.GetRequiredService<Emignatik.NxFileViewer.Services.FileOpening.IFileOpeningService>();
         if (opening.OpenedFile != null && (selected == null
@@ -645,7 +723,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
                 cancellationToken.ThrowIfCancellationRequested();
                 var source = validFiles[index].FilePath;
                 reporter.SetText($"{LocalizationManager.Instance.Current.Keys.BatchIntegrity_Moving} {index + 1}/{validFiles.Length}: {Path.GetFileName(source)}");
-                var relativePath = Path.GetRelativePath(sourceRoot, source);
+                var relativePath = sourceRoot == null ? Path.GetFileName(source) : Path.GetRelativePath(sourceRoot, source);
                 var destination = Path.GetFullPath(Path.Combine(destinationRootFull, relativePath));
                 if (!destination.StartsWith(destinationRootFull + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
                     continue;
@@ -681,7 +759,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
     {
         var path = _promptService.PromptSaveFile("integrity-results.csv", "Export integrity results", "CSV files (*.csv)|*.csv");
         if (path == null) return;
-        var csv = new StringBuilder("File;FileType;PackageType;Structure;Compression;Integrity;Error;FirmwareDetails;Conversion;ConvertedPath;SourceBytes;OutputBytes;Title;TitleId;Publisher;Version;DisplayVersion;Firmware;MasterKey;BuildId;Distribution;Languages;FileBytes;CompressionRatio;Naming;ProposedPath;NamingError;IsNand;NandDetails\r\n");
+        var csv = new StringBuilder("File;FileType;PackageType;Structure;Compression;Integrity;Error;FirmwareDetails;Conversion;ConvertedPath;SourceBytes;OutputBytes;Title;TitleId;Publisher;Version;DisplayVersion;Firmware;MasterKey;BuildId;Distribution;Languages;FileBytes;CompressionRatio;Naming;ProposedPath;NamingError;IsNand;NandDetails;ContentType;Permission;NcaSignature;BaseTitleId;MinimumApplicationVersion;SystemUpdateVersion;Demo;FileSystemPermissions;AcidSignature;MissingKeys\r\n");
         foreach (var result in ResultsView.Cast<BatchIntegrityResult>())
             csv.Append(Escape(result.FilePath)).Append(';')
                 .Append(Escape(result.FileType)).Append(';')
@@ -700,7 +778,13 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
                 .Append(result.CompressionRatio?.ToString(System.Globalization.CultureInfo.InvariantCulture))
                 .Append(';').Append(Escape(result.NamingStatus)).Append(';').Append(Escape(result.ProposedPath ?? ""))
                 .Append(';').Append(Escape(result.NamingError ?? ""))
-                .Append(';').Append(result.IsNand).Append(';').Append(Escape(result.NandDetails ?? "")).Append("\r\n");
+                .Append(';').Append(result.IsNand).Append(';').Append(Escape(result.NandDetails ?? "")).Append(';').Append(Escape(result.ContentType))
+                .Append(';').Append(Escape(result.Permission?.ToString() ?? ""))
+                .Append(';').Append(Escape(result.NcaSignatureValidity?.ToString() ?? ""))
+                .Append(';').Append(Escape(result.BaseTitleId)).Append(';').Append(Escape(result.MinimumApplicationVersion))
+                .Append(';').Append(Escape(result.SystemUpdateVersion)).Append(';').Append(result.IsDemo?.ToString() ?? "")
+                .Append(';').Append(Escape(result.FileSystemPermissions)).Append(';').Append(Escape(result.AcidSignatureValidity))
+                .Append(';').Append(Escape(result.MissingKeys)).Append("\r\n");
         File.WriteAllText(path, csv.ToString(), new UTF8Encoding(true));
     }
 
@@ -728,7 +812,12 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
 
 public sealed record BatchFilterOption(string Value)
 {
-    public string Label => Value.Length == 0 ? LocalizationManager.Instance.Current.Keys.BatchTable_All : Value;
+    public string Label => Value switch
+    {
+        "" => LocalizationManager.Instance.Current.Keys.BatchTable_All,
+        "Games" => LocalizationManager.Instance.Current.Keys.BatchTable_Games,
+        _ => Value
+    };
 }
 
 public sealed record BatchNamingFilterOption(string Value)

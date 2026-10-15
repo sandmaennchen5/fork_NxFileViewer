@@ -1,3 +1,8 @@
+using System;
+using System.Linq;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Windows.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -14,17 +19,96 @@ namespace Emignatik.NxFileViewer.Views.Windows;
 // Embedded workspace page; its view model survives navigation.
 public partial class BatchIntegrityWindow : UserControl
 {
+    private readonly DispatcherTimer _layoutTimer = new() { Interval = TimeSpan.FromMilliseconds(350) };
+    private readonly List<WeakReference<DataGrid>> _packageGrids = new();
+    private string _defaultLayout = "";
+    private bool _applyingLayout;
+    private BatchIntegrityWindowViewModel? _layoutModel;
+    private static readonly HashSet<string> PackageColumns = new(StringComparer.Ordinal)
+    {
+        "ContentType", "TitleId", "VersionNumber", "SystemVersion", "BaseTitleId", "MasterKey",
+        "MinimumApplicationVersion", "Distribution", "BuildId", "IsDemo",
+        "PermissionDisplay", "FileSystemPermissions", "AcidSignatureValidity", "Title", "Publisher", "DisplayVersion", "Languages"
+    };
     public BatchIntegrityWindow()
     {
         InitializeComponent();
+        _defaultLayout = BatchColumnLayout.Capture(ResultsGrid.Columns);
+        _layoutTimer.Tick += (_, _) => FlushColumnLayout();
+        foreach (var column in ResultsGrid.Columns)
+            foreach (var property in new[] { DataGridColumn.VisibilityProperty, DataGridColumn.DisplayIndexProperty, DataGridColumn.WidthProperty })
+                DependencyPropertyDescriptor.FromProperty(property, typeof(DataGridColumn)).AddValueChanged(column, OnColumnLayoutChanged);
+        Unloaded += (_, _) => { if (_layoutTimer.IsEnabled) FlushColumnLayout(); };
         DataContextChanged += (_, _) =>
         {
             if (DataContext is BatchIntegrityWindowViewModel model)
             {
                 System.ComponentModel.PropertyChangedEventManager.AddHandler(model, OnGroupingChanged, nameof(model.GroupFiles));
                 UpdateGrouping(model.GroupFiles);
+                if (!ReferenceEquals(_layoutModel, model))
+                {
+                    if (_layoutTimer.IsEnabled) FlushColumnLayout();
+                    _layoutModel = model;
+                    _applyingLayout = true;
+                    try
+                    {
+                        BatchColumnLayout.Apply(ResultsGrid.Columns, _defaultLayout);
+                        BatchColumnLayout.Apply(ResultsGrid.Columns, model.ColumnLayout);
+                    }
+                    finally { _applyingLayout = false; }
+                    SyncPackageGrids();
+                }
             }
         };
+    }
+    private void OnColumnLayoutChanged(object? sender, EventArgs e)
+    {
+        if (_applyingLayout || _layoutModel == null) return;
+        _layoutTimer.Stop();
+        _layoutTimer.Start();
+    }
+    private void FlushColumnLayout()
+    {
+        _layoutTimer.Stop();
+        if (_layoutModel != null) _layoutModel.ColumnLayout = BatchColumnLayout.Capture(ResultsGrid.Columns);
+        SyncPackageGrids();
+    }
+    private void ResetColumns(object sender, RoutedEventArgs e)
+    {
+        _applyingLayout = true;
+        try { BatchColumnLayout.Apply(ResultsGrid.Columns, _defaultLayout); }
+        finally { _applyingLayout = false; }
+        FlushColumnLayout();
+    }
+    private void PackageGridLoaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is not DataGrid grid) return;
+        if (!_packageGrids.Any(reference => reference.TryGetTarget(out var target) && ReferenceEquals(target, grid)))
+            _packageGrids.Add(new WeakReference<DataGrid>(grid));
+        SyncPackageGrid(grid);
+    }
+    private void SyncPackageGrids()
+    {
+        _packageGrids.RemoveAll(reference => !reference.TryGetTarget(out _));
+        foreach (var reference in _packageGrids)
+            if (reference.TryGetTarget(out var grid)) SyncPackageGrid(grid);
+    }
+    private void SyncPackageGrid(DataGrid grid)
+    {
+        grid.Columns.Clear();
+        grid.CanUserReorderColumns = false;
+        foreach (var source in ResultsGrid.Columns.OrderBy(column => column.DisplayIndex).OfType<DataGridTextColumn>())
+        {
+            if (!PackageColumns.Contains(source.SortMemberPath)) continue;
+            var column = new DataGridTextColumn
+            {
+                Binding = source.Binding, SortMemberPath = source.SortMemberPath,
+                Visibility = source.Visibility, Width = DataGridLength.Auto,
+                MinWidth = source.SortMemberPath == "Title" ? 240 : 90
+            };
+            BindingOperations.SetBinding(column, DataGridColumn.HeaderProperty, new Binding(nameof(DataGridColumn.Header)) { Source = source });
+            grid.Columns.Add(column);
+        }
     }
     private void OnGroupingChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     { if (DataContext is BatchIntegrityWindowViewModel model) UpdateGrouping(model.GroupFiles); }
@@ -82,7 +166,7 @@ public partial class BatchIntegrityWindow : UserControl
     private ContextMenu CreateColumnsMenu(Button button)
     {
         var menu = new ContextMenu { PlacementTarget = button };
-        foreach (var column in ResultsGrid.Columns)
+        foreach (var column in ResultsGrid.Columns.OrderBy(column => column.DisplayIndex))
         {
             var item = new MenuItem { IsCheckable = true, IsChecked = column.Visibility == Visibility.Visible, StaysOpenOnClick = true };
             item.SetBinding(HeaderedItemsControl.HeaderProperty, new Binding(nameof(DataGridColumn.Header)) { Source = column });
@@ -107,8 +191,9 @@ public partial class BatchIntegrityWindow : UserControl
             if (FindScrollViewer(VisualTreeHelper.GetChild(root, i)) is { } found) return found;
         return null;
     }
-    private void ResetSort(object sender, RoutedEventArgs e)
+    private void ResetFiltersAndSort(object sender, RoutedEventArgs e)
     {
+        if (DataContext is BatchIntegrityWindowViewModel model) model.ResetFiltersCommand.Execute(null);
         ResultsGrid.Items.SortDescriptions.Clear();
         foreach (var column in ResultsGrid.Columns) column.SortDirection = null;
     }

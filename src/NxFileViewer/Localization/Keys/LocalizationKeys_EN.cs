@@ -65,6 +65,8 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
     public string Update_Auto => "Check for application updates on startup";
     public string Update_Check => "Check for updates";
     public string Update_Install => "Download and install";
+    public string Update_RateLimited => "GitHub request limit reached. Try again after {0:g}.";
+    public string Update_CachedAt => "Saved result from {0:g}.";
     public string Update_Checking => "Checking for updates…";
     public string Update_Current => "No newer published version available.";
     public string Component_UpdateAvailable => "Update available.";
@@ -94,7 +96,10 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
     public string Info_Description => "NxFileViewer inspects and verifies Nintendo Switch files. Supports NSP, NSZ, XCI, XCZ, NCA, ZIP and 7z archives, firmware verification and NSZ conversion.";
     public string Info_Shortcuts => "Keyboard shortcuts";
     public string BatchHistory_Show => "Show";
-    public string BatchHistory_Title => "Last 5 batch checks";
+    public string BatchHistory_LoadedNotice => "Loaded from history.\nThe logo was not saved.";
+    public string BatchHistory_Title => "Recent batch checks";
+    public string BatchHistory_Enable => "Save batch check history";
+    public string BatchHistory_Limit => "Number of saved batch checks (1–100)";
     public string BatchHistory_Resume => "Resume";
     public string Dialog_Yes => "Yes";
     public string Dialog_No => "No";
@@ -165,13 +170,19 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
     public string BatchNaming_Check => "Check naming";
     public string BatchNaming_RenameAll => "Rename all mismatches";
     public string BatchNaming_Error => "Naming error";
-    public string BatchIntegrity_Title => "Batch integrity check";
+    public string BatchIntegrity_Title => "Batch file verification";
     public string BatchIntegrity_SelectDirectory => "Select folder containing Switch files";
     public string BatchIntegrity_Browse => "Browse…";
     public string BatchIntegrity_IncludeSubdirectories => "Include subdirectories";
+    public string BatchTable_Games => "Games";
+    public string BatchTable_Type => "Type";
+    public string BatchTable_ResetColumns => "Reset columns";
+    public string BatchTable_ConversionStatus => "Conversion status";
+    public string BatchTable_OutputPath => "Output path";
     public string BatchTable_Columns => "Columns…";
     public string BatchTable_Search => "Search";
     public string BatchTable_All => "All";
+    public string BatchTable_ResetFiltersAndSort => "Reset filters and sorting";
     public string BatchTable_ResetFilters => "Reset filters";
     public string BatchTable_ResetSort => "Reset sorting";
     public string BatchIntegrity_File => "File";
@@ -274,7 +285,7 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
                                                In order to open any Nintendo Switch file without any error, always ensure to have an up-to-date "prod.keys" file with all the keys of all existing firmwares.
 
                                                File should contain one key per line, in form of «KEY_NAME = HEXADECIMAL_VALUE».
-                                               """;
+                                               """ + "\n\n" + Keys_CopyToSwitchHelp;
     public string SettingsView_ToolTip_ProdKeys => """
                                                    This file contains common keys used by all Switch devices. This file is required for opening encrypted title contents.
                                                    The program will search this file in the following order:
@@ -282,8 +293,8 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
                                                        2. the current program's directory
                                                        3. the «%UserProfile%\\.switch» directory
 
-                                                   At startup, the program can automatically download the keys file when none is found on the system.
-                                                   The keys file will be downloaded to the current application's directory.
+                                                   Key files are downloaded only through the download buttons in the Keys tab.
+                                                   Keys are never downloaded automatically at startup.
                                                    """;
 
     public string SettingsView_ToolTip_TitleKeys => """
@@ -293,8 +304,8 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
                                                         2. the current program's directory
                                                         3. the «%UserProfile%\\.switch» directory
 
-                                                    At startup, the program can automatically download the keys file when none is found on the system.
-                                                    The keys file will be downloaded to the current application's directory.
+                                                    Key files are downloaded only through the download buttons in the Keys tab.
+                                                    Keys are never downloaded automatically at startup.
                                                     """;
 
     public string SettingsView_LogFileRetention => "Keep log files (1–100 launches)";
@@ -615,6 +626,18 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
     public string Window_Tip_Title => "Tip";
     public string Nsz_Installed => "Plugin nicoboss/nsz installed";
     public string Nsz_CustomExecutable => "Custom executable";
+    public string Settings_AutoVerifyBatchDrop => "Files dropped into batch verification";
+    public string Settings_AutoVerifyBatchDropTip => "Applies to multiple files, folders and mixed selections, and individual files dropped onto the batch tab. Loads and verifies integrity instead of only loading. Verification can be cancelled.";
+    public string Settings_AutoVerifyProgram => "Files opened inside the program";
+    public string Settings_AutoVerifyProgramTip => "Applies to Open file and individual files opened by drag and drop. Integrity verification starts after loading and can be cancelled. Batch checks and history keep their own workflows.";
+    public string Settings_AutoVerifyWindows => "Files opened from Windows";
+    public string Settings_AutoVerifyWindowsTip => "Applies to double-click and Open with through Windows file associations, and a file path supplied at program startup. This setting is independent of opening files inside the program.";
+    public string Settings_GroupGeneral => "General";
+    public string Settings_GroupHistory => "History";
+    public string Settings_GroupTitleInfo => "Title information";
+    public string Settings_GroupLogging => "Logging";
+    public string Settings_AutoVerifyTitle => "Automatic integrity verification";
+    public string BatchHistory_RetentionTip => "The limit immediately affects the displayed history. The next time a batch is saved, only the newest entries up to this limit are retained. Checked files are not deleted.";
     public string Settings_Program => "Program";
     public string Nsz_PhaseSource => "Verify source";
     public string Nsz_PhaseOutput => "Verify output";
@@ -646,6 +669,7 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
     public string Keys_DownloadAll => "Download keys";
     public string Keys_DownloadHost => "Download IP / hostname";
     public string Keys_DownloadHostTip => "{IP} in the download URLs is replaced with this address. Destination: custom path when set, otherwise the program directory.";
+    public string Keys_CopyToSwitchHelp => @"Optional: Copies the currently used prod.keys and, if available, title.keys to %USERPROFILE%\.switch. Programs and other NxFileViewer installations that support this shared search location can use the files there. Portable installations can keep their keys in their own program folder; an extra copy provides no additional decryption capability. The originals are retained. Later changes are not synchronized automatically. You are asked before existing destination files are replaced.";
     public string Keys_CopyToSwitch => @"Copy current keys to %USERPROFILE%\.switch";
     public string Keys_ReplaceShared => "Replace existing keys? Source files will be kept.";
     public string Keys_SharedCopied => "Keys are available in the shared .switch folder.";

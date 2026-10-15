@@ -31,6 +31,27 @@ public sealed class BatchResultFilterTest
     public void CombinesSearchTypeIntegrityAndErrorFilters(string search, string type, string integrity, bool errors, bool expected) =>
         Assert.Equal(expected, BatchResultFilter.Matches(Result, search, type, integrity, errors));
 
+    [Theory]
+    [InlineData("NSP", true)]
+    [InlineData("NSZ", true)]
+    [InlineData("XCI", true)]
+    [InlineData("XCZ", true)]
+    [InlineData("NSP (ZIP)", true)]
+    [InlineData("XCZ (7z)", true)]
+    [InlineData("NRO", false)]
+    [InlineData("NAND (ZIP)", false)]
+    [InlineData("ZIP", false)]
+    [InlineData("NAX0", false)]
+    public void GamesFilterIncludesOnlyGameContainersAndTheirArchiveMembers(string type, bool expected) =>
+        Assert.Equal(expected, BatchResultFilter.Matches(Result with { FileType = type }, "", "Games", "", false));
+
+    [Fact] public void GamesFilterCombinesWithOtherFilters()
+    {
+        Assert.True(BatchResultFilter.Matches(Result, "until", "Games", "Original", false));
+        Assert.False(BatchResultFilter.Matches(Result, "other", "Games", "Original", false));
+        Assert.False(BatchResultFilter.Matches(Result, "", "Games", "Error", false));
+    }
+
     [Fact] public void ConversionFailureRemainsVisibleInErrorFilter() =>
         Assert.True(BatchResultFilter.Matches(Result with { ConversionFailed = true }, "", "", "", true));
     [Theory]

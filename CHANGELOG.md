@@ -7,6 +7,29 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+## [4.0.1-beta2] - 2026-10-15
+
+### Added
+
+- Offer 37 selectable batch columns covering file, package, security, title, naming and conversion metadata. Remember column visibility, order and widths across restarts, with a column-layout reset. Expanded multi-package rows follow the selected package columns; CSV exports all fields independently of visible columns.
+- Support dropping multiple files, folders or mixed selections into one batch, with duplicate suppression, cancellation, combined progress and source-list persistence for history/resume. A single file dropped on the batch page stays in batch mode.
+- Add three independent, opt-in automatic verification settings: files opened inside the program, files opened through Windows associations/startup arguments, and files dropped into batch mode. Verification is cancellable; completed cached checks and unsupported content are skipped.
+- Make the saved batch history limit configurable from 1 to 100 runs (default 5). Apply the display limit immediately and prune older stored runs on the next history save.
+- Add a Games batch filter covering NSP/NSZ/XCI/XCZ, including archive members.
+
+### Changed
+
+- Render saved batch metadata with the same file, package, security and presentation layout as live overviews, including package/language selection. Restore details without reopening source files or archives; show a history notice instead of an unsaved logo. Older histories retain the fields they originally saved.
+- Show all contained content types (Base/Update/DLC) and the highest known program permission risk for multi-package files; missing program metadata is not classified as safe. Keep the included XCI system update at file level rather than repeating it in package rows.
+- Organize Program settings into General, Verification, History, SD areas, Windows associations, Title information and Logging sections. Move detailed explanations into hover/click help and shorten automatic-verification labels.
+- Size clicked help windows to their text within the current monitor, with scrolling for longer content, resizing, Escape to close and themed title bars. Explain optional shared-key copying versus portable installations in the Keys help and copy-button tooltip.
+- Swap compression and NCA signature positions in the shared individual/batch file overview. Combine the batch filter and sorting reset into one action and use consistent file-verification terminology.
+
+### Fixed
+
+- Do not download missing prod.keys or title.keys automatically at startup, including configured FTP sources. Key downloads start only through the explicit download action in Settings → Keys.
+- Share GitHub update metadata requests across the viewer and plugins, cache automatic checks for six hours across restarts, and honor persisted API cooldowns. Show retry times and dated saved results instead of a generic rate-limit failure; manual checks request fresh metadata when permitted. Automatic NSZ checks before conversion use the same cache.
+
 ## [4.0.1-beta1] - 2026-10-15
 
 ### Added

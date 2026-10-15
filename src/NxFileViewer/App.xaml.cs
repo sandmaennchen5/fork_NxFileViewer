@@ -187,45 +187,8 @@ public partial class App : Application, IAppEvents
 
     private async void Initialize(IReadOnlyList<string> cmdLineArgs)
     {
-        var keySetProviderService = ServiceProvider.GetRequiredService<IKeySetProviderService>();
-        var appSettings = ServiceProvider.GetRequiredService<IAppSettings>();
-        var backgroundTaskService = ServiceProvider.GetRequiredService<IMainBackgroundTaskRunnerService>();
-
-        var prodKeysDownloadUrl = appSettings.ProdKeysDownloadUrl;
-
-        if (keySetProviderService.ActualProdKeysFilePath == null && !string.IsNullOrWhiteSpace(prodKeysDownloadUrl))
-        {
-            await DownloadMissingKeys(prodKeysDownloadUrl, appSettings.ProdKeysFilePath, keySetProviderService.AppDirProdKeysFilePath);
-        }
-
-        var titleKeysDownloadUrl = appSettings.TitleKeysDownloadUrl;
-        if (keySetProviderService.ActualTitleKeysFilePath == null && !string.IsNullOrWhiteSpace(titleKeysDownloadUrl))
-        {
-            await DownloadMissingKeys(titleKeysDownloadUrl, appSettings.TitleKeysFilePath, keySetProviderService.AppDirTitleKeysFilePath);
-        }
-
-        var fileOpeningService = ServiceProvider.GetRequiredService<IFileOpeningService>();
         if (cmdLineArgs.Count > 0)
-            await fileOpeningService.SafeOpenFile(cmdLineArgs[0]);
-
-        async System.Threading.Tasks.Task DownloadMissingKeys(string template, string customPath, string programPath)
-        {
-            try
-            {
-                var url = KeyDownloads.ResolveUrl(template, appSettings.KeysDownloadHost);
-                var destination = KeyDownloads.Destination(customPath, programPath);
-                await backgroundTaskService.RunAsync(new RunnableRelay((progress, token) =>
-                {
-                    progress.SetText(LocalizationManager.Instance.Current.Keys.Status_DownloadingFile.SafeFormat(System.IO.Path.GetFileName(destination)));
-                    _logger.LogInformation(LocalizationManager.Instance.Current.Keys.Log_DownloadingFileFromUrl.SafeFormat(destination, url));
-                    KeyDownloads.DownloadAsync(ServiceProvider.GetRequiredService<IHttpDownloader>(), url, destination, token).GetAwaiter().GetResult();
-                    _logger.LogInformation(LocalizationManager.Instance.Current.Keys.Log_FileSuccessfullyDownloaded.SafeFormat(destination));
-                }) { SupportsCancellation = true });
-            }
-            catch (OperationCanceledException) { }
-            catch (Exception ex) { _logger.LogWarning(ex, "Unable to download missing key file."); }
-            finally { keySetProviderService.Reset(); }
-        }
+            await ServiceProvider.GetRequiredService<IFileOpeningService>().SafeOpenFile(cmdLineArgs[0], FileOpenOrigin.WindowsAssociation);
     }
 
     private void OnLocalizationStringFormatException(object? sender, FormatExceptionHandlerArgs args)

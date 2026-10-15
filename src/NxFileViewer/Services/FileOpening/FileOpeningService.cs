@@ -20,19 +20,23 @@ public class FileOpeningService : IFileOpeningService
     private readonly IFileLoader _fileLoader;
     private readonly IMainBackgroundTaskRunnerService _backgroundTaskRunnerService;
     private readonly ILogger _logger;
+    private readonly IVerifyNcasIntegrityRunnable? _automaticVerifier;
     private readonly Dictionary<string, NxFile> _archiveFiles = new(StringComparer.Ordinal);
     private string? _archivePath;
     private int _openGeneration;
 
-    public FileOpeningService(ILoggerFactory loggerFactory, IAppSettings appSettings, IFileLoader fileLoader, IMainBackgroundTaskRunnerService backgroundTaskRunnerService)
+    public FileOpeningService(ILoggerFactory loggerFactory, IAppSettings appSettings, IFileLoader fileLoader, IMainBackgroundTaskRunnerService backgroundTaskRunnerService, IVerifyNcasIntegrityRunnable? automaticVerifier = null)
     {
+        _automaticVerifier = automaticVerifier;
         _appSettings = appSettings ?? throw new ArgumentNullException(nameof(appSettings));
         _fileLoader = fileLoader ?? throw new ArgumentNullException(nameof(fileLoader));
         _backgroundTaskRunnerService = backgroundTaskRunnerService ?? throw new ArgumentNullException(nameof(backgroundTaskRunnerService));
         _logger = loggerFactory.CreateLogger(this.GetType());
     }
 
-    public async Task SafeOpenFile(string filePath)
+    public Task SafeOpenFile(string filePath) => SafeOpenFile(filePath, FileOpenOrigin.Program);
+
+    public async Task SafeOpenFile(string filePath, FileOpenOrigin origin)
     {
         if (_backgroundTaskRunnerService.IsRunning) return;
         Application.Current?.Dispatcher.Invoke(() =>
@@ -47,6 +51,7 @@ public class FileOpeningService : IFileOpeningService
             {
                 _openedFile = cached;
                 NotifyOpenedFileChanged(cached);
+                await VerifyAutomatically(cached, origin, generation);
                 return;
             }
 
@@ -75,6 +80,7 @@ public class FileOpeningService : IFileOpeningService
             }
 
             NotifyOpenedFileChanged(_openedFile);
+            await VerifyAutomatically(_openedFile, origin, generation);
         }
         catch (OperationCanceledException)
         {
@@ -89,6 +95,18 @@ public class FileOpeningService : IFileOpeningService
             _logger.LogError(ex, LocalizationManager.Instance.Current.Keys.LoadingError_Failed.SafeFormat(filePath, ex.Message), ex);
             if (LoadingSpaceWarning.IsDiskFull(ex)) LoadingSpaceWarning.Show(filePath);
         }
+    }
+
+    private async Task VerifyAutomatically(NxFile file, FileOpenOrigin origin, int generation)
+    {
+        var enabled = origin == FileOpenOrigin.WindowsAssociation ? _appSettings.VerifyFilesOpenedFromWindows : _appSettings.VerifyFilesOpenedInProgram;
+        if (!enabled || _automaticVerifier == null || generation != _openGeneration || !ReferenceEquals(_openedFile, file) ||
+            _backgroundTaskRunnerService.IsRunning || file.NandResult != null ||
+            file.RootItem is Models.TreeItems.Impl.FirmwareFileItem or Models.TreeItems.Impl.NroFileItem or Models.TreeItems.Impl.SaveBackupFileItem ||
+            file.Overview.BaseFileType is not (Models.Overview.NxBaseFileType.NSP or Models.Overview.NxBaseFileType.XCI or Models.Overview.NxBaseFileType.NCA or Models.Overview.NxBaseFileType.NAX0) ||
+            file.Overview.NcasIntegrity != Models.Overview.NcasIntegrity.Unchecked) return;
+        _automaticVerifier.Setup(file.Overview, _appSettings.IgnoreMissingDeltaFragments);
+        await _backgroundTaskRunnerService.RunAsync(_automaticVerifier);
     }
 
     public void SafeClose()

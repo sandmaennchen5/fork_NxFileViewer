@@ -65,6 +65,8 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string Update_Prerelease { get; }
     string Update_Check { get; }
     string Update_Install { get; }
+    string Update_RateLimited { get; }
+    string Update_CachedAt { get; }
     string Update_Checking { get; }
     string Update_Current { get; }
     string Component_UpdateAvailable { get; }
@@ -94,7 +96,10 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string Info_Description { get; }
     string Info_Shortcuts { get; }
     string BatchHistory_Show { get; }
+    string BatchHistory_LoadedNotice { get; }
     string BatchHistory_Title { get; }
+    string BatchHistory_Enable { get; }
+    string BatchHistory_Limit { get; }
     string BatchHistory_Resume { get; }
     string Dialog_Yes { get; }
     string Dialog_No { get; }
@@ -165,9 +170,15 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string BatchIntegrity_SelectDirectory { get; }
     string BatchIntegrity_Browse { get; }
     string BatchIntegrity_IncludeSubdirectories { get; }
+    string BatchTable_Games { get; }
+    string BatchTable_Type { get; }
+    string BatchTable_ResetColumns { get; }
+    string BatchTable_ConversionStatus { get; }
+    string BatchTable_OutputPath { get; }
     string BatchTable_Columns { get; }
     string BatchTable_Search { get; }
     string BatchTable_All { get; }
+    string BatchTable_ResetFiltersAndSort { get; }
     string BatchTable_ResetFilters { get; }
     string BatchTable_ResetSort { get; }
     string BatchIntegrity_File { get; }
@@ -516,6 +527,18 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string Window_Tip_Title { get; }
     string Nsz_Installed { get; }
     string Nsz_CustomExecutable { get; }
+    string Settings_AutoVerifyBatchDrop { get; }
+    string Settings_AutoVerifyBatchDropTip { get; }
+    string Settings_AutoVerifyProgram { get; }
+    string Settings_AutoVerifyProgramTip { get; }
+    string Settings_AutoVerifyWindows { get; }
+    string Settings_AutoVerifyWindowsTip { get; }
+    string Settings_GroupGeneral { get; }
+    string Settings_GroupHistory { get; }
+    string Settings_GroupTitleInfo { get; }
+    string Settings_GroupLogging { get; }
+    string Settings_AutoVerifyTitle { get; }
+    string BatchHistory_RetentionTip { get; }
     string Settings_Program { get; }
     string Nsz_PhaseSource { get; }
     string Nsz_PhaseOutput { get; }
@@ -547,6 +570,7 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string Keys_DownloadAll { get; }
     string Keys_DownloadHost { get; }
     string Keys_DownloadHostTip { get; }
+    string Keys_CopyToSwitchHelp { get; }
     string Keys_CopyToSwitch { get; }
     string Keys_ReplaceShared { get; }
     string Keys_SharedCopied { get; }

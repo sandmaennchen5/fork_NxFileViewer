@@ -57,9 +57,9 @@
                       ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Title_FileInfo_Integrity}"/>
             <ComboBox ItemsSource="{Binding NamingFilters}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding NamingFilter}" Width="135" Margin="0,0,8,0"
                       ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchNaming_Title}"/>
-            <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchTable_ResetFilters}" Command="{Binding ResetFiltersCommand}" Padding="10,3" Margin="0,0,8,0"/>
+            <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchTable_ResetFiltersAndSort}" Click="ResetFiltersAndSort" Padding="10,3" Margin="0,0,8,0"/>
             <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchTable_Columns}" Click="OpenColumns" Padding="10,3" Margin="0,0,8,0"/>
-            <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchTable_ResetSort}" Click="ResetSort" Padding="10,3"/>
+            <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchTable_ResetColumns}" Click="ResetColumns" Padding="10,3" Margin="0,0,8,0"/>
             <Grid Margin="18,0,0,0" VerticalAlignment="Center">
                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                 <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
@@ -92,16 +92,11 @@
                 <DataGrid.RowDetailsTemplate>
                     <DataTemplate>
                         <Border Margin="24,4,8,8" Padding="8" BorderThickness="1" BorderBrush="{DynamicResource Control.Static.Border}">
-                            <DataGrid ItemsSource="{Binding Packages}" AutoGenerateColumns="False" IsReadOnly="True"
+                            <DataGrid Loaded="PackageGridLoaded" ItemsSource="{Binding Packages}" AutoGenerateColumns="False" IsReadOnly="True"
                                       CanUserAddRows="False" CanUserDeleteRows="False" HeadersVisibility="Column"
                                       MaxHeight="280" MinColumnWidth="90" EnableColumnVirtualization="False"
                                       ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto">
-                                <DataGrid.Columns>
-                                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.AppTitle}" Binding="{Binding Title}" Width="Auto" MinWidth="240"/>
-                                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.CnmtOverview_TitleId}" Binding="{Binding TitleId}" Width="Auto"/>
-                                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_PackageType}" Binding="{Binding Type}" Width="Auto"/>
-                                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.CnmtOverview_TitleVersion}" Binding="{Binding Version}" Width="Auto"/>
-                                </DataGrid.Columns>
+
                             </DataGrid>
                         </Border>
                     </DataTemplate>
@@ -129,31 +124,42 @@
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
-                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_FileType}" Binding="{Binding FileType}" Width="110"/>
-                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_PackageType}" Binding="{Binding PackageType}" Width="110"/>
-                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.PackageStructure_Title}" Binding="{Binding Structure}" Width="110"/>
-                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Title_FileInfo_Compression}" Binding="{Binding Compression}" Width="110"/>
-                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Title_FileInfo_Integrity}" Binding="{Binding Integrity}" Width="110"/>
-                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_Path}" Binding="{Binding FilePath}" Width="260"/>
-                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_Error}" Binding="{Binding Error}" Width="220"/>
-                    <DataGridTextColumn Header="NSZ" Binding="{Binding ConversionStatus}" Width="220"/>
-                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nsz_SourceSize}" Binding="{Binding SourceSize, StringFormat={}{0:N0}}" Width="110"/>
-                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nsz_OutputSize}" Binding="{Binding OutputSize, StringFormat={}{0:N0}}" Width="110"/>
-                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.AppTitle}" Binding="{Binding Title}" SortMemberPath="Title" Width="150" Visibility="Collapsed"/>
-                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.CnmtOverview_TitleId}" Binding="{Binding TitleId}" SortMemberPath="TitleId" Width="150" Visibility="Collapsed"/>
-                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Publisher}" Binding="{Binding Publisher}" SortMemberPath="Publisher" Width="150" Visibility="Collapsed"/>
-                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.CnmtOverview_TitleVersion}" Binding="{Binding Version}" SortMemberPath="VersionNumber" Width="150" Visibility="Collapsed"/>
-                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.DisplayVersion}" Binding="{Binding DisplayVersion}" SortMemberPath="DisplayVersion" Width="150" Visibility="Collapsed"/>
+                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_FileType}" Binding="{Binding FileType}" SortMemberPath="FileType" Width="120"/>
+                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchTable_Type}" Binding="{Binding TypeDisplay}" SortMemberPath="PackageType" Width="120"/>
+                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.PackageStructure_Title}" Binding="{Binding Structure}" SortMemberPath="Structure" Width="110"/>
+                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Signature_Title}" Binding="{Binding NcaSignature}" SortMemberPath="NcaSignature" Width="125"/>
+                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Title_FileInfo_Integrity}" Binding="{Binding Integrity}" SortMemberPath="Integrity" Width="110"/>
+                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.FileInfo_FileSize}" Binding="{Binding FileSizeDisplay}" SortMemberPath="FileSize" Width="110"/>
+                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Title_FileInfo_Compression}" Binding="{Binding Compression}" SortMemberPath="Compression" Width="110"/>
+                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.FileInfo_CompressionRatio}" Binding="{Binding CompressionRatio, StringFormat={}{0:P1}}" SortMemberPath="CompressionRatio" Width="140" Visibility="Collapsed"/>
+                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.FileInfo_SystemUpdate}" Binding="{Binding SystemUpdateVersion}" SortMemberPath="SystemUpdateVersion" Width="160" Visibility="Collapsed"/>
+                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_PackageType}" Binding="{Binding ContentType}" SortMemberPath="ContentType" Width="130"/>
+                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.CnmtOverview_TitleId}" Binding="{Binding TitleId}" SortMemberPath="TitleId" Width="165"/>
+                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.CnmtOverview_TitleVersion}" Binding="{Binding Version}" SortMemberPath="VersionNumber" Width="110"/>
                     <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.CnmtOverview_MinimumSystemVersion}" Binding="{Binding SystemVersion}" SortMemberPath="SystemVersion" Width="150" Visibility="Collapsed"/>
-                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.CnmtOverview_MasterKey}" Binding="{Binding MasterKey}" SortMemberPath="MasterKey" Width="150" Visibility="Collapsed"/>
-                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.CnmtOverview_BuildID}" Binding="{Binding BuildId}" SortMemberPath="BuildId" Width="150" Visibility="Collapsed"/>
-                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.CnmtOverview_Distribution}" Binding="{Binding Distribution}" SortMemberPath="Distribution" Width="150" Visibility="Collapsed"/>
-                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.AvailableLanguages}" Binding="{Binding Languages}" SortMemberPath="Languages" Width="150" Visibility="Collapsed"/>
-                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.FileInfo_FileSize}" Binding="{Binding FileSize, StringFormat={}{0:N0}}" SortMemberPath="FileSize" Width="110" Visibility="Collapsed"/>
-                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.FileInfo_CompressionRatio}" Binding="{Binding CompressionRatio, StringFormat={}{0:P1}}" SortMemberPath="CompressionRatio" Width="110" Visibility="Collapsed"/>
-                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchNaming_Title}" Binding="{Binding NamingStatus}" Width="110"/>
-                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RenamingTool_NewName}" Binding="{Binding ProposedPath}" Width="260" Visibility="Collapsed"/>
-                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchNaming_Error}" Binding="{Binding NamingError}" Width="220" Visibility="Collapsed"/>
+                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.CnmtOverview_BaseTitleId}" Binding="{Binding BaseTitleId}" SortMemberPath="BaseTitleId" Width="165" Visibility="Collapsed"/>
+                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.CnmtOverview_MasterKey}" Binding="{Binding MasterKey}" SortMemberPath="MasterKey" Width="200" Visibility="Collapsed"/>
+                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.CnmtOverview_MinimumApplicationVersion}" Binding="{Binding MinimumApplicationVersion}" SortMemberPath="MinimumApplicationVersion" Width="170" Visibility="Collapsed"/>
+                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.CnmtOverview_Distribution}" Binding="{Binding Distribution}" SortMemberPath="Distribution" Width="140" Visibility="Collapsed"/>
+                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.CnmtOverview_BuildID}" Binding="{Binding BuildId}" SortMemberPath="BuildId" Width="220" Visibility="Collapsed"/>
+                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.CnmtOverview_IsDemo}" Binding="{Binding IsDemo}" SortMemberPath="IsDemo" Width="90" Visibility="Collapsed"/>
+                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Security_Title}" Binding="{Binding PermissionDisplay}" SortMemberPath="PermissionDisplay" Width="150"/>
+                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Security_FileSystemPermissions}" Binding="{Binding FileSystemPermissions}" SortMemberPath="FileSystemPermissions" Width="185" Visibility="Collapsed"/>
+                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Security_AcidSignature}" Binding="{Binding AcidSignatureValidity}" SortMemberPath="AcidSignatureValidity" Width="130" Visibility="Collapsed"/>
+                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.AppTitle}" Binding="{Binding Title}" SortMemberPath="Title" Width="260"/>
+                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Publisher}" Binding="{Binding Publisher}" SortMemberPath="Publisher" Width="170" Visibility="Collapsed"/>
+                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.DisplayVersion}" Binding="{Binding DisplayVersion}" SortMemberPath="DisplayVersion" Width="130" Visibility="Collapsed"/>
+                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.AvailableLanguages}" Binding="{Binding Languages}" SortMemberPath="Languages" Width="180" Visibility="Collapsed"/>
+                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_Error}" Binding="{Binding Error}" SortMemberPath="Error" Width="250"/>
+                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.File_MissingKeys}" Binding="{Binding MissingKeys}" SortMemberPath="MissingKeys" Width="240" Visibility="Collapsed"/>
+                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_Path}" Binding="{Binding FilePath}" SortMemberPath="FilePath" Width="280" Visibility="Collapsed"/>
+                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchNaming_Title}" Binding="{Binding NamingStatus}" SortMemberPath="NamingStatus" Width="130" Visibility="Collapsed"/>
+                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RenamingTool_NewName}" Binding="{Binding ProposedPath}" SortMemberPath="ProposedPath" Width="280" Visibility="Collapsed"/>
+                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchNaming_Error}" Binding="{Binding NamingError}" SortMemberPath="NamingError" Width="240" Visibility="Collapsed"/>
+                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchTable_ConversionStatus}" Binding="{Binding ConversionStatus}" SortMemberPath="ConversionStatus" Width="200" Visibility="Collapsed"/>
+                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nsz_SourceSize}" Binding="{Binding SourceSizeDisplay}" SortMemberPath="SourceSize" Width="130" Visibility="Collapsed"/>
+                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nsz_OutputSize}" Binding="{Binding OutputSizeDisplay}" SortMemberPath="OutputSize" Width="130" Visibility="Collapsed"/>
+                    <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchTable_OutputPath}" Binding="{Binding ConvertedPath}" SortMemberPath="ConvertedPath" Width="280" Visibility="Collapsed"/>
                 </DataGrid.Columns>
             </DataGrid>
             <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch"/>
@@ -168,22 +174,10 @@
                                     </Style>
                                 </userControls:FileOverviewView.Style>
                             </userControls:FileOverviewView>
-                            <GroupBox Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchHistory_Title}"
-                                      Visibility="{Binding ShowStoredOverview, Converter={StaticResource FalseToCollapseVisibilityConverter}}">
-                                <StackPanel>
-                                    <TextBox Text="{Binding SelectedResult.FilePath, Mode=OneWay}" Style="{StaticResource ReadOnlyTextBox}" TextWrapping="Wrap" Margin="0,0,0,8"/>
-                                    <ItemsControl x:Name="StoredOverviewFields" ItemsSource="{Binding StoredOverviewFields}">
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <StackPanel Margin="0,0,0,6">
-                                                    <TextBlock Text="{Binding Key}" Style="{StaticResource Title2}"/>
-                                                    <TextBox Text="{Binding Value, Mode=OneWay}" Style="{StaticResource ReadOnlyTextBox}" TextWrapping="Wrap"/>
-                                                </StackPanel>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </StackPanel>
-                            </GroupBox>
+                            <StackPanel Visibility="{Binding ShowStoredOverview, Converter={StaticResource FalseToCollapseVisibilityConverter}}">
+                                <TextBox Text="{Binding SelectedResult.FilePath, Mode=OneWay}" Style="{StaticResource ReadOnlyTextBox}" TextWrapping="Wrap" Margin="4,0,4,8"/>
+                                <userControls:FileOverviewView x:Name="HistoryOverview" DataContext="{Binding StoredOverview}"/>
+                            </StackPanel>
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>
@@ -212,7 +206,7 @@
         </WrapPanel>
         </StackPanel>
         <DockPanel Grid.Row="4" Margin="0,10,0,0" Visibility="{Binding IsHistoryEnabled, Converter={StaticResource FalseToCollapseVisibilityConverter}}">
-            <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center" Margin="0,0,8,0" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchHistory_Title}"/>
+            <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center" Margin="0,0,8,0"><Run Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchHistory_Title, Mode=OneWay}"/><Run Text=" ("/><Run Text="{Binding HistoryLimit, Mode=OneWay}"/><Run Text=")"/></TextBlock>
             <Button DockPanel.Dock="Right" Margin="8,0,0,0" Padding="12,4" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchHistory_Resume}" Command="{Binding ResumeHistoryCommand}"/>
             <Button DockPanel.Dock="Right" Margin="8,0,0,0" Padding="12,4" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchHistory_Show}" Command="{Binding LoadHistoryCommand}"/>
             <ComboBox ItemsSource="{Binding History}" SelectedItem="{Binding SelectedHistory}" DisplayMemberPath="Label" IsEnabled="{Binding BackgroundTask.IsRunning, Converter={StaticResource BoolInverterConverter}}"/>

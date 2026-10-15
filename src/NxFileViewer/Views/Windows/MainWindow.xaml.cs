@@ -1,3 +1,6 @@
+using System.IO;
+using System.Linq;
+using System.Collections.Generic;
 using System;
 using System.ComponentModel;
 using System.Windows;
@@ -35,6 +38,25 @@ public partial class MainWindow : Window
             _batch?.ClosePreview();
             App.ServiceProvider.GetService<Emignatik.NxFileViewer.Services.FileOpening.IFileOpeningService>()?.SafeClose();
         };
+    }
+
+    public static bool ShouldUseBatchDrop(IReadOnlyList<string> paths, bool isBatchPage) =>
+        isBatchPage || paths.Count > 1 || paths.Any(Directory.Exists);
+
+    private void FilesPreviewDrop(object sender, DragEventArgs e)
+    {
+        if (!e.Data.GetDataPresent(DataFormats.FileDrop) || e.Data.GetData(DataFormats.FileDrop) is not string[] paths || paths.Length == 0) return;
+        if (_taskRunner?.IsRunning == true)
+        {
+            e.Effects = DragDropEffects.None;
+            e.Handled = true;
+            return;
+        }
+        if (!ShouldUseBatchDrop(paths, WorkspaceTabs.SelectedItem == BatchTab)) return;
+        Navigate(WorkspaceSection.Batch);
+        _batch!.LoadDroppedSources(paths);
+        e.Effects = DragDropEffects.Copy;
+        e.Handled = true;
     }
 
     public void Navigate(WorkspaceSection section)

@@ -4,7 +4,7 @@ Use File check to open a firmware ZIP/7z, a firmware folder or an individual NCA
 
 ## Reference sources
 
-Checks load current JSON references from [the repository's firmware hashes](https://github.com/sandmaennchen5/fork_NxFileViewer/tree/master/fw/hashes) into memory when firmware candidates are found or explicitly selected. Ordinary game folders make no reference request. Each firmware check fetches fresh data without a disk cache; Git blob hashes detect changes during download.
+Checks load current JSON references from [the repository's firmware hashes](https://github.com/sandmaennchen5/fork_NxFileViewer/tree/master/fw/hashes) into memory when firmware candidates are found or explicitly selected. Ordinary game folders make no reference request. Firmware checks request a fresh directory listing through the shared GitHub metadata service. API cooldowns apply; a saved listing can be reused while blocked. Manifest contents are still downloaded into memory and checked against the listing’s Git blob hashes, so changed or unavailable references trigger the offline fallback. See [update request caching](Application-updates.md#request-cache-and-github-limits).
 
 On network or validation failure, locally installed `fw/hashes/*.json` references provide an explicitly reported offline fallback. Local references are optional. If neither source is available, firmware candidates remain visible with an unavailable-reference error; game checks continue.
 

@@ -99,7 +99,7 @@ public sealed class NszPluginManager(IAppSettings settings, ILogger<NszPluginMan
         }
         if (settings.NszCheckUpdates || !File.Exists(ExecutablePath))
         {
-            try { UpdateAsync(progress, token).GetAwaiter().GetResult(); }
+            try { UpdateAsync(progress, token, automatic: true).GetAwaiter().GetResult(); }
             catch (Exception ex) when (!token.IsCancellationRequested && File.Exists(ExecutablePath) &&
                 ex is HttpRequestException or IOException or JsonException or OperationCanceledException or InvalidOperationException or System.Collections.Generic.KeyNotFoundException)
             {
@@ -112,14 +112,13 @@ public sealed class NszPluginManager(IAppSettings settings, ILogger<NszPluginMan
         progress.SetMode(false);
     }
 
-    public async Task UpdateAsync(IProgressReporter progress, CancellationToken token)
+    public async Task UpdateAsync(IProgressReporter progress, CancellationToken token, bool automatic = false)
     {
         progress.SetMode(true);
         progress.SetText(LocalizationManager.Instance.Current.Keys.Nsz_Updating);
         var client = httpClient ?? Client;
-        using var response = await client.GetAsync("https://api.github.com/repos/nicoboss/nsz/releases/latest", token).ConfigureAwait(false);
-        response.EnsureSuccessStatusCode();
-        using var release = JsonDocument.Parse(await response.Content.ReadAsStringAsync(token).ConfigureAwait(false));
+        var response = await Emignatik.NxFileViewer.Services.Updates.GitHubUpdateRequests.For(httpClient).GetAsync("https://api.github.com/repos/nicoboss/nsz/releases/latest", automatic, token).ConfigureAwait(false);
+        using var release = JsonDocument.Parse(response.Body);
         var root = release.RootElement;
         if (root.GetProperty("draft").GetBoolean() || root.GetProperty("prerelease").GetBoolean())
             throw new InvalidDataException("NSZ release is not stable.");

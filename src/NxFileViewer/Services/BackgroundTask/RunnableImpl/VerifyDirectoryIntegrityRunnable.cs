@@ -79,8 +79,8 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
         var option = _includeSubdirectories ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
         FirmwareIntegrityVerifier? firmware = null;
         var areas = SdBatchAreas.From(_appSettings);
-        var filterAreas = areas.AppliesTo(_directory);
-        var sdSources = SdCardSource.FindAllContents(_directory).Where(source => !filterAreas || areas.IncludesPath(_directory, source.ContentsPath)).ToArray();
+        var filterAreas = _selectedFiles == null && areas.AppliesTo(_directory);
+        var sdSources = _selectedFiles == null ? SdCardSource.FindAllContents(_directory).Where(source => !filterAreas || areas.IncludesPath(_directory, source.ContentsPath)).ToArray() : Array.Empty<SdContentSource>();
         var allFiles = _selectedFiles?.Select(PackageZip.ArchivePath).Distinct(StringComparer.OrdinalIgnoreCase).ToArray() ??
             (Directory.Exists(_directory) ? areas.EnumerateFiles(_directory, option).ToArray() : new[] { _directory });
         if (filterAreas) allFiles = allFiles.Where(path => areas.IncludesPath(_directory, path)).ToArray();
@@ -107,7 +107,7 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
             timeout.CancelAfter(TimeSpan.FromSeconds(60));
             try
             {
-                firmware = GitHubFirmwareReferences.LoadAsync(client, timeout.Token).GetAwaiter().GetResult();
+                firmware = GitHubFirmwareReferences.LoadAsync(client, timeout.Token, Emignatik.NxFileViewer.Services.Updates.GitHubUpdateRequests.For(_firmwareClient)).GetAwaiter().GetResult();
                 referenceNotice = LocalizationManager.Instance.Current.Keys.Firmware_OnlineSource;
             }
             catch (Exception ex) when (!cancellationToken.IsCancellationRequested &&
@@ -196,9 +196,18 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
                             nxFile.Overview.NcaCompressionType.ToString(),
                             missingKeys ? NcasIntegrity.Error : nxFile.Overview.NcasIntegrity,
                             integrityError) { HasMissingKeys = missingKeys, IsNand = nxFile.NandResult != null,
-                                NandDetails = nxFile.NandResult?.Information, FileSize = nxFile.NandResult?.Size });
+                                NandDetails = nxFile.NandResult?.Information, FileSize = nxFile.NandResult?.Size ?? nxFile.Overview.FileSize,
+                                CompressionRatio = nxFile.NandResult == null ? nxFile.Overview.CompressionRatio : null,
+                                SystemUpdateVersion = nxFile.Overview.SystemUpdateVersion ?? "",
+                                MissingKeys = string.Join(", ", nxFile.Overview.MissingKeys.Select(k => k.KeyName).Distinct()),
+                                NcaSignatureValidity = BatchContentMetadata.Signature(nxFile.RootItem.FindChildrenOfType<Models.TreeItems.Impl.NcaItem>(includeItem: true).Select(nca => nca.HeaderSignatureValidity)),
+                                ContentType = BatchContentMetadata.Types(nxFile.Overview.CnmtContainers.Select(p => p.CnmtItem.ContentType)),
+                                Permission = BatchContentMetadata.Assess(nxFile.Overview.CnmtContainers
+                                    .Where(p => p.CnmtItem.ContentType is LibHac.Ncm.ContentMetaType.Application or LibHac.Ncm.ContentMetaType.Patch)
+                                    .Select(p => p.NpdmItem?.SecurityLevel)) });
                         if (nxFile.RootItem is Models.TreeItems.Impl.NroFileItem nro)
-                            results[^1] = results[^1] with { Title = nro.Titles.FirstOrDefault()?.AppName ?? "", Publisher = nro.Titles.FirstOrDefault()?.Publisher ?? "",
+                            results[^1] = results[^1] with { Titles = nro.Titles.Select(title => new BatchTitleSummary(title.Language.ToString(), title.AppName, title.Publisher)).ToArray(),
+                                Title = nro.Titles.FirstOrDefault()?.AppName ?? "", Publisher = nro.Titles.FirstOrDefault()?.Publisher ?? "",
                                 DisplayVersion = nro.DisplayVersion, BuildId = nro.BuildId, Languages = string.Join(", ", nro.Titles.Select(t => t.Language)),
                                 Distribution = "Homebrew", FileSize = nxFile.Overview.FileSize };
                     }

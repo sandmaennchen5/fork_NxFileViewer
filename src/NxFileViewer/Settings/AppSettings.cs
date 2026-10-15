@@ -8,6 +8,36 @@ namespace Emignatik.NxFileViewer.Settings;
 
 public class AppSettings : NotifyPropertyChangedBase, IAppSettings
 {
+    private int _batchHistoryLimit = 5;
+    public int BatchHistoryLimit
+    {
+        get => _batchHistoryLimit;
+        set { _batchHistoryLimit = System.Math.Clamp(value, 1, 100); NotifyPropertyChanged(); }
+    }
+    private bool _verifyBatchDrops;
+    public bool VerifyBatchDrops
+    {
+        get => _verifyBatchDrops;
+        set { _verifyBatchDrops = value; NotifyPropertyChanged(); }
+    }
+    private bool _verifyFilesOpenedInProgram;
+    public bool VerifyFilesOpenedInProgram
+    {
+        get => _verifyFilesOpenedInProgram;
+        set { _verifyFilesOpenedInProgram = value; NotifyPropertyChanged(); }
+    }
+    private bool _verifyFilesOpenedFromWindows;
+    public bool VerifyFilesOpenedFromWindows
+    {
+        get => _verifyFilesOpenedFromWindows;
+        set { _verifyFilesOpenedFromWindows = value; NotifyPropertyChanged(); }
+    }
+    private string _batchTableLayout = "";
+    public string BatchTableLayout
+    {
+        get => _batchTableLayout;
+        set { _batchTableLayout = value ?? ""; NotifyPropertyChanged(); }
+    }
     private string _nandExecutablePath = "";
     private string _nandBisKeysPath = "";
     public string NandExecutablePath

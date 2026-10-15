@@ -9,6 +9,10 @@ namespace Emignatik.NxFileViewer.Settings;
 /// </summary>
 public interface IAppSettings : INotifyPropertyChanged
 {
+    bool VerifyBatchDrops { get; set; }
+    bool VerifyFilesOpenedInProgram { get; set; }
+    bool VerifyFilesOpenedFromWindows { get; set; }
+    string BatchTableLayout { get; set; }
     string NandExecutablePath { get; set; }
     string NandBisKeysPath { get; set; }
     bool CheckViewerUpdatesOnStartup { get; set; }
@@ -32,6 +36,7 @@ public interface IAppSettings : INotifyPropertyChanged
     bool SdBatchDbiRootSaves { get; set; }
 
 
+    int BatchHistoryLimit { get; set; }
     bool EnableBatchHistory { get; set; }
     int LogFileRetentionCount { get; set; }
     string AppLanguage { get; set; }

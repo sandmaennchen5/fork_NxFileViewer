@@ -611,6 +611,66 @@ public sealed class PackageZipTest : IDisposable
         Assert.Equal(known, file.FirmwareResult!.IsFirmware);
         if (known) Assert.Equal("plain-test", file.FirmwareResult.Structure);
     }
+    [Fact]
+    public void MixedDroppedSourcesProcessOverlappingSelectionsOnlyOnce()
+    {
+        var archive = CreatePackageArchive(false);
+        var folder = Directory.CreateDirectory(Path.Combine(_root, "dropped-folder")).FullName;
+        ZipFile.ExtractToDirectory(archive, folder);
+        var loader = new CountingLoader();
+        var callbacks = new System.Collections.Generic.List<Emignatik.NxFileViewer.Services.Integrity.BatchIntegrityResult>();
+        var runnable = new VerifyBatchSourcesRunnable(new[] { folder, Path.Combine(folder, "a.nsp"), archive, archive },
+            () => new VerifyDirectoryIntegrityRunnable(loader, null!, new AppSettings(), NullLogger<VerifyDirectoryIntegrityRunnable>.Instance),
+            true, true, false, resultCompleted: callbacks.Add);
+        var rows = runnable.Run(new Progress(), TestContext.Current.CancellationToken);
+        Assert.Equal(4, rows.Count);
+        Assert.Equal(4, callbacks.Count);
+        Assert.Equal(4, loader.Calls);
+        Assert.Equal(4, rows.Select(row => row.FilePath).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        Assert.All(rows, row => Assert.Null(row.Error));
+    }
+
+    [Fact]
+    public void BrokenDroppedArchiveDoesNotPreventOtherSourcesFromLoading()
+    {
+        var broken = Path.Combine(_root, "broken.zip"); File.WriteAllText(broken, "not a zip");
+        var archive = CreatePackageArchive(false);
+        var loader = new CountingLoader();
+        var runnable = new VerifyBatchSourcesRunnable(new[] { broken, archive },
+            () => new VerifyDirectoryIntegrityRunnable(loader, null!, new AppSettings(), NullLogger<VerifyDirectoryIntegrityRunnable>.Instance),
+            true, true, false);
+        var rows = runnable.Run(new Progress(), TestContext.Current.CancellationToken);
+        Assert.Equal(3, rows.Count);
+        Assert.Equal(2, loader.Calls);
+        Assert.NotNull(Assert.Single(rows, row => row.FilePath == broken).Error);
+        Assert.All(rows.Where(row => row.FilePath != broken), row => Assert.Null(row.Error));
+    }
+
+    [Fact]
+    public void MixedDroppedSourcesHonorResumeAndCancellation()
+    {
+        var archive = CreatePackageArchive(false);
+        var loader = new CountingLoader();
+        var runnable = new VerifyBatchSourcesRunnable(new[] { archive },
+            () => new VerifyDirectoryIntegrityRunnable(loader, null!, new AppSettings(), NullLogger<VerifyDirectoryIntegrityRunnable>.Instance),
+            true, true, false, skipCompleted: path => path.EndsWith("a.nsp", StringComparison.OrdinalIgnoreCase));
+        var row = Assert.Single(runnable.Run(new Progress(), TestContext.Current.CancellationToken));
+        Assert.EndsWith("b.nsz", row.FilePath);
+        Assert.Equal(1, loader.Calls);
+        Assert.ThrowsAny<OperationCanceledException>(() => runnable.Run(new Progress(), new CancellationToken(true)));
+        Assert.Equal(1, loader.Calls);
+    }
+
+    [Fact]
+    public void BatchDropRoutingPreservesOrdinarySingleFileOpening()
+    {
+        var file = Path.Combine(_root, "a.nsp");
+        Assert.False(Emignatik.NxFileViewer.Views.Windows.MainWindow.ShouldUseBatchDrop(new[] { file }, false));
+        Assert.True(Emignatik.NxFileViewer.Views.Windows.MainWindow.ShouldUseBatchDrop(new[] { file }, true));
+        Assert.True(Emignatik.NxFileViewer.Views.Windows.MainWindow.ShouldUseBatchDrop(new[] { file, "other.nsz" }, false));
+        Assert.True(Emignatik.NxFileViewer.Views.Windows.MainWindow.ShouldUseBatchDrop(new[] { _root }, false));
+    }
+
     private string CreatePackageArchive(bool sevenZip)
     {
         if (sevenZip) return Create7z();
@@ -640,6 +700,82 @@ public sealed class PackageZipTest : IDisposable
             return LastLoaded;
         }
     }
+    private sealed class AutomaticVerifier : IVerifyNcasIntegrityRunnable
+    {
+        public int Calls;
+        public bool IgnoreDelta;
+        public bool Cancel;
+        private FileOverview? _overview;
+        public bool SupportsCancellation => true;
+        public bool SupportProgress => true;
+        public void Setup(FileOverview overview, bool ignoreMissingDeltaFragments) { _overview = overview; IgnoreDelta = ignoreMissingDeltaFragments; }
+        public void Run(IProgressReporter progress, CancellationToken token)
+        {
+            Calls++;
+            if (Cancel) throw new OperationCanceledException();
+            _overview!.NcasIntegrity = NcasIntegrity.Original;
+        }
+    }
+
+    [Theory]
+    [InlineData(false, false, false, 0)]
+    [InlineData(true, false, false, 1)]
+    [InlineData(false, true, false, 0)]
+    [InlineData(true, true, false, 1)]
+    [InlineData(false, false, true, 0)]
+    [InlineData(true, false, true, 0)]
+    [InlineData(false, true, true, 1)]
+    [InlineData(true, true, true, 1)]
+    public async Task AutomaticVerificationUsesOnlyTheOpeningOriginsSetting(bool program, bool windows, bool fromWindows, int checks)
+    {
+        var settings = new AppSettings { VerifyFilesOpenedInProgram = program, VerifyFilesOpenedFromWindows = windows, IgnoreMissingDeltaFragments = true };
+        var restored = System.Text.Json.JsonSerializer.Deserialize<AppSettings>(System.Text.Json.JsonSerializer.Serialize(settings))!;
+        Assert.Equal(program, restored.VerifyFilesOpenedInProgram);
+        Assert.Equal(windows, restored.VerifyFilesOpenedFromWindows);
+        var verifier = new AutomaticVerifier();
+        Emignatik.NxFileViewer.Services.FileOpening.IFileOpeningService service = new Emignatik.NxFileViewer.Services.FileOpening.FileOpeningService(
+            NullLoggerFactory.Instance, restored, new CountingLoader(), new ImmediateRunner(), verifier);
+        await service.SafeOpenFile(CreatePackageArchive(false), fromWindows
+            ? Emignatik.NxFileViewer.Services.FileOpening.FileOpenOrigin.WindowsAssociation
+            : Emignatik.NxFileViewer.Services.FileOpening.FileOpenOrigin.Program);
+        Assert.NotNull(service.OpenedFile);
+        Assert.Equal(checks, verifier.Calls);
+        if (checks > 0) { Assert.True(verifier.IgnoreDelta); Assert.Equal(NcasIntegrity.Original, service.OpenedFile.Overview.NcasIntegrity); }
+        service.SafeClose();
+    }
+
+    [Fact]
+    public async Task AutomaticVerificationSkipsCompletedCachedMembersAndChecksPreviouslyUncheckedOnes()
+    {
+        var settings = new AppSettings { VerifyFilesOpenedInProgram = false, VerifyFilesOpenedFromWindows = true };
+        var verifier = new AutomaticVerifier();
+        var archive = CreatePackageArchive(false);
+        var service = new Emignatik.NxFileViewer.Services.FileOpening.FileOpeningService(NullLoggerFactory.Instance, settings,
+            new CountingLoader(), new ImmediateRunner(), verifier);
+        await service.SafeOpenFile(archive);
+        Assert.Equal(0, verifier.Calls);
+        var first = service.OpenedFile!.FilePath;
+        await service.SafeOpenFile(first, Emignatik.NxFileViewer.Services.FileOpening.FileOpenOrigin.WindowsAssociation);
+        Assert.Equal(1, verifier.Calls);
+        await service.SafeOpenFile(PackageZip.MemberPath(archive, "b.nsz"));
+        Assert.Equal(1, verifier.Calls);
+        await service.SafeOpenFile(first, Emignatik.NxFileViewer.Services.FileOpening.FileOpenOrigin.WindowsAssociation);
+        Assert.Equal(1, verifier.Calls);
+        service.SafeClose();
+    }
+
+    [Fact]
+    public async Task CancellingAutomaticVerificationKeepsTheLoadedOverview()
+    {
+        var verifier = new AutomaticVerifier { Cancel = true };
+        var service = new Emignatik.NxFileViewer.Services.FileOpening.FileOpeningService(NullLoggerFactory.Instance,
+            new AppSettings { VerifyFilesOpenedInProgram = true }, new CountingLoader(), new ImmediateRunner(), verifier);
+        await service.SafeOpenFile(CreatePackageArchive(false));
+        Assert.Equal(1, verifier.Calls);
+        Assert.NotNull(service.OpenedFile);
+        service.SafeClose();
+    }
+
     private sealed class ImmediateRunner : IMainBackgroundTaskRunnerService
     {
         public TaskCompletionSource<bool>? Gate;

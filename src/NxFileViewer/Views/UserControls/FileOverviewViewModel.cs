@@ -69,6 +69,9 @@ public class FileOverviewViewModel : ViewModelBase
         UpdateMissingKeys();
     }
 
+    public Visibility VerifyControlsVisibility => Visibility.Visible;
+    public Visibility HistoryNoticeVisibility => Visibility.Collapsed;
+    public Visibility LogoVisibility => Visibility.Visible;
     public bool HasMissingKeys => _fileOverview.MissingKeys.Count > 0;
     public bool IsMissingKeysWarningVisible => HasMissingKeys && !_missingKeysWarningDismissed;
     public bool IsHomebrew => _fileOverview.RootItem is Models.TreeItems.Impl.NroFileItem;

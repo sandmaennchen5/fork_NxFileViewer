@@ -13,6 +13,7 @@
         d:DataContext="{d:DesignInstance windows:SettingsWindowViewModel}">
 
     <UserControl.Resources>
+        <Style TargetType="ToolTip"><Setter Property="MaxWidth" Value="620"/><Setter Property="ContentTemplate"><Setter.Value><DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap" MaxWidth="580"/></DataTemplate></Setter.Value></Setter></Style>
         <DataTemplate x:Key="KeyLocationStatusTemplate">
             <Border BorderBrush="{DynamicResource Control.Static.Border}" BorderThickness="1" Padding="8" Margin="0,4,0,4">
                 <StackPanel>
@@ -55,108 +56,157 @@
         </Grid.RowDefinitions>
 
         <Border Grid.Row="0" BorderBrush="{DynamicResource ScrollViewer.Border.Brush}" BorderThickness="{DynamicResource ScrollViewer.Border.Thickness}">
-            <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-                <StackPanel>
-
-
-                    <GroupBox>
-                        <GroupBox.Header>
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Style="{StaticResource Title1}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_Title_NczOptions}" />
-                                <customControls:TipLabel ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_ToolTip_NczBlockLessCompression}"/>
-                            </StackPanel>
-
-                        </GroupBox.Header>
-                        <StackPanel>
-                            <CheckBox IsChecked="{Binding Path=EditedSettings.OpenBlocklessCompressionNCZ}" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_CheckBox_NczOpenBlocklessCompression}" />
+            <ScrollViewer x:Name="ProgramSettingsScroll" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                <StackPanel x:Name="ProgramSettingsGroups" MaxWidth="1100" Width="{Binding ViewportWidth, ElementName=ProgramSettingsScroll}" HorizontalAlignment="Left">
+                    <GroupBox x:Name="ProgramGeneralGroup" Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Settings_GroupGeneral}" Margin="8,4,8,8">
+                        <StackPanel Margin="8">
+                            <UniformGrid Columns="2">
+                                <StackPanel>
+                                    <TextBlock Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_Title_Language}" />
+                                    <ComboBox ItemsSource="{Binding Path=AvailableLanguages}" SelectedItem="{Binding Path=SelectedLanguage}" DisplayMemberPath="DisplayName" HorizontalAlignment="Left"/>
+                                </StackPanel>
+                                <StackPanel>
+                                    <TextBlock Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_Title_Theme}" />
+                                    <ComboBox ItemsSource="{Binding Path=ThemeOptions}" SelectedValuePath="Value" SelectedValue="{Binding Path=EditedSettings.Theme}" DisplayMemberPath="DisplayName" MinWidth="100" HorizontalAlignment="Left"/>
+                                </StackPanel>
+                            </UniformGrid>
                         </StackPanel>
                     </GroupBox>
-
-                    <GroupBox>
-                        <GroupBox.Header>
-                            <TextBlock Style="{StaticResource Title1}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_Title_Integrity}" />
-                        </GroupBox.Header>
-                        <StackPanel>
-                            <StackPanel Orientation="Horizontal">
-                                <CheckBox IsChecked="{Binding Path=EditedSettings.IgnoreMissingDeltaFragments}" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_CheckBox_IgnoreMissingDeltaFragments}" />
+                    <GroupBox x:Name="ProgramVerificationGroup" Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Workspace_File}" Margin="8,4,8,8">
+                        <StackPanel Margin="8">
+                            <TextBlock Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Settings_AutoVerifyTitle}" Margin="0,0,0,5"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,3">
+                                <CheckBox x:Name="AutoVerifyProgramCheckBox" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Settings_AutoVerifyProgram}" IsChecked="{Binding EditedSettings.VerifyFilesOpenedInProgram}"/>
+                                <customControls:TipLabel x:Name="AutoVerifyProgramTip" ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Settings_AutoVerifyProgramTip}"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,3">
+                                <CheckBox x:Name="AutoVerifyWindowsCheckBox" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Settings_AutoVerifyWindows}" IsChecked="{Binding EditedSettings.VerifyFilesOpenedFromWindows}"/>
+                                <customControls:TipLabel x:Name="AutoVerifyWindowsTip" ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Settings_AutoVerifyWindowsTip}"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,3">
+                                <CheckBox x:Name="AutoVerifyBatchDropCheckBox" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Settings_AutoVerifyBatchDrop}" IsChecked="{Binding EditedSettings.VerifyBatchDrops}"/>
+                                <customControls:TipLabel x:Name="AutoVerifyBatchDropTip" ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Settings_AutoVerifyBatchDropTip}"/>
+                            </StackPanel>
+                            <Separator Margin="0,10,0,8"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,3">
+                                <CheckBox IsChecked="{Binding EditedSettings.IgnoreMissingDeltaFragments}" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_CheckBox_IgnoreMissingDeltaFragments}"/>
                                 <customControls:TipLabel ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_ToolTip_IgnoreMissingDeltaFragments}"/>
                             </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,3">
+                                <CheckBox IsChecked="{Binding EditedSettings.OpenBlocklessCompressionNCZ}" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_CheckBox_NczOpenBlocklessCompression}"/>
+                                <customControls:TipLabel ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_ToolTip_NczBlockLessCompression}"/>
+                            </StackPanel>
                         </StackPanel>
                     </GroupBox>
-
-                    <GroupBox Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_Miscellaneous}">
-                        <StackPanel>
-                            <GroupBox Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Associations_Title}" Margin="0,0,0,12">
-                                <StackPanel Margin="8">
-                                    <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Associations_Tip}" TextWrapping="Wrap" Margin="0,0,0,8"/>
-                                    <Button x:Name="RegisterForkAssociations" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Associations_Register}" Command="{Binding RegisterFileAssociationsCommand}" HorizontalAlignment="Left" Padding="12,5"/>
-                                </StackPanel>
-                            </GroupBox>
-                            <CheckBox Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchHistory_Title}" IsChecked="{Binding EditedSettings.EnableBatchHistory}" Margin="0,0,0,8"/>
-                            <GroupBox Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SdBatch_Title}" Margin="0,0,0,12">
-                                <StackPanel Margin="8">
-                                    <CheckBox x:Name="SdBatchAreasEnabled" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SdBatch_Enable}" IsChecked="{Binding EditedSettings.SdBatchSelectedAreasOnly}"/>
-                                    <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SdBatch_Tip}" TextWrapping="Wrap" Margin="0,6,0,8"/>
-                                    <WrapPanel IsEnabled="{Binding EditedSettings.SdBatchSelectedAreasOnly}">
-                                        <CheckBox Content="/switch" IsChecked="{Binding EditedSettings.SdBatchSwitch}" Margin="0,0,16,8"/>
-                                        <CheckBox Content="/Nintendo" IsChecked="{Binding EditedSettings.SdBatchNintendo}" Margin="0,0,16,8"/>
-                                        <CheckBox Content="/emuMMC" IsChecked="{Binding EditedSettings.SdBatchEmuMmc}" Margin="0,0,16,8"/>
-                                        <CheckBox Content="/tools" IsChecked="{Binding EditedSettings.SdBatchTools}" Margin="0,0,16,8"/>
-                                        <CheckBox Content="hbmenu.nro" IsChecked="{Binding EditedSettings.SdBatchHbmenu}" Margin="0,0,16,8"/>
-                                        <CheckBox Content="/DBIsaves" IsChecked="{Binding EditedSettings.SdBatchDbiRootSaves}" Margin="0,0,16,8"/>
-                                        <CheckBox Content="/dumps" IsChecked="{Binding EditedSettings.SdBatchDumps}" Margin="0,0,16,8"/>
-                                        <CheckBox Content="/nxdt_rw_poc" IsChecked="{Binding EditedSettings.SdBatchNxdtRwPoc}" Margin="0,0,16,8"/>
-                                    </WrapPanel>
-                                    <Expander Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SdBatch_Custom}" IsExpanded="False" IsEnabled="{Binding EditedSettings.SdBatchSelectedAreasOnly}" Margin="0,4,0,0">
-                                        <StackPanel Margin="0,6,0,0">
-                                            <TextBox x:Name="SdBatchCustomPaths" Text="{Binding EditedSettings.SdBatchCustomPaths, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" Height="100" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"/>
-                                            <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SdBatch_CustomTip}" TextWrapping="Wrap" Margin="0,4,0,0"/>
-                                        </StackPanel>
-                                    </Expander>
-                                </StackPanel>
-                            </GroupBox>
-                            <StackPanel>
-                                <TextBlock Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_Title_Language}" />
-                                <ComboBox ItemsSource="{Binding Path=AvailableLanguages}" SelectedItem="{Binding Path=SelectedLanguage}" DisplayMemberPath="DisplayName" HorizontalAlignment="Left"/>
+                    <GroupBox x:Name="ProgramHistoryGroup"  Margin="8,4,8,8">
+                        <GroupBox.Header>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock FontWeight="Bold" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Settings_GroupHistory}"/>
+                                <customControls:TipLabel ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchHistory_RetentionTip}"/>
                             </StackPanel>
-
-                            <StackPanel>
-                                <TextBlock Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_Title_Theme}" />
-                                <ComboBox ItemsSource="{Binding Path=ThemeOptions}" SelectedValuePath="Value" SelectedValue="{Binding Path=EditedSettings.Theme}" DisplayMemberPath="DisplayName" MinWidth="100" HorizontalAlignment="Left"/>
+                        </GroupBox.Header>
+                        <StackPanel Margin="8">
+                            <CheckBox Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchHistory_Enable}" IsChecked="{Binding EditedSettings.EnableBatchHistory}" Margin="0,0,0,8"/>
+                            <StackPanel IsEnabled="{Binding EditedSettings.EnableBatchHistory}" Margin="0,0,0,8">
+                                <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchHistory_Limit}" Style="{StaticResource Title2}"/>
+                                <TextBox x:Name="BatchHistoryLimitBox" Text="{Binding EditedSettings.BatchHistoryLimit, ValidatesOnExceptions=True}" Width="80" HorizontalAlignment="Left"/>
                             </StackPanel>
-
-                            <StackPanel>
-                                <StackPanel  Orientation="Horizontal">
-                                    <TextBlock  Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_LogLevel}" />
-                                    <customControls:TipLabel ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_ToolTip_LogLevel}"/>
+                        </StackPanel>
+                    </GroupBox>
+                    <GroupBox Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SdBatch_Title}" Margin="8,4,8,8">
+                        <StackPanel Margin="8">
+                            <StackPanel Orientation="Horizontal">
+                                <CheckBox x:Name="SdBatchAreasEnabled" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SdBatch_Enable}" IsChecked="{Binding EditedSettings.SdBatchSelectedAreasOnly}"/>
+                                <customControls:TipLabel ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SdBatch_Tip}"/>
+                            </StackPanel>
+                            <WrapPanel IsEnabled="{Binding EditedSettings.SdBatchSelectedAreasOnly}">
+                                <CheckBox Content="/switch" IsChecked="{Binding EditedSettings.SdBatchSwitch}" Margin="0,0,16,8"/>
+                                <CheckBox Content="/Nintendo" IsChecked="{Binding EditedSettings.SdBatchNintendo}" Margin="0,0,16,8"/>
+                                <CheckBox Content="/emuMMC" IsChecked="{Binding EditedSettings.SdBatchEmuMmc}" Margin="0,0,16,8"/>
+                                <CheckBox Content="/tools" IsChecked="{Binding EditedSettings.SdBatchTools}" Margin="0,0,16,8"/>
+                                <CheckBox Content="hbmenu.nro" IsChecked="{Binding EditedSettings.SdBatchHbmenu}" Margin="0,0,16,8"/>
+                                <CheckBox Content="/DBIsaves" IsChecked="{Binding EditedSettings.SdBatchDbiRootSaves}" Margin="0,0,16,8"/>
+                                <CheckBox Content="/dumps" IsChecked="{Binding EditedSettings.SdBatchDumps}" Margin="0,0,16,8"/>
+                                <CheckBox Content="/nxdt_rw_poc" IsChecked="{Binding EditedSettings.SdBatchNxdtRwPoc}" Margin="0,0,16,8"/>
+                            </WrapPanel>
+                            <Expander Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SdBatch_Custom}" IsExpanded="False" IsEnabled="{Binding EditedSettings.SdBatchSelectedAreasOnly}" Margin="0,4,0,0">
+                                <StackPanel Margin="0,6,0,0">
+                                    <TextBox x:Name="SdBatchCustomPaths" Text="{Binding EditedSettings.SdBatchCustomPaths, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" Height="100" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"/>
+                                    <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SdBatch_CustomTip}" TextWrapping="Wrap" Margin="0,4,0,0"/>
                                 </StackPanel>
-                                <ComboBox ItemsSource="{Binding Path=LogLevels}" SelectedItem="{Binding Path=EditedSettings.LogLevel}" MinWidth="100" HorizontalAlignment="Left" />
-                                <TextBlock Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_LogFileRetention}" />
-                                <TextBox Text="{Binding EditedSettings.LogFileRetentionCount, ValidatesOnExceptions=True}" Width="80" HorizontalAlignment="Left" />
+                            </Expander>
+                        </StackPanel>
+                    </GroupBox>
+                    <GroupBox x:Name="ProgramAssociationsGroup" Margin="8,4,8,8">
+                        <GroupBox.Header>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock FontWeight="Bold" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Associations_Title}"/>
+                                <customControls:TipLabel ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Associations_Tip}"/>
                             </StackPanel>
-
+                        </GroupBox.Header>
+                        <StackPanel Margin="8">
+                            <Button x:Name="RegisterForkAssociations" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Associations_Register}" Command="{Binding RegisterFileAssociationsCommand}" HorizontalAlignment="Left" Padding="12,5"/>
+                        </StackPanel>
+                    </GroupBox>
+                    <GroupBox x:Name="ProgramTitlesGroup" Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Settings_GroupTitleInfo}" Margin="8,4,8,8">
+                        <StackPanel Margin="8">
                             <StackPanel>
                                 <TextBlock Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_TitlePageUrl}" />
-                                <ComboBox x:Name="TitlePageSource" ItemsSource="{Binding TitlePageOptions}" DisplayMemberPath="DisplayName" SelectedValuePath="Value" SelectedValue="{Binding SelectedTitlePageSource}" />
+                                <ComboBox MaxWidth="460" HorizontalAlignment="Left" x:Name="TitlePageSource" ItemsSource="{Binding TitlePageOptions}" DisplayMemberPath="DisplayName" SelectedValuePath="Value" SelectedValue="{Binding SelectedTitlePageSource}" />
                                 <TextBox Text="{Binding EditedSettings.TitlePageUrl, UpdateSourceTrigger=PropertyChanged}" Visibility="{Binding IsCustomTitlePage, Converter={StaticResource FalseToCollapseVisibilityConverter}}" Margin="0,6,0,0" />
                             </StackPanel>
-
                             <StackPanel>
-                                <TextBlock Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_TitleInfoProvider}" />
-                                <ComboBox ItemsSource="{Binding TitleProviderOptions}" SelectedValuePath="Value" SelectedValue="{Binding SelectedTitleInfoSource}" DisplayMemberPath="DisplayName" />
-                                <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Tinfoil_StabilityHint}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_TitleInfoProvider}" />
+                                    <customControls:TipLabel ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Tinfoil_StabilityHint}"/>
+                                </StackPanel>
+                                <ComboBox MaxWidth="460" HorizontalAlignment="Left" ItemsSource="{Binding TitleProviderOptions}" SelectedValuePath="Value" SelectedValue="{Binding SelectedTitleInfoSource}" DisplayMemberPath="DisplayName" />
                             </StackPanel>
                             <StackPanel>
-                                <StackPanel.Style><Style TargetType="StackPanel"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding EditedSettings.TitleInfoProvider}" Value="{x:Static settings:TitleInfoProvider.Custom}"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></StackPanel.Style>
+                                <StackPanel.Style>
+                                    <Style TargetType="StackPanel">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding EditedSettings.TitleInfoProvider}" Value="{x:Static settings:TitleInfoProvider.Custom}">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </StackPanel.Style>
                                 <TextBlock Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_TitleInfoApiUrl}"/>
                                 <TextBox Text="{Binding EditedSettings.TitleInfoApiUrl, UpdateSourceTrigger=PropertyChanged}"/>
                             </StackPanel>
                             <StackPanel>
-                                <StackPanel.Style><Style TargetType="StackPanel"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding EditedSettings.TitleInfoProvider}" Value="{x:Static settings:TitleInfoProvider.GitHubTitleDb}"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></StackPanel.Style>
+                                <StackPanel.Style>
+                                    <Style TargetType="StackPanel">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding EditedSettings.TitleInfoProvider}" Value="{x:Static settings:TitleInfoProvider.GitHubTitleDb}">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </StackPanel.Style>
                                 <TextBlock Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_TitleDbRegion}"/>
-                                <ComboBox ItemsSource="{Binding TitleDbRegions}" SelectedItem="{Binding EditedSettings.TitleDbRegion}"/>
+                                <ComboBox MaxWidth="460" HorizontalAlignment="Left" ItemsSource="{Binding TitleDbRegions}" SelectedItem="{Binding EditedSettings.TitleDbRegion}"/>
                             </StackPanel>
-
+                        </StackPanel>
+                    </GroupBox>
+                    <GroupBox x:Name="ProgramLoggingGroup" Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Settings_GroupLogging}" Margin="8,4,8,8">
+                        <StackPanel Margin="8">
+                            <UniformGrid Columns="2">
+                                <StackPanel>
+                                    <StackPanel  Orientation="Horizontal">
+                                        <TextBlock  Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_LogLevel}" />
+                                        <customControls:TipLabel ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_ToolTip_LogLevel}"/>
+                                    </StackPanel>
+                                    <ComboBox ItemsSource="{Binding Path=LogLevels}" SelectedItem="{Binding Path=EditedSettings.LogLevel}" MinWidth="100" HorizontalAlignment="Left" />
+                                </StackPanel>
+                                <StackPanel>
+                                    <TextBlock Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_LogFileRetention}" />
+                                    <TextBox Text="{Binding EditedSettings.LogFileRetentionCount, ValidatesOnExceptions=True}" Width="80" HorizontalAlignment="Left" />
+                                </StackPanel>
+                            </UniformGrid>
                         </StackPanel>
                     </GroupBox>
                 </StackPanel>
@@ -194,7 +244,7 @@
 
                         <StackPanel Orientation="Vertical" DockPanel.Dock="Top">
                             <WrapPanel Margin="0,6,0,10">
-                                <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Keys_CopyToSwitch}" Command="{Binding CopyKeysToSwitchCommand}" Padding="12,5" Margin="0,0,8,8"/>
+                                <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Keys_CopyToSwitch}" Command="{Binding CopyKeysToSwitchCommand}" ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Keys_CopyToSwitchHelp}" Padding="12,5" Margin="0,0,8,8"/>
                                 <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Keys_DownloadAll}" Command="{Binding DownloadKeysCommand}" Padding="12,5" Margin="0,0,8,8"/>
                                 <StackPanel Margin="8,0,0,8">
                             <TextBlock Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Keys_DownloadHost}"/>
