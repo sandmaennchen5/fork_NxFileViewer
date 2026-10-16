@@ -176,6 +176,9 @@ public class LocalizationKeys_ES : LocalizationKeysBase, ILocalizationKeys
     public string BatchIntegrity_IncludeSubdirectories => "Incluir subcarpetas";
     public string BatchTable_Games => "Juegos";
     public string BatchTable_Type => "Tipo";
+    public string BatchTable_ConfirmResetFiltersAndSort => "¿Restablecer la búsqueda, todos los filtros y la ordenación de la tabla por lotes?";
+    public string BatchTable_ConfirmResetColumns => "¿Restablecer la visibilidad, el orden y el ancho predeterminados de todas las columnas? Se reemplazará la disposición guardada.";
+    public string BatchTable_OpenExplorer => "Abrir en el Explorador";
     public string BatchTable_ResetColumns => "Restablecer columnas";
     public string BatchTable_ConversionStatus => "Estado de conversión";
     public string BatchTable_OutputPath => "Ruta de salida";
@@ -195,7 +198,7 @@ public class LocalizationKeys_ES : LocalizationKeysBase, ILocalizationKeys
     public string Signature_Passed => "Correcta";
     public string Signature_NotPassed => "Incorrecta";
     public string Signature_Unchecked => "Sin verificar";
-    public string ToolTip_PackageStructure => "Estructura según Nx Game Info:\nScene (XCI): particiones Update, Normal y Secure.\nConvertido (XCI): solo Secure; típico de NSP → XCI.\nScene (NSP): legalinfo.xml, nacp.xml, programinfo.xml y cardspec.xml; típico de releases BBB.\nHomebrew (NSP): authoringtoolinfo.xml presente.\nCDN (NSP): certificado (.cert) y ticket (.tik); típico de volcados eShop CDN.\nConvertido (NSP): sin certificado ni ticket; típico de XCI → NSP.\nSistema de archivos: títulos NAX0 instalados en una tarjeta SD Switch.\nIncompleto: solo contenido NCA. NSZ/XCZ siguen las reglas de su paquete; NCZ cuenta como NCA.";
+    public string ToolTip_PackageStructure => "Estructura según Nx Game Info:\nScene (XCI): particiones Update, Normal y Secure.\nConvertido (XCI): solo Secure; típico de NSP → XCI.\nScene (NSP): legalinfo.xml, nacp.xml, programinfo.xml y cardspec.xml; típico de releases BBB.\nHomebrew (NSP): authoringtoolinfo.xml presente.\nCDN (NSP): certificado (.cert) y ticket (.tik); típico de volcados eShop CDN.\nConvertido (NSP): contenido NCA/NCZ y otros archivos, sin ticket/certificado ni marcadores Scene/Homebrew. Esta clasificación estructural no demuestra el origen del paquete.\nSistema de archivos: títulos NAX0 instalados en una tarjeta SD Switch.\nSolo contenido NCA: el paquete contiene únicamente archivos .nca/.ncz, sin ticket, certificado ni archivos XML adicionales. Puede ocurrir tras un reempaquetado o conversión y no demuestra que falten datos del juego.\nIncompleto: ningún contenido NCA/NCZ, ticket sin certificado (o viceversa), o particiones XCI fuera de las reglas Scene/Convertido. Describe la estructura del contenedor; la verificación de integridad comprueba los contenidos ausentes o modificados.\nNSZ/XCZ siguen las reglas de su paquete; NCZ cuenta como NCA.";
     public string ToolTip_NcaSignature => "Correcta: firmas NCA válidas, esperadas en títulos oficiales.\nIncorrecta: al menos una firma NCA inválida; posible en homebrew, inesperada en títulos oficiales.\nSin verificar: verificación NCA incompleta. Ejecute la comprobación de integridad.\nEsta indicación corresponde a las cabeceras NCA; ACID es una firma NPDM distinta.";
     public string ToolTip_Permission => "Seguro: sin acceso a servicios de archivos o bit 0x8000000000000000 desactivado.\nInseguro: acceso a servicios de archivos y bit 0x8000000000000000 activado (EraseMmc).\nPeligroso: acceso a servicios de archivos y máscara 0xffffffffffffffff (todos los permisos).\nInseguro/Peligroso solo debería aparecer en homebrew. Disponible solo para juegos base y actualizaciones. Esta clasificación no es una evaluación completa de seguridad.";
     public string ToolTip_AcidSignature => "Firma de la sección ACID de main.npdm, independiente de la firma de la cabecera NCA.";
@@ -204,6 +207,7 @@ public class LocalizationKeys_ES : LocalizationKeysBase, ILocalizationKeys
     public string PackageStructure_Cdn => "Copia CDN";
     public string PackageStructure_Converted => "Convertido";
     public string PackageStructure_Homebrew => "Homebrew";
+    public string PackageStructure_NcaOnly => "Solo contenido NCA";
     public string PackageStructure_Incomplete => "Incompleto";
     public string PackageStructure_Unknown => "Desconocido";
     public string FileInfo_FileSize => "Tamaño del archivo";
@@ -661,7 +665,12 @@ public class LocalizationKeys_ES : LocalizationKeysBase, ILocalizationKeys
     public string Batch_GroupFiles => "Agrupar por carpeta / archivo";
     public string Batch_MultiPackageDetails => "Mostrar u ocultar paquetes incluidos";
     public string File_SaveBackup => "Copia de partida guardada";
-    public string File_MissingKeys => "Faltan claves necesarias. No se puede leer todo el contenido. Revise prod.keys / title.keys.";
+    public string File_MissingKeysHeader => "Claves faltantes";
+    public string File_MissingTitleKeysHeading => "Faltan claves de título (ticket / title.keys)";
+    public string File_MissingTitleKeyEntry => "Falta clave de título · Rights ID: {0}";
+    public string File_MissingTitleKeysHelp => "Las claves de título corresponden al Rights ID indicado y proceden del ticket (.tik) correspondiente o de title.keys. Una master key más reciente en prod.keys no las sustituye. Compruebe el ticket y, cuando corresponda, active la inyección de claves desde tickets.";
+    public string File_MissingSystemKeysHelp => "Para claves de sistema o consola faltantes, compruebe los nombres concretos en los archivos utilizados (por ejemplo prod.keys). Una revisión alta de master key no garantiza que estén todas las claves necesarias.";
+    public string File_MissingKeys => "Faltan claves necesarias. Algunos contenidos no se pueden leer completamente.";
     public string File_CopyMissingKeys => "Copiar nombres de claves faltantes";
     public string Keys_ProgramFolder => "Carpeta del programa";
     public string Keys_SharedFolder => "Perfil de usuario (.switch)";

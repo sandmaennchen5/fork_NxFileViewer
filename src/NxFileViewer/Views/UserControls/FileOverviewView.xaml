@@ -34,11 +34,12 @@
                             ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.MenuItem_Close}"
                             AutomationProperties.Name="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.MenuItem_Close}"
                             Width="26" Height="26" Margin="8,0,0,0" Padding="0" VerticalAlignment="Top"/>
-                    <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.File_MissingKeys}" Foreground="{DynamicResource FontBrush.Error}" FontWeight="Bold" TextWrapping="Wrap"/>
+                    <TextBlock Text="{Binding MissingKeysHeading}" Foreground="{DynamicResource FontBrush.Error}" FontWeight="Bold" TextWrapping="Wrap"/>
                 </DockPanel>
                 <ScrollViewer MaxHeight="120" VerticalScrollBarVisibility="Auto">
-                    <TextBlock Text="{Binding MissingKeys}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                    <TextBlock Text="{Binding MissingKeys}" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,6,0,0"/>
                 </ScrollViewer>
+                <TextBlock Text="{Binding MissingKeysExplanation}" TextWrapping="Wrap" Margin="0,8,0,0"/>
                 <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.File_CopyMissingKeys}" Command="{Binding CopyMissingKeysCommand}" HorizontalAlignment="Left" Padding="10,3" Margin="0,6,0,0"/>
             </StackPanel>
         </Border>

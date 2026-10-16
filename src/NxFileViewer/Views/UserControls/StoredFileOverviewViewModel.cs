@@ -47,7 +47,7 @@ public sealed class StoredFileOverviewViewModel : ViewModelBase
         ThemeObserver.Observe(services.GetService<IThemeService>(), this, static view => view.NotifyPropertyChanged(nameof(NcasIntegrityValidityColor)));
     }
     public string FileType => _result.TypeDisplay;
-    public string PackageStructure => _result.Structure;
+    public string PackageStructure => _result.StructureDisplay;
     public string CompressionType => _result.Compression;
     public string NcaSignature => _result.NcaSignature;
     public NcasIntegrity NcasIntegrity => _result.Integrity;
@@ -59,7 +59,10 @@ public sealed class StoredFileOverviewViewModel : ViewModelBase
     public Visibility HistoryNoticeVisibility => Visibility.Visible;
     public Visibility LogoVisibility => Visibility.Collapsed;
     public bool IsMissingKeysWarningVisible => !_dismissed && (_result.HasMissingKeys || !string.IsNullOrWhiteSpace(MissingKeys));
-    public string MissingKeys => _result.MissingKeys;
+    public string MissingKeysHeading => Services.KeysManagement.MissingKeyDiagnostics.Heading(_result.MissingKeyDetails, LocalizationManager.Instance.Current.Keys);
+    public string MissingKeysExplanation => Services.KeysManagement.MissingKeyDiagnostics.Explain(_result.MissingKeyDetails, LocalizationManager.Instance.Current.Keys);
+    public string MissingKeys => _result.MissingKeyDetails.Length > 0
+        ? Services.KeysManagement.MissingKeyDiagnostics.Describe(_result.MissingKeyDetails, LocalizationManager.Instance.Current.Keys) : _result.MissingKeys;
     public ICommand DismissMissingKeysWarningCommand { get; }
     public ICommand CopyMissingKeysCommand { get; }
     public ICommand? VerifyNcasIntegrityCommand => null;

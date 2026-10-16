@@ -176,6 +176,9 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
     public string BatchIntegrity_IncludeSubdirectories => "Include subdirectories";
     public string BatchTable_Games => "Games";
     public string BatchTable_Type => "Type";
+    public string BatchTable_ConfirmResetFiltersAndSort => "Reset all search and filter settings and the batch table sorting?";
+    public string BatchTable_ConfirmResetColumns => "Reset the visibility, order and width of all columns to their defaults? The saved column layout will be replaced.";
+    public string BatchTable_OpenExplorer => "Open in Explorer";
     public string BatchTable_ResetColumns => "Reset columns";
     public string BatchTable_ConversionStatus => "Conversion status";
     public string BatchTable_OutputPath => "Output path";
@@ -195,7 +198,7 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
     public string Signature_Passed => "Passed";
     public string Signature_NotPassed => "Not passed";
     public string Signature_Unchecked => "Not checked";
-    public string ToolTip_PackageStructure => "Structure following Nx Game Info:\nScene (XCI): Update, Normal and Secure partitions.\nConverted (XCI): Secure partition only; typical of NSP → XCI conversions.\nScene (NSP): legalinfo.xml, nacp.xml, programinfo.xml and cardspec.xml; typical of BBB releases.\nHomebrew (NSP): authoringtoolinfo.xml present.\nCDN (NSP): certificate (.cert) and ticket (.tik); typical of eShop CDN dumps.\nConverted (NSP): no certificate or ticket; typical of XCI → NSP conversions.\nFilesystem: installed NAX0 titles on a Switch SD card.\nNot complete: NCA contents only. NSZ/XCZ follow their package rules; NCZ counts as NCA.";
+    public string ToolTip_PackageStructure => "Structure following Nx Game Info:\nScene (XCI): Update, Normal and Secure partitions.\nConverted (XCI): Secure partition only; typical of NSP → XCI conversions.\nScene (NSP): legalinfo.xml, nacp.xml, programinfo.xml and cardspec.xml; typical of BBB releases.\nHomebrew (NSP): authoringtoolinfo.xml present.\nCDN (NSP): certificate (.cert) and ticket (.tik); typical of eShop CDN dumps.\nConverted (NSP): NCA/NCZ content plus other files, without a ticket/certificate or the Scene/Homebrew markers. This is a structural classification, not proof of the package’s origin.\nFilesystem: installed NAX0 titles on a Switch SD card.\nNCA contents only: the package contains only .nca/.ncz files, with no ticket, certificate or XML extras. This can occur in repacked or converted packages and does not prove that game data is missing.\nIncomplete: no NCA/NCZ content, a ticket without a certificate (or vice versa), or an XCI partition layout outside the Scene/Converted rules. This describes the container structure; use integrity verification to check for missing or modified game content.\nNSZ/XCZ follow their package rules; NCZ counts as NCA.";
     public string ToolTip_NcaSignature => "Passed: valid NCA signatures, as expected for official titles.\nNot passed: at least one invalid NCA signature; possible for homebrew, unexpected for official titles.\nNot checked: NCA signature verification has not completed. Run the integrity check.\nThis reports NCA header signatures; ACID is a separate NPDM signature.";
     public string ToolTip_Permission => "Safe: no filesystem service access or bit 0x8000000000000000 unset.\nUnsafe: filesystem service access and bit 0x8000000000000000 set (EraseMmc).\nDangerous: filesystem service access and mask 0xffffffffffffffff (all permissions).\nUnsafe/Dangerous should only occur for homebrew, not official games. Available for Base and Update only. This classifies permissions and is not a complete security assessment.";
     public string ToolTip_AcidSignature => "Signature of the ACID section in main.npdm, independent of the NCA header signature.";
@@ -204,6 +207,7 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
     public string PackageStructure_Cdn => "CDN rip";
     public string PackageStructure_Converted => "Converted";
     public string PackageStructure_Homebrew => "Homebrew";
+    public string PackageStructure_NcaOnly => "NCA contents only";
     public string PackageStructure_Incomplete => "Incomplete";
     public string PackageStructure_Unknown => "Unknown";
     public string FileInfo_FileSize => "File size";
@@ -661,7 +665,12 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
     public string Batch_GroupFiles => "Group by folder / archive";
     public string Batch_MultiPackageDetails => "Show or hide contained packages";
     public string File_SaveBackup => "Save backup";
-    public string File_MissingKeys => "Required keys are missing. Contents cannot be fully read. Check prod.keys / title.keys.";
+    public string File_MissingKeysHeader => "Missing keys";
+    public string File_MissingTitleKeysHeading => "Title keys missing (ticket / title.keys)";
+    public string File_MissingTitleKeyEntry => "Missing title key · Rights ID: {0}";
+    public string File_MissingTitleKeysHelp => "Title keys belong to the listed Rights ID and come from its matching ticket (.tik) or title.keys. A newer master key in prod.keys does not replace them. Check the matching ticket and, when applicable, enable injecting keys from tickets.";
+    public string File_MissingSystemKeysHelp => "For missing system or console keys, check the specific names in the key files in use (for example prod.keys). A high master-key revision alone does not guarantee that every required key is present.";
+    public string File_MissingKeys => "Required keys are missing. Some contents cannot be fully read.";
     public string File_CopyMissingKeys => "Copy missing key names";
     public string Keys_ProgramFolder => "Program directory";
     public string Keys_SharedFolder => "User profile (.switch)";

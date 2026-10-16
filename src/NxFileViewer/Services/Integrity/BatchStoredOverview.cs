@@ -12,14 +12,14 @@ public static class BatchStoredOverview
         {
             new(keys.BatchIntegrity_FileType, result.FileType),
             new(keys.BatchTable_Type, result.TypeDisplay),
-            new(keys.PackageStructure_Title, result.Structure),
+            new(keys.PackageStructure_Title, PackageAnalysis.PackageStructureAnalyzer.GetDisplayName(result.Structure, keys)),
             new(keys.Signature_Title, result.NcaSignature),
             new(keys.Title_FileInfo_Integrity, result.Integrity.ToString()),
             new(keys.FileInfo_FileSize, result.FileSizeDisplay),
             new(keys.Title_FileInfo_Compression, result.Compression),
             new(keys.FileInfo_CompressionRatio, result.CompressionRatio?.ToString("P1") ?? "—"),
             new(keys.FileInfo_SystemUpdate, result.SystemUpdateVersion),
-            new(keys.File_MissingKeys, result.MissingKeys),
+            new(keys.File_MissingKeysHeader, result.MissingKeys),
             new(keys.BatchIntegrity_Error, result.Diagnostic ?? "")
         };
 
@@ -57,7 +57,7 @@ public static class BatchStoredOverview
             new(keys.BatchIntegrity_PackageType, result.ContentType),
             new(keys.Signature_Title, result.NcaSignature),
             new(keys.Security_Level, result.PermissionDisplay),
-            new(keys.PackageStructure_Title, result.Structure),
+            new(keys.PackageStructure_Title, PackageAnalysis.PackageStructureAnalyzer.GetDisplayName(result.Structure, keys)),
             new(keys.Title_FileInfo_Compression, result.Compression),
             new(keys.Title_FileInfo_Integrity, result.Integrity.ToString()),
             new(keys.FileInfo_FileSize, result.FileSize.HasValue ? result.FileSize.Value.ToString("N0") + " B" : "—"),
@@ -78,7 +78,7 @@ public static class BatchStoredOverview
             new(keys.CnmtOverview_IsDemo, result.IsDemo?.ToString() ?? "—"),
             new(keys.Security_FileSystemPermissions, result.FileSystemPermissions),
             new(keys.Security_AcidSignature, result.AcidSignatureValidity),
-            new(keys.File_MissingKeys, result.MissingKeys),
+            new(keys.File_MissingKeysHeader, result.MissingKeys),
             new(keys.BatchIntegrity_Error, result.Diagnostic ?? "")
         }.Concat(result.Titles.SelectMany(title => new[]
         {

@@ -176,6 +176,9 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
     public string BatchIntegrity_IncludeSubdirectories => "Inclure les sous-dossiers";
     public string BatchTable_Games => "Jeux";
     public string BatchTable_Type => "Type";
+    public string BatchTable_ConfirmResetFiltersAndSort => "Réinitialiser la recherche, tous les filtres et le tri du tableau par lots ?";
+    public string BatchTable_ConfirmResetColumns => "Rétablir la visibilité, l’ordre et la largeur par défaut de toutes les colonnes ? La disposition enregistrée sera remplacée.";
+    public string BatchTable_OpenExplorer => "Ouvrir dans l’Explorateur";
     public string BatchTable_ResetColumns => "Réinitialiser les colonnes";
     public string BatchTable_ConversionStatus => "État de conversion";
     public string BatchTable_OutputPath => "Chemin de sortie";
@@ -195,7 +198,7 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
     public string Signature_Passed => "Réussie";
     public string Signature_NotPassed => "Échouée";
     public string Signature_Unchecked => "Non vérifiée";
-    public string ToolTip_PackageStructure => "Structure selon Nx Game Info :\nScene (XCI) : partitions Update, Normal et Secure.\nConverti (XCI) : uniquement Secure ; typique de NSP → XCI.\nScene (NSP) : legalinfo.xml, nacp.xml, programinfo.xml et cardspec.xml ; typique des releases BBB.\nHomebrew (NSP) : authoringtoolinfo.xml présent.\nCDN (NSP) : certificat (.cert) et ticket (.tik) ; typique des dumps eShop CDN.\nConverti (NSP) : sans certificat ni ticket ; typique de XCI → NSP.\nSystème de fichiers : titres NAX0 installés sur une carte SD Switch.\nIncomplet : contenus NCA uniquement. NSZ/XCZ suivent les règles du paquet correspondant ; NCZ compte comme NCA.";
+    public string ToolTip_PackageStructure => "Structure selon Nx Game Info :\nScene (XCI) : partitions Update, Normal et Secure.\nConverti (XCI) : uniquement Secure ; typique de NSP → XCI.\nScene (NSP) : legalinfo.xml, nacp.xml, programinfo.xml et cardspec.xml ; typique des releases BBB.\nHomebrew (NSP) : authoringtoolinfo.xml présent.\nCDN (NSP) : certificat (.cert) et ticket (.tik) ; typique des dumps eShop CDN.\nConverti (NSP) : contenus NCA/NCZ et autres fichiers, sans ticket/certificat ni marqueurs Scene/Homebrew. Cette classification structurelle ne prouve pas l’origine du paquet.\nSystème de fichiers : titres NAX0 installés sur une carte SD Switch.\nContenus NCA uniquement : le paquet ne contient que des fichiers .nca/.ncz, sans ticket, certificat ni fichiers XML supplémentaires. Cela peut arriver après un reconditionnement ou une conversion et ne prouve pas que des données du jeu manquent.\nIncomplet : aucun contenu NCA/NCZ, ticket sans certificat (ou inversement), ou partitions XCI hors des règles Scene/Converti. Cela décrit la structure du conteneur ; la vérification d’intégrité recherche les contenus manquants ou modifiés.\nNSZ/XCZ suivent les règles du paquet correspondant ; NCZ compte comme NCA.";
     public string ToolTip_NcaSignature => "Réussie : signatures NCA valides, attendues pour les titres officiels.\nÉchouée : au moins une signature NCA invalide ; possible pour les homebrews, anormal pour les titres officiels.\nNon vérifiée : vérification NCA non terminée. Lancez le contrôle d’intégrité.\nCette indication concerne les en-têtes NCA ; ACID est une signature NPDM distincte.";
     public string ToolTip_Permission => "Sûr : aucun accès aux services de fichiers ou bit 0x8000000000000000 absent.\nNon sûr : accès aux services de fichiers et bit 0x8000000000000000 présent (EraseMmc).\nDangereux : accès aux services de fichiers et masque 0xffffffffffffffff (toutes les permissions).\nNon sûr/Dangereux ne devrait concerner que les homebrews. Disponible uniquement pour les jeux de base et mises à jour. Ce classement ne constitue pas une évaluation complète de sécurité.";
     public string ToolTip_AcidSignature => "Signature de la section ACID de main.npdm, indépendante de la signature de l’en-tête NCA.";
@@ -204,6 +207,7 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
     public string PackageStructure_Cdn => "Copie CDN";
     public string PackageStructure_Converted => "Converti";
     public string PackageStructure_Homebrew => "Homebrew";
+    public string PackageStructure_NcaOnly => "Contenus NCA uniquement";
     public string PackageStructure_Incomplete => "Incomplet";
     public string PackageStructure_Unknown => "Inconnu";
     public string FileInfo_FileSize => "Taille du fichier";
@@ -663,7 +667,12 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
     public string Batch_GroupFiles => "Regrouper par dossier / archive";
     public string Batch_MultiPackageDetails => "Afficher ou masquer les paquets inclus";
     public string File_SaveBackup => "Sauvegarde de jeu";
-    public string File_MissingKeys => "Clés requises manquantes. Le contenu ne peut pas être entièrement lu. Vérifiez prod.keys / title.keys.";
+    public string File_MissingKeysHeader => "Clés manquantes";
+    public string File_MissingTitleKeysHeading => "Clés de titre manquantes (ticket / title.keys)";
+    public string File_MissingTitleKeyEntry => "Clé de titre manquante · Rights ID : {0}";
+    public string File_MissingTitleKeysHelp => "Les clés de titre correspondent au Rights ID indiqué et proviennent du ticket (.tik) correspondant ou de title.keys. Une master key plus récente dans prod.keys ne les remplace pas. Vérifiez le ticket et, si nécessaire, activez l’injection des clés des tickets.";
+    public string File_MissingSystemKeysHelp => "Pour les clés système ou console manquantes, vérifiez les noms indiqués dans les fichiers utilisés (par exemple prod.keys). Une révision élevée de master key ne garantit pas la présence de chaque clé requise.";
+    public string File_MissingKeys => "Des clés requises manquent. Certains contenus ne peuvent pas être entièrement lus.";
     public string File_CopyMissingKeys => "Copier les noms des clés manquantes";
     public string Keys_ProgramFolder => "Dossier du programme";
     public string Keys_SharedFolder => "Profil utilisateur (.switch)";

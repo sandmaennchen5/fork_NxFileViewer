@@ -13,6 +13,12 @@ public class NczItem : NcaItem
         Ncz = ncz;
     }
 
+    public override void Dispose()
+    {
+        try { base.Dispose(); }
+        finally { Ncz.NcaStream.Dispose(); }
+    }
+
     public override Nca GetOriginalNca()
     {
         return Ncz.SwitchReadMode(NczReadMode.Original);

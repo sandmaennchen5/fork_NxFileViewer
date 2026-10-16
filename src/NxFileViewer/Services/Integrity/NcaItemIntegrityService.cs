@@ -37,12 +37,16 @@ public class NcaItemIntegrityService : INcaItemIntegrityService
         {
             nca = ncaItem.GetOriginalNca();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException && !FileOpening.LoadingSpaceWarning.IsDiskFull(ex))
         {
             ncaItem.Errors.Add(Category.IntegrityCheck, LocalizationManager.Instance.Current.Keys.NcaIntegrity_GetOriginalNcaError.SafeFormat(ex.Message));
             _logger.LogError(LocalizationManager.Instance.Current.Keys.NcaIntegrity_GetOriginalNcaError_Log.SafeFormat(ncaItem.DisplayName, ex.Message));
             return NcaIntegrity.Error;
         }
+
+        // Switching Fast -> Original creates a separate decoder and disk cache.
+        // Only this temporary reader belongs to the integrity check; keep the live reader open.
+        using var originalReader = !ReferenceEquals(nca, ncaItem.Nca) && nca is LibHac.NSZ.Ncz ncz ? ncz.NcaStream : null;
 
         cancellationToken?.ThrowIfCancellationRequested();
 
@@ -67,7 +71,7 @@ public class NcaItemIntegrityService : INcaItemIntegrityService
                     break;
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException && !FileOpening.LoadingSpaceWarning.IsDiskFull(ex))
         {
             signatureValid = false;
             signatureEx = ex;
@@ -117,7 +121,7 @@ public class NcaItemIntegrityService : INcaItemIntegrityService
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException && !FileOpening.LoadingSpaceWarning.IsDiskFull(ex))
         {
             hashValid = false;
             hashEx = ex;

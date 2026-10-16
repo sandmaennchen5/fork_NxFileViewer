@@ -72,6 +72,8 @@ public class FileOverviewViewModel : ViewModelBase
     public Visibility VerifyControlsVisibility => Visibility.Visible;
     public Visibility HistoryNoticeVisibility => Visibility.Collapsed;
     public Visibility LogoVisibility => Visibility.Visible;
+    public string MissingKeysHeading => Services.KeysManagement.MissingKeyDiagnostics.Heading(_fileOverview.MissingKeys, LocalizationManager.Instance.Current.Keys);
+    public string MissingKeysExplanation => Services.KeysManagement.MissingKeyDiagnostics.Explain(_fileOverview.MissingKeys, LocalizationManager.Instance.Current.Keys);
     public bool HasMissingKeys => _fileOverview.MissingKeys.Count > 0;
     public bool IsMissingKeysWarningVisible => HasMissingKeys && !_missingKeysWarningDismissed;
     public bool IsHomebrew => _fileOverview.RootItem is Models.TreeItems.Impl.NroFileItem;
@@ -111,16 +113,8 @@ public class FileOverviewViewModel : ViewModelBase
 
     public string CompressionType => _fileOverview.NcaCompressionType.ToString();
 
-    public string PackageStructure => _fileOverview.PackageStructure switch
-    {
-        Services.PackageAnalysis.PackageStructure.Scene => LocalizationManager.Instance.Current.Keys.PackageStructure_Scene,
-        Services.PackageAnalysis.PackageStructure.Cdn => LocalizationManager.Instance.Current.Keys.PackageStructure_Cdn,
-        Services.PackageAnalysis.PackageStructure.Converted => LocalizationManager.Instance.Current.Keys.PackageStructure_Converted,
-        Services.PackageAnalysis.PackageStructure.Homebrew => LocalizationManager.Instance.Current.Keys.PackageStructure_Homebrew,
-        Services.PackageAnalysis.PackageStructure.Incomplete => LocalizationManager.Instance.Current.Keys.PackageStructure_Incomplete,
-        Services.PackageAnalysis.PackageStructure.Filesystem => LocalizationManager.Instance.Current.Keys.PackageStructure_Filesystem,
-        _ => LocalizationManager.Instance.Current.Keys.PackageStructure_Unknown
-    };
+    public string PackageStructure => Services.PackageAnalysis.PackageStructureAnalyzer.GetDisplayName(
+        _fileOverview.PackageStructure.ToString(), LocalizationManager.Instance.Current.Keys);
 
     private void OnNcaSignatureChanged(object? sender, PropertyChangedEventArgs args)
     {
@@ -193,13 +187,9 @@ public class FileOverviewViewModel : ViewModelBase
     private void UpdateMissingKeys()
     {
         _missingKeysWarningDismissed = false;
-        var missingKeys = new List<string>();
-        foreach (var missingKey in _fileOverview.MissingKeys)
-        {
-            missingKeys.Add($"• {LocalizationManager.Instance.Current.Keys.ToolTip_KeyMissing.SafeFormat(missingKey.KeyName, missingKey.KeyType)}");
-        }
-
-        MissingKeys = string.Join(Environment.NewLine, missingKeys);
+        MissingKeys = Services.KeysManagement.MissingKeyDiagnostics.Describe(_fileOverview.MissingKeys, LocalizationManager.Instance.Current.Keys);
+        NotifyPropertyChanged(nameof(MissingKeysHeading));
+        NotifyPropertyChanged(nameof(MissingKeysExplanation));
         NotifyPropertyChanged(nameof(HasMissingKeys));
         NotifyPropertyChanged(nameof(IsMissingKeysWarningVisible));
     }

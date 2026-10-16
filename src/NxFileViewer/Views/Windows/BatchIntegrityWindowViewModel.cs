@@ -632,6 +632,18 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
             + (outcome.Exception == null ? "" : $"\n\n{outcome.Exception.Message}");
     }
 
+    public bool CanOpenLocation(BatchIntegrityResult file)
+    {
+        var path = PackageZip.ArchivePath(file.FilePath);
+        return File.Exists(path) || Directory.Exists(path);
+    }
+    public void OpenLocation(BatchIntegrityResult file)
+    {
+        if (!CanOpenLocation(file)) return;
+        _serviceProvider.GetRequiredService<Services.FileLocationOpening.IFileLocationOpenerService>()
+            .OpenFileLocationSafe(PackageZip.ArchivePath(file.FilePath));
+    }
+
     public bool CanOpenInSingle(BatchIntegrityResult file) => !BackgroundTask.IsRunning &&
         (File.Exists(PackageZip.ArchivePath(file.FilePath)) || SdCardSource.FindContents(file.FilePath) != null);
     public async void OpenInSingle(BatchIntegrityResult file)
@@ -764,7 +776,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
             csv.Append(Escape(result.FilePath)).Append(';')
                 .Append(Escape(result.FileType)).Append(';')
                 .Append(Escape(result.PackageType)).Append(';')
-                .Append(Escape(result.Structure)).Append(';')
+                .Append(Escape(result.StructureDisplay)).Append(';')
                 .Append(Escape(result.Compression)).Append(';')
                 .Append(Escape(result.Integrity.ToString())).Append(';')
                 .Append(Escape(result.Error ?? "")).Append(';')

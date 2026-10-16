@@ -36,7 +36,8 @@ public class XciItem : ItemBase
 
     public override void Dispose()
     {
-        _storage.Dispose();
+        try { base.Dispose(); }
+        finally { _storage.Dispose(); }
     }
 
     public static XciItem FromFile(string xciFilePath, KeySet keySet)

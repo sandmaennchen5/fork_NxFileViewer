@@ -35,8 +35,8 @@ public sealed class WorkspaceNavigationTest
                 var batchTab = (TabItem)main.FindName("BatchTab");
                 var batchPage = Assert.IsType<BatchIntegrityWindow>(batchTab.Content);
                 var batch = Assert.IsType<BatchIntegrityWindowViewModel>(batchPage.DataContext);
-                typeof(BatchIntegrityWindow).GetMethod("ResetColumns", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
-                    .Invoke(batchPage, new object[] { batchPage, new RoutedEventArgs() });
+                typeof(BatchIntegrityWindow).GetMethod("ApplyDefaultColumns", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+                    .Invoke(batchPage, null);
                 var singleMtp = Assert.IsType<Button>(main.FindName("SphairaSingleButton"));
                 Assert.Equal("OpenSphairaCommand", singleMtp.GetBindingExpression(Button.CommandProperty)!.ParentBinding.Path.Path);
                 var batchMtp = Assert.IsType<Button>(batchPage.FindName("SphairaBatchButton"));

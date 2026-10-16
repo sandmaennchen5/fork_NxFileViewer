@@ -670,6 +670,8 @@ public class FileItemLoader : IFileItemLoader
 
     private void OnLoadingException(Exception ex, IItem relatedItem)
     {
+        if (Services.FileOpening.LoadingSpaceWarning.IsDiskFull(ex))
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(ex).Throw();
         if (ex is MissingKeyException missingKeyException)
             NotifyMissingKey(missingKeyException, relatedItem);
     }

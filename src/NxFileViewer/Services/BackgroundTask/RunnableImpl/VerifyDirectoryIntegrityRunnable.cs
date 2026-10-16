@@ -199,6 +199,7 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
                                 NandDetails = nxFile.NandResult?.Information, FileSize = nxFile.NandResult?.Size ?? nxFile.Overview.FileSize,
                                 CompressionRatio = nxFile.NandResult == null ? nxFile.Overview.CompressionRatio : null,
                                 SystemUpdateVersion = nxFile.Overview.SystemUpdateVersion ?? "",
+                                MissingKeyDetails = nxFile.Overview.MissingKeys.ToArray(),
                                 MissingKeys = string.Join(", ", nxFile.Overview.MissingKeys.Select(k => k.KeyName).Distinct()),
                                 NcaSignatureValidity = BatchContentMetadata.Signature(nxFile.RootItem.FindChildrenOfType<Models.TreeItems.Impl.NcaItem>(includeItem: true).Select(nca => nca.HeaderSignatureValidity)),
                                 ContentType = BatchContentMetadata.Types(nxFile.Overview.CnmtContainers.Select(p => p.CnmtItem.ContentType)),

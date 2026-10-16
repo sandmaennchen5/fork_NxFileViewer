@@ -172,6 +172,9 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string BatchIntegrity_IncludeSubdirectories { get; }
     string BatchTable_Games { get; }
     string BatchTable_Type { get; }
+    string BatchTable_ConfirmResetFiltersAndSort { get; }
+    string BatchTable_ConfirmResetColumns { get; }
+    string BatchTable_OpenExplorer { get; }
     string BatchTable_ResetColumns { get; }
     string BatchTable_ConversionStatus { get; }
     string BatchTable_OutputPath { get; }
@@ -200,6 +203,7 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string PackageStructure_Cdn { get; }
     string PackageStructure_Converted { get; }
     string PackageStructure_Homebrew { get; }
+    string PackageStructure_NcaOnly { get; }
     string PackageStructure_Incomplete { get; }
     string PackageStructure_Unknown { get; }
     string FileInfo_FileSize { get; }
@@ -562,6 +566,11 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string Batch_GroupFiles { get; }
     string Batch_MultiPackageDetails { get; }
     string File_SaveBackup { get; }
+    string File_MissingKeysHeader { get; }
+    string File_MissingTitleKeysHeading { get; }
+    string File_MissingTitleKeyEntry { get; }
+    string File_MissingTitleKeysHelp { get; }
+    string File_MissingSystemKeysHelp { get; }
     string File_MissingKeys { get; }
     string File_CopyMissingKeys { get; }
     string Keys_ProgramFolder { get; }

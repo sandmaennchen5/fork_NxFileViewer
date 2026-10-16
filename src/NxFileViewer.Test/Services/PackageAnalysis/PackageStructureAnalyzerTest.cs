@@ -12,6 +12,39 @@ public class PackageStructureAnalyzerTest
     public void TicketOrCertificateAloneIsIncomplete(string name) =>
         Assert.Equal(PackageStructure.Incomplete, PackageStructureAnalyzer.AnalyzeNspNames(new[] { "program.nca", name }));
 
+    [Theory]
+    [InlineData("program.NCA")]
+    [InlineData("program.NCZ")]
+    public void NcaOnlyClassificationIsCaseInsensitive(string name) =>
+        Assert.Equal(PackageStructure.NcaOnly, PackageStructureAnalyzer.AnalyzeNspNames(new[] { name }));
+
+    [Fact]
+    public void LabelsAndHelpAgreeInAllLanguagesAndLegacyHistoryIsNotReclassified()
+    {
+        Emignatik.NxFileViewer.Localization.Keys.ILocalizationKeys[] languages =
+        {
+            new Emignatik.NxFileViewer.Localization.Keys.LocalizationKeys_EN(),
+            new Emignatik.NxFileViewer.Localization.Keys.LocalizationKeys_DE(),
+            new Emignatik.NxFileViewer.Localization.Keys.LocalizationKeys_FR(),
+            new Emignatik.NxFileViewer.Localization.Keys.LocalizationKeys_ES()
+        };
+        foreach (var keys in languages)
+        {
+            Assert.Equal(keys.PackageStructure_NcaOnly, PackageStructureAnalyzer.GetDisplayName("NcaOnly", keys));
+            Assert.Contains(keys.PackageStructure_NcaOnly, keys.ToolTip_PackageStructure);
+            Assert.Contains(keys.PackageStructure_Incomplete, keys.ToolTip_PackageStructure);
+            Assert.Equal(keys.PackageStructure_Incomplete, PackageStructureAnalyzer.GetDisplayName("Incomplete", keys));
+            Assert.Equal("RAWNAND", PackageStructureAnalyzer.GetDisplayName("RAWNAND", keys));
+        }
+    }
+
+    [Fact]
+    public void EmptyOrNonNcaPackageIsStillStructurallyIncomplete()
+    {
+        Assert.Equal(PackageStructure.Incomplete, PackageStructureAnalyzer.AnalyzeNspNames(System.Array.Empty<string>()));
+        Assert.Equal(PackageStructure.Incomplete, PackageStructureAnalyzer.AnalyzeNspNames(new[] { "readme.txt" }));
+    }
+
     [Fact]
     public void AnalyzeNspNames_ClassifiesSceneRelease()
     {
@@ -41,10 +74,10 @@ public class PackageStructureAnalyzerTest
     }
 
     [Fact]
-    public void AnalyzeNspNames_ClassifiesNcaOnlyPackageAsIncomplete()
+    public void AnalyzeNspNames_ClassifiesNcaOnlyPackageWithoutClaimingMissingContent()
     {
         var names = new[] { "meta.nca", "program.ncz" };
-        Assert.Equal(PackageStructure.Incomplete, PackageStructureAnalyzer.AnalyzeNspNames(names));
+        Assert.Equal(PackageStructure.NcaOnly, PackageStructureAnalyzer.AnalyzeNspNames(names));
     }
 
     [Fact]

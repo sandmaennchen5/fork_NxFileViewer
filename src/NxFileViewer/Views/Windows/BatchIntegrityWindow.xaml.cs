@@ -75,6 +75,12 @@ public partial class BatchIntegrityWindow : UserControl
     }
     private void ResetColumns(object sender, RoutedEventArgs e)
     {
+        var keys = LocalizationManager.Instance.Current.Keys;
+        if (ThemedDialog.Confirm(keys.BatchTable_ResetColumns, keys.BatchTable_ConfirmResetColumns, false) != MessageBoxResult.Yes) return;
+        ApplyDefaultColumns();
+    }
+    private void ApplyDefaultColumns()
+    {
         _applyingLayout = true;
         try { BatchColumnLayout.Apply(ResultsGrid.Columns, _defaultLayout); }
         finally { _applyingLayout = false; }
@@ -142,6 +148,7 @@ public partial class BatchIntegrityWindow : UserControl
             item.Click += (_, _) => action();
             menu.Items.Add(item);
         }
+        Add(keys.BatchTable_OpenExplorer, model.CanOpenLocation(file), () => model.OpenLocation(file));
         Add(keys.BatchIntegrity_OpenSelected, model.CanOpenInSingle(file), () => model.OpenInSingle(file));
         Add(keys.Nsz_Compress, model.CanActOnFile(file, NszOperation.Compress), () => model.ConvertSelected(file, NszOperation.Compress));
         Add(keys.Nsz_Decompress, model.CanActOnFile(file, NszOperation.Decompress), () => model.ConvertSelected(file, NszOperation.Decompress));
@@ -193,6 +200,8 @@ public partial class BatchIntegrityWindow : UserControl
     }
     private void ResetFiltersAndSort(object sender, RoutedEventArgs e)
     {
+        var keys = LocalizationManager.Instance.Current.Keys;
+        if (ThemedDialog.Confirm(keys.BatchTable_ResetFiltersAndSort, keys.BatchTable_ConfirmResetFiltersAndSort, false) != MessageBoxResult.Yes) return;
         if (DataContext is BatchIntegrityWindowViewModel model) model.ResetFiltersCommand.Execute(null);
         ResultsGrid.Items.SortDescriptions.Clear();
         foreach (var column in ResultsGrid.Columns) column.SortDirection = null;

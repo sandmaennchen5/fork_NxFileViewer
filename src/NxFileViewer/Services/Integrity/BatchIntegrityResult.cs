@@ -43,6 +43,7 @@ public sealed record BatchIntegrityResult(
         : NamingMatches == true ? Localization.LocalizationManager.Instance.Current.Keys.BatchNaming_Matches
         : NamingMatches == false ? Localization.LocalizationManager.Instance.Current.Keys.BatchNaming_Differs : "—";
     public string? SourceFingerprint { get; init; }
+    [JsonIgnore] public string StructureDisplay => PackageAnalysis.PackageStructureAnalyzer.GetDisplayName(Structure, Localization.LocalizationManager.Instance.Current.Keys);
     [JsonIgnore] public string TypeDisplay => IsFirmware ? "FIRMWARE" : PackageType;
     public string ContentType { get; init; } = "";
     public Security.ProgramSecurityLevel? Permission { get; init; }
@@ -60,6 +61,7 @@ public sealed record BatchIntegrityResult(
         LibHac.Common.Validity.Invalid => Localization.LocalizationManager.Instance.Current.Keys.Signature_NotPassed,
         _ => Localization.LocalizationManager.Instance.Current.Keys.Signature_Unchecked
     };
+    public MissingKey[] MissingKeyDetails { get; init; } = Array.Empty<MissingKey>();
     public string MissingKeys { get; init; } = "";
     [JsonIgnore] public string FileSizeDisplay => FileSize is { } size ? Utils.FileSizeHelper.ToFileSize(size) : "—";
     [JsonIgnore] public string SourceSizeDisplay => SourceSize is { } size ? Utils.FileSizeHelper.ToFileSize(size) : "—";

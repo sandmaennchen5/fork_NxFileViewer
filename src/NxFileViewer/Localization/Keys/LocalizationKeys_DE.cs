@@ -176,6 +176,9 @@ public class LocalizationKeys_DE : LocalizationKeysBase, ILocalizationKeys
     public string BatchIntegrity_IncludeSubdirectories => "Unterordner einbeziehen";
     public string BatchTable_Games => "Spiele";
     public string BatchTable_Type => "Typ";
+    public string BatchTable_ConfirmResetFiltersAndSort => "Alle Such- und Filtereinstellungen sowie die Sortierung der Stapeltabelle zurücksetzen?";
+    public string BatchTable_ConfirmResetColumns => "Sichtbarkeit, Reihenfolge und Breite aller Spalten auf die Standardwerte zurücksetzen? Das gespeicherte Spaltenlayout wird ersetzt.";
+    public string BatchTable_OpenExplorer => "Im Explorer öffnen";
     public string BatchTable_ResetColumns => "Spalten zurücksetzen";
     public string BatchTable_ConversionStatus => "Umwandlungsstatus";
     public string BatchTable_OutputPath => "Ausgabepfad";
@@ -195,7 +198,7 @@ public class LocalizationKeys_DE : LocalizationKeysBase, ILocalizationKeys
     public string Signature_Passed => "Bestanden";
     public string Signature_NotPassed => "Nicht bestanden";
     public string Signature_Unchecked => "Nicht geprüft";
-    public string ToolTip_PackageStructure => "Struktur nach Nx Game Info:\nScene (XCI): Update-, Normal- und Secure-Partition vorhanden.\nKonvertiert (XCI): nur Secure-Partition; typisch für NSP → XCI.\nScene (NSP): legalinfo.xml, nacp.xml, programinfo.xml und cardspec.xml; typisch für BBB-Releases.\nHomebrew (NSP): authoringtoolinfo.xml vorhanden.\nCDN (NSP): Zertifikat (.cert) und Ticket (.tik); typisch für eShop-CDN-Dumps.\nKonvertiert (NSP): ohne Zertifikat und Ticket; typisch für XCI → NSP.\nDateisystem: installierte NAX0-Titel auf der Switch-SD-Karte.\nUnvollständig: nur NCA-Inhalte. NSZ/XCZ folgen den entsprechenden Paketregeln; NCZ zählt als NCA.";
+    public string ToolTip_PackageStructure => "Struktur nach Nx Game Info:\nScene (XCI): Update-, Normal- und Secure-Partition vorhanden.\nKonvertiert (XCI): nur Secure-Partition; typisch für NSP → XCI.\nScene (NSP): legalinfo.xml, nacp.xml, programinfo.xml und cardspec.xml; typisch für BBB-Releases.\nHomebrew (NSP): authoringtoolinfo.xml vorhanden.\nCDN (NSP): Zertifikat (.cert) und Ticket (.tik); typisch für eShop-CDN-Dumps.\nKonvertiert (NSP): NCA/NCZ-Inhalte und weitere Dateien, ohne Ticket/Zertifikat und ohne Scene-/Homebrew-Merkmale. Dies ist eine Struktureinstufung und kein Nachweis der Herkunft.\nDateisystem: installierte NAX0-Titel auf der Switch-SD-Karte.\nNur NCA-Inhalte: Das Paket enthält ausschließlich .nca/.ncz-Dateien, ohne Ticket, Zertifikat oder zusätzliche XML-Dateien. Das kann bei neu gepackten oder konvertierten Paketen vorkommen und beweist nicht, dass Spieldaten fehlen.\nUnvollständig: keine NCA/NCZ-Inhalte, Ticket ohne Zertifikat (oder umgekehrt) oder ein XCI-Partitionsaufbau außerhalb der Scene-/Konvertiert-Regeln. Dies beschreibt die Containerstruktur. Ob Spieldaten fehlen oder verändert sind, zeigt die Integritätsprüfung.\nNSZ/XCZ folgen den entsprechenden Paketregeln; NCZ zählt als NCA.";
     public string ToolTip_NcaSignature => "Bestanden: gültige NCA-Signaturen, wie bei offiziellen Titeln erwartet.\nNicht bestanden: mindestens eine ungültige NCA-Signatur; bei Homebrew möglich, bei offiziellen Titeln auffällig.\nNicht geprüft: die NCA-Signaturprüfung wurde noch nicht vollständig durchgeführt. Über die Integritätsprüfung starten.\nDiese Anzeige betrifft NCA-Header-Signaturen; ACID ist eine separate NPDM-Signatur.";
     public string ToolTip_Permission => "Sicher: kein Dateisystem-Servicezugriff oder Bit 0x8000000000000000 nicht gesetzt.\nUnsicher: Dateisystem-Servicezugriff und Bit 0x8000000000000000 gesetzt (EraseMmc).\nGefährlich: Dateisystem-Servicezugriff und Maske 0xffffffffffffffff (alle Berechtigungen).\nUnsicher/Gefährlich sollte nur bei Homebrew, nicht bei offiziellen Spielen vorkommen. Nur für Basistitel und Updates verfügbar. Diese Einstufung bewertet Berechtigungen und ist keine vollständige Sicherheitsprüfung.";
     public string ToolTip_AcidSignature => "Signatur des ACID-Abschnitts in main.npdm, unabhängig von der NCA-Header-Signatur.";
@@ -204,6 +207,7 @@ public class LocalizationKeys_DE : LocalizationKeysBase, ILocalizationKeys
     public string PackageStructure_Cdn => "CDN-Rip";
     public string PackageStructure_Converted => "Konvertiert";
     public string PackageStructure_Homebrew => "Homebrew";
+    public string PackageStructure_NcaOnly => "Nur NCA-Inhalte";
     public string PackageStructure_Incomplete => "Unvollständig";
     public string PackageStructure_Unknown => "Unbekannt";
     public string FileInfo_FileSize => "Dateigröße";
@@ -662,7 +666,12 @@ public class LocalizationKeys_DE : LocalizationKeysBase, ILocalizationKeys
     public string Batch_GroupFiles => "Nach Ordner / Archiv gruppieren";
     public string Batch_MultiPackageDetails => "Enthaltene Pakete anzeigen oder ausblenden";
     public string File_SaveBackup => "Spielstand-Backup";
-    public string File_MissingKeys => "Passende Schlüssel fehlen. Inhalte können nicht vollständig gelesen werden. Bitte prod.keys / title.keys prüfen.";
+    public string File_MissingKeysHeader => "Fehlende Schlüssel";
+    public string File_MissingTitleKeysHeading => "Titel-Schlüssel fehlen (Ticket / title.keys)";
+    public string File_MissingTitleKeyEntry => "Titel-Schlüssel fehlt · Rights-ID: {0}";
+    public string File_MissingTitleKeysHelp => "Titel-Schlüssel gehören zur genannten Rights-ID und stammen aus dem passenden Ticket (.tik) oder aus title.keys. Ein neuerer Master-Key in prod.keys ersetzt sie nicht. Prüfe das passende Ticket und gegebenenfalls die Einstellung zur Übernahme von Schlüsseln aus Tickets.";
+    public string File_MissingSystemKeysHelp => "Für fehlende System- oder Konsolenschlüssel prüfe die konkret genannten Bezeichnungen in den verwendeten Schlüsseldateien (z. B. prod.keys). Eine hohe Master-Key-Version allein garantiert nicht, dass jeder benötigte Schlüssel vorhanden ist.";
+    public string File_MissingKeys => "Erforderliche Schlüssel fehlen. Einige Inhalte können nicht vollständig gelesen werden.";
     public string File_CopyMissingKeys => "Fehlende Schlüsselnamen kopieren";
     public string Keys_ProgramFolder => "Programmordner";
     public string Keys_SharedFolder => "Benutzerprofil (.switch)";

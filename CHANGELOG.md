@@ -7,6 +7,22 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+## [4.0.1-beta3] - 2026-10-16
+
+### Added
+
+- Add Open in Explorer as the first batch row context-menu action. Select the source file or outer ZIP/7z archive; disable the action when the source is unavailable.
+
+### Changed
+
+- Ask for confirmation before resetting batch filters/sorting or the saved column layout. Declining or closing the dialog preserves the current settings.
+
+### Fixed
+
+- Release solid NCZ decoder caches after each temporary integrity reader and when closing NSP/XCI content trees, preventing cumulative Temp/NCZ growth during large NSZ/XCZ batches. Propagate disk-full errors from loading and integrity checks so the batch interrupts instead of continuing with misleading hash failures. The active solid-compressed content still requires temporary disk space.
+- Distinguish NCA-only package structures from incomplete containers, align structure labels with help text in all four languages, and explain that structure classification does not establish missing game data. Use consistent labels in live/history overviews, batch rows and CSV. Existing history retains its recorded classification until the source is reread.
+- Shorten the Missing keys batch-column heading and distinguish missing title keys (ticket/title.keys, with Rights ID) from system/console keys in file warnings. Retain diagnostic key types in new history records and explain that newer prod.keys master keys do not replace title keys. Store key names/types only, never key values.
+
 ## [4.0.1-beta2] - 2026-10-15
 
 ### Added
