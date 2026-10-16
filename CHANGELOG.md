@@ -7,6 +7,10 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+### Fixed
+
+- Rebuild staged decompressed XCI Gamecard layouts on 512-byte boundaries and update Secure/LimArea addresses, the four-byte valid-data end address and root header hash. Preserve available certificate/extended prefix bytes through XCI/XCZ conversion; validate the rebuilt header before publication. This does not recreate Nintendo Gamecard RSA signatures or certificates absent from the source.
+
 ## [4.0.1-beta3] - 2026-10-16
 
 ### Added
@@ -18,6 +22,8 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Ask for confirmation before resetting batch filters/sorting or the saved column layout. Declining or closing the dialog preserves the current settings.
 
 ### Fixed
+
+- Correct NCZ lengths for sections starting before 0x4000, including firmware sections at 0xC00. Normalize the known NSZ 5.0.0 oversized HFS0 directory slots in staged XCZ decompression outputs only after every affected NCA hash matches; preserve extra files, refresh affected container hashes and reject unknown corruption. Check NCA hashes across all XCI partitions and verify non-game XCZ NCAs during conversion, preventing a valid Secure partition from hiding broken firmware contents. Source files and managed plugin binaries remain untouched.
 
 - Release solid NCZ decoder caches after each temporary integrity reader and when closing NSP/XCI content trees, preventing cumulative Temp/NCZ growth during large NSZ/XCZ batches. Propagate disk-full errors from loading and integrity checks so the batch interrupts instead of continuing with misleading hash failures. The active solid-compressed content still requires temporary disk space.
 - Distinguish NCA-only package structures from incomplete containers, align structure labels with help text in all four languages, and explain that structure classification does not establish missing game data. Use consistent labels in live/history overviews, batch rows and CSV. Existing history retains its recorded classification until the source is reread.

@@ -26,6 +26,10 @@ Scope: NCZ reading used by NxFileViewer, rather than importing the Python applic
 
 Changed in this comparison: `src/LibHac.NSZ/Streams/NczBlockDecompressionStream.cs`, new `src/LibHac.NSZ.Test/BlockNczTest.cs`, and this document.
 
+## Firmware sections inside the original prefix
+
+NCZ section extents can start at 0xC00 rather than 0x4000. The restored NCA length is the maximum section end (at least the original prefix length), not 0x4000 plus the sum of section sizes. Bytes before 0x4000 are already supplied by the original prefix and must not be counted twice. The solid and block readers use this corrected length; regression coverage includes a section overlapping the prefix.
+
 ## Already covered or outside scope
 
 ZstdSharp.Port remains 0.8.8. Compressed NACP titles remain supported. NSZ's Python AES backend replacement is not a C# dependency update: this project already uses LibHac's AES transform. Python GUI, Docker, CLI key lookup, compressor and output-container padding/partition-writing changes do not apply to this NCZ reader. No new master keys are embedded.

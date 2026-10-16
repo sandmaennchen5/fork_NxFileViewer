@@ -644,6 +644,7 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
     public string BatchHistory_RetentionTip => "The limit immediately affects the displayed history. The next time a batch is saved, only the newest entries up to this limit are retained. Checked files are not deleted.";
     public string Settings_Program => "Program";
     public string Nsz_PhaseSource => "Verify source";
+    public string Nsz_PhaseLayout => "Checking and correcting XCZ partition layout…";
     public string Nsz_PhaseOutput => "Verify output";
     public string Nsz_PhasePublish => "Publish output";
     public string Batch_IncludeArchives => "Include ZIP / 7z";

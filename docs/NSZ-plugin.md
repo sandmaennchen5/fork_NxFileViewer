@@ -69,3 +69,18 @@ If the standalone CLI fails while loading its bundled Python DLL, the installer 
 The child process enables Python UTF-8 mode and UTF-8 console output. On process failure, the last 30 sanitized diagnostic messages are also written at Error level. Key values are redacted. An exit code alone does not explain the cause; inspect the accompanying diagnostics.
 
 Bundled executables may ignore Python UTF-8 settings. The viewer therefore passes input and keys through temporary ASCII aliases with relative paths. The original source remains unchanged; the expected output is renamed back to its original basename and verified. A hard link avoids copying a large input when supported; otherwise a cancellable temporary copy is created. Temporary input and keys are removed afterwards. Missing or empty output is an error even if the process exits with code 0.
+## XCZ firmware partitions and NSZ 5.0.0
+
+Some firmware NCZ sections begin at 0xC00, within the original 0x4000-byte prefix. NSZ 5.0.0 can overestimate their restored sizes by 0x3400 bytes in the HFS0 directory while writing the payload compactly. Later file offsets become incorrect even though the decompressor reports success. The Secure game partition can remain valid.
+
+After XCZ decompression, NxFileViewer checks the staged directory against the source's NCZ section extents. It corrects only this recognized size/offset mismatch and only when all affected NCA content-ID hashes match at the corrected locations. Extra files must remain byte-identical; affected HFS0/root hashes are refreshed. Unknown corruption stops the operation before publication. Managed NSZ executables and source files are not patched.
+
+Conversion verification now checks NCA hashes in every uncompressed XCI partition. Compressed XCZ source verification also checks non-game NCAs, including the embedded firmware. A successful game-only overview check is not a full-container conversion check. Older already-produced files are not automatically repaired; decompress the original XCZ again with the updated viewer. Failed conversion outputs stay unpublished and optional source deletion requires successful verification.
+
+### Rebuilt Gamecard layout
+
+After correcting recognized NCZ metadata, the viewer normalizes the private staged XCI before its final integrity check. Root partitions start on 512-byte boundaries and their extents are padded to whole sectors. Secure start (0x104), LimArea (0x18C), ValidDataEndAddress (the four bytes at 0x118; extended flags at 0x11C are preserved), the root header hash length and SHA-256 are derived from the actual rebuilt layout. Header validation checks bounds, alignment, overlaps, the Secure boundary, the data end and the root hash. Rebuilding uses a temporary file inside conversion staging and temporarily requires space for an additional uncompressed XCI; cancellation or failure cannot publish a partially rewritten XCI.
+
+NSZ 5.0.0 copies only the first 0x200 bytes of the original XCI prefix. The viewer also preserves available bytes between 0x200 and the root directory during both compression and decompression, including certificate/extended header areas. Missing bytes already lost in an older XCZ cannot be recovered. Source and output root locations must agree; unknown layouts are rejected rather than overwriting possible partition data.
+
+A repacked XCI is not a byte-identical archival dump. Changing signed Gamecard header fields cannot preserve or recreate Nintendo's RSA signature. NCA payloads/signatures remain unchanged, and normal conversion verification still checks their hashes. Layout consistency is not a promise of physical Gamecard authentication or hardware compatibility. Keep original dumps when archival fidelity is required.

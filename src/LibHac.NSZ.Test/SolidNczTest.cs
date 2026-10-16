@@ -7,6 +7,20 @@ namespace LibHac.NSZ.Test;
 public class SolidNczTest
 {
     [Fact]
+    public void SectionsStartingInsideOriginalHeaderDoNotOvercountDecodedLength()
+    {
+        var payload = new byte[8192]; new Random(9).NextBytes(payload);
+        using var source = CreateNcz(payload, payload.Length, 0xc00);
+        var header = NczHeader.Read(source);
+        Assert.Equal(0x4000 + payload.Length, header.NcaSize);
+        using var decoded = new NczBlocklessDecompressionStream(header, source);
+        using var restored = new NczToNcaStream(header.OriginalBytes, decoded, header.NcaSize);
+        restored.Position = 0x4000;
+        var actual = new byte[payload.Length]; restored.ReadExactly(actual);
+        Assert.Equal(payload, actual); Assert.Equal(-1, restored.ReadByte());
+    }
+
+    [Fact]
     public void CachedReadCanCrossDecoderFrontierAfterSourceWasMoved()
     {
         var data = new byte[3 * 1024 * 1024];
@@ -85,7 +99,7 @@ public class SolidNczTest
         Assert.True(source.CanRead);
     }
 
-    private static CountingStream CreateNcz(byte[] data, int declaredSize)
+    private static CountingStream CreateNcz(byte[] data, int declaredSize, int sectionOffset = NczHeader.INCOMPRESSIBLE_HEADER_SIZE)
     {
         using var compressor = new Compressor();
         using var memory = new MemoryStream();
@@ -93,8 +107,8 @@ public class SolidNczTest
         writer.Write(new byte[NczHeader.INCOMPRESSIBLE_HEADER_SIZE]);
         writer.Write(Encoding.ASCII.GetBytes("NCZSECTN"));
         writer.Write(1L);
-        writer.Write((long)NczHeader.INCOMPRESSIBLE_HEADER_SIZE);
-        writer.Write((long)declaredSize);
+        writer.Write((long)sectionOffset);
+        writer.Write((long)declaredSize + NczHeader.INCOMPRESSIBLE_HEADER_SIZE - sectionOffset);
         writer.Write(1L); // Unencrypted section.
         writer.Write(0L);
         writer.Write(new byte[32]);

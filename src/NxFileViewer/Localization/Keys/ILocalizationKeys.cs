@@ -545,6 +545,7 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string BatchHistory_RetentionTip { get; }
     string Settings_Program { get; }
     string Nsz_PhaseSource { get; }
+    string Nsz_PhaseLayout { get; }
     string Nsz_PhaseOutput { get; }
     string Nsz_PhasePublish { get; }
     string Batch_IncludeArchives { get; }

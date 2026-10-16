@@ -57,6 +57,24 @@ public class BlockNczTest
     }
 
     [Fact]
+    public void SectionOverlappingOriginalPrefixKeepsCorrectNcaLength()
+    {
+        var payload = Enumerable.Range(0, 128).Select(i => (byte)i).ToArray();
+        using var original = CreateNcz(payload.Length, payload);
+        var bytes = original.ToArray();
+        BitConverter.GetBytes(0xc00L).CopyTo(bytes, 0x4010);
+        BitConverter.GetBytes(payload.Length + 0x3400L).CopyTo(bytes, 0x4018);
+        using var input = new MemoryStream(bytes);
+        var header = NczHeader.Read(input);
+        Assert.Equal(0x4000 + payload.Length, header.NcaSize);
+        using var decoded = new NczBlockDecompressionStream(header, input);
+        using var restored = new NczToNcaStream(header.OriginalBytes, decoded, header.NcaSize);
+        restored.Position = 0x4000;
+        var actual = new byte[payload.Length]; restored.ReadExactly(actual);
+        Assert.Equal(payload, actual); Assert.Equal(-1, restored.ReadByte());
+    }
+
+    [Fact]
     public void TruncatedRawBlockFailsInsteadOfReturningIncompleteData()
     {
         using var source = CreateNcz(BlockSize, new byte[BlockSize]);

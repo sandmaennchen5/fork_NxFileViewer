@@ -646,6 +646,7 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
     public string BatchHistory_RetentionTip => "La limite modifie immédiatement l’affichage. À la prochaine sauvegarde d’un lot, seules les entrées les plus récentes sont conservées dans cette limite. Les fichiers vérifiés ne sont pas supprimés.";
     public string Settings_Program => "Programme";
     public string Nsz_PhaseSource => "Vérifier la source";
+    public string Nsz_PhaseLayout => "Vérification et correction des partitions XCZ…";
     public string Nsz_PhaseOutput => "Vérifier le résultat";
     public string Nsz_PhasePublish => "Enregistrer le résultat";
     public string Batch_IncludeArchives => "Inclure ZIP / 7z";

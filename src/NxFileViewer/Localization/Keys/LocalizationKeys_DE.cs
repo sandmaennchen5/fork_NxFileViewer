@@ -645,6 +645,7 @@ public class LocalizationKeys_DE : LocalizationKeysBase, ILocalizationKeys
     public string BatchHistory_RetentionTip => "Die Anzahl begrenzt sofort die Anzeige. Beim nächsten Speichern eines Stapellaufs bleiben nur die neuesten Einträge bis zur eingestellten Grenze erhalten. Geprüfte Dateien werden nicht gelöscht.";
     public string Settings_Program => "Programm";
     public string Nsz_PhaseSource => "Quelldatei prüfen";
+    public string Nsz_PhaseLayout => "XCZ-Partitionsaufbau prüfen und korrigieren…";
     public string Nsz_PhaseOutput => "Ergebnis prüfen";
     public string Nsz_PhasePublish => "Ergebnis übernehmen";
     public string Batch_IncludeArchives => "ZIP / 7z einbeziehen";
