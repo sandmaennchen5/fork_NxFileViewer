@@ -6,6 +6,30 @@ namespace Emignatik.NxFileViewer.Localization.Keys;
 
 public interface ILocalizationKeys : ILocalizationKeysBase
 {
+    string XciRepair_Title { get; }
+    string XciRepair_Inspect { get; }
+    string XciRepair_Prompt { get; }
+    string XciRepair_HeaderIssue { get; }
+    string XciRepair_LayoutIssue { get; }
+    string XciRepair_SaveCopy { get; }
+    string XciRepair_Copying { get; }
+    string XciRepair_Verifying { get; }
+    string XciRepair_NewFileRequired { get; }
+    string XciRepair_SourceChanged { get; }
+    string XciRepair_VerificationFailed { get; }
+    string XciRepair_Failed { get; }
+    string Features_Nand { get; }
+    string Features_NandDisabled { get; }
+    string Features_NszPlugin { get; }
+    string Features_NandPlugin { get; }
+    string Features_Firmware { get; }
+    string Features_FirmwareDisabled { get; }
+    string Features_Title { get; }
+    string Features_Plugins { get; }
+    string Features_Mtp { get; }
+    string Features_Restart { get; }
+    string Features_PluginsDisabled { get; }
+
     string Nand_Detected { get; }
     string Nand_OpenSave { get; }
     string Nand_LeaveSave { get; }

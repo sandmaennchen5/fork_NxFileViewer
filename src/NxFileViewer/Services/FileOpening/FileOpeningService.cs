@@ -21,13 +21,18 @@ public class FileOpeningService : IFileOpeningService
     private readonly IMainBackgroundTaskRunnerService _backgroundTaskRunnerService;
     private readonly ILogger _logger;
     private readonly IVerifyNcasIntegrityRunnable? _automaticVerifier;
+    private readonly Services.Nsz.IXciRepairService? _repairService;
+    private readonly Services.Nsz.IXciRepairPrompt? _repairPrompt;
     private readonly Dictionary<string, NxFile> _archiveFiles = new(StringComparer.Ordinal);
     private string? _archivePath;
     private int _openGeneration;
 
-    public FileOpeningService(ILoggerFactory loggerFactory, IAppSettings appSettings, IFileLoader fileLoader, IMainBackgroundTaskRunnerService backgroundTaskRunnerService, IVerifyNcasIntegrityRunnable? automaticVerifier = null)
+    public FileOpeningService(ILoggerFactory loggerFactory, IAppSettings appSettings, IFileLoader fileLoader, IMainBackgroundTaskRunnerService backgroundTaskRunnerService, IVerifyNcasIntegrityRunnable? automaticVerifier = null,
+        Services.Nsz.IXciRepairService? repairService = null, Services.Nsz.IXciRepairPrompt? repairPrompt = null)
     {
         _automaticVerifier = automaticVerifier;
+        _repairService = repairService;
+        _repairPrompt = repairPrompt;
         _appSettings = appSettings ?? throw new ArgumentNullException(nameof(appSettings));
         _fileLoader = fileLoader ?? throw new ArgumentNullException(nameof(fileLoader));
         _backgroundTaskRunnerService = backgroundTaskRunnerService ?? throw new ArgumentNullException(nameof(backgroundTaskRunnerService));
@@ -55,6 +60,14 @@ public class FileOpeningService : IFileOpeningService
                 return;
             }
 
+            var preparedPath = await PrepareXciRepair(filePath, generation);
+            if (preparedPath == null || generation != _openGeneration) return;
+            if (!string.Equals(preparedPath, filePath, StringComparison.OrdinalIgnoreCase))
+            {
+                filePath = preparedPath;
+                sameArchive = false;
+                _appSettings.LastOpenedFile = filePath;
+            }
             var runnableRelay = new RunnableRelay<NxFile>((reporter, token) =>
             {
                 using var archiveProgress = PackageZip.ReportProgress(reporter);
@@ -94,6 +107,31 @@ public class FileOpeningService : IFileOpeningService
         {
             _logger.LogError(ex, LocalizationManager.Instance.Current.Keys.LoadingError_Failed.SafeFormat(filePath, ex.Message), ex);
             if (LoadingSpaceWarning.IsDiskFull(ex)) LoadingSpaceWarning.Show(filePath);
+        }
+    }
+
+    private async Task<string?> PrepareXciRepair(string path, int generation)
+    {
+        if (!_appSettings.NszPluginActive || _repairService == null || _repairPrompt == null || !Services.Nsz.XciRepairService.Supports(path)) return path;
+        var candidate = await _backgroundTaskRunnerService.RunAsync(new RunnableRelay<Services.Nsz.XciRepairCandidate?>((progress, token) =>
+            _repairService.Inspect(path, progress, token)) { SupportsCancellation = true, SupportProgress = true });
+        if (generation != _openGeneration) return null;
+        if (candidate == null) return path;
+        var decision = _repairPrompt.Ask(candidate);
+        if (decision.CancelOpening || generation != _openGeneration) return null;
+        if (decision.Destination == null) return path;
+        try
+        {
+            var repaired = await _backgroundTaskRunnerService.RunAsync(new RunnableRelay<string>((progress, token) =>
+                _repairService.RepairCopy(candidate, decision.Destination, progress, token)) { SupportsCancellation = true, SupportProgress = true });
+            return generation == _openGeneration ? repaired : null;
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "XCI repair failed for {Path}.", path);
+            _repairPrompt.ShowFailure(ex.Message);
+            return null;
         }
     }
 

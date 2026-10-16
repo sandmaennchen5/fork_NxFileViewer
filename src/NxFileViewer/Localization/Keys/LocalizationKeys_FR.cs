@@ -6,6 +6,30 @@ namespace Emignatik.NxFileViewer.Localization.Keys;
 
 public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
 {
+    public string XciRepair_Title => "Réparer le conteneur XCI";
+    public string XciRepair_Inspect => "Recherche d’erreurs de structure XCI connues…";
+    public string XciRepair_Prompt => "Une erreur de conteneur connue et réparable a été détectée dans « {0} » : {1}\n\nCréer et ouvrir une copie réparée ? L’original restera inchangé. La copie sera entièrement vérifiée avant sa publication.";
+    public string XciRepair_HeaderIssue => "L’en-tête Gamecard ne correspond pas au contenu.";
+    public string XciRepair_LayoutIssue => "Les tailles des entrées après décompression sont incorrectes. Le XCZ correspondant dans le même dossier permet la correction.";
+    public string XciRepair_SaveCopy => "Enregistrer la copie XCI réparée";
+    public string XciRepair_Copying => "Copie du XCI pour réparation…";
+    public string XciRepair_Verifying => "Vérification du XCI réparé";
+    public string XciRepair_NewFileRequired => "Choisissez un nouveau nom se terminant par .xci. Aucun fichier existant ne sera écrasé.";
+    public string XciRepair_SourceChanged => "Le fichier ou sa source XCZ a changé depuis la vérification. Ouvrez-le à nouveau.";
+    public string XciRepair_VerificationFailed => "La copie réparée a échoué au contrôle d’intégrité.";
+    public string XciRepair_Failed => "La réparation n’a pas abouti. L’original reste inchangé.\n\n{0}";
+    public string Features_Nand => "Activer les fonctions NAND";
+    public string Features_NandDisabled => "Les fonctions NAND sont désactivées. Activez-les dans les paramètres et redémarrez.";
+    public string Features_NszPlugin => "Activer le plugin NSZ";
+    public string Features_NandPlugin => "Activer le plugin NxNandManager";
+    public string Features_Firmware => "Activer la vérification du firmware";
+    public string Features_FirmwareDisabled => "La vérification du firmware est désactivée. Activez-la dans les paramètres et redémarrez.";
+    public string Features_Title => "Fonctions optionnelles";
+    public string Features_Plugins => "Activer les plugins (NSZ / NxNandManager)";
+    public string Features_Mtp => "Activer MTP (expérimental)";
+    public string Features_Restart => "Les modifications prennent effet après le redémarrage de l’application.";
+    public string Features_PluginsDisabled => "Les plugins sont désactivés. Activez-les dans les paramètres et redémarrez.";
+
     public string Nand_Detected => "Signatures NAND détectées. Intégrité non vérifiée.";
     public string Nand_OpenSave => "Ouvrir la sauvegarde";
     public string Nand_LeaveSave => "Retour à la partition";

@@ -140,8 +140,17 @@ public partial class BatchIntegrityWindow : UserControl
         if (sender is not DataGridRow { Item: BatchIntegrityResult file } row ||
             DataContext is not BatchIntegrityWindowViewModel model) return;
         ResultsGrid.SelectedItem = file;
+        var menu = CreateFileActionsMenu(model, file);
+        menu.PlacementTarget = row;
+        row.ContextMenu = menu;
+        menu.IsOpen = true;
+        e.Handled = true;
+    }
+
+    private ContextMenu CreateFileActionsMenu(BatchIntegrityWindowViewModel model, BatchIntegrityResult file)
+    {
         var keys = LocalizationManager.Instance.Current.Keys;
-        var menu = new ContextMenu { PlacementTarget = row };
+        var menu = new ContextMenu();
         void Add(string title, bool enabled, System.Action action)
         {
             var item = new MenuItem { Header = title, IsEnabled = enabled };
@@ -150,17 +159,18 @@ public partial class BatchIntegrityWindow : UserControl
         }
         Add(keys.BatchTable_OpenExplorer, model.CanOpenLocation(file), () => model.OpenLocation(file));
         Add(keys.BatchIntegrity_OpenSelected, model.CanOpenInSingle(file), () => model.OpenInSingle(file));
-        Add(keys.Nsz_Compress, model.CanActOnFile(file, NszOperation.Compress), () => model.ConvertSelected(file, NszOperation.Compress));
-        Add(keys.Nsz_Decompress, model.CanActOnFile(file, NszOperation.Decompress), () => model.ConvertSelected(file, NszOperation.Decompress));
+        if (model.NszPluginActive)
+        {
+            Add(keys.Nsz_Compress, model.CanActOnFile(file, NszOperation.Compress), () => model.ConvertSelected(file, NszOperation.Compress));
+            Add(keys.Nsz_Decompress, model.CanActOnFile(file, NszOperation.Decompress), () => model.ConvertSelected(file, NszOperation.Decompress));
+        }
         Add(keys.MenuItem_OpenTitleWebPage, model.CanOpenTitle(file), () => model.OpenSelectedTitle(file));
         Add(keys.MenuItem_CheckIntegrity, !file.IsNand && !model.BackgroundTask.IsRunning &&
             (Directory.Exists(file.FilePath) || File.Exists(PackageZip.ArchivePath(file.FilePath))), () => model.VerifySelected(file));
         Add(keys.BatchNaming_Check, model.CanCheckNaming(file), () => model.CheckSelectedNaming(file));
         Add(keys.RenamingTool_Button_Rename, model.CanCheckNaming(file), () => model.RenameSelected(file));
         Add(keys.BatchIntegrity_MoveSelected, model.CanActOnFile(file), () => model.MoveSelected(file));
-        row.ContextMenu = menu;
-        menu.IsOpen = true;
-        e.Handled = true;
+        return menu;
     }
 
     private void OpenColumns(object sender, RoutedEventArgs e)

@@ -509,6 +509,7 @@ public class SettingsWindowViewModel : WindowViewModelBase
             EditedSettings.BatchTableLayout = _appSettingsManager.Settings.BatchTableLayout;
             _appSettingsManager.Load(EditedSettings);
         }
+        _appSettingsManager.SaveSafe();
         InitializeFromSettings(_appSettingsManager.Clone());
         EditingCompleted?.Invoke();
     }

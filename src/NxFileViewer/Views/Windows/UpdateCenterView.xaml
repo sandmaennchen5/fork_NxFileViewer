@@ -1,6 +1,7 @@
 <UserControl x:Class="Emignatik.NxFileViewer.Views.Windows.UpdateCenterView"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:app="clr-namespace:Emignatik.NxFileViewer"
     xmlns:windows="clr-namespace:Emignatik.NxFileViewer.Views.Windows"
     xmlns:loc="clr-namespace:Emignatik.NxFileViewer.Localization">
     <Grid Margin="10">
@@ -12,15 +13,15 @@
                     <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Update_Install}" Command="{Binding Viewer.InstallCommand}" Padding="12,5"/>
                 </WrapPanel>
                 <TextBlock Text="{Binding Viewer.Status}" TextWrapping="Wrap" Margin="0,0,0,12"/>
-                <GroupBox Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Workspace_Plugins}"><StackPanel Margin="10">
-                    <GroupBox Header="NxNandManager"><StackPanel Margin="10">
+                <GroupBox Visibility="{Binding Source={x:Static app:App.Features}, Path=PluginsActive, Converter={StaticResource FalseToCollapseVisibilityConverter}}" Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Workspace_Plugins}"><StackPanel Margin="10">
+                    <GroupBox Visibility="{Binding Source={x:Static app:App.Features}, Path=NandPluginActive, Converter={StaticResource FalseToCollapseVisibilityConverter}}" Header="NxNandManager"><StackPanel Margin="10">
                         <TextBlock Text="{Binding Nand.Status}" TextWrapping="Wrap" Margin="0,0,0,8"/>
                         <WrapPanel>
                             <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nsz_Update}" Command="{Binding Nand.UpdateCommand}" Padding="12,5" Margin="0,0,8,0"/>
                             <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nsz_Rollback}" Command="{Binding Nand.RollbackCommand}" Padding="12,5"/>
                         </WrapPanel>
                     </StackPanel></GroupBox>
-                    <GroupBox Header="nicoboss/nsz"><StackPanel Margin="10">
+                    <GroupBox Visibility="{Binding Source={x:Static app:App.Features}, Path=NszPluginActive, Converter={StaticResource FalseToCollapseVisibilityConverter}}" Header="nicoboss/nsz"><StackPanel Margin="10">
                     <CheckBox x:Name="NszCheckUpdatesBox" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nsz_CheckUpdates}" IsChecked="{Binding NszCheckUpdates, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8"/>
                     <TextBlock Text="{Binding Nsz.Status}" TextWrapping="Wrap" Margin="0,0,0,8"/>
                     <WrapPanel>
@@ -37,7 +38,7 @@
                         <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.DataUpdate_Titles}" Command="{Binding RefreshTitlesCommand}" Padding="12,5" Margin="0,0,8,0"/>
                     </WrapPanel>
                 </StackPanel></GroupBox>
-                <GroupBox Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.DataUpdate_Firmware}"><StackPanel Margin="10">
+                <GroupBox Visibility="{Binding Source={x:Static app:App.Features}, Path=FirmwareCheckActive, Converter={StaticResource FalseToCollapseVisibilityConverter}}" Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.DataUpdate_Firmware}"><StackPanel Margin="10">
                     <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.DataUpdate_FirmwareTip}" TextWrapping="Wrap" Margin="0,0,0,8"/>
                     <TextBlock Text="{Binding LocalFirmwareSummary}" TextWrapping="Wrap" Margin="0,0,0,8"/>
                     <TextBlock Text="{Binding FirmwareStatus}" TextWrapping="Wrap" Margin="0,0,0,8"/>

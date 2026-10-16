@@ -84,17 +84,17 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
         var allFiles = _selectedFiles?.Select(PackageZip.ArchivePath).Distinct(StringComparer.OrdinalIgnoreCase).ToArray() ??
             (Directory.Exists(_directory) ? areas.EnumerateFiles(_directory, option).ToArray() : new[] { _directory });
         if (filterAreas) allFiles = allFiles.Where(path => areas.IncludesPath(_directory, path)).ToArray();
-        var folderCandidates = allFiles.Where(p => !Services.Mtp.MtpDirectSource.IsDirect(p) && p.EndsWith(".nca", StringComparison.OrdinalIgnoreCase) && SdCardSource.ContentsForFile(p) == null)
+        var folderCandidates = !_appSettings.FirmwareCheckActive ? Array.Empty<string>() : allFiles.Where(p => !Services.Mtp.MtpDirectSource.IsDirect(p) && p.EndsWith(".nca", StringComparison.OrdinalIgnoreCase) && SdCardSource.ContentsForFile(p) == null)
             .Select(Path.GetDirectoryName).Where(p => p != null).Select(p => p!)
             .Concat(_selectedFiles?.Where(p => Directory.Exists(p) && SdCardSource.FindContents(p) == null) ?? Array.Empty<string>()).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         var zipCandidates = allFiles.Where(p => (_selectedFiles != null || _includeArchives) && PackageZip.IsArchive(p))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var firmwareZips = zipCandidates.Where(p => ContainsNca(p) && ExpandPackages(p, cancellationToken).SequenceEqual(new[] { p }))
+        var firmwareZips = !_appSettings.FirmwareCheckActive ? new HashSet<string>(StringComparer.OrdinalIgnoreCase) : zipCandidates.Where(p => ContainsNca(p) && ExpandPackages(p, cancellationToken, _appSettings.FirmwareCheckActive, _appSettings.NandActive).SequenceEqual(new[] { p }))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var expanded = allFiles.Where(path => Services.Mtp.MtpDirectSource.IsDirect(path) || SupportedExtensions.Contains(Path.GetExtension(path)) || zipCandidates.Contains(path) ||
-                IsNandFile(path, cancellationToken))
-            .SelectMany(path => ExpandPackages(path, cancellationToken)).ToArray();
-        var archivedFirmware = (_selectedFiles ?? expanded).Where(path => PackageZip.IsMember(path) &&
+                (_appSettings.NandActive && IsNandFile(path, cancellationToken)))
+            .SelectMany(path => ExpandPackages(path, cancellationToken, _appSettings.FirmwareCheckActive, _appSettings.NandActive)).ToArray();
+        var archivedFirmware = !_appSettings.FirmwareCheckActive ? new HashSet<string>(StringComparer.OrdinalIgnoreCase) : (_selectedFiles ?? expanded).Where(path => PackageZip.IsMember(path) &&
             (path.EndsWith('/') || PackageZip.IsArchive(path))).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var hasFirmware = folderCandidates.Length > 0 || firmwareZips.Count > 0 || archivedFirmware.Count > 0;
         string? referenceNotice = null;
@@ -153,6 +153,7 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
                 }
                 else if ((Directory.Exists(file) && SdCardSource.FindContents(file) == null) || firmwareZips.Contains(file) || archivedFirmware.Contains(file))
                 {
+                    if (!_appSettings.FirmwareCheckActive) throw new InvalidOperationException(LocalizationManager.Instance.Current.Keys.Features_FirmwareDisabled);
                     if (firmware == null) throw new InvalidDataException(referenceNotice);
                     using var extractedFirmware = archivedFirmware.Contains(file)
                         ? PackageZip.Extract(PackageZip.ArchivePath(file), file.Split(PackageZip.Separator, 2)[1], cancellationToken) : null;
@@ -267,14 +268,16 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
         catch (UnauthorizedAccessException) { return false; }
     }
 
-    private static IEnumerable<string> ExpandPackages(string path, CancellationToken token)
+    private static IEnumerable<string> ExpandPackages(string path, CancellationToken token, bool includeFirmware, bool includeNand)
     {
         if (!PackageZip.IsArchive(path)) return new[] { path };
         try
         {
             if (SaveBackupDetection.IsBackup(path, token)) return new[] { path };
-            var entries = PackageZip.GetEntries(path, includeNca: false, token: token, includeFirmware: true);
+            var entries = PackageZip.GetEntries(path, includeNca: false, token: token, includeFirmware: includeFirmware, includeNand: includeNand);
             if (entries.Count > 0) return entries.Select(entry => PackageZip.MemberPath(path, entry)).ToArray();
+            if (!includeFirmware && ContainsNca(path)) return Array.Empty<string>();
+            if (!includeNand && PackageZip.GetFileEntries(path).Any(Services.Nand.NandDetection.IsCandidateName)) return Array.Empty<string>();
         }
         catch (IOException) { }
         catch (InvalidDataException) { }

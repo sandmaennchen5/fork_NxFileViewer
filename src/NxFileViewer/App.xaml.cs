@@ -54,6 +54,8 @@ public partial class App : Application, IAppEvents
             .AddSingleton<NszPluginManager>()
             .AddSingleton<INszPlugin, NszCliPlugin>()
             .AddSingleton<IConversionVerifier, ConversionVerifier>()
+            .AddSingleton<IXciRepairService, XciRepairService>()
+            .AddSingleton<IXciRepairPrompt, XciRepairPrompt>()
             .AddSingleton<PackageConversionService>()
             .AddSingleton<UpdateCenterViewModel>()
             .AddSingleton<ComponentUpdateChecker>()
@@ -140,6 +142,7 @@ public partial class App : Application, IAppEvents
     }
 
     public static IServiceProvider ServiceProvider { get; }
+    public static IAppSettings Features => ServiceProvider.GetRequiredService<IAppSettings>();
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -150,6 +153,7 @@ public partial class App : Application, IAppEvents
 
         // Loads the application settings
         ServiceProvider.GetRequiredService<IAppSettingsManager>().LoadSafe();
+        ServiceProvider.GetRequiredService<AppSettings>().InitializeFeatures();
         KeyDownloads.MigrateLegacyHost(ServiceProvider.GetRequiredService<IAppSettings>());
         var titleSettings = ServiceProvider.GetRequiredService<IAppSettings>();
         if (titleSettings.TitlePageUrl == "https://tinfoil.io/Title/{TitleId}")

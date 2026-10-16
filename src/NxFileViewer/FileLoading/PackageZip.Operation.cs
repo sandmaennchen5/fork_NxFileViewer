@@ -26,7 +26,7 @@ public static partial class PackageZip
     private sealed class Operation : IDisposable
     {
         public Dictionary<string, IReadOnlyList<string>> Names { get; } = new(StringComparer.OrdinalIgnoreCase);
-        public Dictionary<(string, bool, bool, int), IReadOnlyList<string>> Listings { get; } = new();
+        public Dictionary<(string, bool, bool, bool, int), IReadOnlyList<string>> Listings { get; } = new();
         private readonly HashSet<ArchiveSession> _retained = new();
         private readonly List<(string Key, ArchiveSession Session)> _sessions = new();
         public void Retain(string key, ArchiveSession session)

@@ -152,5 +152,154 @@ public sealed class XciPartitionIntegrityTest : IDisposable
         Assert.Equal(output.AsSpan(0xf000).ToArray(), preserved.AsSpan(0xf000).ToArray());
         Assert.Equal(source, File.ReadAllBytes(fixture.Source));
     }
+    private sealed class RepairProgress : Emignatik.NxFileViewer.Services.BackgroundTask.IProgressReporter
+    {
+        public Action<double>? PercentageChanged;
+        public void SetMode(bool value) { }
+        public void SetText(string value) { }
+        public void SetPercentage(double value) => PercentageChanged?.Invoke(value);
+    }
+    private sealed class RepairVerifier : IConversionVerifier
+    {
+        public int Calls;
+        public bool Reject;
+        public Emignatik.NxFileViewer.Services.Integrity.BatchIntegrityResult Verify(string path,
+            Emignatik.NxFileViewer.Services.BackgroundTask.IProgressReporter progress, CancellationToken token)
+        {
+            Calls++;
+            XciPartitionIntegrity.Verify(path, token);
+            XciPartitionIntegrity.VerifyGamecardHeader(path, token);
+            return new(path, "XCI", "Application", "XCI", "None",
+                Reject ? Emignatik.NxFileViewer.Models.Overview.NcasIntegrity.Error : Emignatik.NxFileViewer.Models.Overview.NcasIntegrity.Original, null);
+        }
+    }
+
+    [Fact]
+    public void OpeningInspectionOffersOnlyARepairableHeaderAndDoesNotModifyTheFile()
+    {
+        var fixture = Fixture(false);
+        var original = File.ReadAllBytes(fixture.Output);
+        var verifier = new RepairVerifier();
+        var service = new XciRepairService(verifier);
+        var candidate = Assert.IsType<XciRepairCandidate>(service.Inspect(fixture.Output, new RepairProgress(), TestContext.Current.CancellationToken));
+        Assert.True(candidate.HeaderRepair);
+        Assert.Equal(0, candidate.LayoutChanges);
+        Assert.Null(candidate.SourceXcz);
+        Assert.Equal(original, File.ReadAllBytes(fixture.Output));
+        Assert.Equal(0, verifier.Calls);
+        var repaired = service.RepairCopy(candidate, Path.Combine(_root, "header-repaired.xci"), new RepairProgress(), TestContext.Current.CancellationToken);
+        Assert.Equal(original, File.ReadAllBytes(fixture.Output));
+        Assert.Equal(1, verifier.Calls);
+        XciPartitionIntegrity.VerifyGamecardHeader(repaired, TestContext.Current.CancellationToken);
+        Assert.Null(service.Inspect(repaired, new RepairProgress(), TestContext.Current.CancellationToken));
+        Assert.Empty(Directory.GetDirectories(_root, ".nxfv-repair-*"));
+    }
+
+    [Fact]
+    public void MatchingCompanionEnablesKnownDecompressionLayoutRepairOnACopy()
+    {
+        var fixture = Fixture(true);
+        var companion = Path.ChangeExtension(fixture.Output, ".xcz");
+        File.Copy(fixture.Source, companion);
+        var original = File.ReadAllBytes(fixture.Output);
+        var compressed = File.ReadAllBytes(companion);
+        var service = new XciRepairService(new RepairVerifier());
+        var candidate = Assert.IsType<XciRepairCandidate>(service.Inspect(fixture.Output, new RepairProgress(), TestContext.Current.CancellationToken));
+        Assert.True(candidate.LayoutChanges > 0);
+        Assert.Equal(companion, candidate.SourceXcz);
+        Assert.Equal(original, File.ReadAllBytes(fixture.Output));
+        Assert.Equal(compressed, File.ReadAllBytes(companion));
+        var repaired = service.RepairCopy(candidate, Path.Combine(_root, "layout-repaired.xci"), new RepairProgress(), TestContext.Current.CancellationToken);
+        XciPartitionIntegrity.Verify(repaired, TestContext.Current.CancellationToken);
+        XciPartitionIntegrity.VerifyGamecardHeader(repaired, TestContext.Current.CancellationToken);
+        Assert.Equal(original, File.ReadAllBytes(fixture.Output));
+        Assert.Equal(compressed, File.ReadAllBytes(companion));
+    }
+
+    [Fact]
+    public void MissingCompanionOrUnknownPayloadCorruptionDoesNotOfferRepair()
+    {
+        var broken = Fixture(true);
+        var service = new XciRepairService(new RepairVerifier());
+        Assert.Null(service.Inspect(broken.Output, new RepairProgress(), TestContext.Current.CancellationToken));
+        var fixture = Fixture(false);
+        var bytes = File.ReadAllBytes(fixture.Output);
+        bytes[0x600 + 100] ^= 1;
+        File.WriteAllBytes(fixture.Output, bytes);
+        Assert.Null(service.Inspect(fixture.Output, new RepairProgress(), TestContext.Current.CancellationToken));
+        Assert.Equal(bytes, File.ReadAllBytes(fixture.Output));
+    }
+
+    [Fact]
+    public void UnrelatedCompanionDoesNotQualifyBrokenLayoutForRepair()
+    {
+        var fixture = Fixture(true);
+        var companion = Path.ChangeExtension(fixture.Output, ".xcz");
+        var source = File.ReadAllBytes(fixture.Source);
+        var logo = source.AsSpan().IndexOf("nxfv-logo-payload-unique"u8);
+        source[logo] ^= 1;
+        File.WriteAllBytes(companion, source);
+        var service = new XciRepairService(new RepairVerifier());
+        Assert.Null(service.Inspect(fixture.Output, new RepairProgress(), TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public void RepairNeverOverwritesInputOrAnExistingDestination()
+    {
+        var fixture = Fixture(false);
+        var original = File.ReadAllBytes(fixture.Output);
+        var service = new XciRepairService(new RepairVerifier());
+        var candidate = service.Inspect(fixture.Output, new RepairProgress(), TestContext.Current.CancellationToken)!;
+        Assert.Throws<IOException>(() => service.RepairCopy(candidate, fixture.Output, new RepairProgress(), TestContext.Current.CancellationToken));
+        var destination = Path.Combine(_root, "existing.xci");
+        File.WriteAllText(destination, "keep existing file");
+        Assert.Throws<IOException>(() => service.RepairCopy(candidate, destination, new RepairProgress(), TestContext.Current.CancellationToken));
+        Assert.Equal("keep existing file", File.ReadAllText(destination));
+        Assert.Equal(original, File.ReadAllBytes(fixture.Output));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void VerificationFailureAndCancellationNeverPublishAPartialRepair(bool cancel)
+    {
+        var fixture = Fixture(false);
+        var original = File.ReadAllBytes(fixture.Output);
+        using var cancellation = new CancellationTokenSource();
+        var verifier = new RepairVerifier { Reject = !cancel };
+        var service = new XciRepairService(verifier);
+        var candidate = service.Inspect(fixture.Output, new RepairProgress(), TestContext.Current.CancellationToken)!;
+        var destination = Path.Combine(_root, "must-not-exist.xci");
+        var progress = new RepairProgress { PercentageChanged = value => { if (cancel && value > 0) cancellation.Cancel(); } };
+        if (cancel)
+            Assert.ThrowsAny<OperationCanceledException>(() => service.RepairCopy(candidate, destination, progress, cancellation.Token));
+        else
+            Assert.Throws<InvalidDataException>(() => service.RepairCopy(candidate, destination, progress, TestContext.Current.CancellationToken));
+        Assert.False(File.Exists(destination));
+        Assert.Empty(Directory.GetDirectories(_root, ".nxfv-repair-*"));
+        Assert.Equal(original, File.ReadAllBytes(fixture.Output));
+    }
+
+    [Fact]
+    public void SourceChangedAfterConfirmationRequiresANewInspection()
+    {
+        var fixture = Fixture(false);
+        var service = new XciRepairService(new RepairVerifier());
+        var candidate = service.Inspect(fixture.Output, new RepairProgress(), TestContext.Current.CancellationToken)!;
+        File.SetLastWriteTimeUtc(fixture.Output, File.GetLastWriteTimeUtc(fixture.Output).AddSeconds(2));
+        var destination = Path.Combine(_root, "changed.xci");
+        Assert.Throws<InvalidOperationException>(() => service.RepairCopy(candidate, destination, new RepairProgress(), TestContext.Current.CancellationToken));
+        Assert.False(File.Exists(destination));
+    }
+
+    [Fact]
+    public void UnknownTrailingDataIsNeverSilentlyDiscarded()
+    {
+        var fixture = Fixture(false);
+        using (var append = new FileStream(fixture.Output, FileMode.Append)) append.Write(new byte[512]);
+        var service = new XciRepairService(new RepairVerifier());
+        Assert.Null(service.Inspect(fixture.Output, new RepairProgress(), TestContext.Current.CancellationToken));
+    }
+
     public void Dispose() => Directory.Delete(_root, true);
 }

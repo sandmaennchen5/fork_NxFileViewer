@@ -106,12 +106,12 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         {
             var path = await Services.Mtp.SphairaMtpActions.SelectAndImport(_serviceProvider, BackgroundTask, batch: true);
             if (path != null) InputDirectory = Directory.Exists(path) || PackageZip.IsArchive(path) ? path : Path.GetDirectoryName(path)!;
-        });
+        }, () => _serviceProvider.GetRequiredService<IAppSettings>().MtpActive && !BackgroundTask.IsRunning);
         BrowseFirmwareZipCommand = new RelayCommand(() =>
         {
             var dialog = new Microsoft.Win32.OpenFileDialog { Filter = "ZIP / 7z (*.zip;*.7z)|*.zip;*.7z", Title = LocalizationManager.Instance.Current.Keys.BatchIntegrity_Title };
             if (dialog.ShowDialog() == true) InputDirectory = dialog.FileName;
-        });
+        }, () => _serviceProvider.GetRequiredService<IAppSettings>().FirmwareCheckActive && !BackgroundTask.IsRunning);
         StartCommand = new RelayCommand(() => Start(false), CanStart);
         ScanAndVerifyCommand = new RelayCommand(() => Start(true, rescan: true), CanStart);
         VerifyAllCommand = new RelayCommand(() => Start(true), () => Results.Count > 0 && !BackgroundTask.IsRunning);
@@ -161,7 +161,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
             NotifyPropertyChanged(nameof(StoredPackages));
             NotifyPropertyChanged(nameof(HasStoredPackages));
             SelectedStoredPackage = value?.Packages.FirstOrDefault();
-            SelectedDetailsTabIndex = value?.IsNand == true ? 2 : value?.IsFirmware == true ? 1 : 0;
+            SelectedDetailsTabIndex = value?.IsNand == true && _serviceProvider.GetRequiredService<IAppSettings>().NandActive ? 2 : value?.IsFirmware == true && _serviceProvider.GetRequiredService<IAppSettings>().FirmwareCheckActive ? 1 : 0;
             NotifyPropertyChanged();
             UpdateSelectedPreview();
         }
@@ -224,7 +224,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
     public string SearchText { get => _searchText; set { _searchText = value ?? ""; NotifyPropertyChanged(); ResultsView.Refresh(); } }
     public string FileTypeFilter { get => _fileTypeFilter; set { _fileTypeFilter = value ?? ""; NotifyPropertyChanged(); ResultsView.Refresh(); } }
     public string IntegrityFilter { get => _integrityFilter; set { _integrityFilter = value ?? ""; NotifyPropertyChanged(); ResultsView.Refresh(); } }
-    public IReadOnlyList<BatchFilterOption> FileTypeFilters { get; } = new[] { "", "Games", "NSP", "NSZ", "XCI", "XCZ", "NRO", "NAX0", "NAND", "ZIP", "7Z", "Folder" }.Select(value => new BatchFilterOption(value)).ToArray();
+    public IReadOnlyList<BatchFilterOption> FileTypeFilters => new[] { "", "Games", "NSP", "NSZ", "XCI", "XCZ", "NRO", "NAX0", "NAND", "ZIP", "7Z", "Folder" }.Where(value => value != "NAND" || _serviceProvider.GetRequiredService<IAppSettings>().NandActive).Select(value => new BatchFilterOption(value)).ToArray();
     public IReadOnlyList<BatchFilterOption> IntegrityFilters { get; } = new[] { new BatchFilterOption("") }.Concat(Enum.GetValues<NcasIntegrity>().Select(value => new BatchFilterOption(value.ToString()))).ToArray();
     public RelayCommand ResetFiltersCommand => new(() => { SearchText = ""; FileTypeFilter = ""; IntegrityFilter = ""; NamingFilter = ""; ShowOnlyErrors = false; });
     public bool ShowOnlyErrors
@@ -513,7 +513,8 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
                 UpdateSelectedPreview();
         }
     }
-    public bool CanActOnFile(BatchIntegrityResult file, NszOperation? operation = null) => !BackgroundTask.IsRunning &&
+    public bool NszPluginActive => _serviceProvider.GetRequiredService<IAppSettings>().NszPluginActive;
+    public bool CanActOnFile(BatchIntegrityResult file, NszOperation? operation = null) => (operation == null || _serviceProvider.GetRequiredService<IAppSettings>().NszPluginActive) && !BackgroundTask.IsRunning &&
         !file.IsFirmware && !file.IsNand && file.FileType != "NAX0" && !file.HasMissingKeys && !Services.Mtp.MtpDirectSource.IsDirect(file.FilePath) && File.Exists(file.FilePath) &&
         (operation == null || PackageConversionService.Supports(file.FilePath, operation.Value));
     public bool CanCheckNaming(BatchIntegrityResult file) => !BackgroundTask.IsRunning &&
@@ -644,7 +645,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
             .OpenFileLocationSafe(PackageZip.ArchivePath(file.FilePath));
     }
 
-    public bool CanOpenInSingle(BatchIntegrityResult file) => !BackgroundTask.IsRunning &&
+    public bool CanOpenInSingle(BatchIntegrityResult file) => (!file.IsNand || _serviceProvider.GetRequiredService<IAppSettings>().NandActive) && !BackgroundTask.IsRunning &&
         (File.Exists(PackageZip.ArchivePath(file.FilePath)) || SdCardSource.FindContents(file.FilePath) != null);
     public async void OpenInSingle(BatchIntegrityResult file)
     {
@@ -678,7 +679,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
     private bool CanMoveValid() => !BackgroundTask.IsRunning &&
         Results.Any(result => !result.IsFirmware && !result.IsNand && result.FileType != "NAX0" && result.Integrity == NcasIntegrity.Original && !Services.Mtp.MtpDirectSource.IsDirect(result.FilePath) && File.Exists(result.FilePath));
 
-    private bool CanConvertValid(NszOperation operation) => !BackgroundTask.IsRunning && Results.Any(result =>
+    private bool CanConvertValid(NszOperation operation) => _serviceProvider.GetRequiredService<IAppSettings>().NszPluginActive && !BackgroundTask.IsRunning && Results.Any(result =>
         !result.IsFirmware && !result.IsNand && result.Integrity == NcasIntegrity.Original && !Services.Mtp.MtpDirectSource.IsDirect(result.FilePath) && File.Exists(result.FilePath) &&
         PackageConversionService.Supports(result.FilePath, operation));
 

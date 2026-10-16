@@ -17,7 +17,7 @@ public static class SphairaMtpActions
 {
     public static async Task<string?> SelectAndImport(IServiceProvider services, IMainBackgroundTaskRunnerService runner, bool batch = false)
     {
-        if (runner.IsRunning) return null;
+        if (!services.GetRequiredService<Settings.IAppSettings>().MtpActive || runner.IsRunning) return null;
         try
         {
             var dialog = new SphairaMtpWindow { Owner = Application.Current?.MainWindow };

@@ -51,11 +51,11 @@ public sealed class ComponentUpdateChecker(NszPluginManager nsz, NandPluginManag
             var available = IsNewer(version, latest);
             return (available ? string.Format(keys.Update_Available, latest) : keys.Update_Current, available);
         }
-        var checks = new List<Task<ComponentUpdateResult>>
-        {
-            Check("NSZ", () => Plugin(nsz.ExecutablePath, nsz.InstalledVersion, "nicoboss/nsz", "NSZ")),
-            Check("NxNandManager", () => Plugin(nand.ExecutablePath, nand.InstalledVersion, "THZoria/NxNandManager", "NxNandManager"))
-        };
+        var checks = new List<Task<ComponentUpdateResult>>();
+        if (settings.NszPluginActive)
+            checks.Add(Check("NSZ", () => Plugin(nsz.ExecutablePath, nsz.InstalledVersion, "nicoboss/nsz", "NSZ")));
+        if (settings.NandPluginActive)
+            checks.Add(Check("NxNandManager", () => Plugin(nand.ExecutablePath, nand.InstalledVersion, "THZoria/NxNandManager", "NxNandManager")));
         foreach (var region in new[] { settings.TitleDbRegion, "US.en" }.Distinct())
         {
             var captured = region;
@@ -68,7 +68,7 @@ public sealed class ComponentUpdateChecker(NszPluginManager nsz, NandPluginManag
                 return (available ? keys.Component_UpdateAvailable : keys.Update_Current, available);
             }));
         }
-        checks.Add(Check(keys.DataUpdate_Firmware, async () =>
+        if (settings.FirmwareCheckActive) checks.Add(Check(keys.DataUpdate_Firmware, async () =>
         {
             using var listing = await Get("https://api.github.com/repos/sandmaennchen5/fork_NxFileViewer/contents/fw/hashes?ref=master", keys.DataUpdate_Firmware);
             var entries = listing.RootElement.EnumerateArray().Where(e => e.GetProperty("type").GetString() == "file" && e.GetProperty("name").GetString()!.EndsWith(".json", StringComparison.OrdinalIgnoreCase)).ToArray();

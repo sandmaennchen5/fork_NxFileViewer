@@ -33,16 +33,16 @@ public sealed class NandViewModel : NotifyPropertyChangedBase
         _plugin = plugin;
         _opening = opening;
         Runner = runner;
-        OpenCommand = new RelayCommand(Open, () => !Runner.IsRunning);
-        ExportCommand = new RelayCommand(Export, () => !Runner.IsRunning && !string.IsNullOrEmpty(SelectedPartition) && File.Exists(_physicalSource));
-        ReadInformationCommand = new RelayCommand(ReadInformation, () => !Runner.IsRunning && File.Exists(_physicalSource));
-        OpenDriveCommand = new RelayCommand(OpenDrive, () => !Runner.IsRunning);
-        BrowseExplorerCommand = new RelayCommand(BrowseExplorer, () => !Runner.IsRunning && !string.IsNullOrEmpty(_physicalSource));
-        UpExplorerCommand = new RelayCommand(() => LoadExplorer(Path.GetDirectoryName(ExplorerPath.Replace('/', '\\'))?.Replace('\\', '/') ?? "/"), () => !Runner.IsRunning && ExplorerPath != "/");
-        ExportExplorerCommand = new RelayCommand(ExportExplorer, () => !Runner.IsRunning && SelectedExplorerEntry is { IsDirectory: false });
-        OpenSaveCommand = new RelayCommand(() => LoadExplorerContent("/", SelectedExplorerEntry), () => !Runner.IsRunning && _save == null && SelectedExplorerEntry is { IsSave: true });
-        LeaveSaveCommand = new RelayCommand(() => LoadExplorerContent("/save", null), () => !Runner.IsRunning && _save != null);
-        ExportSaveCommand = new RelayCommand(ExportSave, () => !Runner.IsRunning && _save != null);
+        OpenCommand = new RelayCommand(Open, () => _plugin.IsNandEnabled && !Runner.IsRunning);
+        ExportCommand = new RelayCommand(Export, () => _plugin.IsEnabled && !Runner.IsRunning && !string.IsNullOrEmpty(SelectedPartition) && File.Exists(_physicalSource));
+        ReadInformationCommand = new RelayCommand(ReadInformation, () => _plugin.IsEnabled && !Runner.IsRunning && File.Exists(_physicalSource));
+        OpenDriveCommand = new RelayCommand(OpenDrive, () => _plugin.IsNandEnabled && !Runner.IsRunning);
+        BrowseExplorerCommand = new RelayCommand(BrowseExplorer, () => _plugin.IsNandEnabled && !Runner.IsRunning && !string.IsNullOrEmpty(_physicalSource));
+        UpExplorerCommand = new RelayCommand(() => LoadExplorer(Path.GetDirectoryName(ExplorerPath.Replace('/', '\\'))?.Replace('\\', '/') ?? "/"), () => _plugin.IsNandEnabled && !Runner.IsRunning && ExplorerPath != "/");
+        ExportExplorerCommand = new RelayCommand(ExportExplorer, () => _plugin.IsNandEnabled && !Runner.IsRunning && SelectedExplorerEntry is { IsDirectory: false });
+        OpenSaveCommand = new RelayCommand(() => LoadExplorerContent("/", SelectedExplorerEntry), () => _plugin.IsNandEnabled && !Runner.IsRunning && _save == null && SelectedExplorerEntry is { IsSave: true });
+        LeaveSaveCommand = new RelayCommand(() => LoadExplorerContent("/save", null), () => _plugin.IsNandEnabled && !Runner.IsRunning && _save != null);
+        ExportSaveCommand = new RelayCommand(ExportSave, () => _plugin.IsNandEnabled && !Runner.IsRunning && _save != null);
         PropertyChangedEventManager.AddHandler(Runner, OnTaskChanged, "");
     }
     private void OnTaskChanged(object? sender, PropertyChangedEventArgs e)
@@ -180,6 +180,7 @@ public sealed class NandViewModel : NotifyPropertyChangedBase
     }
     private void OpenDrive()
     {
+        if (!_plugin.IsNandEnabled) return;
         var picker = new NandDriveWindow { Owner = Application.Current?.MainWindow };
         if (picker.ShowDialog() != true) return;
         try
@@ -226,6 +227,7 @@ public sealed class NandViewModel : NotifyPropertyChangedBase
 
     private async void Open()
     {
+        if (!_plugin.IsNandEnabled) return;
         var keys = LocalizationManager.Instance.Current.Keys;
         var dialog = new OpenFileDialog { Title = keys.Nand_Open, Filter = "NAND / ZIP / 7z (*.*)|*.*", CheckFileExists = true };
         if (dialog.ShowDialog() != true) return;

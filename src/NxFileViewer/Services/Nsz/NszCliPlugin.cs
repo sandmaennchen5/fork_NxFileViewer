@@ -19,6 +19,7 @@ public sealed class NszCliPlugin(NszPluginManager manager, IKeySetProviderServic
     public void Convert(string source, string outputDirectory, NszOperation operation,
         IProgressReporter progress, CancellationToken cancellationToken)
     {
+        if (!settings.NszPluginActive) throw new InvalidOperationException(LocalizationManager.Instance.Current.Keys.Features_PluginsDisabled);
         var executable = manager.ExecutablePath;
         if (!File.Exists(executable))
             throw new FileNotFoundException(LocalizationManager.Instance.Current.Keys.Nsz_NotInstalled);

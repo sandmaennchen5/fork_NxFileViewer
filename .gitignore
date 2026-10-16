@@ -10,3 +10,4 @@ Publish/
 
 # Local user test data (automated tests under src remain tracked)
 /test/
+/work

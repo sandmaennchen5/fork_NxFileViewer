@@ -90,7 +90,7 @@ public class MainWindowViewModel : WindowViewModelBase, IFilesDropped
         {
             var path = await Services.Mtp.SphairaMtpActions.SelectAndImport(serviceProvider, backgroundTaskRunnerService);
             if (path != null) await _fileOpeningService.SafeOpenFile(Services.Mtp.SphairaMtpActions.SinglePath(path));
-        });
+        }, () => appSettings.MtpActive && !backgroundTaskRunnerService.IsRunning);
         OpenSdCardCommand = new Utils.MVVM.Commands.RelayCommand(() =>
         {
             var dialog = new Microsoft.Win32.OpenFolderDialog { Title = LocalizationManager.Instance.Current.Keys.OpenSdCard };

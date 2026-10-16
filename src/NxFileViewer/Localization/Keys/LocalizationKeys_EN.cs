@@ -6,6 +6,30 @@ namespace Emignatik.NxFileViewer.Localization.Keys;
 
 public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
 {
+    public string XciRepair_Title => "Repair XCI container";
+    public string XciRepair_Inspect => "Checking XCI for known layout errors…";
+    public string XciRepair_Prompt => "A known repairable container error was found in “{0}”: {1}\n\nCreate and open a repaired copy? The original will remain unchanged. The copy is fully verified before publication.";
+    public string XciRepair_HeaderIssue => "The Gamecard header does not match the contents.";
+    public string XciRepair_LayoutIssue => "Entry sizes after decompression are incorrect. The matching XCZ in the same folder allows correction.";
+    public string XciRepair_SaveCopy => "Save repaired XCI copy";
+    public string XciRepair_Copying => "Copying XCI for repair…";
+    public string XciRepair_Verifying => "Verifying repaired XCI";
+    public string XciRepair_NewFileRequired => "Choose a new filename ending in .xci. Existing files will not be overwritten.";
+    public string XciRepair_SourceChanged => "The file or its XCZ source has changed since inspection. Please open it again.";
+    public string XciRepair_VerificationFailed => "The repaired copy failed integrity verification.";
+    public string XciRepair_Failed => "Repair did not complete. The original remains unchanged.\n\n{0}";
+    public string Features_Nand => "Enable NAND features";
+    public string Features_NandDisabled => "NAND features are disabled. Enable them in Settings and restart.";
+    public string Features_NszPlugin => "Enable NSZ plugin";
+    public string Features_NandPlugin => "Enable NxNandManager plugin";
+    public string Features_Firmware => "Enable firmware verification";
+    public string Features_FirmwareDisabled => "Firmware verification is disabled. Enable it in Settings and restart.";
+    public string Features_Title => "Optional features";
+    public string Features_Plugins => "Enable plugins (NSZ / NxNandManager)";
+    public string Features_Mtp => "Enable MTP (experimental)";
+    public string Features_Restart => "Changes take effect after restarting the application.";
+    public string Features_PluginsDisabled => "Plugins are disabled. Enable them in Settings and restart.";
+
     public string Nand_Detected => "NAND signatures detected. Integrity has not been checked.";
     public string Nand_OpenSave => "Open save";
     public string Nand_LeaveSave => "Back to partition";

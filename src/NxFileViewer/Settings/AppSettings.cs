@@ -8,6 +8,67 @@ namespace Emignatik.NxFileViewer.Settings;
 
 public class AppSettings : NotifyPropertyChangedBase, IAppSettings
 {
+    // Legacy fallback preserves the previous combined plugin setting when loading old JSON.
+    private bool _enablePlugins = true;
+    private bool? _enableNszPlugin;
+    private bool? _enableNandPlugin;
+    private bool _enableMtp = true;
+    private bool _enableNand = true;
+    private bool? _nandActive;
+    private bool _enableFirmwareCheck = true;
+    private bool? _nszPluginActive, _nandPluginActive, _mtpActive, _firmwareCheckActive;
+    public bool EnablePlugins
+    {
+        get => _enablePlugins;
+        set { _enablePlugins = value; NotifyPropertyChanged(); }
+    }
+    public bool EnableNszPlugin
+    {
+        get => _enableNszPlugin ?? EnablePlugins;
+        set { _enableNszPlugin = value; NotifyPropertyChanged(); }
+    }
+    public bool EnableNandPlugin
+    {
+        get => _enableNandPlugin ?? EnablePlugins;
+        set { _enableNandPlugin = value; NotifyPropertyChanged(); }
+    }
+    public bool EnableNand
+    {
+        get => _enableNand;
+        set { _enableNand = value; NotifyPropertyChanged(); }
+    }
+    public bool EnableMtp
+    {
+        get => _enableMtp;
+        set { _enableMtp = value; NotifyPropertyChanged(); }
+    }
+    public bool EnableFirmwareCheck
+    {
+        get => _enableFirmwareCheck;
+        set { _enableFirmwareCheck = value; NotifyPropertyChanged(); }
+    }
+    [JsonIgnore]
+    public bool NszPluginActive => _nszPluginActive ?? EnableNszPlugin;
+    [JsonIgnore]
+    public bool NandPluginActive => NandActive && (_nandPluginActive ?? EnableNandPlugin);
+    [JsonIgnore]
+    public bool NandActive => _nandActive ?? EnableNand;
+    [JsonIgnore]
+    public bool PluginsActive => NszPluginActive || NandPluginActive;
+    [JsonIgnore]
+    public bool MtpActive => _mtpActive ?? EnableMtp;
+    [JsonIgnore]
+    public bool FirmwareCheckActive => _firmwareCheckActive ?? EnableFirmwareCheck;
+
+    // Capture once after loading settings; later edits take effect on the next launch.
+    public void InitializeFeatures()
+    {
+        _nszPluginActive ??= EnableNszPlugin;
+        _nandPluginActive ??= EnableNandPlugin;
+        _nandActive ??= EnableNand;
+        _mtpActive ??= EnableMtp;
+        _firmwareCheckActive ??= EnableFirmwareCheck;
+    }
     private int _batchHistoryLimit = 5;
     public int BatchHistoryLimit
     {

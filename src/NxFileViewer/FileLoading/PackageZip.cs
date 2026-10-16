@@ -119,21 +119,21 @@ public static partial class PackageZip
         }
     }
     private const int MaximumArchiveDepth = 8;
-    public static IReadOnlyList<string> GetEntries(string path, bool includeNca = true, CancellationToken token = default, bool includeFirmware = false)
+    public static IReadOnlyList<string> GetEntries(string path, bool includeNca = true, CancellationToken token = default, bool includeFirmware = false, bool includeNand = true)
     {
         using var operation = BeginOperation();
-        return GetEntriesRecursive(path, includeNca, token, 0, includeFirmware);
+        return GetEntriesRecursive(path, includeNca, token, 0, includeFirmware, includeNand);
     }
 
-    private static IReadOnlyList<string> GetEntriesRecursive(string path, bool includeNca, CancellationToken token, int depth, bool includeFirmware)
+    private static IReadOnlyList<string> GetEntriesRecursive(string path, bool includeNca, CancellationToken token, int depth, bool includeFirmware, bool includeNand)
     {
         token.ThrowIfCancellationRequested();
         if (depth >= MaximumArchiveDepth) throw new InvalidDataException("Archive nesting exceeds the supported depth of 8.");
-        var listingKey = (Path.GetFullPath(path), includeNca, includeFirmware, depth);
+        var listingKey = (Path.GetFullPath(path), includeNca, includeFirmware, includeNand, depth);
         if (ActiveOperation.Value?.Listings.TryGetValue(listingKey, out var cached) == true) return cached;
         var names = GetFileEntries(path);
         var nandNames = new HashSet<string>(StringComparer.Ordinal);
-        var nandCandidates = names.Where(Services.Nand.NandDetection.IsCandidateName).ToHashSet(StringComparer.Ordinal);
+        var nandCandidates = !includeNand ? new HashSet<string>(StringComparer.Ordinal) : names.Where(Services.Nand.NandDetection.IsCandidateName).ToHashSet(StringComparer.Ordinal);
         foreach (var candidate in nandCandidates) ValidateName(candidate);
         var reusedNandSession = false;
         if (nandCandidates.Count > 0)
@@ -174,7 +174,7 @@ public static partial class PackageZip
             .Where(name => Path.GetFileNameWithoutExtension(name).Length >= 28 && Path.GetFileNameWithoutExtension(name).All(Uri.IsHexDigit)
                 || name.Contains("firmware", StringComparison.OrdinalIgnoreCase))
             .Select(name => name[..(name.LastIndexOf('/') + 1)]).Distinct(StringComparer.Ordinal).ToArray() : Array.Empty<string>();
-        var entries = names.Where(e => (IsSupported(e, includeNca) && (!Services.Nand.NandDetection.IsCandidateName(e) || nandNames.Contains(e)) || IsArchive(e)) &&
+        var entries = names.Where(e => (IsSupported(e, includeNca, includeNand) && (!Services.Nand.NandDetection.IsCandidateName(e) || nandNames.Contains(e)) || IsArchive(e)) &&
             !Services.Nand.NandDetection.IsContinuationName(e, first => names.Any(name => name.Replace('\\', '/').Equals(first.Replace('\\', '/'), StringComparison.OrdinalIgnoreCase)))).ToArray();
         foreach (var entry in entries) ValidateName(entry);
         if (entries.Distinct(StringComparer.Ordinal).Count() != entries.Length)
@@ -192,20 +192,20 @@ public static partial class PackageZip
             using var nested = Extract(path, entry, token);
             var nestedNames = GetFileEntries(nested.FilePath);
             if (includeFirmware && nestedNames.Any(name => name.EndsWith(".nca", StringComparison.OrdinalIgnoreCase))
-                && !nestedNames.Any(name => IsSupported(name, false) || IsArchive(name)))
+                && !nestedNames.Any(name => IsSupported(name, false, includeNand) || IsArchive(name)))
             {
                 packages.Add(entry);
                 continue;
             }
-            foreach (var member in GetEntriesRecursive(nested.FilePath, includeNca, token, depth + 1, includeFirmware))
+            foreach (var member in GetEntriesRecursive(nested.FilePath, includeNca, token, depth + 1, includeFirmware, includeNand))
                 packages.Add(entry + Separator + member);
         }
         if (ActiveOperation.Value != null) ActiveOperation.Value.Listings[listingKey] = packages;
         return packages;
     }
-    private static bool IsSupported(string name, bool includeNca) => Path.GetExtension(name).ToLowerInvariant() is
+    private static bool IsSupported(string name, bool includeNca, bool includeNand = true) => Path.GetExtension(name).ToLowerInvariant() is
         ".nsp" or ".nsz" or ".xci" or ".xcz" or ".nro" || (includeNca && name.EndsWith(".nca", StringComparison.OrdinalIgnoreCase)) ||
-        Services.Nand.NandDetection.IsCandidateName(name);
+        (includeNand && Services.Nand.NandDetection.IsCandidateName(name));
     private static void ValidateName(string name)
     {
         var normalized = name.Replace('\\', '/');

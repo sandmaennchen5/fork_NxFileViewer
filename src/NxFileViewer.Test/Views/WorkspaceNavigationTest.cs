@@ -67,7 +67,7 @@ public sealed class WorkspaceNavigationTest
                 App.ServiceProvider.GetRequiredService<IShowSettingsWindowCommand>().Execute(null);
                 var settingsPage = Assert.IsType<SettingsWindow>(((TabItem)main.FindName("SettingsTab")).Content);
                 var settings = Assert.IsType<SettingsWindowViewModel>(settingsPage.DataContext);
-                Assert.Equal(5, ((TabControl)settingsPage.FindName("SettingsSections")).Items.Count);
+                Assert.Equal(6, ((TabControl)settingsPage.FindName("SettingsSections")).Items.Count);
                 Assert.Same(settingsPage.FindName("KeysSettingsTab"), ((TabControl)settingsPage.FindName("SettingsSections")).Items[1]);
                 Assert.IsType<GroupBox>(settingsPage.FindName("ProdKeysSettingsGroup"));
                 Assert.IsType<GroupBox>(settingsPage.FindName("TitleKeysSettingsGroup"));
@@ -178,6 +178,19 @@ public sealed class WorkspaceNavigationTest
                 var updateModel = Assert.IsType<UpdateCenterViewModel>(updates.DataContext);
                 var programGroups = Assert.IsType<StackPanel>(settingsPage.FindName("ProgramSettingsGroups"));
                 Assert.Equal(7, programGroups.Children.Count);
+                Assert.IsType<GroupBox>(settingsPage.FindName("OptionalFeaturesGroup"));
+                var featureSections = Assert.IsType<TabControl>(settingsPage.FindName("SettingsSections"));
+                var pluginsTab = Assert.IsType<TabItem>(settingsPage.FindName("PluginsSettingsTab"));
+                var optionalTab = Assert.IsType<TabItem>(settingsPage.FindName("OptionalFeaturesSettingsTab"));
+                Assert.Equal(featureSections.Items.IndexOf(pluginsTab) + 1, featureSections.Items.IndexOf(optionalTab));
+                Assert.Equal(Visibility.Visible, optionalTab.Visibility);
+                foreach (var feature in new[] { "NszPlugin", "Nand", "NandPlugin", "Mtp", "Firmware" })
+                {
+                    var checkboxName = feature == "Firmware" ? "EnableFirmwareCheckBox" : "Enable" + feature + "CheckBox";
+                    var checkbox = Assert.IsType<CheckBox>(settingsPage.FindName(checkboxName));
+                    var property = feature == "Firmware" ? "EnableFirmwareCheck" : "Enable" + feature;
+                    Assert.Equal("EditedSettings." + property, checkbox.GetBindingExpression(CheckBox.IsCheckedProperty)!.ParentBinding.Path.Path);
+                }
                 Assert.All(System.Linq.Enumerable.Cast<UIElement>(programGroups.Children), child => Assert.IsType<GroupBox>(child));
                 foreach (var mode in new[] { "Program", "Windows", "BatchDrop" })
                 {
@@ -398,6 +411,35 @@ public sealed class WorkspaceNavigationTest
                 main.Navigate(WorkspaceSection.Home);
                 main.Navigate(WorkspaceSection.Batch);
                 Assert.Equal(Visibility.Visible, titleColumn.Visibility);
+                var createFileActions = typeof(BatchIntegrityWindow).GetMethod("CreateFileActionsMenu", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+                var previousNszFeature = actual.EnableNszPlugin;
+                var previousNandFeature = actual.EnableNand;
+                try
+                {
+                    var featureKeys = Emignatik.NxFileViewer.Localization.LocalizationManager.Instance.Current.Keys;
+                    actual.EnableNszPlugin = false;
+                    var disabledPluginMenu = Assert.IsType<ContextMenu>(createFileActions.Invoke(batchPage, new object[] { batch, nszResult }));
+                    Assert.DoesNotContain(System.Linq.Enumerable.OfType<MenuItem>(disabledPluginMenu.Items), item => Equals(item.Header, featureKeys.Nsz_Compress) || Equals(item.Header, featureKeys.Nsz_Decompress));
+                    Assert.Contains(System.Linq.Enumerable.OfType<MenuItem>(disabledPluginMenu.Items), item => Equals(item.Header, featureKeys.BatchTable_OpenExplorer));
+                    actual.EnableNszPlugin = true;
+                    var enabledPluginMenu = Assert.IsType<ContextMenu>(createFileActions.Invoke(batchPage, new object[] { batch, nszResult }));
+                    Assert.Contains(System.Linq.Enumerable.OfType<MenuItem>(enabledPluginMenu.Items), item => Equals(item.Header, featureKeys.Nsz_Compress));
+                    Assert.Contains(System.Linq.Enumerable.OfType<MenuItem>(enabledPluginMenu.Items), item => Equals(item.Header, featureKeys.Nsz_Decompress));
+                    actual.EnableNand = false;
+                    var nandNavigationTab = Assert.IsType<TabItem>(main.FindName("NandTab"));
+                    nandNavigationTab.GetBindingExpression(UIElement.VisibilityProperty)!.UpdateTarget();
+                    Assert.Equal(Visibility.Collapsed, nandNavigationTab.Visibility);
+                    var selectedWorkspaceTab = ((TabControl)main.FindName("WorkspaceTabs")).SelectedItem;
+                    main.Navigate(WorkspaceSection.Nand);
+                    Assert.Same(selectedWorkspaceTab, ((TabControl)main.FindName("WorkspaceTabs")).SelectedItem);
+                    Assert.DoesNotContain(batch.FileTypeFilters, filter => filter.Value == "NAND");
+                }
+                finally
+                {
+                    actual.EnableNszPlugin = previousNszFeature;
+                    actual.EnableNand = previousNandFeature;
+                    Assert.IsType<TabItem>(main.FindName("NandTab")).GetBindingExpression(UIElement.VisibilityProperty)!.UpdateTarget();
+                }
                 var makeMenu = typeof(BatchIntegrityWindow).GetMethod("CreateColumnsMenu", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
                 var menu = (ContextMenu)makeMenu.Invoke(batchPage, new object[] { new Button() })!;
                 Assert.Equal(grid.Columns.Count, menu.Items.Count);
@@ -617,6 +659,7 @@ public sealed class WorkspaceNavigationTest
                     }
                 }
                 finally { actual.EnableBatchHistory = historyEnabled; }
+                VerifyXciRepairOpeningWorkflow();
                 main.Close();
             }
             catch (Exception ex) { error = ex; }
@@ -626,6 +669,67 @@ public sealed class WorkspaceNavigationTest
         Assert.True(thread.Join(TimeSpan.FromSeconds(30)), "Workspace test timed out.");
         if (error != null) throw new InvalidOperationException("Workspace UI test failed.", error);
     }
+    private static void VerifyXciRepairOpeningWorkflow()
+    {
+        foreach (var scenario in new[] { "repair", "decline", "cancel", "healthy", "disabled", "failure", "close" })
+        {
+            var settings = new AppSettings { EnableNszPlugin = scenario != "disabled" };
+            settings.InitializeFeatures();
+            var loader = new PreviewLoader();
+            var repair = new OpeningRepairService { HasCandidate = scenario != "healthy", FailRepair = scenario == "failure" };
+            var prompt = new OpeningRepairPrompt { Decision = scenario switch
+            {
+                "cancel" => new(true),
+                "decline" => new(false),
+                _ => new(false, "repaired.xci")
+            } };
+            var opening = new Emignatik.NxFileViewer.Services.FileOpening.FileOpeningService(
+                Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance, settings, loader,
+                new ImmediatePreviewRunner(), repairService: repair, repairPrompt: prompt);
+            if (scenario == "close") prompt.BeforeDecision = opening.SafeClose;
+            opening.SafeOpenFile("original.xci").GetAwaiter().GetResult();
+            var aborted = scenario is "cancel" or "failure" or "close";
+            Assert.Equal(aborted ? 0 : 1, loader.LoadCount);
+            Assert.Equal(scenario == "disabled" ? 0 : 1, repair.Inspections);
+            Assert.Equal(scenario is "healthy" or "disabled" ? 0 : 1, prompt.Questions);
+            Assert.Equal(scenario is "repair" or "failure" ? 1 : 0, repair.Repairs);
+            Assert.Equal(scenario == "failure" ? 1 : 0, prompt.Failures);
+            if (!aborted)
+            {
+                Assert.Equal(scenario == "repair" ? "repaired.xci" : "original.xci", opening.OpenedFile!.FilePath);
+                Assert.Equal(opening.OpenedFile.FilePath, settings.LastOpenedFile);
+            }
+            opening.SafeClose();
+        }
+    }
+    private sealed class OpeningRepairService : Emignatik.NxFileViewer.Services.Nsz.IXciRepairService
+    {
+        public bool HasCandidate, FailRepair;
+        public int Inspections, Repairs;
+        public Emignatik.NxFileViewer.Services.Nsz.XciRepairCandidate? Inspect(string path,
+            Emignatik.NxFileViewer.Services.BackgroundTask.IProgressReporter progress, CancellationToken token)
+        {
+            Inspections++;
+            return HasCandidate ? new(path, null, 0, true, 1, 0) : null;
+        }
+        public string RepairCopy(Emignatik.NxFileViewer.Services.Nsz.XciRepairCandidate candidate, string destination,
+            Emignatik.NxFileViewer.Services.BackgroundTask.IProgressReporter progress, CancellationToken token)
+        {
+            Repairs++;
+            if (FailRepair) throw new System.IO.IOException("Synthetic verification failure.");
+            return destination;
+        }
+    }
+    private sealed class OpeningRepairPrompt : Emignatik.NxFileViewer.Services.Nsz.IXciRepairPrompt
+    {
+        public Emignatik.NxFileViewer.Services.Nsz.XciRepairDecision Decision = new(true);
+        public Action? BeforeDecision;
+        public int Questions, Failures;
+        public Emignatik.NxFileViewer.Services.Nsz.XciRepairDecision Ask(Emignatik.NxFileViewer.Services.Nsz.XciRepairCandidate candidate)
+        { Questions++; BeforeDecision?.Invoke(); return Decision; }
+        public void ShowFailure(string reason) => Failures++;
+    }
+
     private sealed class PreviewLoader : Emignatik.NxFileViewer.FileLoading.IFileLoader
     {
         public int LoadCount { get; private set; }

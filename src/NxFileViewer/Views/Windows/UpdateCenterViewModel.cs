@@ -36,8 +36,8 @@ public sealed class UpdateCenterViewModel : ViewModelBase
         Nsz = nsz; Viewer = viewer;
         Nand = nand;
         RefreshTitlesCommand = new RelayCommand(RefreshTitles, () => !background.IsRunning);
-        CheckFirmwareCommand = new RelayCommand(() => RefreshFirmware(false), () => !background.IsRunning);
-        SaveFirmwareCommand = new RelayCommand(() => RefreshFirmware(true), () => !background.IsRunning);
+        CheckFirmwareCommand = new RelayCommand(() => RefreshFirmware(false), () => settings.FirmwareCheckActive && !background.IsRunning);
+        SaveFirmwareCommand = new RelayCommand(() => RefreshFirmware(true), () => settings.FirmwareCheckActive && !background.IsRunning);
         background.PropertyChanged += (_, _) =>
         {
             RefreshTitlesCommand.TriggerCanExecuteChanged(true);
@@ -83,7 +83,7 @@ public sealed class UpdateCenterViewModel : ViewModelBase
         }
         TitleCatalogSummary = Catalog(_settings.TitleDbRegion);
         if (_settings.TitleDbRegion != "US.en") TitleCatalogSummary += Environment.NewLine + Catalog("US.en");
-        var version = InstalledDataStatus.LocalFirmwareVersion(AppContext.BaseDirectory);
+        var version = _settings.FirmwareCheckActive ? InstalledDataStatus.LocalFirmwareVersion(AppContext.BaseDirectory) : null;
         LocalFirmwareSummary = version == null ? keys.DataUpdate_NoLocalFirmware : string.Format(keys.DataUpdate_LocalFirmwareVersion, version);
         NotifyPropertyChanged(nameof(TitleCatalogSummary));
         NotifyPropertyChanged(nameof(LocalFirmwareSummary));
@@ -114,7 +114,7 @@ public sealed class UpdateCenterViewModel : ViewModelBase
     }
     private async void RefreshFirmware(bool save)
     {
-        if (_background.IsRunning) return;
+        if (!_settings.FirmwareCheckActive || _background.IsRunning) return;
         FirmwareStatus = LocalizationManager.Instance.Current.Keys.DataUpdate_Working;
         string? onlineVersion = null;
         try

@@ -18,9 +18,16 @@ namespace Emignatik.NxFileViewer.Services.Nand;
 public sealed class NandCliPlugin(IAppSettings settings, INandProcessRunner? processRunner = null,
     NandPluginManager? manager = null, IKeySetProviderService? keyProvider = null)
 {
+    public bool IsEnabled => settings.NandPluginActive;
+    public bool IsNandEnabled => settings.NandActive;
+    private void EnsureNandEnabled()
+    {
+        if (!settings.NandActive) throw new InvalidOperationException(LocalizationManager.Instance.Current.Keys.Features_NandDisabled);
+    }
     private readonly INandProcessRunner _processRunner = processRunner ?? new NandProcessRunner();
     public IReadOnlyList<NandExplorerPartition> ExplorerPartitions(string source, CancellationToken token)
     {
+        EnsureNandEnabled();
         using var explorer = new NandExplorer(source, token);
         return explorer.GetPartitions(source);
     }
@@ -45,6 +52,7 @@ public sealed class NandCliPlugin(IAppSettings settings, INandProcessRunner? pro
     }
     public IReadOnlyList<NandExplorerEntry> ListExplorer(string source, NandExplorerPartition partition, string path, CancellationToken token)
     {
+        EnsureNandEnabled();
         using var explorer = new NandExplorer(source, token);
         explorer.OpenPartition(partition, ExplorerKey(partition.Name));
         var entries = explorer.List(path);
@@ -85,6 +93,7 @@ public sealed class NandCliPlugin(IAppSettings settings, INandProcessRunner? pro
     }
     public void ExportExplorer(string source, NandExplorerPartition partition, NandExplorerEntry entry, string destination, CancellationToken token)
     {
+        EnsureNandEnabled();
         using var explorer = new NandExplorer(source, token);
         explorer.OpenPartition(partition, ExplorerKey(partition.Name));
         using var output = new FileStream(destination, FileMode.CreateNew, FileAccess.Write, FileShare.None);
@@ -95,6 +104,7 @@ public sealed class NandCliPlugin(IAppSettings settings, INandProcessRunner? pro
         CancellationToken token, Func<NandSaveExplorer, T> action)
     {
         if (!entry.IsSave || entry.IsDirectory) throw new InvalidOperationException("Select a readable save file.");
+        EnsureNandEnabled();
         using var explorer = new NandExplorer(source, token);
         explorer.OpenPartition(partition, ExplorerKey(partition.Name));
         using var stream = explorer.OpenFile(entry);
@@ -126,7 +136,9 @@ public sealed class NandCliPlugin(IAppSettings settings, INandProcessRunner? pro
 
     public string ReadInformation(string source, IProgressReporter progress, CancellationToken token)
     {
+        EnsureNandEnabled();
         ValidateSource(source);
+        if (!settings.NandPluginActive) throw new InvalidOperationException(LocalizationManager.Instance.Current.Keys.Features_PluginsDisabled);
         manager?.Prepare(progress, token);
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
         timeout.CancelAfter(TimeSpan.FromSeconds(60));
@@ -136,6 +148,7 @@ public sealed class NandCliPlugin(IAppSettings settings, INandProcessRunner? pro
     public void Export(string source, string destination, string partition, IProgressReporter progress, CancellationToken token)
     {
         if (!PartitionNames.Contains(partition)) throw new ArgumentException(nameof(partition));
+        EnsureNandEnabled();
         source = ValidateSource(source);
         destination = Path.GetFullPath(destination);
         if (destination.StartsWith(@"\\", StringComparison.Ordinal) || destination.IndexOf(':', 2) >= 0 || File.Exists(destination) || Directory.Exists(destination))
@@ -169,7 +182,9 @@ public sealed class NandCliPlugin(IAppSettings settings, INandProcessRunner? pro
 
     private string Run(string source, string? output, string? partition, IProgressReporter progress, CancellationToken token)
     {
+        EnsureNandEnabled();
         source = ValidateSource(source);
+        if (!settings.NandPluginActive) throw new InvalidOperationException(LocalizationManager.Instance.Current.Keys.Features_PluginsDisabled);
         manager?.Prepare(progress, token);
         var executable = manager?.ExecutablePath ?? settings.NandExecutablePath;
         if (string.IsNullOrWhiteSpace(executable) || !File.Exists(executable))

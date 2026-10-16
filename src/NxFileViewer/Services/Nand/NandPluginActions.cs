@@ -17,13 +17,13 @@ public sealed class NandPluginActions : NotifyPropertyChangedBase
     public NandPluginActions(NandPluginManager manager, IMainBackgroundTaskRunnerService runner, IAppSettings settings, IKeySetProviderService keys)
     {
         _manager = manager; _runner = runner;
-        OpenGuiCommand = new RelayCommand(() => { try { PluginGuiLauncher.Open(manager.ExecutablePath, true, string.IsNullOrWhiteSpace(settings.NandBisKeysPath) ? keys.ActualProdKeysFilePath : settings.NandBisKeysPath); } catch (Exception ex) { _result = ex.Message; Refresh(); } }, () => !runner.IsRunning && CanOpenGui());
-        UpdateCommand = new RelayCommand(Update, () => !runner.IsRunning && string.IsNullOrWhiteSpace(settings.NandExecutablePath));
+        OpenGuiCommand = new RelayCommand(() => { try { PluginGuiLauncher.Open(manager.ExecutablePath, true, string.IsNullOrWhiteSpace(settings.NandBisKeysPath) ? keys.ActualProdKeysFilePath : settings.NandBisKeysPath); } catch (Exception ex) { _result = ex.Message; Refresh(); } }, () => settings.NandPluginActive && !runner.IsRunning && CanOpenGui());
+        UpdateCommand = new RelayCommand(Update, () => settings.NandPluginActive && !runner.IsRunning && string.IsNullOrWhiteSpace(settings.NandExecutablePath));
         RollbackCommand = new RelayCommand(() =>
         {
             try { manager.Rollback(); _result = ""; } catch (Exception ex) { _result = ex.Message; }
             Refresh();
-        }, () => !runner.IsRunning && manager.CanRollback);
+        }, () => settings.NandPluginActive && !runner.IsRunning && manager.CanRollback);
         runner.PropertyChanged += (_, _) => Refresh();
         settings.PropertyChanged += (_, _) => Refresh();
     }

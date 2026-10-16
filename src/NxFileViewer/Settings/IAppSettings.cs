@@ -9,6 +9,18 @@ namespace Emignatik.NxFileViewer.Settings;
 /// </summary>
 public interface IAppSettings : INotifyPropertyChanged
 {
+    bool EnablePlugins { get; set; }
+    bool EnableNszPlugin { get; set; }
+    bool EnableNandPlugin { get; set; }
+    bool EnableNand { get; set; }
+    bool NandActive { get; }
+    bool EnableFirmwareCheck { get; set; }
+    bool NszPluginActive { get; }
+    bool NandPluginActive { get; }
+    bool FirmwareCheckActive { get; }
+    bool EnableMtp { get; set; }
+    bool PluginsActive { get; }
+    bool MtpActive { get; }
     bool VerifyBatchDrops { get; set; }
     bool VerifyFilesOpenedInProgram { get; set; }
     bool VerifyFilesOpenedFromWindows { get; set; }

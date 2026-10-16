@@ -890,6 +890,87 @@ public sealed class PackageZipTest : IDisposable
         typeof(IFileLoader).Assembly.GetType("Emignatik.NxFileViewer.FileLoading.FileLoader")!,
         NullLoggerFactory.Instance, new PackageTypeAnalyzer(NullLoggerFactory.Instance), new SyntheticItemLoader(),
         new FileOverviewLoader(NullLoggerFactory.Instance), references ?? new EmptyReferences())!;
+    [Fact]
+    public void DisabledFirmwareSkipsLooseNcasArchivesAndNetworkButProcessesGames()
+    {
+        File.WriteAllBytes(Path.Combine(_root, "disabled.nca"), new byte[] { 0 });
+        File.WriteAllBytes(Path.Combine(_root, "game.nsp"), new byte[] { 0 });
+        using (var archive = ZipFile.Open(Path.Combine(_root, "firmware.zip"), ZipArchiveMode.Create))
+        using (var stream = archive.CreateEntry("disabled.nca").Open()) stream.WriteByte(0);
+        var handler = new OfflineHandler();
+        using var client = new HttpClient(handler);
+        var loader = new FailingLoader();
+        var settings = new AppSettings { EnableFirmwareCheck = false };
+        settings.InitializeFeatures();
+        var runnable = new VerifyDirectoryIntegrityRunnable(loader, null!, settings,
+            NullLogger<VerifyDirectoryIntegrityRunnable>.Instance, Path.Combine(_root, "missing"), client);
+        var result = Assert.Single(runnable.Setup(_root, false).Run(new Progress(), TestContext.Current.CancellationToken));
+        Assert.False(result.IsFirmware);
+        Assert.EndsWith("game.nsp", result.FilePath);
+        Assert.Equal(1, loader.Calls);
+        Assert.Equal(0, handler.Requests);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void DisabledNandIsOmittedFromArchiveListingsAndCache(bool nested)
+    {
+        var path = Path.Combine(_root, "optional-nand.zip");
+        using (var archive = ZipFile.Open(path, ZipArchiveMode.Create))
+        {
+            var bytes = new byte[512];
+            System.Text.Encoding.ASCII.GetBytes("CAL0").CopyTo(bytes, 0);
+            using (var stream = archive.CreateEntry("PRODINFO.bin").Open()) stream.Write(bytes);
+            using (var stream = archive.CreateEntry("game.nsp").Open()) stream.WriteByte(0);
+        }
+        if (nested) path = WrapArchive(path);
+        using var operation = PackageZip.BeginOperation();
+        var enabled = PackageZip.GetEntries(path, token: TestContext.Current.CancellationToken, includeNand: true);
+        Assert.Contains(enabled, entry => entry.EndsWith("PRODINFO.bin", StringComparison.Ordinal));
+        var disabled = PackageZip.GetEntries(path, token: TestContext.Current.CancellationToken, includeNand: false);
+        Assert.DoesNotContain(disabled, entry => entry.EndsWith("PRODINFO.bin", StringComparison.Ordinal));
+        Assert.Contains(disabled, entry => entry.EndsWith("game.nsp", StringComparison.Ordinal));
+        Assert.Equal(enabled, PackageZip.GetEntries(path, token: TestContext.Current.CancellationToken, includeNand: true));
+    }
+
+    [Fact]
+    public void DisabledNandIsNotOpenedAsANandImage()
+    {
+        var path = Path.Combine(_root, "PRODINFO.bin");
+        var bytes = new byte[512];
+        System.Text.Encoding.ASCII.GetBytes("CAL0").CopyTo(bytes, 0);
+        File.WriteAllBytes(path, bytes);
+        var settings = new AppSettings { EnableNand = false };
+        settings.InitializeFeatures();
+        var loader = (IFileLoader)Activator.CreateInstance(
+            typeof(IFileLoader).Assembly.GetType("Emignatik.NxFileViewer.FileLoading.FileLoader")!,
+            settings, NullLoggerFactory.Instance, new PackageTypeAnalyzer(NullLoggerFactory.Instance),
+            new SyntheticItemLoader(), new FileOverviewLoader(NullLoggerFactory.Instance), new EmptyReferences())!;
+        Assert.ThrowsAny<Exception>(() => loader.Load(path, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public void DisabledFirmwareDoesNotLoadReferencesWhenOpeningAnNca()
+    {
+        var path = Path.Combine(_root, "disabled-firmware.nca");
+        File.WriteAllBytes(path, new byte[] { 0 });
+        var references = new CountingFeatureReferences();
+        var settings = new AppSettings { EnableFirmwareCheck = false };
+        settings.InitializeFeatures();
+        var loader = (IFileLoader)Activator.CreateInstance(
+            typeof(IFileLoader).Assembly.GetType("Emignatik.NxFileViewer.FileLoading.FileLoader")!,
+            settings, NullLoggerFactory.Instance, new PackageTypeAnalyzer(NullLoggerFactory.Instance),
+            new SyntheticItemLoader(), new FileOverviewLoader(NullLoggerFactory.Instance), references)!;
+        Assert.ThrowsAny<Exception>(() => loader.Load(path, TestContext.Current.CancellationToken));
+        Assert.Equal(0, references.Calls);
+    }
+    private sealed class CountingFeatureReferences : Emignatik.NxFileViewer.Services.Integrity.IFirmwareReferenceProvider
+    {
+        public int Calls;
+        public (Emignatik.NxFileViewer.Services.Integrity.FirmwareIntegrityVerifier?, string) Load(CancellationToken token)
+        { Calls++; return (null, "no references"); }
+    }
     private sealed class EmptyReferences : Emignatik.NxFileViewer.Services.Integrity.IFirmwareReferenceProvider
     {
         public (Emignatik.NxFileViewer.Services.Integrity.FirmwareIntegrityVerifier?, string) Load(CancellationToken token) => (null, "no references");

@@ -37,11 +37,11 @@ public sealed class NszActions : NotifyPropertyChangedBase
     {
         _manager = manager; _converter = converter; _background = background; _prompts = prompts;
         _opening = opening; _logger = logger; _settings = settings;
-        OpenGuiCommand = new RelayCommand(() => { try { PluginGuiLauncher.Open(_manager.GuiExecutablePath, false, keys.ActualProdKeysFilePath); } catch (Exception ex) { ShowError(ex); } }, () => !_background.IsRunning && File.Exists(_manager.GuiExecutablePath));
+        OpenGuiCommand = new RelayCommand(() => { try { PluginGuiLauncher.Open(_manager.GuiExecutablePath, false, keys.ActualProdKeysFilePath); } catch (Exception ex) { ShowError(ex); } }, () => _settings.NszPluginActive && !_background.IsRunning && File.Exists(_manager.GuiExecutablePath));
         CompressCommand = new RelayCommand(() => ConvertOpened(NszOperation.Compress), () => CanConvertOpened(NszOperation.Compress));
         DecompressCommand = new RelayCommand(() => ConvertOpened(NszOperation.Decompress), () => CanConvertOpened(NszOperation.Decompress));
-        UpdateCommand = new RelayCommand(Update, () => !_background.IsRunning && string.IsNullOrWhiteSpace(settings.NszExecutablePath));
-        RollbackCommand = new RelayCommand(Rollback, () => !_background.IsRunning && _manager.CanRollback);
+        UpdateCommand = new RelayCommand(Update, () => _settings.NszPluginActive && !_background.IsRunning && string.IsNullOrWhiteSpace(settings.NszExecutablePath));
+        RollbackCommand = new RelayCommand(Rollback, () => _settings.NszPluginActive && !_background.IsRunning && _manager.CanRollback);
         _background.PropertyChanged += (_, args) => { if (args.PropertyName == nameof(IBackgroundTaskRunner.IsRunning)) Refresh(); };
         _opening.OpenedFileChanged += (_, _) => Refresh();
         settings.PropertyChanged += (_, _) => Refresh();
@@ -62,7 +62,7 @@ public sealed class NszActions : NotifyPropertyChangedBase
         NotifyPropertyChanged(nameof(Status));
     }
 
-    private bool CanConvertOpened(NszOperation operation) => !_background.IsRunning && _opening.OpenedFile != null &&
+    private bool CanConvertOpened(NszOperation operation) => _settings.NszPluginActive && !_background.IsRunning && _opening.OpenedFile != null &&
         PackageConversionService.Supports(_opening.OpenedFile.FilePath, operation);
 
     private async void ConvertOpened(NszOperation operation)
@@ -81,7 +81,7 @@ public sealed class NszActions : NotifyPropertyChangedBase
 
     public async Task<IReadOnlyList<ConversionAttempt>> ConvertFilesAsync(string[] paths, NszOperation operation, string? sourceRoot = null)
     {
-        if (_background.IsRunning || paths.Length == 0) return Array.Empty<ConversionAttempt>();
+        if (!_settings.NszPluginActive || _background.IsRunning || paths.Length == 0) return Array.Empty<ConversionAttempt>();
         var destination = _prompts.PromptSelectDir(LocalizationManager.Instance.Current.Keys.Nsz_SelectDestination);
         if (destination == null) return Array.Empty<ConversionAttempt>();
         destination = Path.GetFullPath(destination);

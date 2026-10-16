@@ -19,6 +19,17 @@ internal class FileLoader : IFileLoader
     private readonly IFileOverviewLoader _fileOverviewLoader;
     private readonly ILogger _logger;
     private readonly IFirmwareReferenceProvider _firmwareReferences;
+    private readonly Settings.IAppSettings? _appSettings;
+    private bool NandEnabled => _appSettings?.NandActive ?? true;
+    private bool FirmwareEnabled => _appSettings?.FirmwareCheckActive ?? true;
+
+    public FileLoader(Settings.IAppSettings appSettings, ILoggerFactory loggerFactory, IPackageTypeAnalyzer packageTypeAnalyzer,
+        IFileItemLoader fileItemLoader, IFileOverviewLoader fileOverviewLoader, IFirmwareReferenceProvider? firmwareReferences = null)
+        : this(loggerFactory, packageTypeAnalyzer, fileItemLoader, fileOverviewLoader, firmwareReferences)
+    {
+        _appSettings = appSettings;
+    }
+
 
     public FileLoader(ILoggerFactory loggerFactory, IPackageTypeAnalyzer packageTypeAnalyzer, IFileItemLoader fileItemLoader, IFileOverviewLoader fileOverviewLoader,
         IFirmwareReferenceProvider? firmwareReferences = null)
@@ -65,8 +76,8 @@ internal class FileLoader : IFileLoader
         if (PackageZip.IsMember(filePath) || PackageZip.IsArchive(filePath))
         {
             var archive = PackageZip.ArchivePath(filePath);
-            var entries = PackageZip.GetEntries(archive, token: token, includeFirmware: true);
-            if (!PackageZip.IsMember(filePath) && entries.Count > 0 && !entries.Any(entry => entry.Contains(PackageZip.Separator, StringComparison.Ordinal)) && PackageZip.GetEntries(archive, includeNca: false, token: token).Count == 0)
+            var entries = PackageZip.GetEntries(archive, token: token, includeFirmware: FirmwareEnabled, includeNand: NandEnabled);
+            if (FirmwareEnabled && !PackageZip.IsMember(filePath) && entries.Count > 0 && !entries.Any(entry => entry.Contains(PackageZip.Separator, StringComparison.Ordinal)) && PackageZip.GetEntries(archive, includeNca: false, token: token, includeNand: NandEnabled).Count == 0)
             {
                 var firmwareExtraction = PackageZip.Extract(archive, entries[0], token);
                 try
@@ -87,6 +98,7 @@ internal class FileLoader : IFileLoader
             {
                 if (Directory.Exists(extracted.FilePath) || PackageZip.IsArchive(extracted.FilePath))
                 {
+                    if (!FirmwareEnabled) throw new InvalidOperationException(LocalizationManager.Instance.Current.Keys.Features_FirmwareDisabled);
                     var (verifier, notice) = _firmwareReferences.Load(token);
                     var logical = PackageZip.MemberPath(archive, entry);
                     var result = verifier?.Verify(extracted.FilePath, token) ?? UnavailableFirmware(logical, notice);
@@ -103,7 +115,7 @@ internal class FileLoader : IFileLoader
         }
         _logger.LogInformation(LocalizationManager.Instance.Current.Keys.Log_OpeningFile.SafeFormat(filePath));
 
-        var nand = Services.Mtp.MtpDirectSource.IsDirect(filePath) ? null : Services.Nand.NandDetection.Detect(filePath, token);
+        var nand = !NandEnabled || Services.Mtp.MtpDirectSource.IsDirect(filePath) ? null : Services.Nand.NandDetection.Detect(filePath, token);
         if (nand != null)
         {
             var root = new NandFileItem(filePath);
@@ -112,7 +124,7 @@ internal class FileLoader : IFileLoader
         }
 
         BatchIntegrityResult? ncaFirmware = null;
-        if (!Services.Mtp.MtpDirectSource.IsDirect(filePath) && Path.GetExtension(filePath).Equals(".nca", StringComparison.OrdinalIgnoreCase))
+        if (FirmwareEnabled && !Services.Mtp.MtpDirectSource.IsDirect(filePath) && Path.GetExtension(filePath).Equals(".nca", StringComparison.OrdinalIgnoreCase))
         {
             var (verifier, notice) = _firmwareReferences.Load(token);
             token.ThrowIfCancellationRequested();

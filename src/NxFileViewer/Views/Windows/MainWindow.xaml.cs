@@ -61,6 +61,7 @@ public partial class MainWindow : Window
 
     public void Navigate(WorkspaceSection section)
     {
+        if (section == WorkspaceSection.Nand && !App.Features.NandActive) return;
         var target = section is WorkspaceSection.Plugins or WorkspaceSection.Updates ? WorkspaceSection.Settings : section;
         if (_activeTaskTab.HasValue && (int)target != _activeTaskTab && target != WorkspaceSection.Log) return;
         if (section is WorkspaceSection.Plugins or WorkspaceSection.Updates)
@@ -93,7 +94,7 @@ public partial class MainWindow : Window
         // attached to their tabs, keeping results, drafts and running tasks intact.
         switch (section)
         {
-            case WorkspaceSection.Nand when NandTab.Content == null:
+            case WorkspaceSection.Nand when App.Features.NandActive && NandTab.Content == null:
                 NandTab.Content = new NandView { DataContext = App.ServiceProvider.GetRequiredService<NandViewModel>() };
                 break;
             case WorkspaceSection.Updates when UpdatesTab.Content == null:

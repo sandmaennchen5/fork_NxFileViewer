@@ -6,6 +6,30 @@ namespace Emignatik.NxFileViewer.Localization.Keys;
 
 public class LocalizationKeys_DE : LocalizationKeysBase, ILocalizationKeys
 {
+    public string XciRepair_Title => "XCI-Container reparieren";
+    public string XciRepair_Inspect => "XCI auf bekannte Layoutfehler prüfen…";
+    public string XciRepair_Prompt => "Bei „{0}“ wurde ein bekannter reparierbarer Containerfehler erkannt: {1}\n\nEine reparierte Kopie erstellen und anschließend öffnen? Das Original bleibt unverändert. Die Kopie wird vor dem Speichern vollständig geprüft.";
+    public string XciRepair_HeaderIssue => "Der Gamecard-Header passt nicht zum Inhalt.";
+    public string XciRepair_LayoutIssue => "Die Eintragsgrößen nach dem Dekomprimieren sind fehlerhaft. Die passende XCZ im selben Ordner ermöglicht eine Korrektur.";
+    public string XciRepair_SaveCopy => "Reparierte XCI-Kopie speichern";
+    public string XciRepair_Copying => "XCI für die Reparatur kopieren…";
+    public string XciRepair_Verifying => "Reparierte XCI prüfen";
+    public string XciRepair_NewFileRequired => "Bitte einen neuen Dateinamen mit der Endung .xci wählen. Vorhandene Dateien werden nicht überschrieben.";
+    public string XciRepair_SourceChanged => "Die Datei oder ihre XCZ-Quelle wurde seit der Prüfung verändert. Bitte erneut öffnen.";
+    public string XciRepair_VerificationFailed => "Die reparierte Kopie hat die Integritätsprüfung nicht bestanden.";
+    public string XciRepair_Failed => "Die Reparatur wurde nicht abgeschlossen. Das Original bleibt unverändert.\n\n{0}";
+    public string Features_Nand => "NAND-Funktionen aktivieren";
+    public string Features_NandDisabled => "NAND-Funktionen sind deaktiviert. In den Einstellungen aktivieren und das Programm neu starten.";
+    public string Features_NszPlugin => "NSZ-Plugin aktivieren";
+    public string Features_NandPlugin => "NxNandManager-Plugin aktivieren";
+    public string Features_Firmware => "Firmware-Prüfung aktivieren";
+    public string Features_FirmwareDisabled => "Die Firmware-Prüfung ist deaktiviert. In den Einstellungen aktivieren und das Programm neu starten.";
+    public string Features_Title => "Optionale Funktionen";
+    public string Features_Plugins => "Plugins aktivieren (NSZ / NxNandManager)";
+    public string Features_Mtp => "MTP aktivieren (experimentell)";
+    public string Features_Restart => "Änderungen werden nach einem Neustart des Programms wirksam.";
+    public string Features_PluginsDisabled => "Plugins sind deaktiviert. In den Einstellungen aktivieren und das Programm neu starten.";
+
     public string Nand_Detected => "NAND-Signaturen erkannt. Die Integrität wurde nicht geprüft.";
     public string Nand_OpenSave => "Spielstand öffnen";
     public string Nand_LeaveSave => "Zur Partition";

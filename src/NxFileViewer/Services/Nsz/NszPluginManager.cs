@@ -19,6 +19,10 @@ namespace Emignatik.NxFileViewer.Services.Nsz;
 public sealed class NszPluginManager(IAppSettings settings, ILogger<NszPluginManager> logger,
     string? rootDirectory = null, HttpClient? httpClient = null, Action<string, CancellationToken>? compatibilityCheck = null)
 {
+    private void EnsureEnabled()
+    {
+        if (!settings.NszPluginActive) throw new InvalidOperationException(LocalizationManager.Instance.Current.Keys.Features_PluginsDisabled);
+    }
     private static readonly HttpClient Client = CreateClient();
     private readonly System.Collections.Generic.Dictionary<string, (long Length, long Modified)> _checkedExecutables = new(StringComparer.OrdinalIgnoreCase);
     private static HttpClient CreateClient()
@@ -33,6 +37,7 @@ public sealed class NszPluginManager(IAppSettings settings, ILogger<NszPluginMan
         string? SourceAssetName = null, string? SourceDigest = null, string? ExecutableDigest = null);
     private State? ReadState()
     {
+        if (!settings.NszPluginActive) return null;
         if (!File.Exists(StatePath)) return null;
         var state = JsonSerializer.Deserialize<State>(File.ReadAllText(StatePath))!;
         string Resolve(string path)
@@ -47,7 +52,7 @@ public sealed class NszPluginManager(IAppSettings settings, ILogger<NszPluginMan
             PreviousExecutable = state.PreviousExecutable == null ? null : Resolve(state.PreviousExecutable) };
     }
     public string? InstalledVersion => string.IsNullOrWhiteSpace(settings.NszExecutablePath) ? ReadState()?.Version : null;
-    public string ExecutablePath => string.IsNullOrWhiteSpace(settings.NszExecutablePath)
+    public string ExecutablePath => !settings.NszPluginActive ? "" : string.IsNullOrWhiteSpace(settings.NszExecutablePath)
         ? ReadState()?.Executable ?? "" : Path.GetFullPath(settings.NszExecutablePath);
     public string GuiExecutablePath
     {
@@ -58,6 +63,7 @@ public sealed class NszPluginManager(IAppSettings settings, ILogger<NszPluginMan
         get
         {
             var keys = LocalizationManager.Instance.Current.Keys;
+            if (!settings.NszPluginActive) return keys.Features_PluginsDisabled;
             try
             {
                 var state = string.IsNullOrWhiteSpace(settings.NszExecutablePath) ? ReadState() : null;
@@ -74,6 +80,7 @@ public sealed class NszPluginManager(IAppSettings settings, ILogger<NszPluginMan
 
     public void Rollback()
     {
+        EnsureEnabled();
         var state = ReadState();
         if (!CanRollback || state == null) throw new InvalidOperationException("No previous NSZ version.");
         WriteState(new(state.PreviousExecutable!, state.PreviousVersion!, state.Executable, state.Version));
@@ -92,6 +99,7 @@ public sealed class NszPluginManager(IAppSettings settings, ILogger<NszPluginMan
 
     public void Prepare(IProgressReporter progress, CancellationToken token)
     {
+        EnsureEnabled();
         if (!string.IsNullOrWhiteSpace(settings.NszExecutablePath))
         {
             (compatibilityCheck ?? CheckManagedCompatibility)(ExecutablePath, token);
@@ -114,6 +122,7 @@ public sealed class NszPluginManager(IAppSettings settings, ILogger<NszPluginMan
 
     public async Task UpdateAsync(IProgressReporter progress, CancellationToken token, bool automatic = false)
     {
+        EnsureEnabled();
         progress.SetMode(true);
         progress.SetText(LocalizationManager.Instance.Current.Keys.Nsz_Updating);
         var client = httpClient ?? Client;

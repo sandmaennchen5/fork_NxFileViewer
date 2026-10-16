@@ -17,6 +17,10 @@ namespace Emignatik.NxFileViewer.Services.Nand;
 public sealed class NandPluginManager(IAppSettings settings, string? rootDirectory = null,
     HttpClient? httpClient = null, Action<string, CancellationToken>? compatibilityCheck = null)
 {
+    private void EnsureEnabled()
+    {
+        if (!settings.NandPluginActive) throw new InvalidOperationException(LocalizationManager.Instance.Current.Keys.Features_PluginsDisabled);
+    }
     private static readonly HttpClient Client = CreateClient();
     private static HttpClient CreateClient()
     {
@@ -37,12 +41,13 @@ public sealed class NandPluginManager(IAppSettings settings, string? rootDirecto
     }
     private State? ReadState()
     {
+        if (!settings.NandPluginActive) return null;
         if (!File.Exists(StatePath)) return null;
         var state = JsonSerializer.Deserialize<State>(File.ReadAllText(StatePath)) ?? throw new InvalidDataException("Invalid NAND installation state.");
         return state with { Executable = Resolve(state.Executable), PreviousExecutable = state.PreviousExecutable == null ? null : Resolve(state.PreviousExecutable) };
     }
     public string? InstalledVersion => string.IsNullOrWhiteSpace(settings.NandExecutablePath) ? ReadState()?.Version : null;
-    public string ExecutablePath => string.IsNullOrWhiteSpace(settings.NandExecutablePath) ? ReadState()?.Executable ?? "" : Path.GetFullPath(settings.NandExecutablePath);
+    public string ExecutablePath => !settings.NandPluginActive ? "" : string.IsNullOrWhiteSpace(settings.NandExecutablePath) ? ReadState()?.Executable ?? "" : Path.GetFullPath(settings.NandExecutablePath);
     public bool CanRollback
     {
         get { try { return string.IsNullOrWhiteSpace(settings.NandExecutablePath) && File.Exists(ReadState()?.PreviousExecutable); } catch { return false; } }
@@ -51,6 +56,7 @@ public sealed class NandPluginManager(IAppSettings settings, string? rootDirecto
     {
         get
         {
+            if (!settings.NandPluginActive) return LocalizationManager.Instance.Current.Keys.Features_PluginsDisabled;
             try
             {
                 var state = string.IsNullOrWhiteSpace(settings.NandExecutablePath) ? ReadState() : null;
@@ -72,6 +78,7 @@ public sealed class NandPluginManager(IAppSettings settings, string? rootDirecto
     }
     public void Rollback()
     {
+        EnsureEnabled();
         var state = ReadState();
         if (!CanRollback || state == null) throw new InvalidOperationException("No previous NAND version.");
         using var file = File.OpenRead(state.PreviousExecutable!);
@@ -80,11 +87,13 @@ public sealed class NandPluginManager(IAppSettings settings, string? rootDirecto
     }
     public void Prepare(IProgressReporter progress, CancellationToken token)
     {
+        EnsureEnabled();
         if (string.IsNullOrWhiteSpace(settings.NandExecutablePath) && !File.Exists(ExecutablePath))
             UpdateAsync(progress, token).GetAwaiter().GetResult();
     }
     public async Task UpdateAsync(IProgressReporter progress, CancellationToken token)
     {
+        EnsureEnabled();
         if (!string.IsNullOrWhiteSpace(settings.NandExecutablePath)) throw new InvalidOperationException(LocalizationManager.Instance.Current.Keys.Nand_CustomUpdate);
         progress.SetMode(true);
         progress.SetText(LocalizationManager.Instance.Current.Keys.Nand_Updating);

@@ -134,10 +134,9 @@ public static partial class XciPartitionIntegrity
         var hash = Hash(output, checked(entry.Offset + entry.HashOffset), entry.HashSize, token);
         output.Position = entry.Record + 32; output.Write(hash);
     }
-    public static int CorrectStagedLayout(string sourceXcz, string stagedXci, CancellationToken token)
+    private static (List<Change> Changes, List<(Entry, DirectoryInfo)> Directories, DirectoryInfo Root) BuildLayoutPlan(
+        Stream source, Stream output, CancellationToken token, bool verifyAllNcas = false)
     {
-        using var source = File.OpenRead(sourceXcz);
-        using var output = new FileStream(stagedXci, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
         var sourcePartitions = Root(source, compressed: true).Entries.ToDictionary(e => e.Name, StringComparer.Ordinal);
         var root = Root(output); var changes = new List<Change>(); var directories = new List<(Entry, DirectoryInfo)>();
         if (sourcePartitions.Count != root.Entries.Length) throw new InvalidDataException("XCI partitions changed during decompression.");
@@ -173,13 +172,22 @@ public static partial class XciPartitionIntegrity
                 if (!Hash(source, originalEntry.Offset, originalEntry.Size, token).AsSpan().SequenceEqual(Hash(output, change.Offset, change.Size, token)))
                     throw new InvalidDataException("Non-NCA data changed during decompression.");
             }
-            if (planned.All(c => c.Offset == c.Entry.Offset && c.Size == c.Entry.Size)) continue;
-            // Only adjust metadata if every NCA at the proposed position matches its content ID.
-            // Unknown layout errors must fail verification, never be guessed away.
-            foreach (var change in planned)
-                CheckNca(output, change.Entry with { Offset = change.Offset, Size = change.Size }, partition.Name, token);
+            var changed = planned.Any(c => c.Offset != c.Entry.Offset || c.Size != c.Entry.Size);
+            // Read-only inspection can validate unchanged partitions as well before offering a repair.
+            if (changed || verifyAllNcas)
+                foreach (var change in planned)
+                    CheckNca(output, change.Entry with { Offset = change.Offset, Size = change.Size }, partition.Name, token);
+            if (!changed) continue;
             changes.AddRange(planned); directories.Add((partition, directory));
         }
+        return (changes, directories, root);
+    }
+
+    public static int CorrectStagedLayout(string sourceXcz, string stagedXci, CancellationToken token)
+    {
+        using var source = File.OpenRead(sourceXcz);
+        using var output = new FileStream(stagedXci, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+        var (changes, directories, root) = BuildLayoutPlan(source, output, token);
         foreach (var change in changes)
         {
             token.ThrowIfCancellationRequested();
