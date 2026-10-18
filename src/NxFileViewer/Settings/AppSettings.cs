@@ -8,6 +8,25 @@ namespace Emignatik.NxFileViewer.Settings;
 
 public class AppSettings : NotifyPropertyChangedBase, IAppSettings
 {
+    private PackageEngine _packageEngine;
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public PackageEngine PackageEngine
+    {
+        get => _packageEngine;
+        set { _packageEngine = System.Enum.IsDefined(value) ? value : default; NotifyPropertyChanged(); }
+    }
+    private string _rustPackageExecutablePath = "";
+    public string RustPackageExecutablePath
+    {
+        get => _rustPackageExecutablePath;
+        set { _rustPackageExecutablePath = value ?? ""; NotifyPropertyChanged(); }
+    }
+    private string _kronosPackageDirectory = "";
+    public string KronosPackageDirectory
+    {
+        get => _kronosPackageDirectory;
+        set { _kronosPackageDirectory = value ?? ""; NotifyPropertyChanged(); }
+    }
     // Legacy fallback preserves the previous combined plugin setting when loading old JSON.
     private bool _enablePlugins = true;
     private bool? _enableNszPlugin;

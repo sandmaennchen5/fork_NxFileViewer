@@ -31,6 +31,27 @@ namespace Emignatik.NxFileViewer.Views.Windows;
 
 public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
 {
+    private readonly BatchMemoryDiagnostics _memoryDiagnostics = new();
+    public bool MemoryDiagnosticsEnabled => BatchMemoryDiagnostics.Enabled;
+    public string MemoryDiagnosticMode => BatchMemoryDiagnostics.Mode;
+    public string MemoryLogPath => _memoryDiagnostics.LogPath;
+    private string _memoryStatus = "";
+    public string MemoryStatus { get => _memoryStatus; private set { _memoryStatus = value; NotifyPropertyChanged(); } }
+    public RelayCommand MeasureMemoryCommand { get; }
+    private void RecordMemory(string stage)
+    {
+        if (MemoryDiagnosticsEnabled)
+            MemoryStatus = _memoryDiagnostics.Capture(stage, Results.Count, _completedPreviews.Count);
+    }
+    private void MeasureMemory()
+    {
+        if (!MemoryDiagnosticsEnabled || BackgroundTask.IsRunning) return;
+        RecordMemory("manual-before-gc");
+        GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true, compacting: true);
+        GC.WaitForPendingFinalizers();
+        GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true, compacting: true);
+        RecordMemory("manual-after-gc");
+    }
     private readonly IPromptService _promptService;
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<BatchIntegrityWindowViewModel> _logger;
@@ -96,6 +117,8 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         _serviceProvider = serviceProvider;
         _logger = logger;
         BackgroundTask = backgroundTaskRunner;
+        MeasureMemoryCommand = new RelayCommand(MeasureMemory, () => MemoryDiagnosticsEnabled && !BackgroundTask.IsRunning);
+        RecordMemory("window-opened");
         ResumeHistoryCommand = new RelayCommand(ResumeHistory, () => IsHistoryEnabled && !BackgroundTask.IsRunning && SelectedHistory != null);
         LoadHistoryCommand = new RelayCommand(() => RestoreHistory(), () => IsHistoryEnabled && !BackgroundTask.IsRunning && SelectedHistory != null);
         ReloadHistory();
@@ -256,6 +279,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
 
     private async void Start(bool verifyIntegrity, bool rescan = false, bool resume = false)
     {
+        RecordMemory("scan-start");
         var paths = verifyIntegrity && !rescan && !resume ? Results.Select(r => r.FilePath).ToArray() : null;
         if (!resume)
         {
@@ -290,6 +314,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         finally
         {
             SaveHistory(state, true);
+            RecordMemory("scan-" + state.ToLowerInvariant());
             if (_closed) ClearPreview();
             VerifyAllCommand.TriggerCanExecuteChanged();
             ExportCommand.TriggerCanExecuteChanged();
@@ -364,6 +389,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         SelectedResult = ResultsView.Cast<BatchIntegrityResult>().FirstOrDefault();
         ExportCommand.TriggerCanExecuteChanged(); VerifyAllCommand.TriggerCanExecuteChanged();
         MoveValidCommand.TriggerCanExecuteChanged();
+        RecordMemory("history-loaded");
         return true;
     }
     private void ShowPreview(NxFile file)
@@ -376,6 +402,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
             if (_closed) return;
             // Follow the package being read, while retaining completed snapshots
             // for manual selection after the scan.
+            if (BatchMemoryDiagnostics.LimitPreviews) _completedPreviews.Clear();
             _completedPreviews[file.FilePath] = new FileOverviewViewModel(file.Overview, _serviceProvider);
             SelectedResult = Results.FirstOrDefault(result => result.FilePath.Equals(file.FilePath, StringComparison.OrdinalIgnoreCase));
             SelectedDetailsTabIndex = 0;
@@ -451,6 +478,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
             else _fingerprints.Remove(result.FilePath);
             SaveHistory("Running");
             SelectedResult = result;
+            if (Results.Count % 100 == 0) RecordMemory("scan-progress");
             ExportCommand.TriggerCanExecuteChanged();
             MoveValidCommand.TriggerCanExecuteChanged();
             CheckNamingCommand.TriggerCanExecuteChanged();
@@ -497,6 +525,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
             }) { SupportsCancellation = true, SupportProgress = true });
             if (_closed || _historyPreviewPaths.Contains(selected.FilePath)) return;
             var overview = new FileOverviewViewModel(file.Overview, _serviceProvider);
+            if (BatchMemoryDiagnostics.LimitPreviews) _completedPreviews.Clear();
             _completedPreviews[selected.FilePath] = overview;
             if (request == _previewRequest && SelectedResult?.FilePath.Equals(selected.FilePath, StringComparison.OrdinalIgnoreCase) == true)
                 PreviewOverview = overview;
@@ -809,6 +838,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
     private void BackgroundTaskOnPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName != nameof(IBackgroundTaskRunner.IsRunning)) return;
+        MeasureMemoryCommand.TriggerCanExecuteChanged(true);
         ResumeHistoryCommand.TriggerCanExecuteChanged(true);
         LoadHistoryCommand.TriggerCanExecuteChanged(true);
         StartCommand.TriggerCanExecuteChanged(true);

@@ -62,6 +62,8 @@ public partial class App : Application, IAppEvents
             .AddSingleton<ViewerUpdateService>()
             .AddSingleton<ViewerUpdateActions>()
             .AddSingleton<NszActions>()
+            .AddSingleton<Services.PackageOperations.PackageOperationService>()
+            .AddSingleton<Services.PackageOperations.PackageActions>()
             .AddSingleton<ISelectedItemService, SelectedItemService>()
             .AddSingleton<IPromptService, PromptService>()
             .AddSingleton<IPackageInfoLoader, PackageInfoLoader>()

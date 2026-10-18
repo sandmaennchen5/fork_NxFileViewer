@@ -7,6 +7,25 @@
         <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <StackPanel Margin="10">
+                    <GroupBox Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Package_Title}" Margin="0,0,0,12">
+                        <StackPanel Margin="6">
+                            <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Package_Engine}"/>
+                            <ComboBox x:Name="PackageEngineSelector" ItemsSource="{Binding PackageEngines}" DisplayMemberPath="DisplayName" SelectedValuePath="Value" SelectedValue="{Binding EditedSettings.PackageEngine}"/>
+                            <TextBlock Margin="0,8,0,0" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Package_RustPath}"/>
+                            <DockPanel><Button DockPanel.Dock="Right" Content="…" Command="{Binding BrowseRustPackageCommand}" Padding="8,2"/><TextBox Text="{Binding EditedSettings.RustPackageExecutablePath, UpdateSourceTrigger=PropertyChanged}"/></DockPanel>
+                            <TextBlock Margin="0,8,0,0" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Package_KronosPath}"/>
+                            <DockPanel><Button DockPanel.Dock="Right" Content="…" Command="{Binding BrowseKronosPackageCommand}" Padding="8,2"/><TextBox Text="{Binding EditedSettings.KronosPackageDirectory, UpdateSourceTrigger=PropertyChanged}"/></DockPanel>
+                            <TextBlock Margin="0,8,0,0" TextWrapping="Wrap" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Package_Tip}"/>
+                            <TextBlock Margin="0,8,0,0" TextWrapping="Wrap" Text="{Binding Packages.Status}"/>
+                            <WrapPanel Margin="0,8,0,0">
+                                <Button Margin="0,0,6,6" Padding="8,4" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Package_MergeNsp}" Command="{Binding Packages.MergeNspCommand}"/>
+                                <Button Margin="0,0,6,6" Padding="8,4" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Package_MergeXci}" Command="{Binding Packages.MergeXciCommand}"/>
+                                <Button Margin="0,0,6,6" Padding="8,4" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Package_ConvertNsp}" Command="{Binding Packages.ConvertNspCommand}"/>
+                                <Button Margin="0,0,6,6" Padding="8,4" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Package_ConvertXci}" Command="{Binding Packages.ConvertXciCommand}"/>
+                                <Button Margin="0,0,6,6" Padding="8,4" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Package_Split}" Command="{Binding Packages.SplitCommand}"/>
+                            </WrapPanel>
+                        </StackPanel>
+                    </GroupBox>
                     <GroupBox Header="NxNandManager" Margin="0,0,0,12">
                         <StackPanel Margin="6">
                             <TextBlock TextWrapping="Wrap" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nand_SettingsTip}"/>

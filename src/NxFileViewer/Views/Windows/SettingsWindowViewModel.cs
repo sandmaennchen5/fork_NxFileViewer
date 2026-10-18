@@ -58,6 +58,17 @@ public class SettingsWindowViewModel : WindowViewModelBase
             var dialog = new OpenFileDialog { Filter = "BIS keys (*.*)|*.*" };
             if (dialog.ShowDialog() == true) EditedSettings.NandBisKeysPath = dialog.FileName;
         });
+        BrowseRustPackageCommand = new RelayCommand(() =>
+        {
+            var dialog = new OpenFileDialog { Filter = "nscb_rust (*.exe)|*.exe" };
+            if (dialog.ShowDialog() == true) EditedSettings.RustPackageExecutablePath = dialog.FileName;
+        });
+        BrowseKronosPackageCommand = new RelayCommand(() =>
+        {
+            var path = _serviceProvider.GetRequiredService<Services.Prompting.IPromptService>()
+                .PromptSelectDir(LocalizationManager.Instance.Current.Keys.Package_KronosPath);
+            if (path != null) EditedSettings.KronosPackageDirectory = path;
+        });
         BrowseNszCommand = new RelayCommand(() =>
         {
             var dialog = new OpenFileDialog { Filter = "NSZ CLI (*.exe)|*.exe" };
@@ -206,6 +217,14 @@ public class SettingsWindowViewModel : WindowViewModelBase
 
     public Emignatik.NxFileViewer.Services.Updates.ViewerUpdateActions ViewerUpdates => _serviceProvider.GetRequiredService<Emignatik.NxFileViewer.Services.Updates.ViewerUpdateActions>();
 
+    public ICommand BrowseRustPackageCommand { get; }
+    public ICommand BrowseKronosPackageCommand { get; }
+    public PackageEngineOption[] PackageEngines { get; } =
+    {
+        new(PackageEngine.Rust, "cxfcxf / nscb_rust"),
+        new(PackageEngine.Kronos, "Kronos / NSC_BUILDER")
+    };
+    public Services.PackageOperations.PackageActions Packages => _serviceProvider.GetRequiredService<Services.PackageOperations.PackageActions>();
     public ICommand BrowseNszCommand { get; }
     public ICommand BrowseNandCommand { get; }
     public ICommand BrowseBisKeysCommand { get; }
@@ -488,6 +507,9 @@ public class SettingsWindowViewModel : WindowViewModelBase
 
     private static void CopyPluginSettings(IAppSettings source, IAppSettings destination)
     {
+        destination.PackageEngine = source.PackageEngine;
+        destination.RustPackageExecutablePath = source.RustPackageExecutablePath;
+        destination.KronosPackageDirectory = source.KronosPackageDirectory;
         destination.NandExecutablePath = source.NandExecutablePath;
         destination.NandBisKeysPath = source.NandBisKeysPath;
         destination.NszExecutablePath = source.NszExecutablePath;
@@ -533,3 +555,5 @@ public sealed record NszModeOption(NszCompressionMode Value, string DisplayName)
 public sealed record NszBlockSizeOption(int Value, string DisplayName);
 
 public sealed record TitlePageOption(int Value, string DisplayName);
+
+public sealed record PackageEngineOption(PackageEngine Value, string DisplayName);

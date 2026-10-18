@@ -191,6 +191,15 @@
             </TabControl>
         </Grid>
         <StackPanel Grid.Row="3" Margin="0,10,0,0">
+        <StackPanel Visibility="{Binding MemoryDiagnosticsEnabled, Converter={StaticResource FalseToCollapseVisibilityConverter}}" Margin="0,0,0,8">
+            <WrapPanel>
+                <TextBlock Text="Memory diagnostic mode:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                <TextBlock Text="{Binding MemoryDiagnosticMode}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                <Button Content="Measure memory + GC" Command="{Binding MeasureMemoryCommand}" Padding="10,3"/>
+            </WrapPanel>
+            <TextBlock Text="{Binding MemoryStatus}" TextWrapping="Wrap"/>
+            <TextBox Text="{Binding MemoryLogPath, Mode=OneWay}" IsReadOnly="True" BorderThickness="0" ToolTip="Diagnostic CSV log"/>
+        </StackPanel>
         <WrapPanel>
             <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Batch_Scan}" Command="{Binding StartCommand}" Padding="12,4" Margin="0,0,8,8"/>
             <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Batch_ScanAndVerify}" Command="{Binding ScanAndVerifyCommand}" Padding="12,4" Margin="0,0,8,8"/>

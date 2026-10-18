@@ -6,6 +6,25 @@ namespace Emignatik.NxFileViewer.Localization.Keys;
 
 public class LocalizationKeys_DE : LocalizationKeysBase, ILocalizationKeys
 {
+    public string Package_PublicationRecovery => "Die Veröffentlichung wurde unterbrochen. Die geprüften Dateien bleiben in den folgenden Ordnern erhalten. Ein Ordner mit NXFV-INCOMPLETE.txt ist noch unvollständig.";
+    public string Package_Title => "Zusammenführen / Inhalte aufteilen / NSP ↔ XCI";
+    public string Package_Engine => "Paket-Engine";
+    public string Package_RustPath => "cxfcxf / nscb_rust — Programmdatei";
+    public string Package_KronosPath => "Kronos — portabler Ordner (runtime und ztools)";
+    public string Package_Tip => "Einstellungen vor dem Start übernehmen. Pro Titel eine Version auswählen. Quelldateien bleiben erhalten; Ergebnisse landen in einem neuen Ordner. NSZ-Kompression nutzt das bestehende NSZ-Plugin.";
+    public string Package_MergeNsp => "Zusammenführen → NSP";
+    public string Package_MergeXci => "Zusammenführen → XCI";
+    public string Package_ConvertNsp => "Konvertieren → NSP";
+    public string Package_ConvertXci => "Konvertieren → XCI";
+    public string Package_Split => "Inhalte aufteilen → NSP";
+    public string Package_Destination => "Ausgabeordner auswählen";
+    public string Package_Inputs => "Lokale NSP/XCI-Dateien auswählen";
+    public string Package_Done => "Ausgabeordner: ";
+    public string Package_Missing => "Ausgewählte Engine ist nicht eingerichtet oder unvollständig.";
+    public string Package_Invalid => "Ausgabeprüfung fehlgeschlagen. Kein Ergebnis wurde veröffentlicht.";
+    public string Package_Ready => "Bereit";
+    public string Package_Apply => "Gespeicherte Einstellung: ";
+
     public string XciRepair_Title => "XCI-Container reparieren";
     public string XciRepair_Inspect => "XCI auf bekannte Layoutfehler prüfen…";
     public string XciRepair_Prompt => "Bei „{0}“ wurde ein bekannter reparierbarer Containerfehler erkannt: {1}\n\nEine reparierte Kopie erstellen und anschließend öffnen? Das Original bleibt unverändert. Die Kopie wird vor dem Speichern vollständig geprüft.";

@@ -6,6 +6,25 @@ namespace Emignatik.NxFileViewer.Localization.Keys;
 
 public class LocalizationKeys_ES : LocalizationKeysBase, ILocalizationKeys
 {
+    public string Package_PublicationRecovery => "La publicación se ha interrumpido. Los archivos validados se conservan en las siguientes carpetas. Una carpeta con NXFV-INCOMPLETE.txt está incompleta.";
+    public string Package_Title => "Combinar / Dividir contenido / NSP ↔ XCI";
+    public string Package_Engine => "Motor de paquetes";
+    public string Package_RustPath => "cxfcxf / nscb_rust — ejecutable";
+    public string Package_KronosPath => "Kronos — carpeta portátil (runtime y ztools)";
+    public string Package_Tip => "Aplica los ajustes antes de iniciar. Selecciona una versión por título. Se conservan los archivos originales y los resultados se guardan en una carpeta nueva. La compresión NSZ usa el complemento existente.";
+    public string Package_MergeNsp => "Combinar → NSP";
+    public string Package_MergeXci => "Combinar → XCI";
+    public string Package_ConvertNsp => "Convertir → NSP";
+    public string Package_ConvertXci => "Convertir → XCI";
+    public string Package_Split => "Dividir contenido → NSP";
+    public string Package_Destination => "Seleccionar carpeta de salida";
+    public string Package_Inputs => "Seleccionar archivos NSP/XCI locales";
+    public string Package_Done => "Carpeta de salida: ";
+    public string Package_Missing => "El motor seleccionado no está configurado o está incompleto.";
+    public string Package_Invalid => "La validación de salida ha fallado. No se ha publicado ningún resultado.";
+    public string Package_Ready => "Listo";
+    public string Package_Apply => "Ajuste guardado: ";
+
     public string XciRepair_Title => "Reparar el contenedor XCI";
     public string XciRepair_Inspect => "Buscando errores conocidos de estructura XCI…";
     public string XciRepair_Prompt => "Se ha detectado un error conocido y reparable en «{0}»: {1}\n\n¿Crear y abrir una copia reparada? El original no cambiará. La copia se verificará por completo antes de guardarla.";

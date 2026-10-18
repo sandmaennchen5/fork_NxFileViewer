@@ -9,6 +9,9 @@ namespace Emignatik.NxFileViewer.Settings;
 /// </summary>
 public interface IAppSettings : INotifyPropertyChanged
 {
+    PackageEngine PackageEngine { get; set; }
+    string RustPackageExecutablePath { get; set; }
+    string KronosPackageDirectory { get; set; }
     bool EnablePlugins { get; set; }
     bool EnableNszPlugin { get; set; }
     bool EnableNandPlugin { get; set; }

@@ -6,6 +6,25 @@ namespace Emignatik.NxFileViewer.Localization.Keys;
 
 public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
 {
+    public string Package_PublicationRecovery => "La publication a été interrompue. Les fichiers validés sont conservés dans les dossiers suivants. Un dossier contenant NXFV-INCOMPLETE.txt est incomplet.";
+    public string Package_Title => "Fusionner / Séparer le contenu / NSP ↔ XCI";
+    public string Package_Engine => "Moteur de paquets";
+    public string Package_RustPath => "cxfcxf / nscb_rust — exécutable";
+    public string Package_KronosPath => "Kronos — dossier portable (runtime et ztools)";
+    public string Package_Tip => "Appliquez les paramètres avant de démarrer. Sélectionnez une version par titre. Les sources sont conservées et les résultats sont enregistrés dans un nouveau dossier. La compression NSZ utilise le module existant.";
+    public string Package_MergeNsp => "Fusionner → NSP";
+    public string Package_MergeXci => "Fusionner → XCI";
+    public string Package_ConvertNsp => "Convertir → NSP";
+    public string Package_ConvertXci => "Convertir → XCI";
+    public string Package_Split => "Séparer le contenu → NSP";
+    public string Package_Destination => "Choisir le dossier de sortie";
+    public string Package_Inputs => "Choisir des fichiers NSP/XCI locaux";
+    public string Package_Done => "Dossier de sortie : ";
+    public string Package_Missing => "Le moteur sélectionné est absent ou incomplet.";
+    public string Package_Invalid => "La validation a échoué. Aucun résultat n’a été publié.";
+    public string Package_Ready => "Prêt";
+    public string Package_Apply => "Paramètre enregistré : ";
+
     public string XciRepair_Title => "Réparer le conteneur XCI";
     public string XciRepair_Inspect => "Recherche d’erreurs de structure XCI connues…";
     public string XciRepair_Prompt => "Une erreur de conteneur connue et réparable a été détectée dans « {0} » : {1}\n\nCréer et ouvrir une copie réparée ? L’original restera inchangé. La copie sera entièrement vérifiée avant sa publication.";

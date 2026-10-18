@@ -6,6 +6,25 @@ namespace Emignatik.NxFileViewer.Localization.Keys;
 
 public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
 {
+    public string Package_PublicationRecovery => "Publication was interrupted. Validated files have been kept in the following folders. A folder containing NXFV-INCOMPLETE.txt is not complete.";
+    public string Package_Title => "Merge / Content split / NSP ↔ XCI";
+    public string Package_Engine => "Package engine";
+    public string Package_RustPath => "cxfcxf / nscb_rust — executable";
+    public string Package_KronosPath => "Kronos — portable folder (runtime and ztools)";
+    public string Package_Tip => "Apply settings before starting an operation. Select one version per title. Sources are preserved; results are written to a new folder. NSZ compression uses the existing NSZ plugin.";
+    public string Package_MergeNsp => "Merge → NSP";
+    public string Package_MergeXci => "Merge → XCI";
+    public string Package_ConvertNsp => "Convert → NSP";
+    public string Package_ConvertXci => "Convert → XCI";
+    public string Package_Split => "Split contents → NSP";
+    public string Package_Destination => "Select output folder";
+    public string Package_Inputs => "Select local NSP/XCI files";
+    public string Package_Done => "Output folder: ";
+    public string Package_Missing => "Selected engine is not configured or incomplete.";
+    public string Package_Invalid => "Output validation failed. No result was published.";
+    public string Package_Ready => "Ready";
+    public string Package_Apply => "Uses saved settings: ";
+
     public string XciRepair_Title => "Repair XCI container";
     public string XciRepair_Inspect => "Checking XCI for known layout errors…";
     public string XciRepair_Prompt => "A known repairable container error was found in “{0}”: {1}\n\nCreate and open a repaired copy? The original will remain unchanged. The copy is fully verified before publication.";
