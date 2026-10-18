@@ -764,6 +764,27 @@ public sealed class PackageZipTest : IDisposable
         service.SafeClose();
     }
 
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task ExplicitExplorerActionsOverrideAutomaticHashSettings(bool program, bool windows)
+    {
+        var settings = new AppSettings { VerifyFilesOpenedInProgram = program, VerifyFilesOpenedFromWindows = windows };
+        var verifier = new AutomaticVerifier();
+        var service = new Emignatik.NxFileViewer.Services.FileOpening.FileOpeningService(NullLoggerFactory.Instance,
+            settings, new CountingLoader(), new ImmediateRunner(), verifier);
+        await service.SafeOpenFile(CreatePackageArchive(false), Emignatik.NxFileViewer.Services.FileOpening.FileOpenOrigin.ExplorerOpen);
+        Assert.NotNull(service.OpenedFile);
+        Assert.Equal(0, verifier.Calls);
+        await service.SafeOpenFile(CreatePackageArchive(false), Emignatik.NxFileViewer.Services.FileOpening.FileOpenOrigin.ExplorerVerify);
+        Assert.Equal(1, verifier.Calls);
+        Assert.Equal(program, settings.VerifyFilesOpenedInProgram);
+        Assert.Equal(windows, settings.VerifyFilesOpenedFromWindows);
+        service.SafeClose();
+    }
+
     [Fact]
     public async Task CancellingAutomaticVerificationKeepsTheLoadedOverview()
     {

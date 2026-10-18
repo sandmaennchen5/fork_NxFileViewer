@@ -41,6 +41,7 @@ public sealed class NszActions : NotifyPropertyChangedBase
         CompressCommand = new RelayCommand(() => ConvertOpened(NszOperation.Compress), () => CanConvertOpened(NszOperation.Compress));
         DecompressCommand = new RelayCommand(() => ConvertOpened(NszOperation.Decompress), () => CanConvertOpened(NszOperation.Decompress));
         UpdateCommand = new RelayCommand(Update, () => _settings.NszPluginActive && !_background.IsRunning && string.IsNullOrWhiteSpace(settings.NszExecutablePath));
+        CleanupCommand = Services.Updates.OldVersionCleanupCommand.Create("NSZ", background, () => settings.NszPluginActive, manager.OldVersionDirectories, manager.RemoveOldVersions, Refresh);
         RollbackCommand = new RelayCommand(Rollback, () => _settings.NszPluginActive && !_background.IsRunning && _manager.CanRollback);
         _background.PropertyChanged += (_, args) => { if (args.PropertyName == nameof(IBackgroundTaskRunner.IsRunning)) Refresh(); };
         _opening.OpenedFileChanged += (_, _) => Refresh();
@@ -52,6 +53,7 @@ public sealed class NszActions : NotifyPropertyChangedBase
     public RelayCommand DecompressCommand { get; }
     public RelayCommand UpdateCommand { get; }
     public RelayCommand RollbackCommand { get; }
+    public RelayCommand CleanupCommand { get; }
     public string Status => _manager.Status;
 
     private void Refresh()
@@ -59,6 +61,7 @@ public sealed class NszActions : NotifyPropertyChangedBase
         CompressCommand.TriggerCanExecuteChanged(true); DecompressCommand.TriggerCanExecuteChanged(true);
         UpdateCommand.TriggerCanExecuteChanged(true); RollbackCommand.TriggerCanExecuteChanged(true);
         OpenGuiCommand.TriggerCanExecuteChanged(true);
+        CleanupCommand.TriggerCanExecuteChanged(true);
         NotifyPropertyChanged(nameof(Status));
     }
 

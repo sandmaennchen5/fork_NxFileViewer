@@ -170,7 +170,23 @@
                             </StackPanel>
                         </GroupBox.Header>
                         <StackPanel Margin="8">
-                            <Button x:Name="RegisterForkAssociations" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Associations_Register}" Command="{Binding RegisterFileAssociationsCommand}" HorizontalAlignment="Left" Padding="12,5"/>
+                            <WrapPanel>
+                                <Button x:Name="RegisterForkAssociations" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Associations_Register}" Command="{Binding RegisterFileAssociationsCommand}" Margin="0,0,8,8" Padding="12,5"/>
+                                <Button x:Name="RemoveForkAssociations" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Associations_Remove}" Command="{Binding RemoveFileAssociationsCommand}" Margin="0,0,8,8" Padding="12,5"/>
+                            </WrapPanel>
+                            <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Explorer_Title}" Style="{StaticResource Title2}" Margin="0,14,0,5"/>
+                            <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Explorer_Tip}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                            <WrapPanel>
+                                <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Explorer_AddClassic}" Command="{Binding RegisterClassicExplorerCommand}" Margin="0,0,8,8" Padding="12,5"/>
+                                <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Explorer_RemoveClassic}" Command="{Binding RemoveClassicExplorerCommand}" Margin="0,0,8,8" Padding="12,5"/>
+                            </WrapPanel>
+                            <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Explorer_ModernTip}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                            <WrapPanel>
+                                <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Explorer_AddModern}" Command="{Binding RegisterModernExplorerCommand}" Margin="0,0,8,8" Padding="12,5"/>
+                                <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Explorer_Local}" Command="{Binding InstallLocalModernExplorerCommand}" Margin="0,0,8,8" Padding="12,5"/>
+                                <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Explorer_RemoveModern}" Command="{Binding RemoveModernExplorerCommand}" Margin="0,0,8,8" Padding="12,5"/>
+                            </WrapPanel>
+                            <TextBlock Text="{Binding ExplorerStatus}" TextWrapping="Wrap" Margin="0,0,0,8"/>
                         </StackPanel>
                     </GroupBox>
                     <GroupBox x:Name="ProgramTitlesGroup" Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Settings_GroupTitleInfo}" Margin="8,4,8,8">

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Linq;
 using Microsoft.Win32;
 
 namespace Emignatik.NxFileViewer.Services.FileAssociations;
@@ -66,6 +67,39 @@ public static class ForkFileAssociations
         }
         SHChangeNotify(0x08000000, 0, IntPtr.Zero, IntPtr.Zero); // SHCNE_ASSOCCHANGED
     }
+    public static void Unregister()
+    {
+        RemoveRegistration(Registry.CurrentUser);
+        SHChangeNotify(0x08000000, 0, IntPtr.Zero, IntPtr.Zero);
+    }
+
+    /// <summary>Remove only this fork's registration, leaving other apps and UserChoice alone.</summary>
+    public static void RemoveRegistration(RegistryKey user)
+    {
+        foreach (var extension in Extensions)
+        {
+            using var openWith = user.OpenSubKey(@"Software\Classes\" + extension + @"\OpenWithProgids", true);
+            openWith?.DeleteValue(ProgId, false);
+            var historyPath = @"Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\" + extension;
+            using var historyProgIds = user.OpenSubKey(historyPath + @"\OpenWithProgids", true);
+            historyProgIds?.DeleteValue(ProgId, false);
+            using var history = user.OpenSubKey(historyPath + @"\OpenWithList", true);
+            if (history != null)
+            {
+                var removed = history.GetValueNames().Where(name => name != "MRUList" &&
+                    string.Equals(history.GetValue(name) as string, ForkAssociationLauncher.FileName, StringComparison.OrdinalIgnoreCase)).ToArray();
+                foreach (var name in removed) history.DeleteValue(name, false);
+                if (history.GetValue("MRUList") is string order && removed.Length > 0)
+                    history.SetValue("MRUList", new string(order.Where(c => !removed.Contains(c.ToString())).ToArray()));
+            }
+        }
+        user.DeleteSubKeyTree(@"Software\Classes\" + ProgId, false);
+        user.DeleteSubKeyTree(@"Software\Classes\Applications\" + ForkAssociationLauncher.FileName, false);
+        user.DeleteSubKeyTree(@"Software\NxFileViewerFork\Capabilities", false);
+        using var applications = user.OpenSubKey(@"Software\RegisteredApplications", true);
+        applications?.DeleteValue(ApplicationName, false);
+    }
+
     [DllImport("shell32.dll")]
     private static extern void SHChangeNotify(uint eventId, uint flags, IntPtr item1, IntPtr item2);
 }

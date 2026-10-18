@@ -7,6 +7,12 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+- Added a program rollback button using the latest retained update backup, with confirmation, automatic restart, and disabled state when no backup remains.
+
+### Added
+
+- Offer manual cleanup of old managed NSZ/NxNandManager versions and complete successful application-update directories, including leftover folders whose backup EXE was already removed, with an exact-path confirmation and rollback warning. Preserve active/custom executables, keys, linked or locked directories, and pending or failed program updates.
+
 ## [4.0.1-beta4] - 2026-10-18
 
 ### Added

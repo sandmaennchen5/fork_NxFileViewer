@@ -78,6 +78,30 @@ public sealed class NszPluginManager(IAppSettings settings, ILogger<NszPluginMan
     }
     public bool CanRollback => string.IsNullOrWhiteSpace(settings.NszExecutablePath) && File.Exists(ReadState()?.PreviousExecutable);
 
+    public System.Collections.Generic.IReadOnlyList<string> OldVersionDirectories()
+    {
+        EnsureEnabled();
+        var state = ReadState();
+        return state == null ? Array.Empty<string>() : Updates.OldVersionCleanup.PluginVersions(RootDirectory, state.Executable, settings.NszExecutablePath);
+    }
+
+    public void RemoveOldVersions(System.Collections.Generic.IReadOnlyList<string> confirmedPaths)
+    {
+        EnsureEnabled();
+        var state = ReadState() ?? throw new InvalidDataException("No managed plugin installation state.");
+        foreach (var path in confirmedPaths)
+        {
+            if (!OldVersionDirectories().Contains(Path.GetFullPath(path), StringComparer.OrdinalIgnoreCase))
+                throw new IOException("The old plugin version is no longer eligible for removal: " + path);
+            if (state.PreviousExecutable != null && Path.GetFullPath(state.PreviousExecutable).StartsWith(
+                Path.TrimEndingDirectorySeparator(Path.GetFullPath(path)) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            {
+                state = state with { PreviousExecutable = null, PreviousVersion = null };
+                WriteState(state);
+            }
+            Updates.OldVersionCleanup.DeletePluginVersion(RootDirectory, path, state.Executable, settings.NszExecutablePath);
+        }
+    }
     public void Rollback()
     {
         EnsureEnabled();

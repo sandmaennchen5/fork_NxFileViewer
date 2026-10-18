@@ -6,6 +6,11 @@ namespace Emignatik.NxFileViewer.Localization.Keys;
 
 public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
 {
+    public string Update_RollbackConfirm => "Restore the previous application version? NxFileViewer will close and restart. Removing old versions also removes this recovery option.";
+    public string Update_Cleanup => "Remove old versions";
+    public string Update_CleanupConfirm => "Permanently remove these old versions or update backups?\n\n{0}\n\nThese rollback versions will no longer be available. The current version and configured custom executables are retained.";
+    public string Update_CleanupEmpty => "No old versions eligible for cleanup found. Running, recently completed or failed application updates are retained.";
+    public string Update_CleanupDone => "Removed {0} old version(s) or update backup(s).";
     public string BatchDetails_Show => "Show details pane";
     public string BatchDetails_Hide => "Hide details pane";
     public string BatchPackages_SummaryOrder => "Use original package order in combined summaries";
@@ -758,6 +763,19 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
     public string Nand_DriveRefresh => "Refresh drives";
     public string Nand_DriveAccessDenied => "The device was detected, but Windows denied read access. Run NxFileViewer as administrator and select the drive again. Access remains read-only.";
     public string Associations_Title => "Windows file associations";
+    public string Associations_Remove => "Remove file associations";
+    public string Associations_Removed => "NxFileViewer Fork file-association registration was removed. If it was the default app, select another app using Open with in Windows. Explorer context menus can be removed separately.";
+    public string Explorer_Title => "Explorer context menu";
+    public string Explorer_Tip => "NxFileViewer offers Batch and File actions: open without hashing, or verify with hashing. Multiple files and folders offer Batch only. Works when the app is closed. Classic registration is per user without administrator rights; on Windows 11 use Show more options. Add again after moving the app. Changes take effect immediately.";
+    public string Explorer_AddClassic => "Add / update classic menu";
+    public string Explorer_RemoveClassic => "Remove classic menu";
+    public string Explorer_ModernTip => "Downloads the matching Explorer setup from GitHub and checks its version independently of the app. Confirm certificate trust and administrator access on first use. Windows may also show the menu in the classic menu; no additional classic registration is created. Preview releases follow the update setting. A local MSIX can be selected for offline installation.";
+    public string Explorer_AddModern => "Install / update modern menu";
+    public string Explorer_RemoveModern => "Remove modern menu";
+    public string Explorer_Local => "Select local MSIX…";
+    public string Explorer_Trusting => "Please confirm certificate trust in the opened window.";
+    public string Explorer_NoPackage => "No matching Explorer setup found in GitHub releases. Enable preview updates if needed, or select a local MSIX.";
+    public string Explorer_Done => "Explorer integration was updated. If the menu has not changed yet, restart Explorer or Windows.";
     public string Associations_Register => "Register NxFileViewer Fork";
     public string Associations_Tip => "Registers a separate fork identity for .nsp, .nsz, .xci, .xcz and .nro using the current executable path. Then choose NxFileViewer Fork in Windows: Open with → Choose another app → Always. Register again after moving the app. This button takes effect immediately.";
     public string Associations_Done => "NxFileViewer Fork was registered for .nsp, .nsz, .xci, .xcz and .nro. Select it as the default using Open with → Choose another app → Always.";

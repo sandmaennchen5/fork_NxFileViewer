@@ -19,7 +19,13 @@ public sealed record ViewerRelease(Version Version, string AssetName, Uri Downlo
     public bool IsPrerelease { get; init; }
     public string DisplayVersion => Tag.Length > 0 ? Tag : Version.ToString();
 }
-public sealed record PreparedViewerUpdate(string Directory, string Executable);
+public sealed record PreparedViewerUpdate(string Directory, string Executable)
+{
+    public string EntryPoint { get; init; } = "NxFileViewer.exe";
+    public ViewerPackageFile[] Files { get; init; } = Array.Empty<ViewerPackageFile>();
+    public string[] Directories { get; init; } = Array.Empty<string>();
+    public string[] RemoveDirectories { get; init; } = Array.Empty<string>();
+}
 
 public sealed class ViewerUpdateService
 {
@@ -132,7 +138,7 @@ public sealed class ViewerUpdateService
                 while ((read = await input.ReadAsync(buffer, token).ConfigureAwait(false)) > 0)
                 {
                     total += read;
-                    if (total > 256L * 1024 * 1024) throw new InvalidDataException("Update archive exceeds size limit.");
+                    if (total > ViewerPackageLayout.MaximumSize) throw new InvalidDataException("Update archive exceeds size limit.");
                     await output.WriteAsync(buffer.AsMemory(0, read), token).ConfigureAwait(false);
                 }
             }
@@ -141,7 +147,8 @@ public sealed class ViewerUpdateService
                 var actual = Convert.ToHexString(await SHA256.HashDataAsync(input, token).ConfigureAwait(false));
                 if (!actual.Equals(expectedHash, StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("Update SHA-256 mismatch.");
             }
-            var exe = ExtractExecutable(archive, stage, release.AssetName, token);
+            var prepared = ViewerPackageLayout.Extract(archive, stage, release.AssetName, token);
+            var exe = prepared.Executable;
             using (var executable = File.OpenRead(exe))
             using (var pe = new PEReader(executable))
             {
@@ -158,13 +165,11 @@ public sealed class ViewerUpdateService
             if (new Version(info.FileMajorPart, info.FileMinorPart, info.FileBuildPart) != Normalize(release.Version))
                 throw new InvalidDataException("Update executable version does not match release.");
             File.Delete(archive);
-            return new(stage, exe);
+            return prepared;
         }
         catch
         {
-            // Delete only the files we created, never any application data.
-            foreach (var file in new[] { archive, Path.Combine(stage, "new.exe") })
-                try { File.Delete(file); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+            ViewerPackageLayout.DeleteOwnedStage(stage);
             throw;
         }
     }
@@ -190,7 +195,7 @@ public sealed class ViewerUpdateService
         {
             token.ThrowIfCancellationRequested();
             total += read;
-            if (total > files[0].Length || total > 256L * 1024 * 1024) throw new InvalidDataException("Update executable exceeds declared size.");
+            if (total > files[0].Length || total > ViewerPackageLayout.MaximumSize) throw new InvalidDataException("Update executable exceeds declared size.");
             output.Write(buffer, 0, read);
         }
         if (total != files[0].Length) throw new InvalidDataException("Incomplete update executable.");

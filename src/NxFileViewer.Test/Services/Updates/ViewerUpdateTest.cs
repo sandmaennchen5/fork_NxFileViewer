@@ -166,6 +166,30 @@ public sealed class ViewerUpdateTest : IDisposable
         Assert.Equal("previous installation", File.ReadAllText(installed));
         Assert.False(File.Exists(Path.Combine(prepared.Directory, "release.zip")));
     }
+    [Fact]
+    public async Task VerifiedRenamedMainWithCompanionFilesUsesPackageIdentity()
+    {
+        var assembly = typeof(ViewerUpdateService).Assembly.GetName().Version!;
+        var version = new Version(assembly.Major, assembly.Minor, assembly.Build);
+        var architecture = System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.ToString().ToLowerInvariant();
+        var archive = Path.Combine(_root, "multi.zip");
+        using (var zip = ZipFile.Open(archive, ZipArchiveMode.Create))
+        {
+            using (var output = zip.CreateEntry("NxFileViewerFork.exe").Open())
+            using (var input = File.OpenRead(Path.Combine(AppContext.BaseDirectory, "NxFileViewer.exe"))) input.CopyTo(output);
+            using (var writer = new StreamWriter(zip.CreateEntry(ViewerPackageLayout.ManifestName).Open()))
+                writer.Write(JsonSerializer.Serialize(new ViewerPackageManifest(1, ViewerPackageLayout.ApplicationId, "NxFileViewerFork.exe")));
+            using (var writer = new StreamWriter(zip.CreateEntry("Tools/helper.exe").Open())) writer.Write("auxiliary executable");
+            using (var writer = new StreamWriter(zip.CreateEntry("Assets/data.txt").Open())) writer.Write("asset");
+        }
+        var bytes=File.ReadAllBytes(archive);
+        var release=new ViewerRelease(version,$"NxFileViewer_v{version}_{architecture}.zip",new Uri(Url),"sha256:"+Convert.ToHexString(SHA256.HashData(bytes)));
+        using var client=new HttpClient(new Handler(_ => new HttpResponseMessage(HttpStatusCode.OK) { Content=new ByteArrayContent(bytes) }));
+        var prepared=await new ViewerUpdateService(client).PrepareAsync(release,_root,TestContext.Current.CancellationToken);
+        Assert.Equal("NxFileViewerFork.exe",prepared.EntryPoint);
+        Assert.Equal(4,prepared.Files.Length);
+        Assert.Equal("asset",File.ReadAllText(Path.Combine(prepared.Directory,"payload","Assets","data.txt")));
+    }
     private string Zip(params string[] entries)
     {
         var archive = Path.Combine(_root, Guid.NewGuid() + ".zip");

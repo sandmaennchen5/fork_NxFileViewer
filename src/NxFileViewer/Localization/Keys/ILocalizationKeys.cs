@@ -6,6 +6,11 @@ namespace Emignatik.NxFileViewer.Localization.Keys;
 
 public interface ILocalizationKeys : ILocalizationKeysBase
 {
+    string Update_RollbackConfirm { get; }
+    string Update_Cleanup { get; }
+    string Update_CleanupConfirm { get; }
+    string Update_CleanupEmpty { get; }
+    string Update_CleanupDone { get; }
     string BatchDetails_Show { get; }
     string BatchDetails_Hide { get; }
     string BatchPackages_SummaryOrder { get; }
@@ -659,6 +664,19 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string Nand_DriveRefresh { get; }
     string Nand_DriveAccessDenied { get; }
     string Associations_Title { get; }
+    string Associations_Remove { get; }
+    string Associations_Removed { get; }
+    string Explorer_Title { get; }
+    string Explorer_Tip { get; }
+    string Explorer_AddClassic { get; }
+    string Explorer_RemoveClassic { get; }
+    string Explorer_ModernTip { get; }
+    string Explorer_AddModern { get; }
+    string Explorer_RemoveModern { get; }
+    string Explorer_Local { get; }
+    string Explorer_Trusting { get; }
+    string Explorer_NoPackage { get; }
+    string Explorer_Done { get; }
     string Associations_Register { get; }
     string Associations_Tip { get; }
     string Associations_Done { get; }

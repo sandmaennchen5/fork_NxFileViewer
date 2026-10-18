@@ -29,7 +29,7 @@ public sealed class GitHubRateLimitException(DateTimeOffset retryAt) : HttpReque
 /// <summary>Shared serialized metadata requests; asset downloads remain separate.</summary>
 public sealed class GitHubUpdateRequests
 {
-    private static readonly Lazy<GitHubUpdateRequests> Default = new(() => new(new HttpClient { Timeout = TimeSpan.FromSeconds(30) }, Path.Combine(AppContext.BaseDirectory, "Cache", "Updates")));
+    private static readonly Lazy<GitHubUpdateRequests> Default = new(() => new(new HttpClient { Timeout = TimeSpan.FromSeconds(30) }, Emignatik.NxFileViewer.Services.ApplicationDataPaths.UpdateCache(AppContext.BaseDirectory)));
     private static readonly ConditionalWeakTable<HttpClient, GitHubUpdateRequests> Custom = new();
     public static GitHubUpdateRequests For(HttpClient? client) => client == null ? Default.Value : Custom.GetValue(client, c => new(c));
     private readonly HttpClient _client;

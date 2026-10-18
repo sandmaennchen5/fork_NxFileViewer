@@ -257,7 +257,7 @@ public sealed class WorkspaceNavigationTest
                 var settingsManager = App.ServiceProvider.GetRequiredService<IAppSettingsManager>();
                 Assert.False(settingsManager.Clone().NszCheckUpdates);
                 var savedSettingsPath = System.IO.Path.Combine(Emignatik.NxFileViewer.Utils.PathHelper.CurrentAppDir,
-                    AppDomain.CurrentDomain.FriendlyName + ".settings.json");
+                    "NxFileViewer.settings.json");
                 using (var saved = System.Text.Json.JsonDocument.Parse(System.IO.File.ReadAllText(savedSettingsPath)))
                     Assert.False(saved.RootElement.GetProperty(nameof(IAppSettings.NszCheckUpdates)).GetBoolean());
                 settings.ApplySettingsCommand.Execute(null);
@@ -725,6 +725,38 @@ public sealed class WorkspaceNavigationTest
                         reloadSettings.VerifyFilesOpenedFromWindows = true;
                         reloadBatch.LoadDroppedSources(new[] { reloadPath, secondDropPath });
                         Assert.Equal(2, previewServices.VerificationCalls);
+                        // Explorer requests accumulate, process only the new selection, and preserve earlier hash results.
+                        reloadBatch.LoadExplorerSources(new[] { reloadPath }, false);
+                        var retained = Assert.Single(reloadBatch.Results);
+                        Assert.Equal(Emignatik.NxFileViewer.Models.Overview.NcasIntegrity.Unchecked, retained.Integrity);
+                        var loadedBeforeAppend = previewLoader.LoadCount;
+                        reloadBatch.LoadExplorerSources(new[] { secondDropPath }, true);
+                        Assert.Equal(loadedBeforeAppend + 1, previewLoader.LoadCount);
+                        Assert.Equal(3, previewServices.VerificationCalls);
+                        Assert.Equal(2, reloadBatch.Results.Count);
+                        Assert.Same(retained, reloadBatch.Results[0]);
+                        Assert.Equal(Emignatik.NxFileViewer.Models.Overview.NcasIntegrity.Original, reloadBatch.Results[1].Integrity);
+                        Assert.Equal(2, reloadBatch.SourcePaths.Count);
+                        // A repeated path is updated, without a second table row.
+                        reloadBatch.LoadExplorerSources(new[] { reloadPath, reloadPath }, true);
+                        Assert.Equal(4, previewServices.VerificationCalls);
+                        Assert.Equal(2, reloadBatch.Results.Count);
+                        Assert.All(reloadBatch.Results, row => Assert.Equal(Emignatik.NxFileViewer.Models.Overview.NcasIntegrity.Original, row.Integrity));
+                        reloadBatch.LoadExplorerSources(Array.Empty<string>(), false);
+                        Assert.Equal(2, reloadBatch.Results.Count);
+                        // Both scan buttons end the Explorer collection; the next Explorer request starts fresh.
+                        reloadBatch.StartCommand.Execute(null);
+                        reloadBatch.LoadExplorerSources(new[] { secondDropPath }, false);
+                        Assert.Equal(secondDropPath, Assert.Single(reloadBatch.Results).FilePath);
+                        reloadBatch.LoadExplorerSources(new[] { reloadPath }, false);
+                        Assert.Equal(2, reloadBatch.Results.Count);
+                        reloadBatch.ScanAndVerifyCommand.Execute(null);
+                        reloadBatch.LoadExplorerSources(new[] { reloadPath }, false);
+                        Assert.Equal(reloadPath, Assert.Single(reloadBatch.Results).FilePath);
+                        // A normal drop replaces the Explorer collection too.
+                        reloadBatch.LoadDroppedSources(new[] { secondDropPath });
+                        reloadBatch.LoadExplorerSources(new[] { reloadPath }, false);
+                        Assert.Equal(reloadPath, Assert.Single(reloadBatch.Results).FilePath);
                         reloadBatch.InputDirectory = "changed manually";
                         Assert.Empty(reloadBatch.SourcePaths);
                     }

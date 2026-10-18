@@ -43,6 +43,12 @@ public partial class MainWindow : Window
     public static bool ShouldUseBatchDrop(IReadOnlyList<string> paths, bool isBatchPage) =>
         isBatchPage || paths.Count > 1 || paths.Any(Directory.Exists);
 
+    public void OpenExplorerBatch(IReadOnlyList<string> paths, bool verify)
+    {
+        Navigate(WorkspaceSection.Batch);
+        _batch!.LoadExplorerSources(paths, verify);
+    }
+
     private void FilesPreviewDrop(object sender, DragEventArgs e)
     {
         if (!e.Data.GetDataPresent(DataFormats.FileDrop) || e.Data.GetData(DataFormats.FileDrop) is not string[] paths || paths.Length == 0) return;

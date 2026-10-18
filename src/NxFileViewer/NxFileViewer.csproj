@@ -12,6 +12,8 @@
     <Product>NxFileViewer</Product>
     <Authors>NxFileViewer</Authors>
     <Version>4.0.1-beta4</Version>
+    <!-- Increment when the packaged Explorer extension changes. -->
+    <ExplorerPackageVersion>4.0.1.6</ExplorerPackageVersion>
     <PackageProjectUrl></PackageProjectUrl>
     <PackageIcon>Icon.ico</PackageIcon>
     <Description>Browse content of Nintendo Switch files</Description>
@@ -102,10 +104,14 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="..\..\fw\hashes\*.json" Link="fw\hashes\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" ExcludeFromSingleFile="true" />
+    <Content Include="..\..\fw\hashes\*.json" Link="Plugins\fwhashes\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" ExcludeFromSingleFile="true" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Services\FileAssociations\Launcher\NxFileViewerFork.Open.exe" LogicalName="Viewer.AssociationLauncher" />
+    <EmbeddedResource Include="..\NxFileViewer.Explorer\Native\x64\NxFileViewer.Explorer.dll" LogicalName="Viewer.Explorer.x64" />
+    <EmbeddedResource Include="..\NxFileViewer.Explorer\Native\x86\NxFileViewer.Explorer.dll" LogicalName="Viewer.Explorer.x86" />
+    <EmbeddedResource Include="..\NxFileViewer.Explorer\Native\arm64\NxFileViewer.Explorer.dll" LogicalName="Viewer.Explorer.arm64" />
+    <EmbeddedResource Include="..\NxFileViewer.Explorer\Trust-ExplorerCertificate.ps1" LogicalName="Viewer.Explorer.Trust.ps1" />
     <EmbeddedResource Include="Services\Updates\InstallUpdate.ps1" LogicalName="ViewerUpdate.InstallUpdate.ps1" />
   </ItemGroup>
   <ItemGroup>

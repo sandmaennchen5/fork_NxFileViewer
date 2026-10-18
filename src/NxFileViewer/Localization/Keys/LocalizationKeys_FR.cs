@@ -6,6 +6,11 @@ namespace Emignatik.NxFileViewer.Localization.Keys;
 
 public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
 {
+    public string Update_RollbackConfirm => "Restaurer la version précédente du programme ? NxFileViewer sera fermé et redémarré. Supprimer les anciennes versions supprime aussi cette possibilité de restauration.";
+    public string Update_Cleanup => "Supprimer les anciennes versions";
+    public string Update_CleanupConfirm => "Supprimer définitivement ces anciennes versions ou sauvegardes de mise à jour ?\n\n{0}\n\nCes versions de repli ne seront plus disponibles. La version actuelle et les exécutables personnalisés configurés sont conservés.";
+    public string Update_CleanupEmpty => "Aucune ancienne version à supprimer. Les mises à jour en cours, récentes ou échouées sont conservées.";
+    public string Update_CleanupDone => "{0} ancienne(s) version(s) ou sauvegarde(s) supprimée(s).";
     public string BatchDetails_Show => "Afficher le volet de détails";
     public string BatchDetails_Hide => "Masquer le volet de détails";
     public string BatchPackages_SummaryOrder => "Utiliser l’ordre original des paquets dans les résumés";
@@ -760,6 +765,19 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
     public string Nand_DriveRefresh => "Actualiser les lecteurs";
     public string Nand_DriveAccessDenied => "Le disque a été détecté, mais Windows refuse la lecture. Lancez NxFileViewer en administrateur et sélectionnez à nouveau le disque. Accès en lecture seule.";
     public string Associations_Title => "Associations de fichiers Windows";
+    public string Associations_Remove => "Supprimer les associations";
+    public string Associations_Removed => "L’enregistrement des associations de NxFileViewer Fork a été supprimé. S’il était l’application par défaut, choisissez une autre application via Ouvrir avec dans Windows. Les menus de l’Explorateur se suppriment séparément.";
+    public string Explorer_Title => "Menu contextuel de l’Explorateur";
+    public string Explorer_Tip => "Actions File et Batch : ouvrir sans hachage ou vérifier avec hachage. Plusieurs fichiers ou dossiers : Batch uniquement. Fonctionne application fermée. Menu classique par utilisateur sans administrateur. Sous Windows 11 : Afficher plus d’options. Réajouter après un déplacement. Effet immédiat.";
+    public string Explorer_AddClassic => "Ajouter / actualiser le menu classique";
+    public string Explorer_RemoveClassic => "Supprimer le menu classique";
+    public string Explorer_ModernTip => "Télécharge le paquet Explorer adapté depuis GitHub et vérifie sa version séparément du programme. Confirmez le certificat et les droits administrateur la première fois. Windows peut aussi afficher ce menu dans le menu classique ; aucun enregistrement classique supplémentaire ne sera créé. Les versions préliminaires suivent le réglage des mises à jour. Un MSIX local reste disponible pour une installation hors ligne.";
+    public string Explorer_AddModern => "Installer / mettre à jour le menu moderne";
+    public string Explorer_RemoveModern => "Supprimer le menu moderne";
+    public string Explorer_Local => "Sélectionner un MSIX local…";
+    public string Explorer_Trusting => "Confirmez le certificat dans la fenêtre ouverte.";
+    public string Explorer_NoPackage => "Aucun paquet Explorer compatible dans les versions GitHub. Activez les mises à jour préliminaires si nécessaire ou sélectionnez un MSIX local.";
+    public string Explorer_Done => "Intégration actualisée. Si le menu reste inchangé, redémarrez l’Explorateur ou Windows.";
     public string Associations_Register => "Enregistrer NxFileViewer Fork";
     public string Associations_Tip => "Identité distincte pour .nsp, .nsz, .xci, .xcz et .nro avec le chemin EXE actuel. Sélectionnez ensuite NxFileViewer Fork dans Ouvrir avec → Choisir une autre application → Toujours. Réenregistrez après un déplacement. Effet immédiat.";
     public string Associations_Done => "NxFileViewer Fork est enregistré pour .nsp, .nsz, .xci, .xcz et .nro. Choisissez-le par défaut via Ouvrir avec → Choisir une autre application → Toujours.";

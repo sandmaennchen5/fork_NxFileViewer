@@ -45,4 +45,4 @@ public class OpenedFileChangedHandlerArgs
     public NxFile? NewFile { get; }
 }
 
-public enum FileOpenOrigin { Program, WindowsAssociation }
+public enum FileOpenOrigin { Program, WindowsAssociation, ExplorerOpen, ExplorerVerify }

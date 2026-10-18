@@ -63,7 +63,7 @@ public sealed class ComponentUpdateChecker(NszPluginManager nsz, NandPluginManag
             {
                 if (!Regex.IsMatch(captured, @"^[A-Z]{2}\.[a-z]{2}\z")) throw new InvalidDataException();
                 using var entry = await Get("https://api.github.com/repos/blawar/titledb/contents/" + captured + ".json?ref=master", "Title DB " + captured);
-                var path = Path.Combine(directory, "Cache", "TitleDB", captured + ".json");
+                var path = Path.Combine(ApplicationDataPaths.TitleDb(directory), captured + ".json");
                 var available = !MatchesGitBlob(path, entry.RootElement.GetProperty("sha").GetString()!);
                 return (available ? keys.Component_UpdateAvailable : keys.Update_Current, available);
             }));
@@ -78,7 +78,7 @@ public sealed class ComponentUpdateChecker(NszPluginManager nsz, NandPluginManag
                 token.ThrowIfCancellationRequested();
                 var name = entry.GetProperty("name").GetString()!;
                 if (Path.GetFileName(name) != name) throw new InvalidDataException();
-                if (!MatchesGitBlob(Path.Combine(directory, "fw", "hashes", name), entry.GetProperty("sha").GetString()!)) return (keys.Component_UpdateAvailable, true);
+                if (!MatchesGitBlob(Path.Combine(ApplicationDataPaths.FirmwareHashes(directory), name), entry.GetProperty("sha").GetString()!)) return (keys.Component_UpdateAvailable, true);
             }
             return (keys.Update_Current, false);
         }));

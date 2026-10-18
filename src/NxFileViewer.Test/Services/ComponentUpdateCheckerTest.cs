@@ -35,7 +35,7 @@ public sealed class ComponentUpdateCheckerTest
             Directory.CreateDirectory(plugin);
             File.WriteAllText(Path.Combine(plugin, "nsz.exe"), "fixture");
             File.WriteAllText(Path.Combine(plugin, "active.json"), "{\"Executable\":\"nsz.exe\",\"Version\":\"1.0\"}");
-            var titleRoot = Path.Combine(root, "Cache", "TitleDB");
+            var titleRoot = Path.Combine(root, "Plugins", "TitleDB");
             Directory.CreateDirectory(titleRoot);
             var titlePath = Path.Combine(titleRoot, "US.en.json");
             File.WriteAllText(titlePath, "{}");

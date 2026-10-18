@@ -6,6 +6,11 @@ namespace Emignatik.NxFileViewer.Localization.Keys;
 
 public class LocalizationKeys_ES : LocalizationKeysBase, ILocalizationKeys
 {
+    public string Update_RollbackConfirm => "¿Restaurar la versión anterior del programa? NxFileViewer se cerrará y reiniciará. Eliminar versiones antiguas también elimina esta opción de recuperación.";
+    public string Update_Cleanup => "Eliminar versiones antiguas";
+    public string Update_CleanupConfirm => "¿Eliminar permanentemente estas versiones antiguas o copias de actualización?\n\n{0}\n\nYa no se podrá volver a estas versiones. Se conservan la versión actual y los ejecutables personalizados configurados.";
+    public string Update_CleanupEmpty => "No hay versiones antiguas aptas para eliminar. Se conservan las actualizaciones en curso, recientes o fallidas.";
+    public string Update_CleanupDone => "Se eliminaron {0} versiones antiguas o copias de actualización.";
     public string BatchDetails_Show => "Mostrar el panel de detalles";
     public string BatchDetails_Hide => "Ocultar el panel de detalles";
     public string BatchPackages_SummaryOrder => "Usar el orden original de los paquetes en los resúmenes";
@@ -758,6 +763,19 @@ public class LocalizationKeys_ES : LocalizationKeysBase, ILocalizationKeys
     public string Nand_DriveRefresh => "Actualizar unidades";
     public string Nand_DriveAccessDenied => "Se detectó el disco, pero Windows denegó la lectura. Ejecute NxFileViewer como administrador y seleccione la unidad de nuevo. Acceso de solo lectura.";
     public string Associations_Title => "Asociaciones de archivos de Windows";
+    public string Associations_Remove => "Eliminar asociaciones de archivos";
+    public string Associations_Removed => "Se eliminó el registro de asociaciones de NxFileViewer Fork. Si era la aplicación predeterminada, seleccione otra mediante Abrir con en Windows. Los menús del Explorador se eliminan por separado.";
+    public string Explorer_Title => "Menú contextual del Explorador";
+    public string Explorer_Tip => "Acciones File y Batch: abrir sin hashes o verificar con hashes. Para varios archivos o carpetas, solo Batch. Funciona con la aplicación cerrada. Registro clásico por usuario sin administrador. En Windows 11: Mostrar más opciones. Añada de nuevo si mueve la aplicación. Efecto inmediato.";
+    public string Explorer_AddClassic => "Añadir / actualizar menú clásico";
+    public string Explorer_RemoveClassic => "Eliminar menú clásico";
+    public string Explorer_ModernTip => "Descarga el paquete Explorer adecuado de GitHub y comprueba su versión por separado de la aplicación. Confirme el certificado y los permisos de administrador la primera vez. Windows también puede mostrarlo en el menú clásico; no se crea un registro clásico adicional. Las versiones preliminares siguen la configuración de actualizaciones. Puede seleccionar un MSIX local para instalar sin conexión.";
+    public string Explorer_AddModern => "Instalar / actualizar menú moderno";
+    public string Explorer_RemoveModern => "Eliminar menú moderno";
+    public string Explorer_Local => "Seleccionar MSIX local…";
+    public string Explorer_Trusting => "Confirme el certificado en la ventana abierta.";
+    public string Explorer_NoPackage => "No se encontró un paquete Explorer compatible en GitHub. Active las versiones preliminares si es necesario o seleccione un MSIX local.";
+    public string Explorer_Done => "Integración actualizada. Si el menú no cambia, reinicie el Explorador o Windows.";
     public string Associations_Register => "Registrar NxFileViewer Fork";
     public string Associations_Tip => "Registra una identidad propia para .nsp, .nsz, .xci, .xcz y .nro con la ruta EXE actual. Después elija NxFileViewer Fork en Abrir con → Elegir otra aplicación → Siempre. Registre de nuevo si mueve la aplicación. Efecto inmediato.";
     public string Associations_Done => "NxFileViewer Fork registrado para .nsp, .nsz, .xci, .xcz y .nro. Elíjalo por defecto mediante Abrir con → Elegir otra aplicación → Siempre.";

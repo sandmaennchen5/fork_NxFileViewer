@@ -31,7 +31,7 @@ public static class InstalledDataStatus
 
     public static string? LocalFirmwareVersion(string applicationDirectory)
     {
-        var directory = Path.Combine(applicationDirectory, "fw", "hashes");
+        var directory = ApplicationDataPaths.FirmwareHashes(applicationDirectory);
         try
         {
             if (!Directory.Exists(directory)) return null;
@@ -51,7 +51,7 @@ public static class InstalledDataStatus
     public static DateTime? TitleDbDate(string applicationDirectory, string region)
     {
         if (!Regex.IsMatch(region, @"^[A-Z]{2}\.[a-z]{2}\z")) return null;
-        var path = Path.Combine(applicationDirectory, "Cache", "TitleDB", region + ".json");
+        var path = Path.Combine(ApplicationDataPaths.TitleDb(applicationDirectory), region + ".json");
         try { return File.Exists(path) ? File.GetLastWriteTimeUtc(path) : null; }
         catch (IOException) { return null; }
         catch (UnauthorizedAccessException) { return null; }

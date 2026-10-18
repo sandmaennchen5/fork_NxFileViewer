@@ -18,7 +18,7 @@ internal sealed class TitleDbCatalog(string cacheDirectory, ILogger? logger)
     public static IReadOnlyDictionary<string, OnlineTitleInfo> ReadLocal(string region)
     {
         if (!Regex.IsMatch(region, "^[A-Z]{2}\\.[a-z]{2}$")) return new Dictionary<string, OnlineTitleInfo>();
-        var path = Path.Combine(AppContext.BaseDirectory, "Cache", "TitleDB", region + ".json");
+        var path = Path.Combine(ApplicationDataPaths.TitleDb(AppContext.BaseDirectory), region + ".json");
         try { return File.Exists(path) ? Parse(File.ReadAllText(path)) : new Dictionary<string, OnlineTitleInfo>(); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
         { return new Dictionary<string, OnlineTitleInfo>(); }

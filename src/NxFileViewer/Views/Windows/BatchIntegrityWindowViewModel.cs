@@ -58,10 +58,27 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
     private readonly ILogger<BatchIntegrityWindowViewModel> _logger;
     private string _inputDirectory = "";
     private string[] _sourcePaths = Array.Empty<string>();
+    private string[] _explorerSources = Array.Empty<string>();
     public IReadOnlyList<string> SourcePaths => _sourcePaths;
     private string? SourceRoot => _sourcePaths.Length == 1 && Directory.Exists(_sourcePaths[0]) ? _sourcePaths[0]
         : _sourcePaths.Length == 0 && Directory.Exists(InputDirectory) ? InputDirectory : null;
-    public void LoadDroppedSources(IEnumerable<string> sources)
+    public void LoadDroppedSources(IEnumerable<string> sources) => LoadSources(sources, _appSettings.VerifyBatchDrops);
+
+    public void LoadExplorerSources(IEnumerable<string> sources, bool verify)
+    {
+        if (BackgroundTask.IsRunning) return;
+        var paths = VerifyBatchSourcesRunnable.Normalize(sources).Where(path => File.Exists(path) || Directory.Exists(path)).ToArray();
+        if (paths.Length == 0) return;
+        var append = _explorerSources.Length > 0;
+        _explorerSources = VerifyBatchSourcesRunnable.Normalize(_explorerSources.Concat(paths));
+        InputDirectory = string.Join(" | ", _explorerSources);
+        _sourcePaths = _explorerSources.ToArray();
+        NotifyPropertyChanged(nameof(SourcePaths));
+        StartCommand.TriggerCanExecuteChanged(); ScanAndVerifyCommand.TriggerCanExecuteChanged();
+        Start(verify, rescan: true, explorerRequest: true, append: append, sourcesToScan: paths);
+    }
+
+    public void LoadSources(IEnumerable<string> sources, bool verify)
     {
         if (BackgroundTask.IsRunning) return;
         var paths = VerifyBatchSourcesRunnable.Normalize(sources).Where(path => File.Exists(path) || Directory.Exists(path)).ToArray();
@@ -70,7 +87,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         _sourcePaths = paths;
         NotifyPropertyChanged(nameof(SourcePaths));
         StartCommand.TriggerCanExecuteChanged(); ScanAndVerifyCommand.TriggerCanExecuteChanged();
-        Start(_appSettings.VerifyBatchDrops, rescan: true);
+        Start(verify, rescan: true);
     }
     private readonly BatchHistoryStore _historyStore = new(BatchHistoryStore.DefaultPath);
     private readonly Dictionary<string, string> _fingerprints = new(StringComparer.OrdinalIgnoreCase);
@@ -350,21 +367,22 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         ? _sourcePaths.Any(path => Directory.Exists(path) || File.Exists(path))
         : Directory.Exists(InputDirectory) || (File.Exists(InputDirectory) && PackageZip.IsArchive(InputDirectory)));
 
-    private async void Start(bool verifyIntegrity, bool rescan = false, bool resume = false)
+    private async void Start(bool verifyIntegrity, bool rescan = false, bool resume = false,
+        bool explorerRequest = false, bool append = false, string[]? sourcesToScan = null)
     {
+        if (!explorerRequest) _explorerSources = Array.Empty<string>();
         RecordMemory("scan-start");
         var paths = verifyIntegrity && !rescan && !resume ? Results.Select(r => r.FilePath).ToArray() : null;
         if (!resume)
         {
-            _historyPreviewPaths.Clear();
-            _fingerprints.Clear();
-            _session = new BatchHistoryEntry(Guid.NewGuid(), DateTime.UtcNow, InputDirectory, IncludeSubdirectories, IncludeArchives,
+            if (!append) { _historyPreviewPaths.Clear(); _fingerprints.Clear(); }
+            _session = new BatchHistoryEntry(append && _session != null ? _session.Id : Guid.NewGuid(), DateTime.UtcNow, InputDirectory, IncludeSubdirectories, IncludeArchives,
                 verifyIntegrity, _appSettings.IgnoreMissingDeltaFragments, "Running", Array.Empty<BatchIntegrityResult>(), new()) { SourcePaths = _sourcePaths.ToArray() };
         }
         if (!IsHistoryEnabled) _session = null;
         var checkpoint = _session;
         var state = "Completed";
-        if (!resume && (!verifyIntegrity || rescan))
+        if (!append && !resume && (!verifyIntegrity || rescan))
         {
             Results.Clear();
             _completedPreviews.Clear();
@@ -375,8 +393,9 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         try
         {
             Func<string, bool>? skip = resume ? path => checkpoint?.CanSkip(path, _appSettings.IgnoreMissingDeltaFragments) == true : null;
-            IRunnable<IReadOnlyList<BatchIntegrityResult>> runnable = paths == null && _sourcePaths.Length > 0
-                ? new VerifyBatchSourcesRunnable(_sourcePaths, () => _serviceProvider.GetRequiredService<IVerifyDirectoryIntegrityRunnable>(),
+            var scanSources = sourcesToScan ?? _sourcePaths;
+            IRunnable<IReadOnlyList<BatchIntegrityResult>> runnable = paths == null && scanSources.Length > 0
+                ? new VerifyBatchSourcesRunnable(scanSources, () => _serviceProvider.GetRequiredService<IVerifyDirectoryIntegrityRunnable>(),
                     IncludeSubdirectories, IncludeArchives, verifyIntegrity, ShowPreview, ShowCompletedResult, skip)
                 : _serviceProvider.GetRequiredService<IVerifyDirectoryIntegrityRunnable>()
                     .Setup(InputDirectory, IncludeSubdirectories, ShowPreview, ShowCompletedResult, IncludeArchives, verifyIntegrity, paths, skip);
@@ -442,6 +461,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
     {
         if (!IsHistoryEnabled || BackgroundTask.IsRunning || SelectedHistory == null) return false;
         var saved = SelectedHistory;
+        _explorerSources = Array.Empty<string>();
 
         InputDirectory = saved.Source;
         _sourcePaths = saved.SourcePaths.ToArray();

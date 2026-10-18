@@ -1,0 +1,3 @@
+Native/**/*.lib
+Native/**/*.pdb
+Native/x86/NxFileViewer.ExplorerHost.exe

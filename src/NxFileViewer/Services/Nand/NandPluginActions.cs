@@ -19,6 +19,7 @@ public sealed class NandPluginActions : NotifyPropertyChangedBase
         _manager = manager; _runner = runner;
         OpenGuiCommand = new RelayCommand(() => { try { PluginGuiLauncher.Open(manager.ExecutablePath, true, string.IsNullOrWhiteSpace(settings.NandBisKeysPath) ? keys.ActualProdKeysFilePath : settings.NandBisKeysPath); } catch (Exception ex) { _result = ex.Message; Refresh(); } }, () => settings.NandPluginActive && !runner.IsRunning && CanOpenGui());
         UpdateCommand = new RelayCommand(Update, () => settings.NandPluginActive && !runner.IsRunning && string.IsNullOrWhiteSpace(settings.NandExecutablePath));
+        CleanupCommand = Updates.OldVersionCleanupCommand.Create("NxNandManager", runner, () => settings.NandPluginActive, manager.OldVersionDirectories, manager.RemoveOldVersions, Refresh);
         RollbackCommand = new RelayCommand(() =>
         {
             try { manager.Rollback(); _result = ""; } catch (Exception ex) { _result = ex.Message; }
@@ -31,6 +32,7 @@ public sealed class NandPluginActions : NotifyPropertyChangedBase
     private bool CanOpenGui() { try { return System.IO.File.Exists(_manager.ExecutablePath); } catch { return false; } }
     public RelayCommand UpdateCommand { get; }
     public RelayCommand RollbackCommand { get; }
+    public RelayCommand CleanupCommand { get; }
     public string Status => _manager.Status + (string.IsNullOrEmpty(_result) ? "" : Environment.NewLine + _result);
     private void Refresh()
     {
@@ -38,6 +40,7 @@ public sealed class NandPluginActions : NotifyPropertyChangedBase
         OpenGuiCommand.TriggerCanExecuteChanged(true);
         UpdateCommand.TriggerCanExecuteChanged(true);
         RollbackCommand.TriggerCanExecuteChanged(true);
+        CleanupCommand.TriggerCanExecuteChanged(true);
     }
     private async void Update()
     {

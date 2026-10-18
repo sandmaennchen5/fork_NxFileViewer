@@ -29,6 +29,7 @@
                     </GroupBox>
                     <GroupBox Header="NxNandManager" Margin="0,0,0,12">
                         <StackPanel Margin="6">
+                            <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Update_Cleanup}" Command="{Binding Nand.CleanupCommand}" HorizontalAlignment="Left" Padding="8,4" Margin="0,0,0,8"/>
                             <TextBlock TextWrapping="Wrap" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nand_SettingsTip}"/>
                             <DockPanel Margin="0,6,0,0">
                                 <Button DockPanel.Dock="Right" Content="…" Command="{Binding BrowseNandCommand}" Padding="8,2"/>
@@ -67,6 +68,7 @@
                                           SelectedValue="{Binding EditedSettings.NszBlockSizeExponent}"/>
                             </StackPanel>
                             <TextBlock Margin="0,6,0,0" TextWrapping="Wrap" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nsz_ModeTip}"/>
+                            <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Update_Cleanup}" Command="{Binding Nsz.CleanupCommand}" HorizontalAlignment="Left" Padding="8,4" Margin="0,8,0,0"/>
                             <TextBlock Margin="0,6,0,0" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nsz_Level}"/>
                             <TextBox Text="{Binding EditedSettings.NszCompressionLevel, UpdateSourceTrigger=PropertyChanged}"/>
                         </StackPanel>

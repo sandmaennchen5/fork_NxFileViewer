@@ -6,6 +6,11 @@ namespace Emignatik.NxFileViewer.Localization.Keys;
 
 public class LocalizationKeys_DE : LocalizationKeysBase, ILocalizationKeys
 {
+    public string Update_RollbackConfirm => "Die vorherige Programmversion wiederherstellen? NxFileViewer wird geschlossen und neu gestartet. Nach dem Entfernen alter Versionen ist diese Wiederherstellung nicht mehr verfügbar.";
+    public string Update_Cleanup => "Alte Versionen entfernen";
+    public string Update_CleanupConfirm => "Folgende alte Versionen bzw. Update-Sicherungen endgültig entfernen?\n\n{0}\n\nDie betreffenden Rückfallversionen stehen danach nicht mehr zur Verfügung. Die aktuelle Version und konfigurierte eigene Programmdateien bleiben erhalten.";
+    public string Update_CleanupEmpty => "Keine alten, zur Bereinigung freigegebenen Versionen gefunden. Laufende, kürzlich abgeschlossene oder fehlgeschlagene Programmupdates bleiben erhalten.";
+    public string Update_CleanupDone => "{0} alte Version(en) bzw. Update-Sicherung(en) entfernt.";
     public string BatchDetails_Show => "Detailbereich einblenden";
     public string BatchDetails_Hide => "Detailbereich ausblenden";
     public string BatchPackages_SummaryOrder => "Ursprüngliche Paketreihenfolge in Zusammenfassung verwenden";
@@ -759,6 +764,19 @@ public class LocalizationKeys_DE : LocalizationKeysBase, ILocalizationKeys
     public string Nand_DriveRefresh => "Laufwerke aktualisieren";
     public string Nand_DriveAccessDenied => "Der Datenträger wurde erkannt, aber Windows verweigert den Lesezugriff. NxFileViewer als Administrator starten und das Laufwerk erneut auswählen. Es wird nur lesend geöffnet.";
     public string Associations_Title => "Windows-Dateizuordnungen";
+    public string Associations_Remove => "Dateizuordnung entfernen";
+    public string Associations_Removed => "Die Dateizuordnungs-Registrierung von NxFileViewer Fork wurde entfernt. Falls er die Standard-App war, wähle in Windows über Öffnen mit eine andere App aus. Die Explorer-Kontextmenüs können getrennt entfernt werden.";
+    public string Explorer_Title => "Explorer-Kontextmenü";
+    public string Explorer_Tip => "Unter NxFileViewer: im Batch oder File öffnen (ohne Hashprüfung) und prüfen (mit Hashprüfung). Bei mehreren Dateien oder Ordnern nur Batch. Auch bei geschlossenem Programm. Klassisch nur für deinen Benutzer, ohne Adminrechte; unter Windows 11 über Weitere Optionen anzeigen. Nach einem Ordnerwechsel erneut hinzufügen. Änderungen wirken sofort.";
+    public string Explorer_AddClassic => "Klassisches Menü hinzufügen / aktualisieren";
+    public string Explorer_RemoveClassic => "Klassisches Menü entfernen";
+    public string Explorer_ModernTip => "Lädt das passende Explorer-Setup von GitHub und prüft dessen Version unabhängig von der App. Beim ersten Mal Zertifikat und Adminabfrage bestätigen. Windows kann das Menü auch klassisch anzeigen; eine zusätzliche klassische Registrierung wird nicht angelegt. Vorabversionen folgen der Update-Einstellung. Eine lokale MSIX bleibt für Offline-Installationen auswählbar.";
+    public string Explorer_AddModern => "Modernes Menü installieren / aktualisieren";
+    public string Explorer_RemoveModern => "Modernes Menü entfernen";
+    public string Explorer_Local => "Lokale MSIX auswählen…";
+    public string Explorer_Trusting => "Bitte Zertifikat im geöffneten Fenster bestätigen.";
+    public string Explorer_NoPackage => "Kein passendes Explorer-Setup in den GitHub-Releases gefunden. Bei Bedarf Vorabversionen für Updates aktivieren oder eine lokale MSIX auswählen.";
+    public string Explorer_Done => "Die Explorer-Integration wurde aktualisiert. Falls das Menü noch unverändert ist, Explorer oder Windows neu starten.";
     public string Associations_Register => "NxFileViewer Fork registrieren";
     public string Associations_Tip => "Für .nsp, .nsz, .xci, .xcz und .nro wird eine eigene Fork-Kennung mit dem aktuellen EXE-Pfad registriert. Danach in Windows über Öffnen mit → Andere App auswählen → Immer den NxFileViewer Fork wählen. Nach einem Ordnerwechsel erneut registrieren. Die Schaltfläche wirkt sofort.";
     public string Associations_Done => "NxFileViewer Fork wurde für .nsp, .nsz, .xci, .xcz und .nro registriert. Wähle ihn jetzt über Öffnen mit → Andere App auswählen → Immer als Standard-App aus.";

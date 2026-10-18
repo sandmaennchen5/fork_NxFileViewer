@@ -15,10 +15,17 @@ public static class ForkAssociationLauncher
         using var bytes = new MemoryStream(); stream.CopyTo(bytes); return bytes.ToArray();
     }
     public static string Ensure(string executable) {
-        if (!Path.GetFileName(executable).Equals("NxFileViewer.exe", StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("The association launcher requires the main executable name NxFileViewer.exe.");
+        _ = Emignatik.NxFileViewer.Services.Updates.ViewerPackageLayout.ExecutableName(Path.GetFileName(executable));
         if (!File.Exists(executable)) throw new FileNotFoundException("NxFileViewer.exe not found.", executable);
         var target = PathFor(executable); var payload = Payload();
+        var reference = Path.Combine(Path.GetDirectoryName(target)!, "NxFileViewerFork.Open.target");
+        var name = Path.GetFileName(executable);
+        if (!File.Exists(reference) || File.ReadAllText(reference) != name)
+        {
+            var referenceTemp = reference + "." + Guid.NewGuid().ToString("N") + ".tmp";
+            try { File.WriteAllText(referenceTemp, name, new System.Text.UTF8Encoding(false)); File.Move(referenceTemp, reference, true); }
+            finally { if (File.Exists(referenceTemp)) File.Delete(referenceTemp); }
+        }
         if (File.Exists(target) && new FileInfo(target).Length == payload.Length &&
             SHA256.HashData(File.ReadAllBytes(target)).AsSpan().SequenceEqual(SHA256.HashData(payload))) return target;
         var temporary = target + "." + Guid.NewGuid().ToString("N") + ".tmp";
@@ -30,10 +37,11 @@ public static class ForkAssociationLauncher
     }
     public static void RefreshInstalled() {
         var executable = Environment.ProcessPath;
-        if (executable == null || !Path.GetFileName(executable).Equals("NxFileViewer.exe", StringComparison.OrdinalIgnoreCase)) return;
+        if (executable == null || !Path.GetExtension(executable).Equals(".exe", StringComparison.OrdinalIgnoreCase) || Path.GetFileName(executable).Equals("dotnet.exe", StringComparison.OrdinalIgnoreCase)) return;
         var launcher = PathFor(executable);
         using var key = Registry.CurrentUser.OpenSubKey(@"Software\Classes\" + ForkFileAssociations.ProgId + @"\shell\open\command");
         var registered = key?.GetValue("") as string;
         if (File.Exists(launcher) || registered == "\"" + launcher + "\" \"%1\"") Ensure(executable);
+        if (registered == "\"" + launcher + "\" \"%1\"") ForkFileAssociations.Register(executable);
     }
 }

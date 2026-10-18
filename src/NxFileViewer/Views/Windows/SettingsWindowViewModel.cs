@@ -81,6 +81,27 @@ public class SettingsWindowViewModel : WindowViewModelBase
                 ThemedDialog.Notice(keys.Associations_Done, keys.Associations_Title, MessageBoxImage.Information);
             } catch (Exception ex) { ThemedDialog.Notice(ex.Message, keys.Associations_Title, MessageBoxImage.Error); }
         });
+        RegisterClassicExplorerCommand = new RelayCommand(() => ConfigureExplorer(() => {
+            Services.FileAssociations.ExplorerIntegration.RegisterClassic(); return System.Threading.Tasks.Task.CompletedTask;
+        }), () => !_explorerSetupBusy);
+        RemoveFileAssociationsCommand = new RelayCommand(() => {
+            var keys = LocalizationManager.Instance.Current.Keys;
+            try {
+                Services.FileAssociations.ForkFileAssociations.Unregister();
+                ThemedDialog.Notice(keys.Associations_Removed, keys.Associations_Title, MessageBoxImage.Information);
+            } catch (Exception ex) { ThemedDialog.Notice(ex.Message, keys.Associations_Title, MessageBoxImage.Error); }
+        });
+        RemoveClassicExplorerCommand = new RelayCommand(() => ConfigureExplorer(() => {
+            Services.FileAssociations.ExplorerIntegration.RemoveClassic(); return System.Threading.Tasks.Task.CompletedTask;
+        }), () => !_explorerSetupBusy);
+        RegisterModernExplorerCommand = new RelayCommand(() => ConfigureExplorer(InstallModernFromRelease),
+            () => !_explorerSetupBusy && OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000));
+        InstallLocalModernExplorerCommand = new RelayCommand(() => {
+            var dialog = new OpenFileDialog { Filter = "NxFileViewer Explorer (*.msix)|*.msix" };
+            if (dialog.ShowDialog() == true) ConfigureExplorer(() => Services.FileAssociations.ExplorerIntegration.InstallModern(dialog.FileName));
+        }, () => !_explorerSetupBusy && OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000));
+        RemoveModernExplorerCommand = new RelayCommand(() => ConfigureExplorer(Services.FileAssociations.ExplorerIntegration.RemoveModern),
+            () => !_explorerSetupBusy && OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000));
         ApplySettingsCommand = new RelayCommand(ApplySettings);
         CancelSettingsCommand = new RelayCommand(CancelSettings);
         ResetSettingsCommand = new RelayCommand(ResetSettings);
@@ -226,10 +247,54 @@ public class SettingsWindowViewModel : WindowViewModelBase
     };
     public Services.PackageOperations.PackageActions Packages => _serviceProvider.GetRequiredService<Services.PackageOperations.PackageActions>();
     public ICommand BrowseNszCommand { get; }
+    public Services.Nand.NandPluginActions Nand => _serviceProvider.GetRequiredService<Services.Nand.NandPluginActions>();
     public ICommand BrowseNandCommand { get; }
     public ICommand BrowseBisKeysCommand { get; }
 
     public ICommand RegisterFileAssociationsCommand { get; }
+    public ICommand RemoveFileAssociationsCommand { get; }
+    public RelayCommand RegisterClassicExplorerCommand { get; }
+    public RelayCommand RemoveClassicExplorerCommand { get; }
+    public RelayCommand RegisterModernExplorerCommand { get; }
+    public RelayCommand RemoveModernExplorerCommand { get; }
+    public RelayCommand InstallLocalModernExplorerCommand { get; }
+    private string _explorerStatus = "";
+    public string ExplorerStatus { get => _explorerStatus; private set { _explorerStatus = value; NotifyPropertyChanged(); } }
+    private async System.Threading.Tasks.Task InstallModernFromRelease()
+    {
+        var keys = LocalizationManager.Instance.Current.Keys;
+        string Stage(Services.FileAssociations.ExplorerInstallStage stage) => stage switch {
+            Services.FileAssociations.ExplorerInstallStage.Checking => keys.Update_Checking,
+            Services.FileAssociations.ExplorerInstallStage.Downloading => keys.Update_Downloading,
+            Services.FileAssociations.ExplorerInstallStage.Trusting => keys.Explorer_Trusting,
+            Services.FileAssociations.ExplorerInstallStage.Current => keys.Update_Current,
+            Services.FileAssociations.ExplorerInstallStage.Installed => keys.Explorer_Done,
+            _ => keys.Update_Installing
+        };
+        var result = await Services.FileAssociations.ExplorerIntegration.InstallModernFromRelease(
+            _appSettingsManager.Settings.IncludeViewerPrereleases,
+            new Progress<Services.FileAssociations.ExplorerInstallStage>(stage => ExplorerStatus = Stage(stage)));
+        ExplorerStatus = Stage(result);
+    }
+    private bool _explorerSetupBusy;
+    private async void ConfigureExplorer(Func<System.Threading.Tasks.Task> action)
+    {
+        if (_explorerSetupBusy) return;
+        _explorerSetupBusy = true;
+        ExplorerStatus = "";
+        RefreshExplorerCommands();
+        var keys = LocalizationManager.Instance.Current.Keys;
+        try {
+            await action();
+            ThemedDialog.Notice(ExplorerStatus.Length > 0 ? ExplorerStatus : keys.Explorer_Done, keys.Explorer_Title, MessageBoxImage.Information);
+        } catch (Exception ex) { ExplorerStatus = ex.Message; ThemedDialog.Notice(ex.Message, keys.Explorer_Title, MessageBoxImage.Error); }
+        finally { _explorerSetupBusy = false; RefreshExplorerCommands(); }
+    }
+    private void RefreshExplorerCommands()
+    {
+        RegisterClassicExplorerCommand.TriggerCanExecuteChanged(); RemoveClassicExplorerCommand.TriggerCanExecuteChanged();
+        RegisterModernExplorerCommand.TriggerCanExecuteChanged(); RemoveModernExplorerCommand.TriggerCanExecuteChanged(); InstallLocalModernExplorerCommand.TriggerCanExecuteChanged();
+    }
     public ICommand ApplySettingsCommand { get; }
 
     public ICommand CancelSettingsCommand { get; }

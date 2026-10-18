@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
+using System.Threading.Tasks;
+using System.Windows.Threading;
 using System.Windows;
 using Emignatik.NxFileViewer.Commands;
 using Emignatik.NxFileViewer.FileLoading;
@@ -14,6 +16,7 @@ using Emignatik.NxFileViewer.Services.BackgroundTask;
 using Emignatik.NxFileViewer.Services.BackgroundTask.RunnableImpl;
 using Emignatik.NxFileViewer.Services.FileLocationOpening;
 using Emignatik.NxFileViewer.Services.FileOpening;
+using Emignatik.NxFileViewer.Services.FileAssociations;
 using Emignatik.NxFileViewer.Services.FileRenaming;
 using Emignatik.NxFileViewer.Services.GlobalEvents;
 using Emignatik.NxFileViewer.Services.Integrity;
@@ -39,6 +42,11 @@ namespace Emignatik.NxFileViewer;
 public partial class App : Application, IAppEvents
 {
     private static readonly ILogger _logger;
+    private ExplorerInstance? _explorerInstance;
+    private readonly Queue<ExplorerLaunchRequest> _explorerRequests = new();
+    private DispatcherTimer? _explorerTimer;
+    private bool _explorerReady;
+    private bool _handlingExplorerRequest;
 
     public event Action? AppShuttingDown;
 
@@ -150,6 +158,29 @@ public partial class App : Application, IAppEvents
     {
         base.OnStartup(e);
 
+        ExplorerLaunchRequest request;
+        try
+        {
+            request = ExplorerLaunchRequest.Parse(e.Args);
+            _explorerInstance = new ExplorerInstance(Environment.ProcessPath
+                ?? throw new InvalidOperationException("The current executable path is unavailable."));
+            if (!_explorerInstance.IsPrimary)
+            {
+                _explorerInstance.Forward(request).GetAwaiter().GetResult();
+                Shutdown();
+                return;
+            }
+            _explorerRequests.Enqueue(request);
+            _explorerInstance.Listen(incoming => Dispatcher.BeginInvoke(new Action(() => QueueExplorerRequest(incoming))),
+                ex => _logger.LogWarning(ex, "Explorer request could not be received."));
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(ex.Message, "NxFileViewer", MessageBoxButton.OK, MessageBoxImage.Error);
+            Shutdown(1);
+            return;
+        }
+
         try { Services.FileAssociations.ForkAssociationLauncher.RefreshInstalled(); }
         catch (Exception ex) { _logger.LogWarning(ex, "Could not refresh the file-association launcher."); }
 
@@ -166,6 +197,13 @@ public partial class App : Application, IAppEvents
 
         // Initialize localization
         ServiceProvider.GetRequiredService<ILocalizationFromSettingsSynchronizerService>().Initialize();
+        void UpdateExplorerLanguage()
+        {
+            try { ExplorerIntegration.UpdateLanguage(LocalizationManager.Instance.Current.Keys.CultureName); }
+            catch (Exception ex) { _logger.LogWarning(ex, "Could not update Explorer menu language."); }
+        }
+        UpdateExplorerLanguage();
+        LocalizationManager.Instance.LocalizationChanged += (_, _) => UpdateExplorerLanguage();
         ServiceProvider.GetRequiredService<IThemeService>().Initialize();
 
         LocalizationStringExtension.FormatException += OnLocalizationStringFormatException;
@@ -183,7 +221,8 @@ public partial class App : Application, IAppEvents
         {
             mainWindow.Loaded -= MainWindowLoaded;
             _ = ServiceProvider.GetRequiredService<ViewerUpdateActions>().CheckAsync(true);
-            Initialize(e.Args);
+            _explorerReady = true;
+            StartExplorerQueue();
         }
         mainWindow.Loaded += MainWindowLoaded;
 
@@ -191,10 +230,54 @@ public partial class App : Application, IAppEvents
         mainWindow.Show();
     }
 
-    private async void Initialize(IReadOnlyList<string> cmdLineArgs)
+    private void QueueExplorerRequest(ExplorerLaunchRequest request)
     {
-        if (cmdLineArgs.Count > 0)
-            await ServiceProvider.GetRequiredService<IFileOpeningService>().SafeOpenFile(cmdLineArgs[0], FileOpenOrigin.WindowsAssociation);
+        _explorerRequests.Enqueue(request);
+        StartExplorerQueue();
+    }
+
+    private void StartExplorerQueue()
+    {
+        if (_explorerTimer == null)
+        {
+            _explorerTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
+            _explorerTimer.Tick += async (_, _) => await ProcessExplorerRequests();
+        }
+        _explorerTimer.Start();
+    }
+
+    private async Task ProcessExplorerRequests()
+    {
+        if (!_explorerReady || _handlingExplorerRequest ||
+            ServiceProvider.GetRequiredService<IMainBackgroundTaskRunnerService>().IsRunning) return;
+        if (!_explorerRequests.TryDequeue(out var request)) { _explorerTimer?.Stop(); return; }
+        _handlingExplorerRequest = true;
+        try
+        {
+            var window = (MainWindow)MainWindow;
+            if (window.WindowState == WindowState.Minimized) window.WindowState = WindowState.Normal;
+            window.Activate();
+            if (request.Paths.Length == 0) return;
+            if (request.Paths.Any(p => !System.IO.File.Exists(p) && !System.IO.Directory.Exists(p)))
+                throw new System.IO.FileNotFoundException("An Explorer selection no longer exists.");
+            var batch = request.Mode is ExplorerLaunchMode.BatchOpen or ExplorerLaunchMode.BatchVerify ||
+                (request.Mode == ExplorerLaunchMode.Automatic && Views.Windows.MainWindow.ShouldUseBatchDrop(request.Paths, false));
+            if (batch)
+                window.OpenExplorerBatch(request.Paths, request.Mode == ExplorerLaunchMode.BatchVerify ||
+                    (request.Mode == ExplorerLaunchMode.Automatic && Features.VerifyFilesOpenedFromWindows));
+            else
+                await ServiceProvider.GetRequiredService<IFileOpeningService>().SafeOpenFile(request.Paths[0], request.Mode switch {
+                    ExplorerLaunchMode.FileOpen => FileOpenOrigin.ExplorerOpen,
+                    ExplorerLaunchMode.FileVerify => FileOpenOrigin.ExplorerVerify,
+                    _ => FileOpenOrigin.WindowsAssociation
+                });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Could not process Explorer selection.");
+            MessageBox.Show(ex.Message, "NxFileViewer", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally { _handlingExplorerRequest = false; }
     }
 
     private void OnLocalizationStringFormatException(object? sender, FormatExceptionHandlerArgs args)
@@ -209,6 +292,10 @@ public partial class App : Application, IAppEvents
     protected override void OnExit(ExitEventArgs e)
     {
         base.OnExit(e);
+        _explorerTimer?.Stop();
+        var isPrimary = _explorerInstance?.IsPrimary == true;
+        _explorerInstance?.Dispose();
+        if (!isPrimary) return;
         NotifyAppShuttingDown();
         var removed = Emignatik.NxFileViewer.Services.EmptyDirectoryCleanup.Clean(AppContext.BaseDirectory);
         if (removed > 0) _logger.LogInformation("Removed {Count} empty program subdirectories on exit.", removed);
