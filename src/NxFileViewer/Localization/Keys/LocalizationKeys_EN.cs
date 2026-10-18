@@ -6,8 +6,23 @@ namespace Emignatik.NxFileViewer.Localization.Keys;
 
 public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
 {
+    public string BatchDetails_Show => "Show details pane";
+    public string BatchDetails_Hide => "Hide details pane";
+    public string BatchPackages_SummaryOrder => "Use original package order in combined summaries";
+    public string BatchPackages_SummaryOrderTip => "Disabled (default): Values in each combined column are sorted independently of package order.\n\n- Package type: Base / Update / DLC.\n- Version, display version and minimum system version: highest first, e.g. 22.0.0 / 17.0.0 / 2.0.0. Version components are compared numerically.\n- Master key: highest key revision first, e.g. MasterKey 10 / MasterKey 9 / MasterKey 2.\n- Other text and IDs: alphabetically ascending (A–Z), ignoring case.\n\nEach column is sorted separately. Values at the same position in different columns do not necessarily belong to the same package.\n\nEnabled: Combined values retain the original order of packages in the file, as before.\n\nAlso applies to combined CSV/Excel exports. The order and numbering of individual package rows (::1, ::2, …) remain unchanged.";
+    public string BatchPackages_Title => "Multiple packages";
+    public string BatchPackages_Display => "Display multiple packages as individual rows (::1, ::2, …)";
+    public string BatchPackages_Export => "Export multiple packages as individual rows (::1, ::2, …)";
+    public string BatchPackages_Tip => "Each row shows one package’s metadata. File path, size, verification result and file actions refer to the entire container file. Display and export can be configured independently.";
+    public string BatchExport_Title => "Batch export";
+    public string BatchExport_VisibleOnly => "Export only visible columns in table order (otherwise: all columns in default order)";
+    public string BatchExport_Format => "Default export format";
+    public string BatchExport_NoColumns => "No columns are visible. Show at least one column before exporting.";
+    public string BatchExport_InvalidExtension => "Choose a .csv or .xlsx file name.";
     public string Package_PublicationRecovery => "Publication was interrupted. Validated files have been kept in the following folders. A folder containing NXFV-INCOMPLETE.txt is not complete.";
-    public string Package_Title => "Merge / Content split / NSP ↔ XCI";
+    public string Features_PackageOperations => "Enable merge / split / NSP ↔ XCI (experimental)";
+    public string Features_PackageOperationsDisabled => "This experimental feature is disabled. Enable it under Settings → Features and restart the application.";
+    public string Package_Title => "Merge / Content split / NSP ↔ XCI (experimental)";
     public string Package_Engine => "Package engine";
     public string Package_RustPath => "cxfcxf / nscb_rust — executable";
     public string Package_KronosPath => "Kronos — portable folder (runtime and ztools)";
@@ -244,7 +259,7 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
     public string ToolTip_PackageStructure => "Structure following Nx Game Info:\nScene (XCI): Update, Normal and Secure partitions.\nConverted (XCI): Secure partition only; typical of NSP → XCI conversions.\nScene (NSP): legalinfo.xml, nacp.xml, programinfo.xml and cardspec.xml; typical of BBB releases.\nHomebrew (NSP): authoringtoolinfo.xml present.\nCDN (NSP): certificate (.cert) and ticket (.tik); typical of eShop CDN dumps.\nConverted (NSP): NCA/NCZ content plus other files, without a ticket/certificate or the Scene/Homebrew markers. This is a structural classification, not proof of the package’s origin.\nFilesystem: installed NAX0 titles on a Switch SD card.\nNCA contents only: the package contains only .nca/.ncz files, with no ticket, certificate or XML extras. This can occur in repacked or converted packages and does not prove that game data is missing.\nIncomplete: no NCA/NCZ content, a ticket without a certificate (or vice versa), or an XCI partition layout outside the Scene/Converted rules. This describes the container structure; use integrity verification to check for missing or modified game content.\nNSZ/XCZ follow their package rules; NCZ counts as NCA.";
     public string ToolTip_NcaSignature => "Passed: valid NCA signatures, as expected for official titles.\nNot passed: at least one invalid NCA signature; possible for homebrew, unexpected for official titles.\nNot checked: NCA signature verification has not completed. Run the integrity check.\nThis reports NCA header signatures; ACID is a separate NPDM signature.";
     public string ToolTip_Permission => "Safe: no filesystem service access or bit 0x8000000000000000 unset.\nUnsafe: filesystem service access and bit 0x8000000000000000 set (EraseMmc).\nDangerous: filesystem service access and mask 0xffffffffffffffff (all permissions).\nUnsafe/Dangerous should only occur for homebrew, not official games. Available for Base and Update only. This classifies permissions and is not a complete security assessment.";
-    public string ToolTip_AcidSignature => "Signature of the ACID section in main.npdm, independent of the NCA header signature.";
+    public string ToolTip_AcidSignature => "The ACID signature is a digital seal for the permissions section in main.npdm. This section describes which system services and file-system functions the program may access.\n\nMeaning of the displayed status:\n- Valid: The signature matches the checked ACID data and the verification key used.\n- Invalid: Signature verification failed. The data may have been modified or may not match the signature. This alone does not prove malware.\n- Unchecked: The signature was not checked. Its validity cannot be inferred from this status.\n- Empty field: No ACID information is available for this display.\n\nHow the checks differ:\n- ACID signature: checks the program’s signed permissions section.\n- NCA signature: checks the NCA header.\n- Integrity: checks file contents against their hashes.\n\nA valid ACID signature does not automatically mean that all file contents are unchanged or that the program is harmless.";
     public string PackageStructure_Title => "Package structure";
     public string PackageStructure_Scene => "Scene release";
     public string PackageStructure_Cdn => "CDN rip";
@@ -257,7 +272,7 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
     public string FileInfo_CompressionRatio => "Compression ratio";
     public string FileInfo_Uncompressed => "uncompressed";
     public string FileInfo_SystemUpdate => "Included system update (XCI)";
-    public string BatchIntegrity_Export => "Export CSV…";
+    public string BatchIntegrity_Export => "Export…";
     public string BatchIntegrity_Start => "Start check";
     public string BatchIntegrity_OpenSelected => "Open in file check";
     public string BatchIntegrity_MoveSelected => "Move…";

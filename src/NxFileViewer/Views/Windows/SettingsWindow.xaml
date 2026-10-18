@@ -1,6 +1,7 @@
 <UserControl x:Class="Emignatik.NxFileViewer.Views.Windows.SettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:sys="clr-namespace:System;assembly=mscorlib"
         xmlns:app="clr-namespace:Emignatik.NxFileViewer"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -99,6 +100,27 @@
                                 <CheckBox IsChecked="{Binding EditedSettings.OpenBlocklessCompressionNCZ}" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_CheckBox_NczOpenBlocklessCompression}"/>
                                 <customControls:TipLabel ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_ToolTip_NczBlockLessCompression}"/>
                             </StackPanel>
+                        </StackPanel>
+                    </GroupBox>
+                    <GroupBox Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchPackages_Title}" Margin="8,4,8,8">
+                        <StackPanel Margin="8">
+                            <CheckBox x:Name="BatchSeparatePackagesCheckBox" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchPackages_Display}" IsChecked="{Binding EditedSettings.BatchSeparatePackages}" Margin="0,0,0,8"/>
+                            <CheckBox x:Name="BatchExportSeparatePackagesCheckBox" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchPackages_Export}" IsChecked="{Binding EditedSettings.BatchExportSeparatePackages}" Margin="0,0,0,8"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                <CheckBox x:Name="BatchSummaryPreservePackageOrderCheckBox" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchPackages_SummaryOrder}" ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchPackages_SummaryOrderTip}" IsChecked="{Binding EditedSettings.BatchSummaryPreservePackageOrder}"/>
+                                <customControls:TipLabel x:Name="BatchSummaryOrderTip" ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchPackages_SummaryOrderTip}"/>
+                            </StackPanel>
+                            <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchPackages_Tip}" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </GroupBox>
+                    <GroupBox Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchExport_Title}" Margin="8,4,8,8">
+                        <StackPanel Margin="8">
+                            <CheckBox x:Name="BatchExportVisibleColumnsCheckBox" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchExport_VisibleOnly}" IsChecked="{Binding EditedSettings.BatchExportVisibleColumnsOnly}" Margin="0,0,0,8"/>
+                            <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchExport_Format}" Style="{StaticResource Title2}"/>
+                            <ComboBox x:Name="BatchExportFormatComboBox" SelectedValuePath="Tag" SelectedValue="{Binding EditedSettings.BatchExportExcel}" HorizontalAlignment="Left" MinWidth="140">
+                                <ComboBoxItem Content="CSV (.csv)"><ComboBoxItem.Tag><sys:Boolean>False</sys:Boolean></ComboBoxItem.Tag></ComboBoxItem>
+                                <ComboBoxItem Content="Excel (.xlsx)"><ComboBoxItem.Tag><sys:Boolean>True</sys:Boolean></ComboBoxItem.Tag></ComboBoxItem>
+                            </ComboBox>
                         </StackPanel>
                     </GroupBox>
                     <GroupBox x:Name="ProgramHistoryGroup"  Margin="8,4,8,8">
@@ -486,6 +508,7 @@
                         <CheckBox x:Name="EnableNandPluginCheckBox" IsEnabled="{Binding EditedSettings.EnableNand}" IsChecked="{Binding EditedSettings.EnableNandPlugin}" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Features_NandPlugin}" Margin="0,0,0,12"/>
                         <CheckBox x:Name="EnableMtpCheckBox" IsChecked="{Binding EditedSettings.EnableMtp}" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Features_Mtp}" Margin="0,0,0,12"/>
                         <CheckBox x:Name="EnableFirmwareCheckBox" IsChecked="{Binding EditedSettings.EnableFirmwareCheck}" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Features_Firmware}" Margin="0,0,0,12"/>
+                        <CheckBox x:Name="EnablePackageOperationsCheckBox" IsChecked="{Binding EditedSettings.EnablePackageOperations}" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Features_PackageOperations}" Margin="0,0,0,12"/>
                         <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Features_Restart}" TextWrapping="Wrap"/>
                     </StackPanel>
                 </GroupBox>

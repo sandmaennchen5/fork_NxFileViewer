@@ -7,6 +7,37 @@
         xmlns:customControls="clr-namespace:Emignatik.NxFileViewer.Views.CustomControls"
         xmlns:userControls="clr-namespace:Emignatik.NxFileViewer.Views.UserControls">
     <UserControl.Resources>
+        <Style TargetType="ToolTip">
+            <Setter Property="MaxWidth" Value="620"/>
+            <Setter Property="ContentTemplate">
+                <Setter.Value><DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap" MaxWidth="580"/></DataTemplate></Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="BatchColumnHeaderStyle" TargetType="{x:Type DataGridColumnHeader}" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Column.SortMemberPath, RelativeSource={RelativeSource Self}}" Value="Structure">
+                    <Setter Property="ToolTip" Value="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.ToolTip_PackageStructure}"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Column.SortMemberPath, RelativeSource={RelativeSource Self}}" Value="NcaSignature">
+                    <Setter Property="ToolTip" Value="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.ToolTip_NcaSignature}"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Column.SortMemberPath, RelativeSource={RelativeSource Self}}" Value="Integrity">
+                    <Setter Property="ToolTip" Value="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.ToolTip_NcasIntegrity}"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Column.SortMemberPath, RelativeSource={RelativeSource Self}}" Value="PermissionDisplay">
+                    <Setter Property="ToolTip" Value="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.ToolTip_Permission}"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Column.SortMemberPath, RelativeSource={RelativeSource Self}}" Value="FileSystemPermissions">
+                    <Setter Property="ToolTip" Value="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.ToolTip_Permission}"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Column.SortMemberPath, RelativeSource={RelativeSource Self}}" Value="AcidSignatureValidity">
+                    <Setter Property="ToolTip" Value="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.ToolTip_AcidSignature}"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Column.SortMemberPath, RelativeSource={RelativeSource Self}}" Value="Languages">
+                    <Setter Property="ToolTip" Value="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.ToolTip_AvailableLanguages}"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
                         <GroupStyle x:Key="SourceGroupStyle">
 
                         <GroupStyle.ContainerStyle>
@@ -51,7 +82,7 @@
         </Grid>
         <WrapPanel Grid.Row="1" Margin="0,8">
             <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchTable_Search}" VerticalAlignment="Center" Margin="0,0,5,0"/>
-            <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged, Delay=200}" Width="180" Margin="0,0,8,0"/>
+            <TextBox x:Name="BatchSearchBox" VerticalContentAlignment="Center" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged, Delay=200}" Width="180" Margin="0,0,8,0"/>
             <ComboBox ItemsSource="{Binding FileTypeFilters}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding FileTypeFilter}" Width="95" Margin="0,0,8,0"
                       ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_FileType}"/>
             <ComboBox ItemsSource="{Binding IntegrityFilters}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding IntegrityFilter}" Width="120" Margin="0,0,8,0"
@@ -71,8 +102,8 @@
             </Grid>
         </WrapPanel>
         <Grid Grid.Row="2">
-            <Grid.ColumnDefinitions><ColumnDefinition Width="3*"/><ColumnDefinition Width="5"/><ColumnDefinition Width="2*"/></Grid.ColumnDefinitions>
-            <DataGrid x:Name="ResultsGrid" ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto" MinColumnWidth="80" PreviewMouseWheel="ScrollTable" CanUserSortColumns="True" CanUserReorderColumns="True" EnableColumnVirtualization="False" ItemsSource="{Binding ResultsView}" SelectedItem="{Binding SelectedResult, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False">
+            <Grid.ColumnDefinitions><ColumnDefinition x:Name="ResultsPaneColumn" Width="3*"/><ColumnDefinition x:Name="DetailsSplitterColumn" Width="31"/><ColumnDefinition x:Name="DetailsPaneColumn" Width="2*"/></Grid.ColumnDefinitions>
+            <DataGrid ColumnHeaderStyle="{StaticResource BatchColumnHeaderStyle}" x:Name="ResultsGrid" ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto" MinColumnWidth="80" PreviewMouseWheel="ScrollTable" Sorting="SortVersionColumn" CanUserSortColumns="True" CanUserReorderColumns="True" EnableColumnVirtualization="False" ItemsSource="{Binding ResultsView}" SelectedItem="{Binding SelectedResult, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False">
 
                 <DataGrid.RowStyle>
                     <Style TargetType="DataGridRow">
@@ -93,7 +124,7 @@
                 <DataGrid.RowDetailsTemplate>
                     <DataTemplate>
                         <Border Margin="24,4,8,8" Padding="8" BorderThickness="1" BorderBrush="{DynamicResource Control.Static.Border}">
-                            <DataGrid Loaded="PackageGridLoaded" ItemsSource="{Binding Packages}" AutoGenerateColumns="False" IsReadOnly="True"
+                            <DataGrid ColumnHeaderStyle="{StaticResource BatchColumnHeaderStyle}" Sorting="SortVersionColumn" Loaded="PackageGridLoaded" ItemsSource="{Binding Packages}" AutoGenerateColumns="False" IsReadOnly="True"
                                       CanUserAddRows="False" CanUserDeleteRows="False" HeadersVisibility="Column"
                                       MaxHeight="280" MinColumnWidth="90" EnableColumnVirtualization="False"
                                       ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto">
@@ -163,8 +194,24 @@
                     <DataGridTextColumn Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchTable_OutputPath}" Binding="{Binding ConvertedPath}" SortMemberPath="ConvertedPath" Width="280" Visibility="Collapsed"/>
                 </DataGrid.Columns>
             </DataGrid>
-            <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch"/>
-            <TabControl x:Name="DetailsTabs" Grid.Column="2" Margin="8,0,0,0" SelectedIndex="{Binding SelectedDetailsTabIndex, Mode=TwoWay}">
+            <GridSplitter x:Name="DetailsSplitter" Grid.Column="1" Width="5" HorizontalAlignment="Left" ResizeBehavior="PreviousAndNext" ResizeDirection="Columns"/>
+            <ToggleButton x:Name="DetailsToggleButton" Grid.Column="1" IsChecked="True" Click="ToggleDetailsPane"
+                          Width="26" Height="28" Padding="0" VerticalAlignment="Top" HorizontalAlignment="Right"
+                          AutomationProperties.Name="{Binding ToolTip, RelativeSource={RelativeSource Self}}">
+                <ToggleButton.Style>
+                    <Style TargetType="ToggleButton">
+                        <Setter Property="Content" Value="◀"/>
+                        <Setter Property="ToolTip" Value="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchDetails_Show}"/>
+                        <Style.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter Property="Content" Value="▶"/>
+                                <Setter Property="ToolTip" Value="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchDetails_Hide}"/>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </ToggleButton.Style>
+            </ToggleButton>
+            <TabControl x:Name="DetailsTabs" Grid.Column="2" Margin="4,0,0,0" SelectedIndex="{Binding SelectedDetailsTabIndex, Mode=TwoWay}">
                 <TabItem Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.TabOverview}">
                                         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                         <StackPanel>
@@ -209,7 +256,7 @@
             <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_MoveValid}" Command="{Binding MoveValidCommand}" Padding="12,4" Margin="0,0,8,8"/>
         </WrapPanel>
         <WrapPanel>
-            <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_Export}" Command="{Binding ExportCommand}" Padding="12,4" Margin="0,0,8,8"/>
+            <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_Export}" Click="PrepareExport" Command="{Binding ExportCommand}" Padding="12,4" Margin="0,0,8,8"/>
             <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchNaming_Check}" Command="{Binding CheckNamingCommand}" Padding="12,4" Margin="0,0,8,8"/>
             <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchNaming_RenameAll}" Command="{Binding RenameAllCommand}" Padding="12,4" Margin="0,0,8,8"/>
             <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.CancelAction}" Command="{Binding BackgroundTask.CancelCommand}" Padding="12,4" Margin="0,0,8,8"/>

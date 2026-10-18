@@ -1,5 +1,6 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
@@ -122,7 +123,8 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         ResumeHistoryCommand = new RelayCommand(ResumeHistory, () => IsHistoryEnabled && !BackgroundTask.IsRunning && SelectedHistory != null);
         LoadHistoryCommand = new RelayCommand(() => RestoreHistory(), () => IsHistoryEnabled && !BackgroundTask.IsRunning && SelectedHistory != null);
         ReloadHistory();
-        ResultsView = CollectionViewSource.GetDefaultView(Results);
+        ResultsView = CollectionViewSource.GetDefaultView(_displayResults);
+        Results.CollectionChanged += OnResultsChanged;
         ResultsView.Filter = ShouldDisplayResult;
         BrowseCommand = new RelayCommand(Browse);
         BrowseSphairaCommand = new RelayCommand(async () =>
@@ -147,12 +149,82 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         DecompressValidCommand = new RelayCommand(() => ConvertValid(NszOperation.Decompress), () => CanConvertValid(NszOperation.Decompress));
         _inputDirectory = Directory.Exists(appSettings.LastUsedDir) ? appSettings.LastUsedDir : "";
         BackgroundTask.PropertyChanged += BackgroundTaskOnPropertyChanged;
+        PropertyChangedEventManager.AddHandler(appSettings, OnPackageDisplaySettingChanged, nameof(IAppSettings.BatchSeparatePackages));
+        PropertyChangedEventManager.AddHandler(appSettings, OnPackageDisplaySettingChanged, nameof(IAppSettings.BatchSummaryPreservePackageOrder));
         PropertyChangedEventManager.AddHandler(appSettings, OnHistorySettingChanged, nameof(IAppSettings.EnableBatchHistory));
         PropertyChangedEventManager.AddHandler(appSettings, OnHistorySettingChanged, nameof(IAppSettings.BatchHistoryLimit));
     }
 
     public IMainBackgroundTaskRunnerService BackgroundTask { get; }
     public ObservableCollection<BatchIntegrityResult> Results { get; } = new();
+    private readonly BatchRowCollection _displayResults = new();
+    private readonly Dictionary<string, IReadOnlyList<BatchIntegrityResult>> _rowsByPath = new(StringComparer.OrdinalIgnoreCase);
+
+    private BatchIntegrityResult? FindPresentationResult(string path, int packageIndex) =>
+        _rowsByPath.TryGetValue(path, out var rows)
+            ? rows.FirstOrDefault(row => row.PackageIndex == packageIndex) ?? rows.FirstOrDefault() : null;
+
+    private void OnPackageDisplaySettingChanged(object? sender, PropertyChangedEventArgs args)
+    {
+        var selected = SelectedResult;
+        var displayRows = new List<BatchIntegrityResult>();
+        _rowsByPath.Clear();
+        foreach (var result in Results)
+        {
+            var rows = BatchPackageRows.Create(result, _appSettings.BatchSeparatePackages, _appSettings.BatchSummaryPreservePackageOrder);
+            _rowsByPath[result.FilePath] = rows;
+            displayRows.AddRange(rows);
+        }
+        // Rebuild in one notification; WPF cannot process row changes during DeferRefresh.
+        _displayResults.ReplaceAll(displayRows);
+        if (selected != null) SelectedResult = FindPresentationResult(selected.FilePath, selected.PackageIndex);
+    }
+
+    private void OnResultsChanged(object? sender, NotifyCollectionChangedEventArgs args)
+    {
+        if (args.Action is NotifyCollectionChangedAction.Reset or NotifyCollectionChangedAction.Move)
+        {
+            OnPackageDisplaySettingChanged(sender, new PropertyChangedEventArgs(null));
+            return;
+        }
+        var selected = SelectedResult;
+        var restoreSelection = false;
+        if (args.OldItems != null)
+            foreach (BatchIntegrityResult result in args.OldItems)
+            {
+                restoreSelection |= selected?.FilePath.Equals(result.FilePath, StringComparison.OrdinalIgnoreCase) == true;
+                if (!_rowsByPath.Remove(result.FilePath, out var rows)) continue;
+                foreach (var row in rows) _displayResults.Remove(row);
+            }
+        if (args.NewItems != null)
+        {
+            var insertAt = args.NewStartingIndex == Results.Count - args.NewItems.Count ? _displayResults.Count :
+                Results.Take(args.NewStartingIndex).Sum(result => _rowsByPath[result.FilePath].Count);
+            foreach (BatchIntegrityResult result in args.NewItems)
+            {
+                var rows = BatchPackageRows.Create(result, _appSettings.BatchSeparatePackages, _appSettings.BatchSummaryPreservePackageOrder);
+                _rowsByPath[result.FilePath] = rows;
+                foreach (var row in rows) _displayResults.Insert(insertAt++, row);
+            }
+        }
+        if (restoreSelection && selected != null) SelectedResult = FindPresentationResult(selected.FilePath, selected.PackageIndex);
+    }
+
+    public IReadOnlyList<BatchIntegrityResult> GetExportRows()
+    {
+        var visibleRows = ResultsView.Cast<BatchIntegrityResult>().ToArray();
+        var containers = Results.ToDictionary(result => result.FilePath, StringComparer.OrdinalIgnoreCase);
+        var rows = (_appSettings.BatchExportSeparatePackages
+            ? visibleRows.SelectMany(result => BatchPackageRows.Create(result, true, _appSettings.BatchSummaryPreservePackageOrder))
+            : visibleRows.Select(result => containers[result.FilePath]).DistinctBy(result => result.FilePath, StringComparer.OrdinalIgnoreCase).Select(result => BatchPackageSummaryOrder.Apply(result, _appSettings.BatchSummaryPreservePackageOrder))).ToList();
+        var view = new ListCollectionView(rows);
+        using (view.DeferRefresh())
+        {
+            foreach (var sort in ResultsView.SortDescriptions) view.SortDescriptions.Add(sort);
+            if (GroupFiles) view.GroupDescriptions.Add(new PropertyGroupDescription(nameof(BatchIntegrityResult.SourceGroupKey)) { StringComparison = StringComparison.OrdinalIgnoreCase });
+        }
+        return view.Cast<BatchIntegrityResult>().ToArray();
+    }
     public ICollectionView ResultsView { get; }
     public bool GroupFiles
     {
@@ -177,6 +249,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         get => _selectedResult;
         set
         {
+            if (value is { PackageIndex: 0, HasMultiplePackages: true, IsFirmware: false, IsNand: false } && Results.Any(result => ReferenceEquals(result, value))) value = FindPresentationResult(value.FilePath, 0) ?? value;
             if (ReferenceEquals(_selectedResult, value)) return;
             _selectedResult = value;
             StoredOverview = value is { IsFirmware: false, IsNand: false } ? new StoredFileOverviewViewModel(value, _serviceProvider) : null;
@@ -235,7 +308,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
     public FileOverviewViewModel? PreviewOverview
     {
         get => _previewOverview;
-        private set { _previewOverview = value; NotifyPropertyChanged(); NotifyPropertyChanged(nameof(ShowStoredOverview)); NotifyPropertyChanged(nameof(StoredOverviewFields)); }
+        private set { if (value != null && SelectedResult is { PackageIndex: > 0 } selected) value.SelectedCnmtContainer = value.CnmtContainers.ElementAtOrDefault(selected.PackageIndex - 1) ?? value.SelectedCnmtContainer; _previewOverview = value; NotifyPropertyChanged(); NotifyPropertyChanged(nameof(ShowStoredOverview)); NotifyPropertyChanged(nameof(StoredOverviewFields)); }
     }
 
     private string _searchText = "";
@@ -498,6 +571,8 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         _closed = true;
         _completedPreviews.Clear();
         BackgroundTask.PropertyChanged -= BackgroundTaskOnPropertyChanged;
+        PropertyChangedEventManager.RemoveHandler(_appSettings, OnPackageDisplaySettingChanged, nameof(IAppSettings.BatchSeparatePackages));
+        PropertyChangedEventManager.RemoveHandler(_appSettings, OnPackageDisplaySettingChanged, nameof(IAppSettings.BatchSummaryPreservePackageOrder));
         // The checking file remains in use until the verifier task ends.
         if (!BackgroundTask.IsRunning) ClearPreview();
     }
@@ -563,6 +638,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
     private async void ProcessNaming(bool rename, BatchIntegrityResult? selected = null)
     {
         if (BackgroundTask.IsRunning) return;
+        if (selected != null) selected = Results.FirstOrDefault(result => result.FilePath.Equals(selected.FilePath, StringComparison.OrdinalIgnoreCase)) ?? selected;
         var files = (selected == null ? Results.AsEnumerable() : new[] { selected }).Where(CanCheckNaming).ToArray();
         if (files.Length == 0) return;
         RenamingResult? selectedOutcome = null;
@@ -799,38 +875,52 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
 
     private void Export()
     {
-        var path = _promptService.PromptSaveFile("integrity-results.csv", "Export integrity results", "CSV files (*.csv)|*.csv");
-        if (path == null) return;
-        var csv = new StringBuilder("File;FileType;PackageType;Structure;Compression;Integrity;Error;FirmwareDetails;Conversion;ConvertedPath;SourceBytes;OutputBytes;Title;TitleId;Publisher;Version;DisplayVersion;Firmware;MasterKey;BuildId;Distribution;Languages;FileBytes;CompressionRatio;Naming;ProposedPath;NamingError;IsNand;NandDetails;ContentType;Permission;NcaSignature;BaseTitleId;MinimumApplicationVersion;SystemUpdateVersion;Demo;FileSystemPermissions;AcidSignature;MissingKeys\r\n");
-        foreach (var result in ResultsView.Cast<BatchIntegrityResult>())
-            csv.Append(Escape(result.FilePath)).Append(';')
-                .Append(Escape(result.FileType)).Append(';')
-                .Append(Escape(result.PackageType)).Append(';')
-                .Append(Escape(result.StructureDisplay)).Append(';')
-                .Append(Escape(result.Compression)).Append(';')
-                .Append(Escape(result.Integrity.ToString())).Append(';')
-                .Append(Escape(result.Error ?? "")).Append(';')
-                .Append(Escape(result.FirmwareDetails ?? "")).Append(';')
-                .Append(Escape(result.ConversionStatus ?? "")).Append(';')
-                .Append(Escape(result.ConvertedPath ?? "")).Append(';')
-                .Append(result.SourceSize).Append(';').Append(result.OutputSize).Append(';')
-                .Append(string.Join(";", new[] { result.Title, result.TitleId, result.Publisher, result.Version, result.DisplayVersion,
-                    result.SystemVersion, result.MasterKey, result.BuildId, result.Distribution, result.Languages }.Select(Escape)))
-                .Append(';').Append(result.FileSize).Append(';')
-                .Append(result.CompressionRatio?.ToString(System.Globalization.CultureInfo.InvariantCulture))
-                .Append(';').Append(Escape(result.NamingStatus)).Append(';').Append(Escape(result.ProposedPath ?? ""))
-                .Append(';').Append(Escape(result.NamingError ?? ""))
-                .Append(';').Append(result.IsNand).Append(';').Append(Escape(result.NandDetails ?? "")).Append(';').Append(Escape(result.ContentType))
-                .Append(';').Append(Escape(result.Permission?.ToString() ?? ""))
-                .Append(';').Append(Escape(result.NcaSignatureValidity?.ToString() ?? ""))
-                .Append(';').Append(Escape(result.BaseTitleId)).Append(';').Append(Escape(result.MinimumApplicationVersion))
-                .Append(';').Append(Escape(result.SystemUpdateVersion)).Append(';').Append(result.IsDemo?.ToString() ?? "")
-                .Append(';').Append(Escape(result.FileSystemPermissions)).Append(';').Append(Escape(result.AcidSignatureValidity))
-                .Append(';').Append(Escape(result.MissingKeys)).Append("\r\n");
-        File.WriteAllText(path, csv.ToString(), new UTF8Encoding(true));
+        var keys = LocalizationManager.Instance.Current.Keys;
+        var excel = _appSettings.BatchExportExcel;
+        var dialog = new Microsoft.Win32.SaveFileDialog
+        {
+            FileName = "integrity-results",
+            InitialDirectory = _appSettings.LastUsedDir,
+            DefaultExt = excel ? ".xlsx" : ".csv",
+            Title = keys.BatchExport_Title,
+            Filter = "CSV (*.csv)|*.csv|Excel (*.xlsx)|*.xlsx",
+            FilterIndex = excel ? 2 : 1,
+            AddExtension = true
+        };
+        if (dialog.ShowDialog() != true) return;
+        var path = dialog.FileName;
+        var columns = BatchResultExport.SelectColumns(_appSettings.BatchExportVisibleColumnsOnly, ColumnLayout);
+        if (columns.Count == 0)
+        {
+            ThemedDialog.Notice(keys.BatchExport_NoColumns, keys.BatchExport_Title, MessageBoxImage.Information);
+            return;
+        }
+        string? temporary = null;
+        try
+        {
+            temporary = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(path))!, "." + Guid.NewGuid().ToString("N") + ".tmp");
+            using (var stream = File.Create(temporary))
+            {
+                if (Path.GetExtension(path).Equals(".xlsx", StringComparison.OrdinalIgnoreCase))
+                    BatchResultExport.WriteExcel(stream, GetExportRows(), columns);
+                else if (Path.GetExtension(path).Equals(".csv", StringComparison.OrdinalIgnoreCase))
+                    BatchResultExport.WriteCsv(stream, GetExportRows(), columns);
+                else throw new InvalidOperationException(keys.BatchExport_InvalidExtension);
+            }
+            File.Move(temporary, path, overwrite: true);
+            _appSettings.LastUsedDir = Path.GetDirectoryName(path)!;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Batch export failed.");
+            ThemedDialog.Notice(ex.Message, keys.BatchExport_Title, MessageBoxImage.Error);
+        }
+        finally
+        {
+            if (temporary != null)
+                try { File.Delete(temporary); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+        }
     }
-
-    private static string Escape(string value) => $"\"{value.Replace("\"", "\"\"")}\"";
 
     private bool ShouldDisplayResult(object item) =>
         item is BatchIntegrityResult result && BatchResultFilter.Matches(result, SearchText, FileTypeFilter, IntegrityFilter, ShowOnlyErrors, NamingFilter);

@@ -125,6 +125,12 @@ public sealed class WorkspaceNavigationTest
                 var originalNandExecutable = actual.NandExecutablePath;
                 var originalBisKeys = actual.NandBisKeysPath;
                 var packageSettings = Emignatik.NxFileViewer.Services.PackageOperations.PackageEngineConfiguration.Capture(actual);
+                var packageActions = App.ServiceProvider.GetRequiredService<Emignatik.NxFileViewer.Services.PackageOperations.PackageActions>();
+                Assert.False(packageActions.IsEnabled);
+                var packageGroup = Assert.IsType<GroupBox>(pluginPage.FindName("PackageOperationsGroup"));
+                packageGroup.GetBindingExpression(UIElement.VisibilityProperty)!.UpdateTarget();
+                Assert.Equal(Visibility.Collapsed, packageGroup.Visibility);
+                Assert.False(packageActions.MergeNspCommand.CanExecute(null));
                 var engineSelector = Assert.IsType<ComboBox>(pluginPage.FindName("PackageEngineSelector"));
                 Assert.Equal("EditedSettings.PackageEngine", engineSelector.GetBindingExpression(ComboBox.SelectedValueProperty)!.ParentBinding.Path.Path);
                 plugins.EditedSettings.PackageEngine = PackageEngine.Kronos;
@@ -197,14 +203,25 @@ public sealed class WorkspaceNavigationTest
                 var updates = Assert.IsType<UpdateCenterView>(((TabItem)main.FindName("UpdatesTab")).Content);
                 var updateModel = Assert.IsType<UpdateCenterViewModel>(updates.DataContext);
                 var programGroups = Assert.IsType<StackPanel>(settingsPage.FindName("ProgramSettingsGroups"));
-                Assert.Equal(7, programGroups.Children.Count);
+                Assert.Equal(9, programGroups.Children.Count);
+                foreach (var setting in new[] { "BatchSeparatePackages", "BatchExportSeparatePackages", "BatchSummaryPreservePackageOrder" })
+                {
+                    var packageCheckBox = Assert.IsType<CheckBox>(settingsPage.FindName(setting + "CheckBox"));
+                    Assert.Equal("EditedSettings." + setting, packageCheckBox.GetBindingExpression(CheckBox.IsCheckedProperty)!.ParentBinding.Path.Path);
+                }
+                var exportColumns = Assert.IsType<CheckBox>(settingsPage.FindName("BatchExportVisibleColumnsCheckBox"));
+                Assert.Equal("EditedSettings.BatchExportVisibleColumnsOnly", exportColumns.GetBindingExpression(CheckBox.IsCheckedProperty)!.ParentBinding.Path.Path);
+                var exportFormat = Assert.IsType<ComboBox>(settingsPage.FindName("BatchExportFormatComboBox"));
+                Assert.Equal("EditedSettings.BatchExportExcel", exportFormat.GetBindingExpression(ComboBox.SelectedValueProperty)!.ParentBinding.Path.Path);
+                Assert.Equal(false, Assert.IsType<ComboBoxItem>(exportFormat.Items[0]).Tag);
+                Assert.Equal(true, Assert.IsType<ComboBoxItem>(exportFormat.Items[1]).Tag);
                 Assert.IsType<GroupBox>(settingsPage.FindName("OptionalFeaturesGroup"));
                 var featureSections = Assert.IsType<TabControl>(settingsPage.FindName("SettingsSections"));
                 var pluginsTab = Assert.IsType<TabItem>(settingsPage.FindName("PluginsSettingsTab"));
                 var optionalTab = Assert.IsType<TabItem>(settingsPage.FindName("OptionalFeaturesSettingsTab"));
                 Assert.Equal(featureSections.Items.IndexOf(pluginsTab) + 1, featureSections.Items.IndexOf(optionalTab));
                 Assert.Equal(Visibility.Visible, optionalTab.Visibility);
-                foreach (var feature in new[] { "NszPlugin", "Nand", "NandPlugin", "Mtp", "Firmware" })
+                foreach (var feature in new[] { "NszPlugin", "Nand", "NandPlugin", "Mtp", "Firmware", "PackageOperations" })
                 {
                     var checkboxName = feature == "Firmware" ? "EnableFirmwareCheckBox" : "Enable" + feature + "CheckBox";
                     var checkbox = Assert.IsType<CheckBox>(settingsPage.FindName(checkboxName));
@@ -325,6 +342,39 @@ public sealed class WorkspaceNavigationTest
                 finally { System.IO.File.Delete(nspPath); }
                 Assert.Null(batch.PreviewOverview);
                 var detailsTabs = (TabControl)batchPage.FindName("DetailsTabs");
+                var detailsToggle = Assert.IsType<System.Windows.Controls.Primitives.ToggleButton>(batchPage.FindName("DetailsToggleButton"));
+                var detailsColumn = Assert.IsType<ColumnDefinition>(batchPage.FindName("DetailsPaneColumn"));
+                var resultsColumn = Assert.IsType<ColumnDefinition>(batchPage.FindName("ResultsPaneColumn"));
+                var detailsSplitter = Assert.IsType<GridSplitter>(batchPage.FindName("DetailsSplitter"));
+                var savedDetailsWidth = detailsColumn.Width;
+                var savedResultsWidth = resultsColumn.Width;
+                Assert.Equal(Visibility.Visible, detailsTabs.Visibility);
+                Assert.Equal("▶", detailsToggle.Content);
+                detailsColumn.Width = new GridLength(320);
+                resultsColumn.Width = new GridLength(1, GridUnitType.Star);
+                var selectedBeforeCollapse = batch.SelectedResult;
+                var tabBeforeCollapse = batch.SelectedDetailsTabIndex;
+                detailsToggle.SetCurrentValue(System.Windows.Controls.Primitives.ToggleButton.IsCheckedProperty, false);
+                detailsToggle.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+                Assert.Equal(Visibility.Collapsed, detailsTabs.Visibility);
+                Assert.Equal(Visibility.Collapsed, detailsSplitter.Visibility);
+                Assert.Equal(0, detailsColumn.Width.Value);
+                Assert.Equal(Visibility.Visible, detailsToggle.Visibility);
+                Assert.Equal("◀", detailsToggle.Content);
+                main.Navigate(WorkspaceSection.Home);
+                main.Navigate(WorkspaceSection.Batch);
+                Assert.Equal(Visibility.Collapsed, detailsTabs.Visibility);
+                detailsToggle.SetCurrentValue(System.Windows.Controls.Primitives.ToggleButton.IsCheckedProperty, true);
+                detailsToggle.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+                Assert.Equal(Visibility.Visible, detailsTabs.Visibility);
+                Assert.Equal(Visibility.Visible, detailsSplitter.Visibility);
+                Assert.Equal(new GridLength(320), detailsColumn.Width);
+                Assert.Equal(new GridLength(1, GridUnitType.Star), resultsColumn.Width);
+                Assert.Same(selectedBeforeCollapse, batch.SelectedResult);
+                Assert.Equal(tabBeforeCollapse, batch.SelectedDetailsTabIndex);
+                Assert.Equal("▶", detailsToggle.Content);
+                detailsColumn.Width = savedDetailsWidth;
+                resultsColumn.Width = savedResultsWidth;
                 var detailsBinding = detailsTabs.GetBindingExpression(TabControl.SelectedIndexProperty)!.ParentBinding;
                 Assert.Equal(nameof(BatchIntegrityWindowViewModel.SelectedDetailsTabIndex), detailsBinding.Path.Path);
                 Assert.Equal(System.Windows.Data.BindingMode.TwoWay, detailsBinding.Mode);
@@ -359,6 +409,9 @@ public sealed class WorkspaceNavigationTest
                 }
                 var grid = (DataGrid)batchPage.FindName("ResultsGrid");
                 Assert.True(grid.CanUserSortColumns);
+                Assert.Equal(VerticalAlignment.Center, Assert.IsType<TextBox>(batchPage.FindName("BatchSearchBox")).VerticalContentAlignment);
+                Assert.Equal(System.Linq.Enumerable.Select(grid.Columns, column => column.SortMemberPath),
+                    System.Linq.Enumerable.Select(Emignatik.NxFileViewer.Services.Integrity.BatchResultExport.SelectColumns(false, batch.ColumnLayout), column => column.Id));
                 Assert.Equal(ScrollBarVisibility.Auto, ScrollViewer.GetHorizontalScrollBarVisibility(grid));
                 Assert.All(grid.Columns, column => Assert.False(column.Width.IsStar));
                 grid.Width = 500;
@@ -372,8 +425,9 @@ public sealed class WorkspaceNavigationTest
                     new Emignatik.NxFileViewer.Services.Integrity.BatchPackageSummary("Game", "0100000000000000", "Application", "0"),
                     new Emignatik.NxFileViewer.Services.Integrity.BatchPackageSummary("Update", "0100000000000800", "Patch", "65536") } };
                 batch.Results.Add(multiResult);
+                var multiDisplayResult = Assert.Single(System.Linq.Enumerable.Cast<Emignatik.NxFileViewer.Services.Integrity.BatchIntegrityResult>(batch.ResultsView));
                 grid.Items.Refresh(); grid.UpdateLayout();
-                var multiRow = Assert.IsType<DataGridRow>(grid.ItemContainerGenerator.ContainerFromItem(multiResult));
+                var multiRow = Assert.IsType<DataGridRow>(grid.ItemContainerGenerator.ContainerFromItem(multiDisplayResult));
                 var cellPresenter = Assert.IsType<ContentPresenter>(grid.Columns[0].GetCellContent(multiRow));
                 cellPresenter.ApplyTemplate();
                 var cell = Assert.IsType<DockPanel>(System.Windows.Media.VisualTreeHelper.GetChild(cellPresenter, 0));
@@ -381,9 +435,9 @@ public sealed class WorkspaceNavigationTest
                 arrow.SetCurrentValue(System.Windows.Controls.Primitives.ToggleButton.IsCheckedProperty, true);
                 arrow.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
                 grid.UpdateLayout();
-                Assert.True(multiResult.PackagesExpanded);
+                Assert.True(multiDisplayResult.PackagesExpanded);
                 Assert.Equal(Visibility.Visible, multiRow.DetailsVisibility);
-                Assert.Same(multiResult, batch.SelectedResult);
+                Assert.Same(multiDisplayResult, batch.SelectedResult);
                 Assert.Same(capturedNsz, batch.PreviewOverview);
                 var detailsContent = Assert.IsType<Border>(grid.RowDetailsTemplate.LoadContent());
                 var packageGrid = Assert.IsType<DataGrid>(detailsContent.Child);
@@ -403,8 +457,85 @@ public sealed class WorkspaceNavigationTest
                 arrow.SetCurrentValue(System.Windows.Controls.Primitives.ToggleButton.IsCheckedProperty, false);
                 arrow.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
                 grid.UpdateLayout();
-                Assert.False(multiResult.PackagesExpanded);
+                Assert.False(multiDisplayResult.PackagesExpanded);
                 Assert.Equal(Visibility.Collapsed, multiRow.DetailsVisibility);
+                var originalSeparate = actual.BatchSeparatePackages;
+                var originalExportSeparate = actual.BatchExportSeparatePackages;
+                var originalSummaryOrder = actual.BatchSummaryPreservePackageOrder;
+                try
+                {
+                    actual.BatchSeparatePackages = false;
+                    actual.BatchExportSeparatePackages = false;
+                    actual.BatchSummaryPreservePackageOrder = false;
+                    var unorderedSummary = multiResult with
+                    {
+                        ContentType = "Update / Base", DisplayVersion = "1.0.0 / 12.0.0", SystemVersion = "17.0.0 / 22.0.0",
+                        MasterKey = "MasterKey 9 / MasterKey 10", Title = "Zulu / Alpha",
+                        Packages = new[] {
+                            new Emignatik.NxFileViewer.Services.Integrity.BatchPackageSummary("Zulu", "01", "Update", "0") { DisplayVersion = "1.0.0", SystemVersion = "17.0.0", MasterKey = "MasterKey 9" },
+                            new Emignatik.NxFileViewer.Services.Integrity.BatchPackageSummary("Alpha", "02", "Base", "65536") { DisplayVersion = "12.0.0", SystemVersion = "22.0.0", MasterKey = "MasterKey 10" }
+                        }
+                    };
+                    batch.Results[0] = unorderedSummary;
+                    var sortedSummary = Assert.Single(System.Linq.Enumerable.Cast<Emignatik.NxFileViewer.Services.Integrity.BatchIntegrityResult>(batch.ResultsView));
+                    Assert.Equal("Base / Update", sortedSummary.ContentType);
+                    Assert.Equal("12.0.0 / 1.0.0", sortedSummary.DisplayVersion);
+                    Assert.Equal("22.0.0 / 17.0.0", sortedSummary.SystemVersion);
+                    Assert.Equal("MasterKey 10 / MasterKey 9", sortedSummary.MasterKey);
+                    Assert.Equal("Alpha / Zulu", sortedSummary.Title);
+                    Assert.Equal(sortedSummary.DisplayVersion, Assert.Single(batch.GetExportRows()).DisplayVersion);
+                    actual.BatchSummaryPreservePackageOrder = true;
+                    Assert.Same(unorderedSummary, Assert.Single(System.Linq.Enumerable.Cast<Emignatik.NxFileViewer.Services.Integrity.BatchIntegrityResult>(batch.ResultsView)));
+                    Assert.Same(unorderedSummary, Assert.Single(batch.GetExportRows()));
+                    actual.BatchSummaryPreservePackageOrder = false;
+                    Assert.Equal("12.0.0 / 1.0.0", Assert.Single(batch.GetExportRows()).DisplayVersion);
+                    batch.Results[0] = multiResult;
+                    foreach (var displaySeparate in new[] { false, true })
+                        foreach (var exportSeparate in new[] { false, true })
+                        {
+                            actual.BatchSeparatePackages = displaySeparate;
+                            actual.BatchExportSeparatePackages = exportSeparate;
+                            var displayed = System.Linq.Enumerable.ToArray(System.Linq.Enumerable.Cast<Emignatik.NxFileViewer.Services.Integrity.BatchIntegrityResult>(batch.ResultsView));
+                            Assert.Equal(displaySeparate ? 2 : 1, displayed.Length);
+                            Assert.Equal(exportSeparate ? 2 : 1, batch.GetExportRows().Count);
+                            Assert.Single(batch.Results);
+                            Assert.Equal(2, batch.Results[0].Packages.Length);
+                            if (displaySeparate)
+                            {
+                                Assert.EndsWith("::2", displayed[1].FileName);
+                                Assert.Equal("Update", displayed[1].Title);
+                                Assert.Equal(multiResult.FilePath, displayed[1].FilePath);
+                                batch.SelectedResult = displayed[1];
+                                Assert.Equal("Update", batch.StoredOverview!.CnmtContainers[0].Titles[0].AppName);
+                            }
+                        }
+                    actual.BatchSeparatePackages = true;
+                    batch.SearchText = "::2";
+                    Assert.Single(System.Linq.Enumerable.Cast<object>(batch.ResultsView));
+                    actual.BatchExportSeparatePackages = true;
+                    Assert.Single(batch.GetExportRows());
+                    actual.BatchExportSeparatePackages = false;
+                    var combinedExport = Assert.Single(batch.GetExportRows());
+                    Assert.Equal(0, combinedExport.PackageIndex);
+                    Assert.Same(multiResult.Packages, combinedExport.Packages);
+                    batch.ResetFiltersCommand.Execute(null);
+                    batch.Results[0] = multiResult with { Packages = new[] { multiResult.Packages[0], multiResult.Packages[1] with { Title = "Updated package" } } };
+                    var updatedRows = System.Linq.Enumerable.ToArray(System.Linq.Enumerable.Cast<Emignatik.NxFileViewer.Services.Integrity.BatchIntegrityResult>(batch.ResultsView));
+                    Assert.Equal("Updated package", updatedRows[1].Title);
+                    Assert.Equal(2, batch.SelectedResult!.PackageIndex);
+                    batch.Results.RemoveAt(0);
+                    Assert.Empty(System.Linq.Enumerable.Cast<object>(batch.ResultsView));
+                    batch.Results.Add(multiResult);
+                    Assert.Equal(2, System.Linq.Enumerable.Count(System.Linq.Enumerable.Cast<object>(batch.ResultsView)));
+                }
+                finally
+                {
+                    batch.ResetFiltersCommand.Execute(null);
+                    actual.BatchSeparatePackages = originalSeparate;
+                    actual.BatchExportSeparatePackages = originalExportSeparate;
+                    actual.BatchSummaryPreservePackageOrder = originalSummaryOrder;
+                    batch.Results[0] = multiResult;
+                }
                 var findScroll = typeof(BatchIntegrityWindow).GetMethod("FindScrollViewer", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
                 var scroll = Assert.IsType<ScrollViewer>(findScroll.Invoke(null, new object[] { grid }));
                 Assert.True(scroll.ScrollableWidth > 0);

@@ -20,15 +20,15 @@ A hidden Windows PowerShell helper initializes before the viewer closes, allowin
 
 Replacement errors preserve the existing EXE. If the new process fails to launch or exits within two seconds, the helper attempts to restore the previous EXE. This checks early startup only. Staging data, the backup and `error.txt` remain under Updates for recovery or diagnosis.
 
-## Publishing 4.0.1-beta3
+## Publishing 4.0.1-beta4
 
-The project uses package version `4.0.1-beta3`. Run `Publish.ps1`, create a GitHub Release with tag `v4.0.1-beta3`, and enable the pre-release option. Attach:
+The project uses package version `4.0.1-beta4`. Run `Publish.ps1`, create a GitHub Release with tag `v4.0.1-beta4`, and enable the pre-release option. Attach:
 
-- `NxFileViewer_v4.0.1-beta3_x64.zip`
-- `NxFileViewer_v4.0.1-beta3_x86.zip`
-- `NxFileViewer_v4.0.1-beta3_self-contained_x64.zip` (compressed, includes .NET)
-- `NxFileViewer_v4.0.1-beta3_self-contained_x86.zip` (compressed, includes .NET)
-- `NxFileViewer_v4.0.1-beta3_firmware-hashes.zip` (optional reference add-on)
+- `NxFileViewer_v4.0.1-beta4_x64.zip`
+- `NxFileViewer_v4.0.1-beta4_x86.zip`
+- `NxFileViewer_v4.0.1-beta4_self-contained_x64.zip` (compressed, includes .NET)
+- `NxFileViewer_v4.0.1-beta4_self-contained_x86.zip` (compressed, includes .NET)
+- `NxFileViewer_v4.0.1-beta4_firmware-hashes.zip` (optional reference add-on)
 
 Application ZIPs include the portable executable with embedded debug symbols; firmware references stay in their separate ZIP. GitHub Actions artifacts alone are not releases available to the updater. Architecture selection follows the running viewer process.
 
@@ -44,7 +44,7 @@ The updater uses the installed assembly's informational version, including its b
 
 Preview updates require Include pre-releases to be enabled. Stable-only mode can still offer the final release at the same numeric version to an installed beta. The downloaded EXE must match the full offered version, not just its numeric part.
 
-The older 4.0.0 Beta 1 builds contained numeric-only comparison and needed a manual upgrade once. This limitation does not apply to 4.0.1-beta1: it can discover 4.0.1-beta3 when published with compatible assets and pre-release updates enabled.
+The older 4.0.0 Beta 1 builds contained numeric-only comparison and needed a manual upgrade once. This limitation does not apply to 4.0.1-beta1: it can discover 4.0.1-beta4 when published with compatible assets and pre-release updates enabled.
 
 ## Validation
 

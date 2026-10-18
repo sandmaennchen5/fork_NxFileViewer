@@ -6,7 +6,22 @@ namespace Emignatik.NxFileViewer.Localization.Keys;
 
 public interface ILocalizationKeys : ILocalizationKeysBase
 {
+    string BatchDetails_Show { get; }
+    string BatchDetails_Hide { get; }
+    string BatchPackages_SummaryOrder { get; }
+    string BatchPackages_SummaryOrderTip { get; }
+    string BatchPackages_Title { get; }
+    string BatchPackages_Display { get; }
+    string BatchPackages_Export { get; }
+    string BatchPackages_Tip { get; }
+    string BatchExport_Title { get; }
+    string BatchExport_VisibleOnly { get; }
+    string BatchExport_Format { get; }
+    string BatchExport_NoColumns { get; }
+    string BatchExport_InvalidExtension { get; }
     string Package_PublicationRecovery { get; }
+    string Features_PackageOperations { get; }
+    string Features_PackageOperationsDisabled { get; }
     string Package_Title { get; }
     string Package_Engine { get; }
     string Package_RustPath { get; }

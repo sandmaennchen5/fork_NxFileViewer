@@ -18,7 +18,7 @@ public static class BatchResultFilter
             !result.FileType.EndsWith(" (" + fileType + ")", StringComparison.OrdinalIgnoreCase)) return false;
         if (integrity.Length > 0 && result.Integrity.ToString() != integrity) return false;
         if (string.IsNullOrWhiteSpace(search)) return true;
-        var text = string.Join(" ", result.FilePath, result.Title, result.TitleId, result.Publisher,
+        var text = string.Join(" ", result.FileName, result.FilePath, result.Title, result.TitleId, result.Publisher,
             result.Version, result.DisplayVersion, result.SystemVersion, result.MasterKey, result.BuildId,
             result.Distribution, result.Languages, result.FileType, result.PackageType, result.Structure,
             result.Compression, result.Integrity, result.Error, result.ConversionStatus, result.FirmwareDetails,

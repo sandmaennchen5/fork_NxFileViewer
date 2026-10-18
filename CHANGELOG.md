@@ -7,7 +7,25 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+## [4.0.1-beta4] - 2026-10-18
+
+### Added
+
+- Export batch results as CSV or native Excel (.xlsx), with a configurable default format and an optional export of visible columns in table order. Otherwise export all table columns in the program's default order. Excel preserves title IDs as text and includes a frozen header and filters.
+- Independently enable individual multi-package rows in the batch table and exports, named `file.nsp::1`, `::2`, etc., with each package's own metadata. Keep file paths, verification, history and file actions tied to the original container.
+- Collapse and reopen the batch details pane using an arrow, restoring its previous width and retaining the selected file and details tab.
+- Show existing field explanations on batch column-header hover, including expanded package tables. Add visible help icons beside Integrity and ACID signature, and explain ACID validity states and the distinction from NCA signature and integrity checks.
+
+### Changed
+
+- Sort combined multi-package values independently of package order by default: Base / Update / DLC, descending numeric versions and master-key revisions, and alphabetical text and IDs. Offer the original package order in Settings, including combined exports; preserve individual package numbering.
+- Make merge, split and NSP/XCI conversion an experimental, opt-in feature, disabled by default even for existing settings. Keep it in its existing Plugins location, hide its section while disabled, and enable it through Settings → Features after restarting.
+
 ### Fixed
+
+- Export the file name and full path in separate columns rather than placing the full path in File.
+- Sort firmware and display versions by numeric version components rather than alphabetically, including prerelease versions and multi-package details.
+- Vertically center text in the batch search field.
 
 - Rebuild staged decompressed XCI Gamecard layouts on 512-byte boundaries and update Secure/LimArea addresses, the four-byte valid-data end address and root header hash. Preserve available certificate/extended prefix bytes through XCI/XCZ conversion; validate the rebuilt header before publication. This does not recreate Nintendo Gamecard RSA signatures or certificates absent from the source.
 

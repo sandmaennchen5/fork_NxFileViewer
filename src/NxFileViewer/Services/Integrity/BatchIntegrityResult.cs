@@ -50,6 +50,7 @@ public sealed record BatchIntegrityResult(
     [JsonIgnore] public string PermissionDisplay => BatchContentMetadata.PermissionDisplay(Permission);
     public string BaseTitleId { get; init; } = "";
     public string MinimumApplicationVersion { get; init; } = "";
+    [JsonIgnore] public BatchVersionSortKey SystemUpdateVersionSortKey => new(SystemUpdateVersion);
     public string SystemUpdateVersion { get; init; } = "";
     public bool? IsDemo { get; init; }
     public string FileSystemPermissions { get; init; } = "";
@@ -72,7 +73,9 @@ public sealed record BatchIntegrityResult(
     public string Publisher { get; init; } = "";
     public string Version { get; init; } = "";
     public long? VersionNumber => long.TryParse(Version, out var value) ? value : null;
+    [JsonIgnore] public BatchVersionSortKey DisplayVersionSortKey => new(DisplayVersion);
     public string DisplayVersion { get; init; } = "";
+    [JsonIgnore] public BatchVersionSortKey SystemVersionSortKey => new(SystemVersion);
     public string SystemVersion { get; init; } = "";
     public string MasterKey { get; init; } = "";
     public string BuildId { get; init; } = "";
@@ -88,7 +91,34 @@ public sealed record BatchIntegrityResult(
     public bool HasMissingKeys { get; init; }
     public bool IsFirmware { get; init; }
     public string? FirmwareDetails { get; init; }
-    public string FileName => Path.GetFileName(FilePath.TrimEnd('/'));
+    [JsonIgnore] public int PackageIndex { get; init; }
+    public string FileName => Path.GetFileName(FilePath.TrimEnd('/')) + (PackageIndex > 0 ? $"::{PackageIndex}" : "");
+
+    internal BatchIntegrityResult DetachUiSubscriptions()
+    {
+        PropertyChanged = null;
+        return this;
+    }
+
+    internal BatchIntegrityResult ForPackage(BatchPackageSummary package, int index)
+    {
+        var row = this with
+        {
+            PackageIndex = index, Packages = new[] { package },
+            Title = package.Title, TitleId = package.TitleId, ContentType = package.ContentType,
+            Version = package.Version, DisplayVersion = package.DisplayVersion, Titles = package.Titles,
+            Publisher = package.Publisher, Languages = package.Languages,
+            SystemVersion = package.SystemVersion, BaseTitleId = package.BaseTitleId,
+            MasterKey = package.MasterKey, MinimumApplicationVersion = package.MinimumApplicationVersion,
+            Distribution = package.Distribution, BuildId = package.BuildId, IsDemo = package.IsDemo,
+            Permission = package.Permission, FileSystemPermissions = package.FileSystemPermissions,
+            AcidSignatureValidity = package.AcidSignatureValidity
+        };
+        // A presentation row must not inherit the original row's UI subscriptions.
+        row.PropertyChanged = null;
+        row._packagesExpanded = false;
+        return row;
+    }
 }
 
 public sealed record BatchPackageSummary(string Title, string TitleId, string Type, string Version)
@@ -102,6 +132,7 @@ public sealed record BatchPackageSummary(string Title, string TitleId, string Ty
     public bool? IsDemo { get; init; }
     public string FileSystemPermissions { get; init; } = "";
     public string AcidSignatureValidity { get; init; } = "";
+    [JsonIgnore] public BatchVersionSortKey SystemVersionSortKey => new(SystemVersion);
     public string SystemVersion { get; init; } = "";
     public string MasterKey { get; init; } = "";
     public string BuildId { get; init; } = "";
@@ -109,6 +140,7 @@ public sealed record BatchPackageSummary(string Title, string TitleId, string Ty
     public Security.ProgramSecurityLevel? Permission { get; init; }
     [JsonIgnore] public string PermissionDisplay => BatchContentMetadata.PermissionDisplay(Permission);
     public string Publisher { get; init; } = "";
+    [JsonIgnore] public BatchVersionSortKey DisplayVersionSortKey => new(DisplayVersion);
     public string DisplayVersion { get; init; } = "";
     public string Languages { get; init; } = "";
 }

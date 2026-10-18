@@ -6,8 +6,23 @@ namespace Emignatik.NxFileViewer.Localization.Keys;
 
 public class LocalizationKeys_ES : LocalizationKeysBase, ILocalizationKeys
 {
+    public string BatchDetails_Show => "Mostrar el panel de detalles";
+    public string BatchDetails_Hide => "Ocultar el panel de detalles";
+    public string BatchPackages_SummaryOrder => "Usar el orden original de los paquetes en los resúmenes";
+    public string BatchPackages_SummaryOrderTip => "Desactivado (predeterminado): los valores de cada columna combinada se ordenan independientemente del orden de los paquetes.\n\n- Tipo: Base / Update / DLC.\n- Versión, versión mostrada y versión mínima del sistema: la más alta primero, por ejemplo 22.0.0 / 17.0.0 / 2.0.0. Los componentes se comparan numéricamente.\n- Clave maestra: la revisión más alta primero, por ejemplo MasterKey 10 / MasterKey 9 / MasterKey 2.\n- Otros textos e identificadores: orden alfabético ascendente (A–Z), sin distinguir mayúsculas.\n\nCada columna se ordena por separado. Los valores en la misma posición de distintas columnas no pertenecen necesariamente al mismo paquete.\n\nActivado: los valores conservan el orden original de los paquetes en el archivo.\n\nTambién se aplica a las exportaciones CSV/Excel combinadas. El orden y la numeración de las filas individuales (::1, ::2, …) no cambian.";
+    public string BatchPackages_Title => "Paquetes múltiples";
+    public string BatchPackages_Display => "Mostrar los paquetes en filas individuales (::1, ::2, …)";
+    public string BatchPackages_Export => "Exportar los paquetes en filas individuales (::1, ::2, …)";
+    public string BatchPackages_Tip => "Cada fila muestra los metadatos de un paquete. La ruta, el tamaño, la verificación y las acciones se refieren al archivo contenedor completo. La visualización y la exportación son independientes.";
+    public string BatchExport_Title => "Exportación por lotes";
+    public string BatchExport_VisibleOnly => "Exportar solo columnas visibles en el orden de la tabla (si no: todas en el orden predeterminado)";
+    public string BatchExport_Format => "Formato de exportación predeterminado";
+    public string BatchExport_NoColumns => "No hay columnas visibles. Muestre al menos una antes de exportar.";
+    public string BatchExport_InvalidExtension => "Elija un nombre de archivo .csv o .xlsx.";
     public string Package_PublicationRecovery => "La publicación se ha interrumpido. Los archivos validados se conservan en las siguientes carpetas. Una carpeta con NXFV-INCOMPLETE.txt está incompleta.";
-    public string Package_Title => "Combinar / Dividir contenido / NSP ↔ XCI";
+    public string Features_PackageOperations => "Activar combinar / dividir / NSP ↔ XCI (experimental)";
+    public string Features_PackageOperationsDisabled => "Esta función experimental está desactivada. Actívela en Ajustes → Funciones y reinicie la aplicación.";
+    public string Package_Title => "Combinar / Dividir contenido / NSP ↔ XCI (experimental)";
     public string Package_Engine => "Motor de paquetes";
     public string Package_RustPath => "cxfcxf / nscb_rust — ejecutable";
     public string Package_KronosPath => "Kronos — carpeta portátil (runtime y ztools)";
@@ -244,7 +259,7 @@ public class LocalizationKeys_ES : LocalizationKeysBase, ILocalizationKeys
     public string ToolTip_PackageStructure => "Estructura según Nx Game Info:\nScene (XCI): particiones Update, Normal y Secure.\nConvertido (XCI): solo Secure; típico de NSP → XCI.\nScene (NSP): legalinfo.xml, nacp.xml, programinfo.xml y cardspec.xml; típico de releases BBB.\nHomebrew (NSP): authoringtoolinfo.xml presente.\nCDN (NSP): certificado (.cert) y ticket (.tik); típico de volcados eShop CDN.\nConvertido (NSP): contenido NCA/NCZ y otros archivos, sin ticket/certificado ni marcadores Scene/Homebrew. Esta clasificación estructural no demuestra el origen del paquete.\nSistema de archivos: títulos NAX0 instalados en una tarjeta SD Switch.\nSolo contenido NCA: el paquete contiene únicamente archivos .nca/.ncz, sin ticket, certificado ni archivos XML adicionales. Puede ocurrir tras un reempaquetado o conversión y no demuestra que falten datos del juego.\nIncompleto: ningún contenido NCA/NCZ, ticket sin certificado (o viceversa), o particiones XCI fuera de las reglas Scene/Convertido. Describe la estructura del contenedor; la verificación de integridad comprueba los contenidos ausentes o modificados.\nNSZ/XCZ siguen las reglas de su paquete; NCZ cuenta como NCA.";
     public string ToolTip_NcaSignature => "Correcta: firmas NCA válidas, esperadas en títulos oficiales.\nIncorrecta: al menos una firma NCA inválida; posible en homebrew, inesperada en títulos oficiales.\nSin verificar: verificación NCA incompleta. Ejecute la comprobación de integridad.\nEsta indicación corresponde a las cabeceras NCA; ACID es una firma NPDM distinta.";
     public string ToolTip_Permission => "Seguro: sin acceso a servicios de archivos o bit 0x8000000000000000 desactivado.\nInseguro: acceso a servicios de archivos y bit 0x8000000000000000 activado (EraseMmc).\nPeligroso: acceso a servicios de archivos y máscara 0xffffffffffffffff (todos los permisos).\nInseguro/Peligroso solo debería aparecer en homebrew. Disponible solo para juegos base y actualizaciones. Esta clasificación no es una evaluación completa de seguridad.";
-    public string ToolTip_AcidSignature => "Firma de la sección ACID de main.npdm, independiente de la firma de la cabecera NCA.";
+    public string ToolTip_AcidSignature => "La firma ACID es un sello digital de la sección de permisos de main.npdm. Describe los servicios del sistema y las funciones del sistema de archivos a los que puede acceder el programa.\n\nSignificado del estado mostrado:\n- Valid: la firma coincide con los datos ACID comprobados y la clave de verificación utilizada.\n- Invalid: la verificación ha fallado. Los datos pueden haberse modificado o no coincidir con la firma. Esto por sí solo no demuestra que haya software malicioso.\n- Unchecked: no se ha comprobado la firma. Su validez sigue sin determinarse.\n- Campo vacío: no hay información ACID disponible para esta vista.\n\nDiferencias entre las comprobaciones:\n- Firma ACID: comprueba la sección firmada de permisos del programa.\n- Firma NCA: comprueba la cabecera NCA.\n- Integrity: comprueba el contenido de los archivos mediante sus hashes.\n\nUna firma ACID válida no garantiza que todos los archivos estén sin modificar ni que el programa sea inofensivo.";
     public string PackageStructure_Title => "Estructura del paquete";
     public string PackageStructure_Scene => "Lanzamiento Scene";
     public string PackageStructure_Cdn => "Copia CDN";
@@ -257,7 +272,7 @@ public class LocalizationKeys_ES : LocalizationKeysBase, ILocalizationKeys
     public string FileInfo_CompressionRatio => "Relación de compresión";
     public string FileInfo_Uncompressed => "sin comprimir";
     public string FileInfo_SystemUpdate => "Actualización del sistema incluida (XCI)";
-    public string BatchIntegrity_Export => "Exportar CSV…";
+    public string BatchIntegrity_Export => "Exportar…";
     public string BatchIntegrity_Start => "Iniciar verificación";
     public string BatchIntegrity_OpenSelected => "Abrir en comprobación de archivo";
     public string BatchIntegrity_MoveSelected => "Mover…";

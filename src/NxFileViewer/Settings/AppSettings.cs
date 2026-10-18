@@ -34,6 +34,8 @@ public class AppSettings : NotifyPropertyChangedBase, IAppSettings
     private bool _enableMtp = true;
     private bool _enableNand = true;
     private bool? _nandActive;
+    private bool _enablePackageOperations;
+    private bool? _packageOperationsActive;
     private bool _enableFirmwareCheck = true;
     private bool? _nszPluginActive, _nandPluginActive, _mtpActive, _firmwareCheckActive;
     public bool EnablePlugins
@@ -61,6 +63,13 @@ public class AppSettings : NotifyPropertyChangedBase, IAppSettings
         get => _enableMtp;
         set { _enableMtp = value; NotifyPropertyChanged(); }
     }
+    public bool EnablePackageOperations
+    {
+        get => _enablePackageOperations;
+        set { _enablePackageOperations = value; NotifyPropertyChanged(); }
+    }
+    [JsonIgnore]
+    public bool PackageOperationsActive => _packageOperationsActive ?? EnablePackageOperations;
     public bool EnableFirmwareCheck
     {
         get => _enableFirmwareCheck;
@@ -87,6 +96,7 @@ public class AppSettings : NotifyPropertyChangedBase, IAppSettings
         _nandActive ??= EnableNand;
         _mtpActive ??= EnableMtp;
         _firmwareCheckActive ??= EnableFirmwareCheck;
+        _packageOperationsActive ??= EnablePackageOperations;
     }
     private int _batchHistoryLimit = 5;
     public int BatchHistoryLimit
@@ -113,6 +123,36 @@ public class AppSettings : NotifyPropertyChangedBase, IAppSettings
         set { _verifyFilesOpenedFromWindows = value; NotifyPropertyChanged(); }
     }
     private string _batchTableLayout = "";
+    private bool _batchSummaryPreservePackageOrder;
+    public bool BatchSummaryPreservePackageOrder
+    {
+        get => _batchSummaryPreservePackageOrder;
+        set { _batchSummaryPreservePackageOrder = value; NotifyPropertyChanged(); }
+    }
+    private bool _batchSeparatePackages;
+    public bool BatchSeparatePackages
+    {
+        get => _batchSeparatePackages;
+        set { _batchSeparatePackages = value; NotifyPropertyChanged(); }
+    }
+    private bool _batchExportSeparatePackages;
+    public bool BatchExportSeparatePackages
+    {
+        get => _batchExportSeparatePackages;
+        set { _batchExportSeparatePackages = value; NotifyPropertyChanged(); }
+    }
+    private bool _batchExportVisibleColumnsOnly;
+    public bool BatchExportVisibleColumnsOnly
+    {
+        get => _batchExportVisibleColumnsOnly;
+        set { _batchExportVisibleColumnsOnly = value; NotifyPropertyChanged(); }
+    }
+    private bool _batchExportExcel;
+    public bool BatchExportExcel
+    {
+        get => _batchExportExcel;
+        set { _batchExportExcel = value; NotifyPropertyChanged(); }
+    }
     public string BatchTableLayout
     {
         get => _batchTableLayout;

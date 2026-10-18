@@ -14,6 +14,63 @@ namespace Emignatik.NxFileViewer.Test.Services;
 public sealed class FeatureSettingsTest
 {
     [Fact]
+    public void ExperimentalPackageOperationsAreOffForNewAndExistingSettings()
+    {
+        foreach (var settings in new[] { new AppSettings(), JsonSerializer.Deserialize<AppSettings>("{}")! })
+        {
+            settings.InitializeFeatures();
+            Assert.False(settings.EnablePackageOperations);
+            Assert.False(settings.PackageOperationsActive);
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ExperimentalPackageOperationsPersistAndRequireRestart(bool enabled)
+    {
+        var settings = new AppSettings();
+        settings.InitializeFeatures();
+        new ShallowCopier().Copy<IAppSettings>(new AppSettings { EnablePackageOperations = enabled }, settings);
+        settings.InitializeFeatures();
+        Assert.False(settings.PackageOperationsActive);
+        var json = JsonSerializer.Serialize(settings);
+        Assert.DoesNotContain("PackageOperationsActive", json);
+        var restarted = JsonSerializer.Deserialize<AppSettings>(json)!;
+        restarted.InitializeFeatures();
+        Assert.Equal(enabled, restarted.PackageOperationsActive);
+        restarted.EnablePackageOperations = !enabled;
+        Assert.Equal(enabled, restarted.PackageOperationsActive);
+    }
+
+    [Fact]
+    public void DisabledPackageCommandsCannotRunEvenWithConfiguredEngine()
+    {
+        var engine = System.IO.Path.GetTempFileName();
+        try
+        {
+            var settings = new AppSettings { RustPackageExecutablePath = engine };
+            settings.InitializeFeatures();
+            var background = new Emignatik.NxFileViewer.Services.BackgroundTask.MainBackgroundTaskRunnerService();
+            var actions = new Emignatik.NxFileViewer.Services.PackageOperations.PackageActions(settings, background, null!, null!, null!);
+            Assert.False(actions.IsEnabled);
+            foreach (var command in new[] { actions.MergeNspCommand, actions.MergeXciCommand, actions.ConvertNspCommand, actions.ConvertXciCommand, actions.SplitCommand })
+            {
+                Assert.False(command.CanExecute(null));
+                command.Execute(null); // Must return before accessing services or opening dialogs.
+            }
+            settings.EnablePackageOperations = true;
+            Assert.False(actions.MergeNspCommand.CanExecute(null));
+            var restarted = JsonSerializer.Deserialize<AppSettings>(JsonSerializer.Serialize(settings))!;
+            restarted.InitializeFeatures();
+            var enabledActions = new Emignatik.NxFileViewer.Services.PackageOperations.PackageActions(restarted, background, null!, null!, null!);
+            Assert.True(enabledActions.IsEnabled);
+            foreach (var command in new[] { enabledActions.MergeNspCommand, enabledActions.MergeXciCommand, enabledActions.ConvertNspCommand, enabledActions.ConvertXciCommand, enabledActions.SplitCommand })
+                Assert.True(command.CanExecute(null));
+        }
+        finally { System.IO.File.Delete(engine); }
+    }
+    [Fact]
     public void OldSettingsKeepFeaturesEnabled()
     {
         var settings = JsonSerializer.Deserialize<AppSettings>("{}")!;

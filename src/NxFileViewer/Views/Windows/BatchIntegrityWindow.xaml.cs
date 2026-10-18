@@ -61,6 +61,32 @@ public partial class BatchIntegrityWindow : UserControl
             }
         };
     }
+    private GridLength _expandedResultsWidth = new(3, GridUnitType.Star);
+    private GridLength _expandedDetailsWidth = new(2, GridUnitType.Star);
+
+    private void ToggleDetailsPane(object sender, RoutedEventArgs e)
+    {
+        var expanded = DetailsToggleButton.IsChecked == true;
+        if (expanded == (DetailsTabs.Visibility == Visibility.Visible)) return;
+        if (expanded)
+        {
+            ResultsPaneColumn.Width = _expandedResultsWidth;
+            DetailsPaneColumn.Width = _expandedDetailsWidth;
+            DetailsSplitterColumn.Width = new GridLength(31);
+            DetailsSplitter.Visibility = Visibility.Visible;
+            DetailsTabs.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            _expandedResultsWidth = ResultsPaneColumn.Width;
+            _expandedDetailsWidth = DetailsPaneColumn.Width;
+            DetailsTabs.Visibility = Visibility.Collapsed;
+            DetailsSplitter.Visibility = Visibility.Collapsed;
+            DetailsPaneColumn.Width = new GridLength(0);
+            DetailsSplitterColumn.Width = new GridLength(26);
+            ResultsPaneColumn.Width = new GridLength(1, GridUnitType.Star);
+        }
+    }
     private void OnColumnLayoutChanged(object? sender, EventArgs e)
     {
         if (_applyingLayout || _layoutModel == null) return;
@@ -73,6 +99,7 @@ public partial class BatchIntegrityWindow : UserControl
         if (_layoutModel != null) _layoutModel.ColumnLayout = BatchColumnLayout.Capture(ResultsGrid.Columns);
         SyncPackageGrids();
     }
+    private void PrepareExport(object sender, RoutedEventArgs e) => FlushColumnLayout();
     private void ResetColumns(object sender, RoutedEventArgs e)
     {
         var keys = LocalizationManager.Instance.Current.Keys;
@@ -207,6 +234,30 @@ public partial class BatchIntegrityWindow : UserControl
         for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
             if (FindScrollViewer(VisualTreeHelper.GetChild(root, i)) is { } found) return found;
         return null;
+    }
+    private void SortVersionColumn(object sender, DataGridSortingEventArgs e)
+    {
+        if (e.Column.SortMemberPath is not ("SystemVersion" or "SystemUpdateVersion" or "DisplayVersion")) return;
+        if (sender is not DataGrid grid || grid.ItemsSource == null) return;
+        var view = CollectionViewSource.GetDefaultView(grid.ItemsSource);
+        if (!view.CanSort) return;
+        e.Handled = true;
+        var property = e.Column.SortMemberPath + "SortKey";
+        var direction = e.Column.SortDirection == ListSortDirection.Ascending
+            ? ListSortDirection.Descending : ListSortDirection.Ascending;
+        using (view.DeferRefresh())
+        {
+            if ((Keyboard.Modifiers & ModifierKeys.Shift) == 0)
+            {
+                view.SortDescriptions.Clear();
+                foreach (var column in grid.Columns) column.SortDirection = null;
+            }
+            for (var i = view.SortDescriptions.Count - 1; i >= 0; i--)
+                if (view.SortDescriptions[i].PropertyName == property)
+                    view.SortDescriptions.RemoveAt(i);
+            view.SortDescriptions.Add(new SortDescription(property, direction));
+            e.Column.SortDirection = direction;
+        }
     }
     private void ResetFiltersAndSort(object sender, RoutedEventArgs e)
     {

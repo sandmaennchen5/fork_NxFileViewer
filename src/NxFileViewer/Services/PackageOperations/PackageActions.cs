@@ -39,10 +39,12 @@ public sealed class PackageActions : NotifyPropertyChangedBase
     public RelayCommand ConvertNspCommand { get; }
     public RelayCommand ConvertXciCommand { get; }
     public RelayCommand SplitCommand { get; }
+    public bool IsEnabled => _settings.PackageOperationsActive;
     public string Status
     {
         get
         {
+            if (!IsEnabled) return LocalizationManager.Instance.Current.Keys.Features_PackageOperationsDisabled;
             var config = PackageEngineConfiguration.Capture(_settings);
             var text = LocalizationManager.Instance.Current.Keys;
             return text.Package_Apply + (config.Engine == PackageEngine.Rust ? "cxfcxf / nscb_rust" : "Kronos / NSC_BUILDER") +
@@ -50,16 +52,17 @@ public sealed class PackageActions : NotifyPropertyChangedBase
         }
     }
     private RelayCommand Create(PackageOperation operation, string type) => new(() => Run(operation, type),
-        () => !_background.IsRunning && PackageEngineConfiguration.Capture(_settings).IsAvailable);
+        () => IsEnabled && !_background.IsRunning && PackageEngineConfiguration.Capture(_settings).IsAvailable);
     private void Refresh()
     {
         foreach (var command in new[] { MergeNspCommand, MergeXciCommand, ConvertNspCommand, ConvertXciCommand, SplitCommand })
             command.TriggerCanExecuteChanged(true);
         NotifyPropertyChanged(nameof(Status));
+        NotifyPropertyChanged(nameof(IsEnabled));
     }
     private async void Run(PackageOperation operation, string type)
     {
-        if (_background.IsRunning) return;
+        if (!IsEnabled || _background.IsRunning) return;
         var text = LocalizationManager.Instance.Current.Keys;
         try
         {

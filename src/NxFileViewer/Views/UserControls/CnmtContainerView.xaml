@@ -122,7 +122,10 @@
                     <TextBox Style="{StaticResource ReadOnlyTextBox}" Text="{Binding Path=FileSystemPermissions, Mode=OneWay}"/>
                 </StackPanel>
                 <StackPanel Grid.Column="4" ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.ToolTip_AcidSignature}">
-                    <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Security_AcidSignature}" Style="{StaticResource Title2}"/>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Security_AcidSignature}" Style="{StaticResource Title2}"/>
+                        <customControls:TipLabel ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.ToolTip_AcidSignature}"/>
+                    </StackPanel>
                     <TextBox Style="{StaticResource ReadOnlyTextBox}" Text="{Binding Path=AcidSignatureValidity, Mode=OneWay}"/>
                 </StackPanel>
             </Grid>

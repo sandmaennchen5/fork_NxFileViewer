@@ -17,6 +17,8 @@ public interface IAppSettings : INotifyPropertyChanged
     bool EnableNandPlugin { get; set; }
     bool EnableNand { get; set; }
     bool NandActive { get; }
+    bool EnablePackageOperations { get; set; }
+    bool PackageOperationsActive { get; }
     bool EnableFirmwareCheck { get; set; }
     bool NszPluginActive { get; }
     bool NandPluginActive { get; }
@@ -28,6 +30,11 @@ public interface IAppSettings : INotifyPropertyChanged
     bool VerifyFilesOpenedInProgram { get; set; }
     bool VerifyFilesOpenedFromWindows { get; set; }
     string BatchTableLayout { get; set; }
+    bool BatchSummaryPreservePackageOrder { get; set; }
+    bool BatchSeparatePackages { get; set; }
+    bool BatchExportSeparatePackages { get; set; }
+    bool BatchExportVisibleColumnsOnly { get; set; }
+    bool BatchExportExcel { get; set; }
     string NandExecutablePath { get; set; }
     string NandBisKeysPath { get; set; }
     bool CheckViewerUpdatesOnStartup { get; set; }
