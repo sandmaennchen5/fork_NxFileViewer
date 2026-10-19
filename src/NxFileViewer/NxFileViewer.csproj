@@ -7,17 +7,18 @@
     <RootNamespace>Emignatik.NxFileViewer</RootNamespace>
     <Nullable>enable</Nullable>
     <ApplicationIcon>Styling\Icons\Icon.ico</ApplicationIcon>
-    <PackageId>NxFileViewer</PackageId>
-    <Company>NxFileViewer</Company>
-    <Product>NxFileViewer</Product>
-    <Authors>NxFileViewer</Authors>
-    <Version>4.0.1-beta4</Version>
+    <AssemblyName>NxFileViewerFork</AssemblyName>
+    <PackageId>NxFileViewerFork</PackageId>
+    <Company>sandmaennchen5</Company>
+    <Product>NxFileViewer Fork</Product>
+    <Authors>sandmaennchen5</Authors>
+    <Version>4.1.0</Version>
     <!-- Increment when the packaged Explorer extension changes. -->
-    <ExplorerPackageVersion>4.0.1.6</ExplorerPackageVersion>
-    <PackageProjectUrl></PackageProjectUrl>
+    <ExplorerPackageVersion>1.0.0.0</ExplorerPackageVersion>
+    <PackageProjectUrl>https://github.com/sandmaennchen5/fork_NxFileViewer</PackageProjectUrl>
     <PackageIcon>Icon.ico</PackageIcon>
     <Description>Browse content of Nintendo Switch files</Description>
-    <RepositoryUrl>https://github.com/Myster-Tee/NxFileViewer</RepositoryUrl>
+    <RepositoryUrl>https://github.com/sandmaennchen5/fork_NxFileViewer</RepositoryUrl>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 

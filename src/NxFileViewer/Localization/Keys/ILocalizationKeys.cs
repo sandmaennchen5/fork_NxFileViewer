@@ -1,4 +1,4 @@
-using Emignatik.NxFileViewer.Utils.MVVM.Localization;
+﻿using Emignatik.NxFileViewer.Utils.MVVM.Localization;
 
 // ReSharper disable InconsistentNaming
 
@@ -6,6 +6,11 @@ namespace Emignatik.NxFileViewer.Localization.Keys;
 
 public interface ILocalizationKeys : ILocalizationKeysBase
 {
+    string PluginLog_Title { get; }
+    string PluginLog_Inherit { get; }
+    string PluginLog_Off { get; }
+    string PluginLog_Tip { get; }
+
     string Update_RollbackConfirm { get; }
     string Update_Cleanup { get; }
     string Update_CleanupConfirm { get; }
@@ -161,6 +166,7 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string BatchHistory_Show { get; }
     string BatchHistory_LoadedNotice { get; }
     string BatchHistory_Title { get; }
+    string BatchHistory_SaveLogos { get; }
     string BatchHistory_Enable { get; }
     string BatchHistory_Limit { get; }
     string BatchHistory_Resume { get; }

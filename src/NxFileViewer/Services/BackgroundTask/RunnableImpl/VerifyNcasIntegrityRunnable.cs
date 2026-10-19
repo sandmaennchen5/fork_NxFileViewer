@@ -149,7 +149,7 @@ public class VerifyNcasIntegrityRunnable : IVerifyNcasIntegrityRunnable
         }
         catch (OperationCanceledException)
         {
-            _logger.LogWarning(LocalizationManager.Instance.Current.Keys.Log_NcasIntegrityCanceled);
+            _logger.LogInformation(LocalizationManager.Instance.Current.Keys.Log_NcasIntegrityCanceled);
             fileOverview.NcasIntegrity = NcasIntegrity.Unchecked;
         }
         catch (Exception ex)

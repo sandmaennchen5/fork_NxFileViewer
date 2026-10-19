@@ -115,6 +115,7 @@ internal class FileLoader : IFileLoader
         }
         _logger.LogInformation(LocalizationManager.Instance.Current.Keys.Log_OpeningFile.SafeFormat(filePath));
 
+        _logger.LogTrace("Detecting content type and building overview: {FilePath}", filePath);
         var nand = !NandEnabled || Services.Mtp.MtpDirectSource.IsDirect(filePath) ? null : Services.Nand.NandDetection.Detect(filePath, token);
         if (nand != null)
         {
@@ -190,6 +191,7 @@ internal class FileLoader : IFileLoader
             fileOverview.FileSize = Services.Mtp.MtpDirectSource.Length(filePath);
 
             var openedFile = new NxFile(filePath, rootItem, fileOverview) { FirmwareResult = ncaFirmware };
+            _logger.LogTrace("File overview complete: {FilePath}; bytes={Size}; missingKeys={Count}", filePath, fileOverview.FileSize, missingKeys.Count);
             return openedFile;
         }
         catch { rootItem?.Dispose(); throw; }

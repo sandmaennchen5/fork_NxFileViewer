@@ -73,6 +73,7 @@ public static class ExplorerIntegration
             key.SetValue(entry.Name, entry.Value, RegistryValueKind.String);
         }
         NotifyShell();
+        CleanupUnusedVersions();
     }
 
     public static void RemoveClassic()
@@ -81,8 +82,8 @@ public static class ExplorerIntegration
         foreach (var type in new[] { "*", "Directory" })
             user.DeleteSubKeyTree(@"Software\Classes\" + type + @"\shell\NxFileViewerFork", false);
         user.DeleteSubKeyTree(@"Software\Classes\CLSID\" + ClassId, false);
-        // Keep immutable DLL versions: Explorer may still have them loaded.
         NotifyShell();
+        CleanupUnusedVersions();
     }
 
     public static async Task InstallModern(string packagePath)
@@ -91,19 +92,20 @@ public static class ExplorerIntegration
         var executable = CurrentExecutable();
         var package = Path.GetFullPath(packagePath);
         if (!File.Exists(package) || !Path.GetExtension(package).Equals(".msix", StringComparison.OrdinalIgnoreCase))
-            throw new ArgumentException("Select the signed NxFileViewer Explorer MSIX package.");
+            throw new ArgumentException("Select the signed NxFileViewer Fork Explorer MSIX package.");
         // The package identity is checked before installation. Certificate trust is left to Windows.
         await RunPowerShell("Add-Type -AssemblyName System.IO.Compression.FileSystem; " +
             "$zip=[IO.Compression.ZipFile]::OpenRead(" + Quote(package) + "); try { " +
             "$entry=$zip.GetEntry('AppxManifest.xml'); if (!$entry) { throw 'Package manifest missing.' }; " +
             "$reader=[IO.StreamReader]::new($entry.Open()); try { [xml]$manifest=$reader.ReadToEnd() } finally { $reader.Dispose() }; " +
-            "if ($manifest.Package.Identity.Name -ne '" + PackageName + "') { throw 'Not a NxFileViewer Explorer package.' } " +
+            "if ($manifest.Package.Identity.Name -ne '" + PackageName + "') { throw 'Not a NxFileViewer Fork Explorer package.' } " +
             "} finally { $zip.Dispose() }; Add-AppxPackage -Path " + Quote(package));
         using var user = UserRegistry();
         using var config = user.CreateSubKey(ConfigurationKey);
         config.SetValue("Executable", executable);
         config.SetValue("Language", Localization.LocalizationManager.Instance.Current.Keys.CultureName);
         NotifyShell();
+        CleanupUnusedVersions();
     }
 
     public static Task<ExplorerInstallStage> InstallModernFromRelease(bool includePrereleases, IProgress<ExplorerInstallStage>? progress = null) =>
@@ -151,10 +153,12 @@ public static class ExplorerIntegration
             config.SetValue("Executable", CurrentExecutable());
             config.SetValue("Language", Localization.LocalizationManager.Instance.Current.Keys.CultureName);
             NotifyShell();
+            CleanupUnusedVersions();
         }
     }
     public static void UpdateLanguage(string language)
     {
+        CleanupUnusedVersions();
         using var user = UserRegistry();
         using var config = user.OpenSubKey(ConfigurationKey, true);
         if (config == null || config.GetValue("Executable") is not string) return;
@@ -173,8 +177,26 @@ public static class ExplorerIntegration
     {
         await RunPowerShell("Get-AppxPackage -Name '" + PackageName + "' | Remove-AppxPackage");
         NotifyShell();
+        CleanupUnusedVersions();
     }
 
+    public static IReadOnlyList<string> CleanupUnusedVersions()
+    {
+        try
+        {
+            var active = new List<string>();
+            // Protect registrations in both views, including older 32-bit registrations.
+            foreach (var view in Environment.Is64BitOperatingSystem ? new[] { RegistryView.Registry64, RegistryView.Registry32 } : new[] { RegistryView.Registry32 })
+            {
+                using var user = RegistryKey.OpenBaseKey(RegistryHive.CurrentUser, view);
+                using var key = user.OpenSubKey(@"Software\Classes\CLSID\" + ClassId + @"\InprocServer32");
+                if (key?.GetValue("") is string library && !string.IsNullOrWhiteSpace(library)) active.Add(library);
+            }
+            var root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "NxFileViewerFork", "ExplorerIntegration");
+            return ExplorerVersionCleanup.RemoveUnused(root, active);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException) { return Array.Empty<string>(); }
+    }
     private static string CurrentExecutable() => ValidateExecutable(Environment.ProcessPath ?? "");
     private static string ValidateExecutable(string executable)
     {

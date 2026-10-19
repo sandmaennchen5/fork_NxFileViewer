@@ -8,7 +8,7 @@ Checks load current JSON references from [the repository's firmware hashes](http
 
 On network or validation failure, locally installed `Plugins/fwhashes/*.json` references provide an explicitly reported offline fallback. Local references are optional. If neither source is available, firmware candidates remain visible with an unavailable-reference error; game checks continue.
 
-Development builds include references. Published application ZIPs exclude them: extract `NxFileViewer_v<version>_firmware-hashes.zip` beside the executable to install `Plugins/fwhashes/*.json`. The same add-on works with x64 and x86.
+Development builds include references. Published application ZIPs exclude them: extract `NxFileViewerFork_v<version>_firmware-hashes.zip` beside the executable to install `Plugins/fwhashes/*.json`. The same add-on works with x64 and x86.
 
 ## Matching and integrity
 

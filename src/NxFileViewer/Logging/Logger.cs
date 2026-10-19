@@ -27,7 +27,7 @@ public class LoggerSource : ILogSource, ILogger
 
     public bool IsEnabled(LogLevel logLevel)
     {
-        return logLevel >= Level;
+        return logLevel >= LogLevel.Trace && logLevel < LogLevel.None && logLevel >= Level && Level < LogLevel.None;
     }
 
     public IDisposable BeginScope<TState>(TState state) where TState : notnull

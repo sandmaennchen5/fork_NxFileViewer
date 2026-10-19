@@ -127,4 +127,12 @@
     <SolidColorBrush x:Key="PlayStopButton.Stop.Icon" Color="#DC7D7D" />
     <SolidColorBrush x:Key="PlayStopButton.Cancelling.Icon" Color="Yellow" />
 
+    <SolidColorBrush x:Key="Log.Info.Foreground" Color="#1557A0"/>
+    <SolidColorBrush x:Key="Log.Warning.Foreground" Color="#8A4B00"/>
+    <SolidColorBrush x:Key="Log.Error.Foreground" Color="#B42318"/>
+    <SolidColorBrush x:Key="Log.Warning.Background" Color="#FFF4D6"/>
+    <SolidColorBrush x:Key="Log.Error.Background" Color="#FEE4E2"/>
+    <SolidColorBrush x:Key="Log.File.Background" Color="#E8F1FC"/>
+    <SolidColorBrush x:Key="Log.File.Border" Color="#82A9DC"/>
+    <SolidColorBrush x:Key="Log.Muted" Color="#667085"/>
 </ResourceDictionary>

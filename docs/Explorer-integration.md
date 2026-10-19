@@ -19,7 +19,7 @@ The first process starts the receiver before loading the main window. Subsequent
 
 ## Classic menu
 
-Click **Add / update classic menu**. This extracts an immutable, architecture-matched native DLL to `%LOCALAPPDATA%\NxFileViewerFork\ExplorerIntegration` and registers only HKCU keys. No administrator rights or default-app change are needed. On Windows 11 this is the **Show more options** menu. **Remove classic menu** deletes only NxFileViewer's menu and COM registration; loaded DLL versions are retained because Explorer may still be using them.
+Click **Add / update classic menu**. This extracts an immutable, architecture-matched native DLL to `%LOCALAPPDATA%\NxFileViewerFork\ExplorerIntegration` and registers only HKCU keys. No administrator rights or default-app change are needed. On Windows 11 this is the **Show more options** menu. **Remove classic menu** deletes the fork menu and COM registration. After menu installation, update and removal, and on subsequent application starts, unregistered DLL versions are cleaned up. Active registrations in either registry view, locked or loaded DLLs, links, changed payloads and folders containing unrelated files are preserved. Locked versions are retried on the next application start after Explorer releases them; Explorer is never forcibly restarted.
 
 ## Modern Windows 11 menu
 
@@ -39,8 +39,8 @@ The **Remove file associations** button unregisters only this fork's ProgID, Ope
 
 Running `./Publish.ps1` creates signed Explorer packages alongside the viewer ZIPs in `Publish/`:
 
-- `NxFileViewerFork.Explorer_4.0.1.6_x64.msix` and `_x64_setup.zip`
-- `NxFileViewerFork.Explorer_4.0.1.6_arm64.msix` and `_arm64_setup.zip`
+- `NxFileViewerFork.Explorer_1.0.0.0_x64.msix` and `_x64_setup.zip`
+- `NxFileViewerFork.Explorer_1.0.0.0_arm64.msix` and `_arm64_setup.zip`
 
 Upload both `_x64_setup.zip` and `_arm64_setup.zip` as assets of the official GitHub release. Keep their generated names so the in-app installer can find them. The downloader requires the GitHub SHA-256 asset digest (available on current uploads); re-upload an older asset if GitHub does not supply one. App ZIPs and Explorer setup ZIPs remain separate downloads.
 
@@ -48,7 +48,7 @@ Each setup ZIP contains its MSIX, the public `NxFileViewerFork.Explorer.cer`, `T
 
 Publishing creates a five-year self-signed code-signing certificate in **Current User > Personal** on first use and reuses it on later runs. Publishing never adds it to a trust store. The private key stays on the publishing machine and is never included in release files. Keep this certificate and its private key; an encrypted PFX backup may be made separately using Windows certificate management. Do not commit or distribute private keys or PFX files. A new signing certificate requires a new trust confirmation. Certificate expiry alone does not stop an installed extension. Previously timestamped packages can still be accepted after expiry while trust remains in place; Windows validates the timestamp. A valid signing certificate is needed to sign new packages. With the same valid certificate, later releases require no further certificate import. This is individual user trust, not globally recognized publisher trust.
 
-The numeric version is set by `ExplorerPackageVersion` in `NxFileViewer.csproj` (currently `4.0.1.6`). Increment this property when packaged Explorer contents change, independently of the viewer version. If absent, it is derived from the viewer version (`4.0.1-beta4` becomes `4.0.1.4`; the final release uses revision 65535). Use `-ExplorerPackageVersion` to override it. Increment it when updating an installed package with different contents. Signatures receive an RFC 3161 timestamp using DigiCert by default; use `-ExplorerTimestampServer` to override the endpoint.
+The numeric version is set by `ExplorerPackageVersion` in `NxFileViewer.csproj` (currently `1.0.0.0`). Increment this property when packaged Explorer contents change, independently of the viewer version. If absent, it is derived from the viewer version (`4.0.1-beta4` becomes `4.0.1.4`; the final release uses revision 65535). Use `-ExplorerPackageVersion` to override it. Increment it when updating an installed package with different contents. Signatures receive an RFC 3161 timestamp using DigiCert by default; use `-ExplorerTimestampServer` to override the endpoint.
 
 To use an existing signing identity instead:
 
@@ -78,3 +78,7 @@ Use `-Architecture arm64` for native ARM64 Explorer, even if the viewer runs und
 ## Validation checklist for a release
 
 Test one file, several files, folders, a mixed file/folder selection, spaces/Unicode, a selection longer than 32K command-line characters, viewer closed/running/busy, and both hash settings enabled/disabled. Inspect the classic menu and, with a trusted signed package installed, the modern Windows 11 menu. Verify removal of each integration independently. Automated tests cover action parsing, response-file bounds and consumption, instance forwarding, native menu visibility, registration structure and explicit hash policy.
+
+Publish keeps Explorer packaging files in temporary staging and emits only the setup ZIPs into Publish. The MSIX, public certificate and trust helpers are included inside those ZIPs.
+
+The independent Explorer package version starts at 1.0.0.0. A previously installed test package numbered 4.0.1.6 must be removed once before installing 1.0.0.0, because Windows treats it as a downgrade. The signing certificate and package identity remain unchanged.

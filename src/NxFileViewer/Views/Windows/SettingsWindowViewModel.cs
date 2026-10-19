@@ -319,6 +319,13 @@ public class SettingsWindowViewModel : WindowViewModelBase
     public RelayCommand EditTitleKeysCommand { get; }
 
 
+    public IEnumerable<PluginLogLevelOption> PluginLogLevels => Enum.GetValues<PluginLogLevel>()
+        .Select(level => new PluginLogLevelOption(level, level == PluginLogLevel.Inherit
+            ? LocalizationManager.Instance.Current.Keys.PluginLog_Inherit
+            : level == PluginLogLevel.None ? LocalizationManager.Instance.Current.Keys.PluginLog_Off : level.ToString()));
+
+    public record PluginLogLevelOption(PluginLogLevel Value, string DisplayName);
+
     public IEnumerable<LogLevel> LogLevels => Enum.GetValues<LogLevel>();
     public IEnumerable<TitleProviderOption> TitleProviderOptions { get; } = new[]
     {
@@ -572,6 +579,10 @@ public class SettingsWindowViewModel : WindowViewModelBase
 
     private static void CopyPluginSettings(IAppSettings source, IAppSettings destination)
     {
+        destination.NszLogLevel = source.NszLogLevel;
+        destination.NandLogLevel = source.NandLogLevel;
+        destination.MtpLogLevel = source.MtpLogLevel;
+        destination.PackageLogLevel = source.PackageLogLevel;
         destination.PackageEngine = source.PackageEngine;
         destination.RustPackageExecutablePath = source.RustPackageExecutablePath;
         destination.KronosPackageDirectory = source.KronosPackageDirectory;

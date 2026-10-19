@@ -47,7 +47,7 @@ public class SaveFileRunnable : ISaveFileRunnable
         }
         catch (OperationCanceledException)
         {
-            _logger.LogWarning(LocalizationManager.Instance.Current.Keys.Log_SaveFileCanceled);
+            _logger.LogInformation(LocalizationManager.Instance.Current.Keys.Log_SaveFileCanceled);
         }
     }
 }

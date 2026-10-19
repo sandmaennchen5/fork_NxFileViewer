@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using Microsoft.Extensions.Logging;
 using Emignatik.NxFileViewer.Styling.Theme;
 
@@ -60,6 +60,7 @@ public interface IAppSettings : INotifyPropertyChanged
 
     int BatchHistoryLimit { get; set; }
     bool EnableBatchHistory { get; set; }
+    bool SaveBatchHistoryLogos { get; set; }
     int LogFileRetentionCount { get; set; }
     string AppLanguage { get; set; }
 
@@ -85,6 +86,14 @@ public interface IAppSettings : INotifyPropertyChanged
     bool OpenBlocklessCompressionNCZ { get; set; }
 
     bool IgnoreMissingDeltaFragments { get; set; }
+
+    PluginLogLevel NszLogLevel { get; set; }
+
+    PluginLogLevel NandLogLevel { get; set; }
+
+    PluginLogLevel MtpLogLevel { get; set; }
+
+    PluginLogLevel PackageLogLevel { get; set; }
 
     LogLevel LogLevel { get; set; }
 

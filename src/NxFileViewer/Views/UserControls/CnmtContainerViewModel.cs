@@ -221,7 +221,7 @@ public class TitleInfoViewModel
         catch (Exception ex)
         {
             var message = LocalizationManager.Instance.Current.Keys.LoadingError_FailedToLoadIcon_Log.SafeFormat(ex.Message);
-            _logger.LogError(ex, message);
+            _logger.LogWarning(ex, message);
             return null;
         }
     }

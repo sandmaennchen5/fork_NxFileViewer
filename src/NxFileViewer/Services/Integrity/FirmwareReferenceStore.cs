@@ -13,7 +13,7 @@ public static class FirmwareReferenceStore
         foreach (var name in manifests.Keys)
             if (Path.GetFileName(name) != name || !name.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
                 throw new InvalidDataException("Invalid firmware manifest filename.");
-        ApplicationDataPaths.MigrateLegacy(applicationDirectory);
+
         var root = Path.GetFullPath(Path.Combine(applicationDirectory, "Plugins"));
         Directory.CreateDirectory(root);
         var target = Path.Combine(root, "fwhashes");

@@ -52,7 +52,7 @@ public sealed class NszCliPlugin(NszPluginManager manager, IKeySetProviderServic
                     diagnostics.Enqueue(line);
                     while (diagnostics.Count > 30) diagnostics.Dequeue();
                 }
-                logger?.LogInformation("NSZ: {Output}", line);
+                logger?.LogDebug("NSZ: {Output}", line);
             });
             cancellationToken.ThrowIfCancellationRequested();
             alias.RestoreOutputName(operation);

@@ -67,7 +67,7 @@
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="960" Margin="16,20">
                     <Image Source="/Styling/Icons/Icon.ico" Width="72" Height="72" Margin="0,0,0,16"/>
-                    <TextBlock Text="NxFileViewer" FontSize="30" Margin="0,0,0,24" HorizontalAlignment="Center"/>
+                    <TextBlock Text="NxFileViewer Fork" FontSize="30" Margin="0,0,0,24" HorizontalAlignment="Center"/>
                     <Border BorderBrush="{DynamicResource FontBrush.Warning}" BorderThickness="1" Padding="12" Margin="0,0,0,12"
                             Visibility="{Binding HasProdKeysProblems, Converter={StaticResource FalseToCollapseVisibilityConverter}}">
                         <StackPanel>

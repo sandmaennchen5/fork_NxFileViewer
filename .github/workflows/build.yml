@@ -30,6 +30,7 @@ jobs:
           path: |
             Publish/*_x64.zip
             !Publish/*_self-contained_x64.zip
+            !Publish/NxFileViewerFork.LogViewer_*.zip
           archive: false
           if-no-files-found: error
           retention-days: 7
@@ -40,6 +41,7 @@ jobs:
           path: |
             Publish/*_x86.zip
             !Publish/*_self-contained_x86.zip
+            !Publish/NxFileViewerFork.LogViewer_*.zip
           archive: false
           if-no-files-found: error
           retention-days: 7
@@ -47,7 +49,9 @@ jobs:
       - name: Upload x64 ZIP with .NET (compressed)
         uses: actions/upload-artifact@v7
         with:
-          path: Publish/*_self-contained_x64.zip
+          path: |
+            Publish/*_self-contained_x64.zip
+            !Publish/NxFileViewerFork.LogViewer_*.zip
           archive: false
           if-no-files-found: error
           retention-days: 7
@@ -55,7 +59,9 @@ jobs:
       - name: Upload x86 ZIP with .NET (compressed)
         uses: actions/upload-artifact@v7
         with:
-          path: Publish/*_self-contained_x86.zip
+          path: |
+            Publish/*_self-contained_x86.zip
+            !Publish/NxFileViewerFork.LogViewer_*.zip
           archive: false
           if-no-files-found: error
           retention-days: 7
@@ -64,6 +70,14 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           path: Publish/*_firmware-hashes.zip
+          archive: false
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload standalone diagnostic LogViewer ZIPs
+        uses: actions/upload-artifact@v7
+        with:
+          path: Publish/NxFileViewerFork.LogViewer_*.zip
           archive: false
           if-no-files-found: error
           retention-days: 7

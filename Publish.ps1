@@ -1,5 +1,5 @@
-<#
-    Builds application ZIPs, firmware hashes, and optional Explorer MSIX packages (x64/ARM64).
+﻿<#
+    Builds application and standalone LogViewer ZIPs, firmware hashes, and optional Explorer MSIX packages (x64/ARM64).
     By default Explorer MSIX packages use a persistent local signing certificate.
 #>
 param(
@@ -11,12 +11,16 @@ param(
     [string]$ExplorerPackageVersion,
     [string]$ExplorerTimestampServer = 'http://timestamp.digicert.com',
     [switch]$UnsignedExplorerPackages,
-    [switch]$SkipExplorerPackages
+    [switch]$SkipExplorerPackages,
+    [switch]$LogViewerOnly,
+    [switch]$SkipLogViewer,
+    [switch]$IncludeLegacyTransition = $true
 )
 
 $ErrorActionPreference = "Stop"
+if ($LogViewerOnly -and $SkipLogViewer) { throw 'Choose either -LogViewerOnly or -SkipLogViewer.' }
 if ($UnsignedExplorerPackages -and $ExplorerCertificateThumbprint) { throw 'Choose either unsigned packages or a signing certificate.' }
-$AppName = "NxFileViewer"
+$AppName = "NxFileViewerFork"
 $ProjectPath = Join-Path $PSScriptRoot "src/NxFileViewer/NxFileViewer.csproj"
 $PublishedExecutableName = (Select-Xml -LiteralPath $ProjectPath -XPath "//Project/PropertyGroup/AssemblyName").Node.InnerText
 if (!$PublishedExecutableName) { $PublishedExecutableName = [IO.Path]::GetFileNameWithoutExtension($ProjectPath) }
@@ -44,6 +48,22 @@ New-Item -ItemType Directory -Path $OutDirRoot -Force | Out-Null
 $StagingRoot = Join-Path $OutDirRoot (".publish-" + [Guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Path $StagingRoot | Out-Null
 try {
+    if (!$SkipLogViewer) {
+        $LogViewerProject = Join-Path $PSScriptRoot 'src/NxFileViewer.LogViewer/NxFileViewer.LogViewer.csproj'
+        foreach ($ViewerArchitecture in @('x64', 'x86')) {
+            foreach ($ViewerWithRuntime in @($false, $true)) {
+                $ViewerVariant = if ($ViewerWithRuntime) { '_self-contained' } else { '' }
+                $ViewerReleaseName = "NxFileViewerFork.LogViewer_v${AppVersion}${ViewerVariant}_${ViewerArchitecture}"
+                $ViewerReleaseDir = Join-Path $StagingRoot $ViewerReleaseName
+                Write-Host "Publishing $ViewerReleaseName"
+                dotnet publish $LogViewerProject -p:Version=$AppVersion -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=$ViewerWithRuntime -c Release --self-contained $ViewerWithRuntime -r "win-$ViewerArchitecture" -o $ViewerReleaseDir
+                if ($LASTEXITCODE -ne 0) { throw "LogViewer publishing failed ($LASTEXITCODE)." }
+                if (!(Test-Path -LiteralPath (Join-Path $ViewerReleaseDir 'NxFileViewerFork.LogViewer.exe'))) { throw 'Published LogViewer executable missing.' }
+                Compress-Archive -LiteralPath @(Get-ChildItem -LiteralPath $ViewerReleaseDir -Force | ForEach-Object FullName) -DestinationPath (Join-Path $OutDirRoot "$ViewerReleaseName.zip") -Force
+            }
+        }
+    }
+    if ($LogViewerOnly) { return }
     foreach ($Architecture in @("x64", "x86")) {
         foreach ($WithRuntime in @($false, $true)) {
             $Variant = if ($WithRuntime) { "_self-contained" } else { "" }
@@ -62,6 +82,15 @@ try {
             $identity = @{ SchemaVersion = 1; ApplicationId = 'NxFileViewerFork'; Executable = $ExecutableName } | ConvertTo-Json
             [IO.File]::WriteAllText((Join-Path $ReleaseDir 'nxfileviewer-package.json'), $identity, [Text.UTF8Encoding]::new($false))
             Compress-Archive -LiteralPath @(Get-ChildItem -LiteralPath $ReleaseDir -Force | ForEach-Object FullName) -DestinationPath (Join-Path $OutDirRoot "$ReleaseName.zip") -Force
+            if ($IncludeLegacyTransition) {
+                $transitionProject = Join-Path $PSScriptRoot 'src/NxFileViewer.Transition/NxFileViewer.Transition.csproj'
+                $transitionDir = Join-Path $StagingRoot ("transition${Variant}_${Architecture}")
+                dotnet publish $transitionProject -p:Version=$AppVersion -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=$WithRuntime -c Release --self-contained $WithRuntime -r "win-$Architecture" -o $transitionDir
+                if ($LASTEXITCODE -ne 0) { throw 'Transition publishing failed.' }
+                $transitionFiles = @(Get-ChildItem -LiteralPath $transitionDir -File)
+                if ($transitionFiles.Count -ne 1 -or $transitionFiles[0].Name -ne 'NxFileViewer.exe') { throw 'Legacy transition must contain exactly one NxFileViewer.exe.' }
+                Compress-Archive -LiteralPath $transitionFiles[0].FullName -DestinationPath (Join-Path $OutDirRoot "NxFileViewer_v${AppVersion}${Variant}_${Architecture}.zip") -Force
+            }
         }
     }
 
@@ -77,6 +106,8 @@ try {
     Compress-Archive -LiteralPath (Join-Path $HashRoot "Plugins") -DestinationPath (Join-Path $OutDirRoot "${AppName}_v${AppVersion}_firmware-hashes.zip") -Force
 
     if (!$SkipExplorerPackages) {
+        $ExplorerOutput = Join-Path $StagingRoot 'explorer'
+        New-Item -ItemType Directory -Path $ExplorerOutput -Force | Out-Null
         if (!$ExplorerSdkBin) { $ExplorerSdkBin = & (Join-Path $PSScriptRoot 'src/NxFileViewer.Explorer/Get-SdkBin.ps1') }
         $ownCertificate = $null
         if (!$UnsignedExplorerPackages -and !$ExplorerCertificateThumbprint) {
@@ -84,12 +115,12 @@ try {
             $ExplorerCertificateThumbprint = $ownCertificate.Thumbprint
             $ExplorerPublisher = $ownCertificate.Subject
             Write-Host "Using local signing certificate $ExplorerCertificateThumbprint (created: $($ownCertificate.Created))"
-            $publicCertificate = Join-Path $OutDirRoot 'NxFileViewerFork.Explorer.cer'
+            $publicCertificate = Join-Path $ExplorerOutput 'NxFileViewerFork.Explorer.cer'
             [IO.File]::WriteAllBytes($publicCertificate, [Convert]::FromBase64String($ownCertificate.PublicCertificate))
             $trustScript = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'src/NxFileViewer.Explorer/Trust-ExplorerCertificate.ps1') -Raw
             $trustScript = $trustScript.Replace('@CERTIFICATE_THUMBPRINT@', $ExplorerCertificateThumbprint)
-            [IO.File]::WriteAllText((Join-Path $OutDirRoot 'Trust-ExplorerCertificate.ps1'), $trustScript, [Text.UTF8Encoding]::new($true))
-            Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'src/NxFileViewer.Explorer/Trust-ExplorerCertificate.cmd') -Destination $OutDirRoot -Force
+            [IO.File]::WriteAllText((Join-Path $ExplorerOutput 'Trust-ExplorerCertificate.ps1'), $trustScript, [Text.UTF8Encoding]::new($true))
+            Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'src/NxFileViewer.Explorer/Trust-ExplorerCertificate.cmd') -Destination $ExplorerOutput -Force
             $instructions = @"
 NxFileViewer Fork - modern Explorer menu
 
@@ -110,11 +141,11 @@ Deutsch:
 ZIP entpacken, Trust-ExplorerCertificate.cmd starten, die Windows-Adminabfrage bestaetigen und im angezeigten Fenster YES eingeben.
 Danach NxFileViewer Fork normal starten und unter Einstellungen > Programm das moderne Menue mit der beiliegenden MSIX hinzufuegen.
 "@
-            [IO.File]::WriteAllText((Join-Path $OutDirRoot 'Explorer-install.txt'), $instructions, [Text.UTF8Encoding]::new($true))
+            [IO.File]::WriteAllText((Join-Path $ExplorerOutput 'Explorer-install.txt'), $instructions, [Text.UTF8Encoding]::new($true))
         }
         $packageOptions = @{
             Publisher = $ExplorerPublisher; Version = $ExplorerPackageVersion
-            SdkBin = $ExplorerSdkBin; OutputDirectory = $OutDirRoot
+            SdkBin = $ExplorerSdkBin; OutputDirectory = $ExplorerOutput
             TimestampServer = $ExplorerTimestampServer
         }
         if ($ExplorerCertificateThumbprint) { $packageOptions.CertificateThumbprint = $ExplorerCertificateThumbprint }
@@ -127,13 +158,17 @@ Danach NxFileViewer Fork normal starten und unter Einstellungen > Programm das m
             & (Join-Path $PSScriptRoot 'src/NxFileViewer.Explorer/Build-Package.ps1') @packageOptions -Architecture $shellArchitecture
             if ($ownCertificate) {
                 $setupFiles = @(
-                    (Join-Path $OutDirRoot "NxFileViewerFork.Explorer_${ExplorerPackageVersion}_${shellArchitecture}.msix"),
+                    (Join-Path $ExplorerOutput "NxFileViewerFork.Explorer_${ExplorerPackageVersion}_${shellArchitecture}.msix"),
                     $publicCertificate,
-                    (Join-Path $OutDirRoot 'Trust-ExplorerCertificate.ps1'),
-                    (Join-Path $OutDirRoot 'Trust-ExplorerCertificate.cmd'),
-                    (Join-Path $OutDirRoot 'Explorer-install.txt')
+                    (Join-Path $ExplorerOutput 'Trust-ExplorerCertificate.ps1'),
+                    (Join-Path $ExplorerOutput 'Trust-ExplorerCertificate.cmd'),
+                    (Join-Path $ExplorerOutput 'Explorer-install.txt')
                 )
                 Compress-Archive -LiteralPath $setupFiles -DestinationPath (Join-Path $OutDirRoot "NxFileViewerFork.Explorer_${ExplorerPackageVersion}_${shellArchitecture}_setup.zip") -Force
+            } else {
+                $suffix = if ($UnsignedExplorerPackages) { '.unsigned' } else { '' }
+                $package = Join-Path $ExplorerOutput "NxFileViewerFork.Explorer_${ExplorerPackageVersion}_${shellArchitecture}${suffix}.msix"
+                Compress-Archive -LiteralPath $package -DestinationPath (Join-Path $OutDirRoot "NxFileViewerFork.Explorer_${ExplorerPackageVersion}_${shellArchitecture}_setup.zip") -Force
             }
         }
     }

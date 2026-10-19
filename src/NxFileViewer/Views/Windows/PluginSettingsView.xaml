@@ -8,6 +8,20 @@
         <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <StackPanel Margin="10">
+                <GroupBox Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.PluginLog_Title}" Margin="0,0,0,12">
+                    <StackPanel Margin="6">
+                        <TextBlock TextWrapping="Wrap" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.PluginLog_Tip}"/>
+                        <TextBlock Text="nicoboss/nsz" Margin="0,6,0,2"/>
+                        <ComboBox ItemsSource="{Binding PluginLogLevels}" DisplayMemberPath="DisplayName" SelectedValuePath="Value" SelectedValue="{Binding EditedSettings.NszLogLevel}"/>
+                        <TextBlock Text="NxNandManager" Margin="0,6,0,2"/>
+                        <ComboBox ItemsSource="{Binding PluginLogLevels}" DisplayMemberPath="DisplayName" SelectedValuePath="Value" SelectedValue="{Binding EditedSettings.NandLogLevel}"/>
+                        <TextBlock Text="MTP" Margin="0,6,0,2"/>
+                        <ComboBox ItemsSource="{Binding PluginLogLevels}" DisplayMemberPath="DisplayName" SelectedValuePath="Value" SelectedValue="{Binding EditedSettings.MtpLogLevel}"/>
+                        <TextBlock Text="NSC_BUILDER / nscb_rust" Margin="0,6,0,2"/>
+                        <ComboBox ItemsSource="{Binding PluginLogLevels}" DisplayMemberPath="DisplayName" SelectedValuePath="Value" SelectedValue="{Binding EditedSettings.PackageLogLevel}"/>
+                    </StackPanel>
+                </GroupBox>
+
                     <GroupBox x:Name="PackageOperationsGroup" Visibility="{Binding Source={x:Static app:App.Features}, Path=PackageOperationsActive, Converter={StaticResource FalseToCollapseVisibilityConverter}}" Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Package_Title}" Margin="0,0,0,12">
                         <StackPanel Margin="6">
                             <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Package_Engine}"/>

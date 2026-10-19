@@ -38,7 +38,7 @@ public sealed class ViewerUpdateService
     private static HttpClient CreateClient()
     {
         var client = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("NxFileViewer-Updater/1.0");
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("NxFileViewerFork-Updater/1.0");
         return client;
     }
     public async Task<ViewerRelease?> CheckAsync(Version current, string architecture, CancellationToken token, bool includePrereleases = false, string? currentTag = null, bool selfContained = false, bool automatic = false)
@@ -85,9 +85,9 @@ public sealed class ViewerUpdateService
             ? parsedCurrent : ViewerVersion.FromNumeric(current);
         if (candidateVersion.CompareTo(installedVersion) <= 0) return null;
         var variant = selfContained ? "_self-contained" : "";
-        var name = $"NxFileViewer_v{version.Major}.{version.Minor}.{version.Build}{variant}_{architecture}.zip";
+        var name = $"NxFileViewerFork_v{version.Major}.{version.Minor}.{version.Build}{variant}_{architecture}.zip";
         var assets = release.GetProperty("assets").EnumerateArray().ToArray();
-        var taggedName = $"NxFileViewer_v{tag.TrimStart('v', 'V')}{variant}_{architecture}.zip";
+        var taggedName = $"NxFileViewerFork_v{tag.TrimStart('v', 'V')}{variant}_{architecture}.zip";
         var asset = assets.FirstOrDefault(a => a.GetProperty("name").GetString() == name);
         if (asset.ValueKind == JsonValueKind.Undefined) asset = assets.FirstOrDefault(a => a.GetProperty("name").GetString() == taggedName);
         if (asset.ValueKind == JsonValueKind.Undefined)

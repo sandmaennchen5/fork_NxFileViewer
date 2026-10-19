@@ -29,6 +29,7 @@ public class NcaItemIntegrityService : INcaItemIntegrityService
         if (ncaItem == null)
             throw new ArgumentNullException(nameof(ncaItem));
 
+        _logger.LogTrace("NCA integrity started: {Nca}; expectedHashProvided={HasExpectedHash}", ncaItem.DisplayName, expectedHash != null);
         // Clear previous errors
         ncaItem.Errors.RemoveAllOfCategory(Category.IntegrityCheck);
 
@@ -86,6 +87,7 @@ public class NcaItemIntegrityService : INcaItemIntegrityService
         Exception? hashEx = null;
         try
         {
+            _logger.LogTrace("Computing original NCA SHA256: {Nca}", ncaItem.DisplayName);
             var actualHash = await _ncaHashService.ComputeSha256Async(nca, cancellationToken, progressReporter, bufferSize);
 
             if (expectedHash == null)
@@ -139,6 +141,7 @@ public class NcaItemIntegrityService : INcaItemIntegrityService
             (false, true) => NcaIntegrity.Modified,
             (true, true) => NcaIntegrity.Original
         };
+        _logger.LogTrace("NCA integrity completed: {Nca}; result={Result}", ncaItem.DisplayName, ncaIntegrity);
         return ncaIntegrity;
     }
 }

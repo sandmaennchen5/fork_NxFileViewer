@@ -1,4 +1,5 @@
 using System;
+using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
@@ -10,6 +11,7 @@ namespace Emignatik.NxFileViewer.Views.Windows;
 
 public sealed class SphairaMtpWindow : Window
 {
+    private readonly ILogger<SphairaMtpWindow>? _logger;
     private readonly IMtpBackend _backend = new ShellMtpBackend();
     private readonly ListBox _items = new() { DisplayMemberPath = nameof(MtpEntry.Name), Margin = new Thickness(0, 8, 0, 8) };
     private readonly TextBlock _location = new() { TextWrapping = TextWrapping.Wrap };
@@ -22,8 +24,9 @@ public sealed class SphairaMtpWindow : Window
     public bool DirectRead => _direct.IsChecked == true;
     public string CacheDirectory => _cache.Text.Trim();
     public MtpEntry? Selection { get; private set; }
-    public SphairaMtpWindow()
+    public SphairaMtpWindow(ILogger<SphairaMtpWindow>? logger = null)
     {
+        _logger = logger;
         var keys = LocalizationManager.Instance.Current.Keys;
         Title = keys.Mtp_Title; Width = 650; Height = 620; WindowStartupLocation = WindowStartupLocation.CenterOwner;
         var panel = new DockPanel { Margin = new Thickness(16) };
@@ -83,7 +86,7 @@ public sealed class SphairaMtpWindow : Window
             _location.Text = items.Count == 0 ? LocalizationManager.Instance.Current.Keys.Mtp_NoDevice
                 : entry?.Name ?? LocalizationManager.Instance.Current.Keys.Mtp_Devices;
         }
-        catch (Exception ex) { _location.Text = ex.Message; }
+        catch (Exception ex) { _logger?.LogWarning(ex, "MTP browsing failed."); _location.Text = ex.Message; }
         finally { _busy = false; _items.IsEnabled = true; _open.IsEnabled = Choice() != null; }
     }
 }

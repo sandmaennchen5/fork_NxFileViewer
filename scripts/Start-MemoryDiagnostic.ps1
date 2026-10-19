@@ -1,7 +1,7 @@
 param(
     [ValidateSet('baseline', 'no-logos', 'one-preview')]
     [string]$Mode = 'baseline',
-    [string]$ExePath = (Join-Path $PSScriptRoot '../src/NxFileViewer/bin/Debug/net8.0-windows7.0/NxFileViewer.exe')
+    [string]$ExePath = (Join-Path $PSScriptRoot '../src/NxFileViewer/bin/Debug/net8.0-windows7.0/NxFileViewerFork.exe')
 )
 $ErrorActionPreference = 'Stop'
 $resolvedExe = (Resolve-Path -LiteralPath $ExePath).Path

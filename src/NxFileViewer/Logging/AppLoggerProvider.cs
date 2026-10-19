@@ -11,10 +11,12 @@ public class AppLoggerProvider : IAppLoggerProvider
     private readonly IAppSettings _appSettings;
     private readonly SessionFileLog _fileLog = new(Path.Combine(AppContext.BaseDirectory, "Logs"), int.MaxValue);
     private bool _retentionConfigured;
+    private readonly MemoryTraceDiagnostics _memoryTrace;
 
     public AppLoggerProvider(IAppSettings appSettings)
     {
         _appSettings = appSettings ?? throw new ArgumentNullException(nameof(appSettings));
+        _memoryTrace = new MemoryTraceDiagnostics(CreateLogger(typeof(MemoryTraceDiagnostics).FullName!));
         _appSettings.PropertyChanged += OnSettingsChanged;
     }
 
@@ -26,6 +28,7 @@ public class AppLoggerProvider : IAppLoggerProvider
 
     private void OnSettingsChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
+        _memoryTrace.Refresh();
         if (_retentionConfigured && (string.IsNullOrEmpty(e.PropertyName) || e.PropertyName == nameof(IAppSettings.LogFileRetentionCount)))
             _fileLog.Trim(_appSettings.LogFileRetentionCount);
     }
@@ -46,6 +49,7 @@ public class AppLoggerProvider : IAppLoggerProvider
     public void Dispose()
     {
         _appSettings.PropertyChanged -= OnSettingsChanged;
+        _memoryTrace.Dispose();
         _fileLog.Dispose();
         _loggers.Clear();
     }

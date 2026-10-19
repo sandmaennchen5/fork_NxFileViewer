@@ -19,6 +19,7 @@ namespace Emignatik.NxFileViewer.Views.Windows;
 // Embedded workspace page; its view model survives navigation.
 public partial class BatchIntegrityWindow : UserControl
 {
+    private DispatcherOperation? _pendingSelectionScroll;
     private readonly DispatcherTimer _layoutTimer = new() { Interval = TimeSpan.FromMilliseconds(350) };
     private readonly List<WeakReference<DataGrid>> _packageGrids = new();
     private string _defaultLayout = "";
@@ -34,6 +35,7 @@ public partial class BatchIntegrityWindow : UserControl
     {
         InitializeComponent();
         _defaultLayout = BatchColumnLayout.Capture(ResultsGrid.Columns);
+        Loaded += (_, _) => ScrollSelectedResultIntoView();
         _layoutTimer.Tick += (_, _) => FlushColumnLayout();
         foreach (var column in ResultsGrid.Columns)
             foreach (var property in new[] { DataGridColumn.VisibilityProperty, DataGridColumn.DisplayIndexProperty, DataGridColumn.WidthProperty })
@@ -60,6 +62,42 @@ public partial class BatchIntegrityWindow : UserControl
                 }
             }
         };
+    }
+    private void ResultsSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        // SelectionChanged from nested package grids bubbles through the main grid.
+        if (ReferenceEquals(e.OriginalSource, ResultsGrid)) ScrollSelectedResultIntoView();
+    }
+
+    private void ScrollSelectedResultIntoView()
+    {
+        if (_pendingSelectionScroll?.Status == DispatcherOperationStatus.Pending) _pendingSelectionScroll.Abort();
+        if (ResultsGrid.SelectedItem is not BatchIntegrityResult selected) return;
+        // Wait until bindings and row replacement have finished; only follow the latest selection.
+        _pendingSelectionScroll = Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() =>
+        {
+            if (!ReferenceEquals(ResultsGrid.SelectedItem, selected) || !ResultsGrid.Items.Contains(selected)) return;
+            if (DataContext is BatchIntegrityWindowViewModel { GroupFiles: true })
+            {
+                ResultsGrid.UpdateLayout();
+                foreach (var group in Descendants<GroupItem>(ResultsGrid))
+                    if (group.Content is CollectionViewGroup items && items.Items.Contains(selected))
+                        Descendants<Expander>(group).FirstOrDefault()?.SetCurrentValue(Expander.IsExpandedProperty, true);
+                ResultsGrid.UpdateLayout();
+            }
+            // No column argument: keep the horizontal scroll position and keyboard focus.
+            ResultsGrid.ScrollIntoView(selected);
+        }));
+    }
+
+    private static IEnumerable<T> Descendants<T>(DependencyObject root) where T : DependencyObject
+    {
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+        {
+            var child = VisualTreeHelper.GetChild(root, i);
+            if (child is T match) yield return match;
+            foreach (var descendant in Descendants<T>(child)) yield return descendant;
+        }
     }
     private GridLength _expandedResultsWidth = new(3, GridUnitType.Star);
     private GridLength _expandedDetailsWidth = new(2, GridUnitType.Star);

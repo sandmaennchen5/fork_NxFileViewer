@@ -1,4 +1,5 @@
 using System;
+using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
 using System.IO;
 using System.Windows;
@@ -20,6 +21,7 @@ namespace Emignatik.NxFileViewer.Views.Windows;
 
 public sealed class NandViewModel : NotifyPropertyChangedBase
 {
+    private readonly ILogger<NandViewModel>? _logger;
     private readonly NandCliPlugin _plugin;
     private readonly IFileOpeningService? _opening;
     private NandExplorerEntry? _save;
@@ -28,8 +30,9 @@ public sealed class NandViewModel : NotifyPropertyChangedBase
     private string _information = "";
     private string? _partition;
     private IReadOnlyList<string> _partitions = Array.Empty<string>();
-    public NandViewModel(NandCliPlugin plugin, IMainBackgroundTaskRunnerService runner, IFileOpeningService? opening = null)
+    public NandViewModel(NandCliPlugin plugin, IMainBackgroundTaskRunnerService runner, IFileOpeningService? opening = null, ILogger<NandViewModel>? logger = null)
     {
+        _logger = logger;
         _plugin = plugin;
         _opening = opening;
         Runner = runner;
@@ -111,8 +114,8 @@ public sealed class NandViewModel : NotifyPropertyChangedBase
             }
             else LoadExplorerContent("/", null);
         }
-        catch (OperationCanceledException) { }
-        catch (Exception ex) { ThemedDialog.Notice(ex.Message, "NAND Explorer", MessageBoxImage.Error); }
+        catch (OperationCanceledException) { _logger?.LogInformation("NAND operation canceled."); }
+        catch (Exception ex) { _logger?.LogError(ex, "NAND operation failed."); ThemedDialog.Notice(ex.Message, "NAND Explorer", MessageBoxImage.Error); }
     }
     public void LoadExplorer(string path) => LoadExplorerContent(path, _save);
     private async void LoadExplorerContent(string path, NandExplorerEntry? save)
@@ -137,8 +140,8 @@ public sealed class NandViewModel : NotifyPropertyChangedBase
             NotifyPropertyChanged(nameof(ExplorerEntries)); NotifyPropertyChanged(nameof(ExplorerPath)); NotifyPropertyChanged(nameof(ExplorerDisplayPath)); UpExplorerCommand.TriggerCanExecuteChanged();
             OpenSaveCommand.TriggerCanExecuteChanged(); LeaveSaveCommand.TriggerCanExecuteChanged(); ExportSaveCommand.TriggerCanExecuteChanged();
         }
-        catch (OperationCanceledException) { }
-        catch (Exception ex) { ThemedDialog.Notice(ex.Message, "NAND Explorer", MessageBoxImage.Error); }
+        catch (OperationCanceledException) { _logger?.LogInformation("NAND operation canceled."); }
+        catch (Exception ex) { _logger?.LogError(ex, "NAND operation failed."); ThemedDialog.Notice(ex.Message, "NAND Explorer", MessageBoxImage.Error); }
     }
     private static NandExplorerFolder? FindFolder(IEnumerable<NandExplorerFolder> folders, string path)
     {
@@ -160,8 +163,8 @@ public sealed class NandViewModel : NotifyPropertyChangedBase
         {
             await Runner.RunAsync(new RunnableRelay((_, token) => { if (save == null) _plugin.ExportExplorer(source, partition, entry, dialog.FileName, token); else _plugin.ExportSaveFile(source, partition, save, entry.Path, dialog.FileName, token); }) { SupportsCancellation = true });
         }
-        catch (OperationCanceledException) { }
-        catch (Exception ex) { ThemedDialog.Notice(ex.Message, "NAND Explorer", MessageBoxImage.Error); }
+        catch (OperationCanceledException) { _logger?.LogInformation("NAND operation canceled."); }
+        catch (Exception ex) { _logger?.LogError(ex, "NAND operation failed."); ThemedDialog.Notice(ex.Message, "NAND Explorer", MessageBoxImage.Error); }
     }
     private async void ExportSave()
     {
@@ -175,8 +178,8 @@ public sealed class NandViewModel : NotifyPropertyChangedBase
             await Runner.RunAsync(new RunnableRelay((_, token) => _plugin.ExportSave(source, partition, save, destination, token)) { SupportsCancellation = true });
             ThemedDialog.Notice(LocalizationManager.Instance.Current.Keys.Nand_ExportDone + Environment.NewLine + destination, "NAND Explorer", MessageBoxImage.Information);
         }
-        catch (OperationCanceledException) { }
-        catch (Exception ex) { ThemedDialog.Notice(ex.Message, "NAND Explorer", MessageBoxImage.Error); }
+        catch (OperationCanceledException) { _logger?.LogInformation("NAND operation canceled."); }
+        catch (Exception ex) { _logger?.LogError(ex, "NAND operation failed."); ThemedDialog.Notice(ex.Message, "NAND Explorer", MessageBoxImage.Error); }
     }
     private void OpenDrive()
     {
@@ -194,7 +197,7 @@ public sealed class NandViewModel : NotifyPropertyChangedBase
             Partitions = partitions.Select(p => p.Name).ToArray(); SelectedPartition = Partitions.FirstOrDefault();
         }
         catch (UnauthorizedAccessException) { ThemedDialog.Notice(LocalizationManager.Instance.Current.Keys.Nand_DriveAccessDenied, "NAND Explorer", MessageBoxImage.Error); }
-        catch (Exception ex) { ThemedDialog.Notice(ex.Message, "NAND Explorer", MessageBoxImage.Error); }
+        catch (Exception ex) { _logger?.LogError(ex, "NAND operation failed."); ThemedDialog.Notice(ex.Message, "NAND Explorer", MessageBoxImage.Error); }
     }
     public void SetFile(NxFile file)
     {
@@ -254,8 +257,8 @@ public sealed class NandViewModel : NotifyPropertyChangedBase
             SelectedPartition = Partitions.Count > 0 ? Partitions[0] : null;
             ReadInformationCommand.TriggerCanExecuteChanged();
         }
-        catch (OperationCanceledException) { Information = keys.Nand_Cancelled; }
-        catch (Exception ex) { ThemedDialog.Notice(ex.Message, "NxNandManager", MessageBoxImage.Error); }
+        catch (OperationCanceledException) { _logger?.LogInformation("NAND operation canceled."); Information = keys.Nand_Cancelled; }
+        catch (Exception ex) { _logger?.LogError(ex, "NAND operation failed."); ThemedDialog.Notice(ex.Message, "NxNandManager", MessageBoxImage.Error); }
     }
 
     private async void ReadInformation()
@@ -266,8 +269,8 @@ public sealed class NandViewModel : NotifyPropertyChangedBase
             Partitions = NandCliPlugin.FindPartitions(Information);
             SelectedPartition = Partitions.Count > 0 ? Partitions[0] : null;
         }
-        catch (OperationCanceledException) { ThemedDialog.Notice(LocalizationManager.Instance.Current.Keys.Nand_Cancelled, "NxNandManager", MessageBoxImage.Information); }
-        catch (Exception ex) { ThemedDialog.Notice(ex.Message, "NxNandManager", MessageBoxImage.Error); }
+        catch (OperationCanceledException) { _logger?.LogInformation("NAND operation canceled."); ThemedDialog.Notice(LocalizationManager.Instance.Current.Keys.Nand_Cancelled, "NxNandManager", MessageBoxImage.Information); }
+        catch (Exception ex) { _logger?.LogError(ex, "NAND operation failed."); ThemedDialog.Notice(ex.Message, "NxNandManager", MessageBoxImage.Error); }
     }
 
     private async void Export()
@@ -283,8 +286,8 @@ public sealed class NandViewModel : NotifyPropertyChangedBase
             await Runner.RunAsync(new RunnableRelay((progress, token) => _plugin.Export(source, dialog.FileName, partition, progress, token)) { SupportsCancellation = true });
             ThemedDialog.Notice(keys.Nand_ExportDone + Environment.NewLine + dialog.FileName, "NxNandManager", MessageBoxImage.Information);
         }
-        catch (OperationCanceledException) { ThemedDialog.Notice(keys.Nand_Cancelled, "NxNandManager", MessageBoxImage.Information); }
-        catch (Exception ex) { ThemedDialog.Notice(ex.Message, "NxNandManager", MessageBoxImage.Error); }
+        catch (OperationCanceledException) { _logger?.LogInformation("NAND operation canceled."); ThemedDialog.Notice(keys.Nand_Cancelled, "NxNandManager", MessageBoxImage.Information); }
+        catch (Exception ex) { _logger?.LogError(ex, "NAND operation failed."); ThemedDialog.Notice(ex.Message, "NxNandManager", MessageBoxImage.Error); }
     }
 }
 

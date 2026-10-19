@@ -182,7 +182,7 @@ if ($plan.SchemaVersion -eq 2) {
         }
         if ($NoRestart) { exit 1 }
         Add-Type -AssemblyName PresentationFramework
-        [System.Windows.MessageBox]::Show($message,'NxFileViewer Update') | Out-Null
+        [System.Windows.MessageBox]::Show($message,'NxFileViewer Fork Update') | Out-Null
         exit 1
     } finally { if ($updateLock) { $updateLock.Dispose() } }
     exit 0
@@ -240,6 +240,6 @@ try {
     }
     if ($NoRestart) { exit 1 }
     Add-Type -AssemblyName PresentationFramework
-    [System.Windows.MessageBox]::Show($message, 'NxFileViewer Update') | Out-Null
+    [System.Windows.MessageBox]::Show($message, 'NxFileViewer Fork Update') | Out-Null
     exit 1
 }

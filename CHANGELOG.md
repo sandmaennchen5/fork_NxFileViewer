@@ -1,18 +1,33 @@
 # Changelog
 
-All notable changes to NxFileViewer will be documented in this file.
+All notable changes to NxFileViewer Fork will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+- Clean up unused Explorer DLL versions after menu changes and on application startup. Protect active registrations, loaded or locked DLLs and unexpected contents; retry deferred cleanup on later starts.
+
 - Added a program rollback button using the latest retained update backup, with confirmation, automatic restart, and disabled state when no backup remains.
 
 ### Added
 
+- Standalone diagnostic LogViewer with colored file groups, multiline exception details, combined text/severity/RAM filters, virtualized rendering and reload. Publish separate x64/x86 ZIPs with and without .NET; support `Publish.ps1 -LogViewerOnly`.
+
 - Offer manual cleanup of old managed NSZ/NxNandManager versions and complete successful application-update directories, including leftover folders whose backup EXE was already removed, with an exact-path confirmation and rollback warning. Preserve active/custom executables, keys, linked or locked directories, and pending or failed program updates.
 
+## [4.1.0] - 2026-10-18
+
+### Changed
+
+- Publish `NxFileViewerFork.exe` and flat `NxFileViewerFork_v*` ZIPs with a stable package identity, full package updates and rollback; display NxFileViewer Fork and link the fork repository in application metadata.
+- Store TitleDB, GitHub update metadata and offline firmware references under `Plugins/TitleDB`, `Plugins/CacheUpdates` and `Plugins/fwhashes`. Only the optional one-time transition migrates old data and settings paths.
+- Publish Explorer setup files exclusively inside their setup ZIPs.
+
+### Added
+
+- Legacy-compatible transition ZIPs under the old `NxFileViewer_v*` names: the transition fetches the latest stable verified new package and installs the renamed application. Preserve architecture, runtime variant and conflicting user files; offer Retry on download failure. Generate transition EXEs with each release version automatically so older updaters accept their version check.
 ## [4.0.1-beta4] - 2026-10-18
 
 ### Added

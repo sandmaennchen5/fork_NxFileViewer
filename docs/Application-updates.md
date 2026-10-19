@@ -19,24 +19,36 @@ Release ZIPs contain their files directly at the archive root. Additional files 
 `nxfileviewer-package.json` identifies the package independently of the executable filename:
 
 ```json
-{"SchemaVersion":1,"ApplicationId":"NxFileViewerFork","Executable":"NxFileViewer.exe"}
+{"SchemaVersion":1,"ApplicationId":"NxFileViewerFork","Executable":"NxFileViewerFork.exe"}
 ```
 
-Keep the application ID stable. `./Publish.ps1 -ExecutableName NxFileViewerFork.exe` publishes a renamed executable and records its name automatically. File associations use a stable launcher with a sibling target reference. Settings retain the name `NxFileViewer.settings.json`.
+Keep the application ID stable. `./Publish.ps1 -ExecutableName NxFileViewerFork.exe` publishes a renamed executable and records its name automatically. File associations use a stable launcher with a sibling target reference. Settings use `NxFileViewerFork.settings.json`.
 
 A hidden PowerShell helper waits for process exit, verifies all staged file hashes, backs up overwritten files and installs the complete package. On failure it restores the previous files and removes newly added files. A renamed previous main executable is removed only as part of this transaction. Backups and a journal remain under `Updates/<GUID>` for package rollback and diagnosis. No elevation is used.
 
-Older single-executable archives remain readable by the new updater. Previously shipped updaters cannot read these new multi-file packages: install this version manually once before using future automatic updates.
+Older single-executable archives remain readable by the new updater. Publishing includes legacy-compatible transition ZIPs by default, alongside the normal new-name application ZIPs:
 
-## Publishing 4.0.1-beta4
+```powershell
+./Publish.ps1
+# Optional: omit transition ZIPs when legacy upgrades are no longer needed.
+./Publish.ps1 -IncludeLegacyTransition:$false
+```
 
-The project uses package version `4.0.1-beta4`. Run `Publish.ps1`, create a GitHub Release with tag `v4.0.1-beta4`, and enable the pre-release option. Attach:
+`NxFileViewer_v<version>_<variant/architecture>.zip` contains only a transition `NxFileViewer.exe`, compatible with old single-file updaters. Its download logic always requests GitHub's latest stable release, independently of the transition EXE's build version. It selects the matching `NxFileViewerFork_v*` package, verifies its SHA-256 digest, architecture, package identity and actual target release version, then migrates data and installs the renamed application. Failed downloads stay visible with a Retry button. Drafts, previews, old-name transition packages and another runtime variant are not substituted.
 
-- `NxFileViewer_v4.0.1-beta4_x64.zip`
-- `NxFileViewer_v4.0.1-beta4_x86.zip`
-- `NxFileViewer_v4.0.1-beta4_self-contained_x64.zip` (compressed, includes .NET)
-- `NxFileViewer_v4.0.1-beta4_self-contained_x86.zip` (compressed, includes .NET)
-- `NxFileViewer_v4.0.1-beta4_firmware-hashes.zip` (optional reference add-on)
+The transition stays running beyond older helpers' early-startup check. Its own embedded version must still match the release advertising it: old updaters check the downloaded EXE version before starting it. Therefore a transition ZIP cannot simply be renamed and reused unchanged in a later release. `Publish.ps1` rebuilds all four transition variants with the current application version automatically. Upload those generated old-name ZIPs with each new release, together with the new-name application packages. A user who skipped 4.1.0 can then update directly through a later release; manually starting an older transition EXE also downloads the current stable release.
+
+Only the transition moves `Cache/TitleDB`, `Cache/Updates` and `fw/hashes` into `Plugins/TitleDB`, `Plugins/CacheUpdates` and `Plugins/fwhashes`, and renames `NxFileViewer.settings.json` to `NxFileViewerFork.settings.json`. Existing destination files take precedence; conflicting legacy files remain intact. The normal application does not inspect or migrate legacy locations. Manual upgrades from older versions must use the transition EXE or move these files once themselves.
+
+## Publishing 4.1.0
+
+The project uses package version `4.1.0`. Run `Publish.ps1`, create a GitHub Release with tag `v4.1.0`, as a stable release. Attach:
+
+- `NxFileViewerFork_v4.1.0_x64.zip`
+- `NxFileViewerFork_v4.1.0_x86.zip`
+- `NxFileViewerFork_v4.1.0_self-contained_x64.zip` (compressed, includes .NET)
+- `NxFileViewerFork_v4.1.0_self-contained_x86.zip` (compressed, includes .NET)
+- `NxFileViewerFork_v4.1.0_firmware-hashes.zip` (optional reference add-on)
 
 Application ZIPs include the portable executable with embedded debug symbols; firmware references stay in their separate ZIP. GitHub Actions artifacts alone are not releases available to the updater. Architecture selection follows the running viewer process.
 
@@ -52,7 +64,7 @@ The updater uses the installed assembly's informational version, including its b
 
 Preview updates require Include pre-releases to be enabled. Stable-only mode can still offer the final release at the same numeric version to an installed beta. The downloaded EXE must match the full offered version, not just its numeric part.
 
-The older 4.0.0 Beta 1 builds contained numeric-only comparison and needed a manual upgrade once. This limitation does not apply to 4.0.1-beta1: it can discover 4.0.1-beta4 when published with compatible assets and pre-release updates enabled.
+The older 4.0.0 Beta 1 builds contained numeric-only comparison and needed a manual upgrade once. The 4.1.0 transition ZIPs retain the names expected by compatible older updaters.
 
 ## Validation
 
@@ -60,7 +72,7 @@ Tests use mocked releases/downloads, corrupt and unsafe archives, and isolated d
 
 ## Runtime variants
 
-Each x64/x86 release offers a standard ZIP requiring .NET 8 Desktop Runtime and a compressed self-contained ZIP with .NET included. Standard names remain NxFileViewer_v<VERSION>_<ARCH>.zip; bundled-runtime names are NxFileViewer_v<VERSION>_self-contained_<ARCH>.zip. Both contain the main executable and the package manifest, plus any additional published files.
+Each x64/x86 release offers a standard ZIP requiring .NET 8 Desktop Runtime and a compressed self-contained ZIP with .NET included. Standard names remain NxFileViewerFork_v<VERSION>_<ARCH>.zip; bundled-runtime names are NxFileViewerFork_v<VERSION>_self-contained_<ARCH>.zip. Both contain the main executable and the package manifest, plus any additional published files.
 
 The executable records its runtime distribution at build time. Updates preserve this distribution and architecture, including preview releases. A missing compatible package is reported or skipped while listing previews; another runtime distribution is never substituted. Previously installed standard builds continue using the original ZIP names.
 
@@ -76,5 +88,3 @@ Application cleanup removes complete successful automatic-update directories und
 ### Restore the previous program version
 
 The update center offers **Use previous version** while a completed update still contains its validated package backups. It selects the most recently completed eligible update, asks for confirmation, and restarts through the same atomic replacement and startup recovery helper used for updates. The complete previous package is restored, including overwritten companions and removal of files added by that update. The current package becomes a new recovery backup. Cleaning old program versions removes the corresponding rollback backups; the button is disabled when none remain.
-
-Existing TitleDB, metadata cache and firmware references are copied from the old paths to Plugins/TitleDB, Plugins/CacheUpdates and Plugins/fwhashes on first use. Existing destination files take precedence; legacy copies remain available.

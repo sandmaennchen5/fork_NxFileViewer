@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows7.0</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <AssemblyName>NxFileViewer</AssemblyName>
+    <RootNamespace>NxFileViewer.Transition</RootNamespace>
+    <Version>4.1.0</Version>
+    <Product>NxFileViewer Fork</Product>
+    <Authors>sandmaennchen5</Authors>
+    <RepositoryUrl>https://github.com/sandmaennchen5/fork_NxFileViewer</RepositoryUrl>
+    <ApplicationIcon>../NxFileViewer/Styling/Icons/Icon.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../NxFileViewer/Services/Updates/ViewerUpdateService.cs" Link="ViewerUpdateService.cs" />
+    <Compile Include="../NxFileViewer/Services/Updates/ViewerPackageLayout.cs" Link="ViewerPackageLayout.cs" />
+    <Compile Include="../NxFileViewer/Services/Updates/ViewerVersion.cs" Link="ViewerVersion.cs" />
+    <EmbeddedResource Include="../NxFileViewer/Services/Updates/InstallUpdate.ps1" LogicalName="ViewerUpdate.InstallUpdate.ps1" />
+    <AssemblyMetadata Include="ViewerSelfContained" Value="$(SelfContained)" />
+  </ItemGroup>
+</Project>

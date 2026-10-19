@@ -1,5 +1,6 @@
-using System;
+﻿using System;
 using System.Threading;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using Emignatik.NxFileViewer.Commands;
@@ -24,8 +25,10 @@ public sealed class WorkspaceNavigationTest
         {
             try
             {
-                var app = new App { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+                var app = CreateWorkspaceTestApp();
                 app.InitializeComponent();
+                VerifyLogPresentation();
+                VerifyStandaloneLogViewer();
                 var main = new MainWindow();
                 app.MainWindow = main;
                 var closed = false;
@@ -35,6 +38,10 @@ public sealed class WorkspaceNavigationTest
                 var batchTab = (TabItem)main.FindName("BatchTab");
                 var batchPage = Assert.IsType<BatchIntegrityWindow>(batchTab.Content);
                 var batch = Assert.IsType<BatchIntegrityWindowViewModel>(batchPage.DataContext);
+                Assert.Empty(batch.Results);
+                Assert.Equal(Guid.Empty, batch.SelectedHistory?.Id);
+                Assert.Equal("", batch.History[0].Label);
+                Assert.False(batch.ResumeHistoryCommand.CanExecute(null));
                 typeof(BatchIntegrityWindow).GetMethod("ApplyDefaultColumns", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
                     .Invoke(batchPage, null);
                 var singleMtp = Assert.IsType<Button>(main.FindName("SphairaSingleButton"));
@@ -122,6 +129,12 @@ public sealed class WorkspaceNavigationTest
                 Assert.NotSame(settings, plugins);
                 Assert.True(plugins.PluginSettingsOnly);
                 plugins.EditedSettings.NszCompressionLevel = 9;
+                var originalLogLevels = new[] { actual.NszLogLevel, actual.NandLogLevel, actual.MtpLogLevel, actual.PackageLogLevel };
+                Assert.Equal(8, plugins.PluginLogLevels.Count());
+                plugins.EditedSettings.NszLogLevel = PluginLogLevel.Debug;
+                plugins.EditedSettings.NandLogLevel = PluginLogLevel.None;
+                plugins.EditedSettings.MtpLogLevel = PluginLogLevel.Warning;
+                plugins.EditedSettings.PackageLogLevel = PluginLogLevel.Error;
                 var originalNandExecutable = actual.NandExecutablePath;
                 var originalBisKeys = actual.NandBisKeysPath;
                 var packageSettings = Emignatik.NxFileViewer.Services.PackageOperations.PackageEngineConfiguration.Capture(actual);
@@ -152,6 +165,12 @@ public sealed class WorkspaceNavigationTest
                 Assert.Equal(PackageEngine.Kronos, actual.PackageEngine);
                 Assert.Equal(@"C:\Plugins\Kronos", actual.KronosPackageDirectory);
                 Assert.Equal("C:\\Plugins\\NxNandManager.exe", actual.NandExecutablePath);
+                Assert.Equal(PluginLogLevel.Debug, actual.NszLogLevel);
+                Assert.Equal(PluginLogLevel.None, actual.NandLogLevel);
+                Assert.Equal(PluginLogLevel.Warning, actual.MtpLogLevel);
+                Assert.Equal(PluginLogLevel.Error, actual.PackageLogLevel);
+                actual.NszLogLevel = originalLogLevels[0]; actual.NandLogLevel = originalLogLevels[1];
+                actual.MtpLogLevel = originalLogLevels[2]; actual.PackageLogLevel = originalLogLevels[3];
                 main.Navigate(WorkspaceSection.Nand);
                 var nandPage = Assert.IsType<NandView>(((TabItem)main.FindName("NandTab")).Content);
                 Assert.IsType<NandViewModel>(nandPage.DataContext);
@@ -256,8 +275,11 @@ public sealed class WorkspaceNavigationTest
                 Assert.False(actual.NszCheckUpdates);
                 var settingsManager = App.ServiceProvider.GetRequiredService<IAppSettingsManager>();
                 Assert.False(settingsManager.Clone().NszCheckUpdates);
+                var logoSetting = Assert.IsType<CheckBox>(settingsPage.FindName("BatchHistoryLogosCheckBox"));
+                Assert.Equal("EditedSettings.SaveBatchHistoryLogos", logoSetting.GetBindingExpression(System.Windows.Controls.Primitives.ToggleButton.IsCheckedProperty)!.ParentBinding.Path.Path);
+
                 var savedSettingsPath = System.IO.Path.Combine(Emignatik.NxFileViewer.Utils.PathHelper.CurrentAppDir,
-                    "NxFileViewer.settings.json");
+                    "NxFileViewerFork.settings.json");
                 using (var saved = System.Text.Json.JsonDocument.Parse(System.IO.File.ReadAllText(savedSettingsPath)))
                     Assert.False(saved.RootElement.GetProperty(nameof(IAppSettings.NszCheckUpdates)).GetBoolean());
                 settings.ApplySettingsCommand.Execute(null);
@@ -305,7 +327,7 @@ public sealed class WorkspaceNavigationTest
                     "NSZ", "NSZ", "Cdn", "Blockless", nszOverview.NcasIntegrity, null);
                 showCompleted.Invoke(batch, new object[] { nszResult });
                 batch.SelectedResult = nszResult;
-                var capturedNsz = Assert.IsType<Emignatik.NxFileViewer.Views.UserControls.FileOverviewViewModel>(batch.PreviewOverview);
+                var capturedNsz = Assert.IsType<Emignatik.NxFileViewer.Views.UserControls.StoredFileOverviewViewModel>(batch.StoredOverview);
                 Assert.Equal(nszOverview.NcasIntegrity, capturedNsz.NcasIntegrity);
                 var nspOverview = new Emignatik.NxFileViewer.Models.Overview.FileOverview(new PreviewItem());
                 var nspPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), Guid.NewGuid() + ".nsp");
@@ -322,9 +344,11 @@ public sealed class WorkspaceNavigationTest
                 showCompleted.Invoke(batch, new object[] { nspResult });
                 Assert.Equal(nspPath, batch.SelectedResult!.FilePath);
                 batch.SelectedResult = nspResult;
-                Assert.NotNull(batch.PreviewOverview);
+                Assert.Null(batch.PreviewOverview);
+                Assert.NotNull(batch.StoredOverview);
                 batch.SelectedResult = nszResult;
-                Assert.Same(capturedNsz, batch.PreviewOverview);
+                Assert.Null(batch.PreviewOverview);
+                Assert.NotNull(batch.StoredOverview);
                 var uncachedResult = nszResult with { FilePath = nszPath + ".missing.nsz" };
                 batch.Results.Add(uncachedResult);
                 batch.SelectedResult = uncachedResult;
@@ -438,7 +462,8 @@ public sealed class WorkspaceNavigationTest
                 Assert.True(multiDisplayResult.PackagesExpanded);
                 Assert.Equal(Visibility.Visible, multiRow.DetailsVisibility);
                 Assert.Same(multiDisplayResult, batch.SelectedResult);
-                Assert.Same(capturedNsz, batch.PreviewOverview);
+                Assert.Null(batch.PreviewOverview);
+                Assert.NotNull(batch.StoredOverview);
                 var detailsContent = Assert.IsType<Border>(grid.RowDetailsTemplate.LoadContent());
                 var packageGrid = Assert.IsType<DataGrid>(detailsContent.Child);
                 packageGrid.ItemsSource = new[] { new Emignatik.NxFileViewer.Services.Integrity.BatchPackageSummary(
@@ -539,6 +564,50 @@ public sealed class WorkspaceNavigationTest
                 var findScroll = typeof(BatchIntegrityWindow).GetMethod("FindScrollViewer", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
                 var scroll = Assert.IsType<ScrollViewer>(findScroll.Invoke(null, new object[] { grid }));
                 Assert.True(scroll.ScrollableWidth > 0);
+                var previousFollowSorts = batch.ResultsView.SortDescriptions.ToArray();
+                var previousWindowVisibility = main.IsVisible;
+                batch.ResultsView.SortDescriptions.Clear();
+                if (!previousWindowVisibility) { main.Opacity = 0; main.ShowInTaskbar = false; main.Show(); }
+                try
+                {
+                    batch.Results.Clear();
+                    for (var index = 0; index < 100; index++)
+                        batch.Results.Add(nszResult with { FilePath = "C:/scroll-test/game-" + index.ToString("D3") + ".nsz" });
+                    batch.SelectedResult = batch.Results[0];
+                    System.Windows.Threading.Dispatcher.CurrentDispatcher.Invoke(() => grid.UpdateLayout(), System.Windows.Threading.DispatcherPriority.ContextIdle);
+                    scroll.ScrollToTop();
+                    scroll.ScrollToHorizontalOffset(100);
+                    grid.UpdateLayout();
+                    var horizontalBeforeFollow = scroll.HorizontalOffset;
+                    var lastScanResult = batch.Results[99];
+                    showCompleted.Invoke(batch, new object[] { lastScanResult });
+                    System.Windows.Threading.Dispatcher.CurrentDispatcher.Invoke(() => grid.UpdateLayout(), System.Windows.Threading.DispatcherPriority.ContextIdle);
+                    Assert.Same(batch.SelectedResult, grid.SelectedItem);
+                    Assert.True(scroll.VerticalOffset > 0, $"Offset={scroll.VerticalOffset}, Scrollable={scroll.ScrollableHeight}, Loaded={grid.IsLoaded}, SelectedIndex={grid.SelectedIndex}");
+                    Assert.Equal(horizontalBeforeFollow, scroll.HorizontalOffset);
+                    var followedRow = Assert.IsType<DataGridRow>(grid.ItemContainerGenerator.ContainerFromItem(grid.SelectedItem));
+                    var rowBounds = followedRow.TransformToAncestor(scroll).TransformBounds(new Rect(followedRow.RenderSize));
+                    Assert.True(rowBounds.Bottom > 0 && rowBounds.Top < scroll.ActualHeight);
+                    batch.GroupFiles = true;
+                    grid.UpdateLayout();
+                    batch.SelectedResult = batch.Results[0];
+                    System.Windows.Threading.Dispatcher.CurrentDispatcher.Invoke(() => grid.UpdateLayout(), System.Windows.Threading.DispatcherPriority.ContextIdle);
+                    batch.SelectedResult = batch.Results[99];
+                    System.Windows.Threading.Dispatcher.CurrentDispatcher.Invoke(() => grid.UpdateLayout(), System.Windows.Threading.DispatcherPriority.ContextIdle);
+                    var expanders = (System.Collections.Generic.IEnumerable<Expander>)typeof(BatchIntegrityWindow)
+                        .GetMethod("Descendants", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!
+                        .MakeGenericMethod(typeof(Expander)).Invoke(null, new object[] { grid })!;
+                    Assert.Contains(expanders, expander => expander.IsExpanded);
+                    Assert.NotNull(grid.ItemContainerGenerator.ContainerFromItem(grid.SelectedItem));
+                }
+                finally
+                {
+                    batch.GroupFiles = false;
+                    batch.Results.Clear();
+                    batch.Results.Add(multiResult);
+                    foreach (var sort in previousFollowSorts) batch.ResultsView.SortDescriptions.Add(sort);
+                    if (!previousWindowVisibility) main.Hide();
+                }
                 Assert.Empty(grid.GroupStyle);
                 Assert.All(System.Linq.Enumerable.Where(grid.Columns, column => column.Visibility == Visibility.Visible), column => Assert.True(column.ActualWidth > 0));
                 foreach (var localization in Emignatik.NxFileViewer.Localization.LocalizationManager.Instance.RealLocalizations)
@@ -642,12 +711,14 @@ public sealed class WorkspaceNavigationTest
                 {
                     var reloadRow = nszResult with { FilePath = reloadPath };
                     reloadBatch.SelectedResult = reloadRow;
-                    Assert.NotNull(reloadBatch.PreviewOverview);
-                    Assert.Equal(1, previewLoader.LoadCount);
+                    Assert.Null(reloadBatch.PreviewOverview);
+                    Assert.NotNull(reloadBatch.StoredOverview);
+                    Assert.Equal(0, previewLoader.LoadCount);
                     reloadBatch.SelectedResult = firmwareResult;
                     reloadBatch.SelectedResult = reloadRow;
-                    Assert.NotNull(reloadBatch.PreviewOverview);
-                    Assert.Equal(1, previewLoader.LoadCount);
+                    Assert.Null(reloadBatch.PreviewOverview);
+                    Assert.NotNull(reloadBatch.StoredOverview);
+                    Assert.Equal(0, previewLoader.LoadCount);
                     reloadSettings.EnableBatchHistory = true;
                     var persistedGame = reloadRow with
                     {
@@ -668,7 +739,6 @@ public sealed class WorkspaceNavigationTest
                     reloadBatch.SelectedHistory = System.Text.Json.JsonSerializer.Deserialize<Emignatik.NxFileViewer.Services.Integrity.BatchHistoryEntry>(
                         System.Text.Json.JsonSerializer.Serialize(historyEntry));
                     batchPage.DataContext = reloadBatch;
-                    reloadBatch.LoadHistoryCommand.Execute(null);
                     batchPage.UpdateLayout();
                     var historyOverview = Assert.IsType<Emignatik.NxFileViewer.Views.UserControls.FileOverviewView>(batchPage.FindName("HistoryOverview"));
                     Assert.Same(reloadBatch.StoredOverview, historyOverview.DataContext);
@@ -693,7 +763,7 @@ public sealed class WorkspaceNavigationTest
                     Assert.Equal(Emignatik.NxFileViewer.Localization.LocalizationManager.Instance.Current.Keys.BatchHistory_LoadedNotice, historyNotice.Text);
                     Assert.Null(reloadBatch.PreviewOverview);
                     Assert.True(reloadBatch.ShowStoredOverview);
-                    Assert.Equal(1, previewLoader.LoadCount); // The existing source must not be reopened.
+                    Assert.Equal(0, previewLoader.LoadCount); // The existing source must not be reopened.
                     Assert.Equal(2, reloadBatch.StoredPackages.Count);
                     reloadBatch.SelectedStoredPackage = reloadBatch.StoredPackages[1];
                     Assert.Contains(reloadBatch.StoredPackageFields, field => field.Value == "saved-build");
@@ -703,17 +773,53 @@ public sealed class WorkspaceNavigationTest
                     reloadBatch.SelectedResult = firmwareResult;
                     reloadBatch.SelectedResult = restoredGame;
                     Assert.Null(reloadBatch.PreviewOverview);
-                    Assert.Equal(1, previewLoader.LoadCount);
+                    Assert.Equal(0, previewLoader.LoadCount);
+                    var activeLogosField = typeof(BatchIntegrityWindowViewModel).GetField("_activeLogos", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+                    var snapshotTitle = typeof(BatchIntegrityWindowViewModel).GetMethod("SnapshotTitle", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+                    Assert.False(reloadSettings.SaveBatchHistoryLogos);
+                    var temporaryTitle = Assert.IsType<Emignatik.NxFileViewer.Services.Integrity.BatchTitleSummary>(snapshotTitle.Invoke(reloadBatch, new object[]
+                    {
+                        new Emignatik.NxFileViewer.Models.Overview.TitleInfo(new Emignatik.NxFileViewer.Models.Overview.NacpTitleEntry("Active", "Publisher"),
+                            Emignatik.NxFileViewer.Models.Overview.NacpLanguage.German) { Icon = new byte[] { 1, 2, 3 } }
+                    }));
+                    Assert.NotNull(temporaryTitle.Icon);
+                    var activeLogos = Assert.IsType<Emignatik.NxFileViewer.Services.Integrity.ActiveBatchLogoStore>(activeLogosField.GetValue(reloadBatch));
+                    activeLogos.Flush();
+                    Assert.Equal(new byte[] { 1, 2, 3 }, activeLogos.ReadIcon(temporaryTitle.Icon));
+                    var saveCheckpoint = typeof(BatchIntegrityWindowViewModel).GetMethod("SaveHistory", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+                    var historyStore = Assert.IsType<Emignatik.NxFileViewer.Services.Integrity.BatchHistoryStore>(
+                        typeof(BatchIntegrityWindowViewModel).GetField("_historyStore", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.GetValue(reloadBatch));
+                    System.IO.File.WriteAllBytes(activeLogos.ArchivePath, new byte[] { 80, 75, 3, 4 });
+                    var recoveredLogo = activeLogos.StageIcon(temporaryTitle.Icon!.EntryId, new byte[] { 4 })!;
+                    saveCheckpoint.Invoke(reloadBatch, new object[] { "Completed", true });
+                    Assert.Equal(new byte[] { 4 }, activeLogos.ReadIcon(recoveredLogo));
+                    Assert.NotNull(historyStore.ReadResult(historyEntry.Id, reloadPath));
+                    // An unrecoverable logo-write failure must still allow the metadata checkpoint.
+                    activeLogos.StageIcon(temporaryTitle.Icon.EntryId, new byte[] { 5 });
+                    using (var lockedLogo = new System.IO.FileStream(activeLogos.ArchivePath, System.IO.FileMode.Open,
+                        System.IO.FileAccess.Read, System.IO.FileShare.None))
+                        saveCheckpoint.Invoke(reloadBatch, new object[] { "Interrupted", true });
+                    Assert.Equal("Interrupted", System.Linq.Enumerable.Single(historyStore.Load(100), item => item.Id == historyEntry.Id).State);
+                    reloadBatch.SelectedHistory = reloadBatch.History[0];
+                    Assert.False(System.IO.File.Exists(activeLogos.ArchivePath));
+                    Assert.Empty(reloadBatch.Results);
+                    Assert.Null(reloadBatch.StoredOverview);
+                    Assert.False(reloadBatch.ResumeHistoryCommand.CanExecute(null));
                     reloadSettings.EnableBatchHistory = false;
                     var secondDropPath = reloadPath + ".nsp";
                     System.IO.File.WriteAllText(secondDropPath, "second dropped source");
                     try
                     {
+                        var oldScanLogos = new Emignatik.NxFileViewer.Services.Integrity.ActiveBatchLogoStore(System.IO.Path.GetDirectoryName(reloadPath)!);
+                        oldScanLogos.StageIcon(Guid.NewGuid(), new byte[] { 9 });
+                        oldScanLogos.Flush();
+                        activeLogosField.SetValue(reloadBatch, oldScanLogos);
                         reloadBatch.LoadDroppedSources(new[] { reloadPath, secondDropPath, reloadPath });
+                        Assert.False(System.IO.File.Exists(oldScanLogos.ArchivePath));
                         batchPage.UpdateLayout();
                         Assert.Equal(2, reloadBatch.SourcePaths.Count);
                         Assert.Equal(2, reloadBatch.Results.Count);
-                        Assert.Equal(3, previewLoader.LoadCount);
+                        Assert.Equal(2, previewLoader.LoadCount);
                         Assert.True(reloadBatch.StartCommand.CanExecute(null));
                         Assert.Equal(0, previewServices.VerificationCalls);
                         reloadSettings.VerifyBatchDrops = true;
@@ -761,7 +867,12 @@ public sealed class WorkspaceNavigationTest
                         Assert.Empty(reloadBatch.SourcePaths);
                     }
                     finally { System.IO.File.Delete(secondDropPath); }
+                    var closingLogos = new Emignatik.NxFileViewer.Services.Integrity.ActiveBatchLogoStore(System.IO.Path.GetDirectoryName(reloadPath)!);
+                    closingLogos.StageIcon(Guid.NewGuid(), new byte[] { 7 });
+                    closingLogos.Flush();
+                    activeLogosField.SetValue(reloadBatch, closingLogos);
                     reloadBatch.ClosePreview();
+                    Assert.False(System.IO.File.Exists(closingLogos.ArchivePath));
                     batchPage.DataContext = batch;
                 }
                 finally { batchPage.DataContext = batch; System.IO.File.Delete(reloadPath); }
@@ -817,7 +928,7 @@ public sealed class WorkspaceNavigationTest
                     Assert.False(batch.IsHistoryEnabled);
                     Assert.Empty(batch.History);
                     Assert.False(batch.ResumeHistoryCommand.CanExecute(null));
-                    Assert.False(batch.LoadHistoryCommand.CanExecute(null));
+                    Assert.Null(batch.SelectedHistory);
                     actual.EnableBatchHistory = true;
                     Assert.True(batch.IsHistoryEnabled);
                     // Restoring a history has no live preview cache. Display persisted
@@ -828,7 +939,6 @@ public sealed class WorkspaceNavigationTest
                             Title = "Saved game", TitleId = "0100123456789000", Publisher = "Saved publisher", FileSize = 1024 };
                         batch.SelectedHistory = new Emignatik.NxFileViewer.Services.Integrity.BatchHistoryEntry(Guid.NewGuid(), DateTime.UtcNow,
                             "missing history source", false, true, true, false, "Completed", new[] { savedGame }, new());
-                        batch.LoadHistoryCommand.Execute(null);
                         Assert.Same(savedGame, batch.SelectedResult);
                         Assert.Null(batch.PreviewOverview);
                         Assert.True(batch.ShowStoredOverview);
@@ -849,7 +959,8 @@ public sealed class WorkspaceNavigationTest
         });
         thread.SetApartmentState(ApartmentState.STA);
         thread.Start();
-        Assert.True(thread.Join(TimeSpan.FromSeconds(30)), "Workspace test timed out.");
+        // Includes WPF rendering and ZIP workflows on the desktop, rather than only navigation.
+        Assert.True(thread.Join(TimeSpan.FromSeconds(90)), "Workspace test timed out.");
         if (error != null) throw new InvalidOperationException("Workspace UI test failed.", error);
     }
     private static void VerifyXciRepairOpeningWorkflow()
@@ -913,6 +1024,162 @@ public sealed class WorkspaceNavigationTest
         public void ShowFailure(string reason) => Failures++;
     }
 
+    private static App CreateWorkspaceTestApp()
+    {
+        // Application queues startup in its constructor. The UI test supplies its own window
+        // and must not start update checks or Explorer registration when pumping layout.
+        var dispatcher = System.Windows.Threading.Dispatcher.CurrentDispatcher;
+        var queued = new System.Collections.Generic.List<System.Windows.Threading.DispatcherOperation>();
+        System.Windows.Threading.DispatcherHookEventHandler capture = (_, e) => queued.Add(e.Operation);
+        dispatcher.Hooks.OperationPosted += capture;
+        App app;
+        try { app = new App { ShutdownMode = ShutdownMode.OnExplicitShutdown }; }
+        finally { dispatcher.Hooks.OperationPosted -= capture; }
+        foreach (var operation in queued) operation.Abort();
+        return app;
+    }
+    private static void VerifyStandaloneLogViewer()
+    {
+        var path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "NxLogViewer-ui-" + Guid.NewGuid() + ".log");
+        System.IO.File.WriteAllText(path, Emignatik.NxFileViewer.Test.Logging.LogDocumentTest.Sample);
+        var window = new global::NxFileViewer.LogViewer.MainWindow();
+        var previousContext = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(new System.Windows.Threading.DispatcherSynchronizationContext(window.Dispatcher));
+        try
+        {
+            var frame = new System.Windows.Threading.DispatcherFrame();
+            var task = CheckAsync();
+            _ = task.ContinueWith(_ => window.Dispatcher.BeginInvoke(new Action(() => frame.Continue = false)),
+                TestContext.Current.CancellationToken, System.Threading.Tasks.TaskContinuationOptions.None, System.Threading.Tasks.TaskScheduler.Default);
+            System.Windows.Threading.Dispatcher.PushFrame(frame);
+            task.GetAwaiter().GetResult();
+        }
+        finally
+        {
+            window.Close();
+            SynchronizationContext.SetSynchronizationContext(previousContext);
+            System.IO.File.Delete(path);
+        }
+        async System.Threading.Tasks.Task CheckAsync()
+        {
+            await window.OpenPathAsync(path);
+            var entries = Assert.IsType<ListBox>(window.FindName("Entries"));
+            Assert.Equal(8, entries.Items.Count);
+            Assert.True(VirtualizingPanel.GetIsVirtualizing(entries));
+            var search = Assert.IsType<TextBox>(window.FindName("SearchBox"));
+            var levels = Assert.IsType<ComboBox>(window.FindName("LevelFilter"));
+            var memory = Assert.IsType<CheckBox>(window.FindName("MemoryOnly"));
+            var apply = typeof(global::NxFileViewer.LogViewer.MainWindow).GetMethod("ApplyFilterAsync",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+            async System.Threading.Tasks.Task Filter() => await (System.Threading.Tasks.Task)apply.Invoke(window, new object[] { false })!;
+            search.Text = "GameOne";
+            await Filter();
+            Assert.Equal(5, entries.Items.Count);
+            levels.SelectedItem = levels.Items.Cast<global::NxFileViewer.LogViewer.MainWindow.LevelChoice>()
+                .Single(x => x.Level == global::NxFileViewer.LogViewer.EntryLevel.Warning);
+            await Filter();
+            Assert.Equal(2, entries.Items.Count);
+            Assert.True(Assert.IsType<global::NxFileViewer.LogViewer.LogDisplayEntry>(entries.Items[0]).ShowHeader);
+            memory.IsChecked = true;
+            levels.SelectedIndex = 0;
+            search.Clear();
+            await Filter();
+            Assert.Single(entries.Items.Cast<global::NxFileViewer.LogViewer.LogDisplayEntry>());
+            Assert.Contains("workingSetBytes", Assert.IsType<TextBox>(window.FindName("DetailText")).Text);
+            memory.IsChecked = false;
+            await Filter();
+            System.IO.File.AppendAllText(path, "[2026-10-19 10:53:00.001 +02:00] [Information] Reloaded\n");
+            await window.OpenPathAsync(path);
+            Assert.Equal(9, entries.Items.Count);
+            entries.SelectedItem = entries.Items.Cast<global::NxFileViewer.LogViewer.LogDisplayEntry>()
+                .First(x => x.Entry.Level == global::NxFileViewer.LogViewer.EntryLevel.Error);
+            Assert.Contains("at Loader.Read()", Assert.IsType<TextBox>(window.FindName("DetailText")).Text);
+            var content = Assert.IsAssignableFrom<FrameworkElement>(window.Content);
+            content.Measure(new Size(1140, 760));
+            content.Arrange(new Rect(0, 0, 1140, 760));
+            content.UpdateLayout();
+            var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap(1140, 760, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
+            bitmap.Render(content);
+            var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+            encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
+            using var output = System.IO.File.Create(System.IO.Path.Combine(System.IO.Path.GetTempPath(), "NxFileViewer-LogViewer-preview.png"));
+            encoder.Save(output);
+        }
+    }
+
+    private static void VerifyLogPresentation()
+    {
+        var source = new PreviewLogSource();
+        var view = new Emignatik.NxFileViewer.Views.UserControls.LoggingView { LogSource = source, Width = 960, Height = 620 };
+        var box = Assert.IsType<RichTextBox>(view.FindName("RichTextBoxLog"));
+        source.Emit(Microsoft.Extensions.Logging.LogLevel.Information, "Scan started");
+        source.Emit(Microsoft.Extensions.Logging.LogLevel.Information, @"Loader: =====> G:\Games\Game One [0100000000000000].nsz <=====");
+        source.Emit(Microsoft.Extensions.Logging.LogLevel.Information, "Metadata loaded");
+        source.Emit(Microsoft.Extensions.Logging.LogLevel.Warning, "Optional language icon is missing");
+        source.Emit(Microsoft.Extensions.Logging.LogLevel.Error, "Cannot read file content" + Environment.NewLine + "Detailed diagnostic information");
+        source.Emit(Microsoft.Extensions.Logging.LogLevel.Information, @"=====> G:\Games\Game Two [0100000000000800].nsp <=====");
+        source.Emit(Microsoft.Extensions.Logging.LogLevel.Information, "Metadata loaded");
+        var groups = System.Linq.Enumerable.OfType<System.Windows.Documents.Section>(box.Document.Blocks).ToArray();
+        Assert.Equal(2, groups.Length);
+        Assert.Equal(4, groups[0].Blocks.Count);
+        Assert.Equal(2, groups[1].Blocks.Count);
+        Assert.Contains("Game One", new System.Windows.Documents.TextRange(groups[0].ContentStart, groups[0].ContentEnd).Text);
+        Assert.Contains("Detailed diagnostic", new System.Windows.Documents.TextRange(groups[0].ContentStart, groups[0].ContentEnd).Text);
+        Assert.DoesNotContain("Game Two", new System.Windows.Documents.TextRange(groups[0].ContentStart, groups[0].ContentEnd).Text);
+        Assert.Contains("[WARN]", new System.Windows.Documents.TextRange(groups[0].ContentStart, groups[0].ContentEnd).Text);
+        var error = Assert.IsType<System.Windows.Documents.Paragraph>(groups[0].Blocks.LastBlock);
+        var previewRoot = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "NxFileViewer-log-preview-" + Guid.NewGuid().ToString("N"));
+        System.IO.Directory.CreateDirectory(previewRoot);
+        System.Windows.Media.Color? lightError = null;
+        foreach (var theme in new[] { "Light", "Dark" })
+        {
+            view.Resources.MergedDictionaries.Clear();
+            view.Resources.MergedDictionaries.Add(new ResourceDictionary
+            {
+                Source = new Uri("/" + typeof(App).Assembly.GetName().Name + ";component/Styling/Theme/" + theme + "Theme.xaml", UriKind.Relative)
+            });
+            view.Measure(new Size(960, 620));
+            view.Arrange(new Rect(0, 0, 960, 620));
+            view.UpdateLayout();
+            var color = Assert.IsType<System.Windows.Media.SolidColorBrush>(error.Foreground).Color;
+            Assert.Equal(Assert.IsType<System.Windows.Media.SolidColorBrush>(view.FindResource("Log.Error.Foreground")).Color, color);
+            if (theme == "Light") lightError = color;
+            else Assert.NotEqual(lightError, color);
+            var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap(960, 620, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
+            bitmap.Render(view);
+            var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+            encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
+            using var output = System.IO.File.Create(System.IO.Path.Combine(previewRoot, theme + ".png"));
+            encoder.Save(output);
+        }
+        var clear = Assert.IsType<MenuItem>(box.ContextMenu.Items[0]);
+        clear.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+        Assert.Empty(box.Document.Blocks);
+        source.Emit(Microsoft.Extensions.Logging.LogLevel.Warning, "Global warning after clear");
+        Assert.IsType<System.Windows.Documents.Paragraph>(Assert.Single(System.Linq.Enumerable.Cast<System.Windows.Documents.Block>(box.Document.Blocks)));
+        source.Emit(Microsoft.Extensions.Logging.LogLevel.Information, @"=====> G:\Games\Trace.nsp <=====");
+        for (var i = 0; i < 25; i++) source.Emit(Microsoft.Extensions.Logging.LogLevel.Trace, "trace-entry-" + i);
+        typeof(Emignatik.NxFileViewer.Views.UserControls.LoggingView)
+            .GetMethod("TrimVisibleEntries", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .Invoke(view, new object[] { 20 });
+        var retainedGroup = Assert.IsType<System.Windows.Documents.Section>(Assert.Single(box.Document.Blocks.Cast<System.Windows.Documents.Block>()));
+        Assert.Equal(20, retainedGroup.Blocks.Count);
+        var retainedText = new System.Windows.Documents.TextRange(retainedGroup.ContentStart, retainedGroup.ContentEnd).Text;
+        Assert.Contains("Trace.nsp", retainedText);
+        Assert.Contains("trace-entry-24", retainedText);
+        Assert.DoesNotContain("trace-entry-0\r", retainedText);
+        clear.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+        source.Emit(Microsoft.Extensions.Logging.LogLevel.Warning, "After bounded log clear");
+        view.LogSource = new PreviewLogSource();
+        source.Emit(Microsoft.Extensions.Logging.LogLevel.Information, "Detached source");
+        Assert.Single(System.Linq.Enumerable.Cast<System.Windows.Documents.Block>(box.Document.Blocks));
+    }
+
+    private sealed class PreviewLogSource : Emignatik.NxFileViewer.Logging.ILogSource
+    {
+        public event Emignatik.NxFileViewer.Logging.LogHandler? Log;
+        public void Emit(Microsoft.Extensions.Logging.LogLevel level, string message) => Log?.Invoke(level, message);
+    }
     private sealed class PreviewLoader : Emignatik.NxFileViewer.FileLoading.IFileLoader
     {
         public int LoadCount { get; private set; }

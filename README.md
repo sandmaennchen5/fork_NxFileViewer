@@ -1,4 +1,4 @@
-# NxFileViewer v4
+# NxFileViewer Fork v4
 
 Browse and verify Nintendo Switch packages with a Windows desktop interface based on [LibHac](https://github.com/Thealexbarney/LibHac).
 
@@ -92,7 +92,7 @@ Mixed archives can contain game packages, firmware archives and firmware folders
 
 Firmware verification checks NCA sizes and SHA-256 hashes, identifies the best matching firmware version, and reports missing, changed, additional, duplicate or incorrectly named files. Individual firmware NCAs list matching releases by content hash. Sources are never renamed by firmware verification.
 
-References are fetched from GitHub into memory only when firmware candidates are detected or explicitly opened. Each check requests current references; GitHub directory metadata shares the update cooldown/cache and downloaded manifests are validated against Git blob hashes; ordinary game folders make no firmware-reference request. Optional local `fw/hashes/*.json` files provide an offline fallback. Extract the separate firmware-hashes ZIP beside `NxFileViewer.exe` to install them. See [firmware verification](docs/Firmware-verification.md) and [reference maintenance](fw/README.md).
+References are fetched from GitHub into memory only when firmware candidates are detected or explicitly opened. Each check requests current references; GitHub directory metadata shares the update cooldown/cache and downloaded manifests are validated against Git blob hashes; ordinary game folders make no firmware-reference request. Optional local `Plugins/fwhashes/*.json` files provide an offline fallback. Extract the separate firmware-hashes ZIP beside `NxFileViewerFork.exe` to install them. See [firmware verification](docs/Firmware-verification.md) and [reference maintenance](fw/README.md).
 
 ## NAND plugin
 
@@ -127,7 +127,7 @@ dotnet test src/NxFileViewer.sln -c Release --no-restore
 .\Publish.ps1
 ```
 
-Publish.ps1 creates x64/x86 application ZIPs and a separate optional firmware-hashes ZIP. The Build workflow exposes these as separate artifacts retained for seven days; attach release ZIPs to GitHub Releases for permanent downloads and application updates. Source paths in Release diagnostics are mapped to `/_/NxFileViewer/`, with debug symbols embedded in the executable. Runtime file paths remain visible.
+Publish.ps1 creates x64/x86 application ZIPs, separate standalone LogViewer ZIPs (standard and self-contained), and a separate optional firmware-hashes ZIP. Use `-LogViewerOnly` to publish only the diagnostic viewer or `-SkipLogViewer` to omit it. The [LogViewer](docs/LogViewer.md) opens existing logs with colored file groups, text/severity filters and a RAM/GC filter. The Build workflow exposes these as separate artifacts retained for seven days; attach release ZIPs to GitHub Releases for permanent downloads and application updates. Source paths in Release diagnostics are mapped to `/_/NxFileViewer/`, with debug symbols embedded in the executable. Runtime file paths remain visible.
 
 The ignored `/test/` directory contains personal test data; automated tests under `src/*.Test` are part of the repository.
 
@@ -162,4 +162,6 @@ Thanks to [Thealexbarney](https://github.com/Thealexbarney) for LibHac, [eliboa]
 
 NAND drive selection enumerates physical devices independently of drive letters and raw-read permissions. Offline/unlettered Hekate UMS devices can be selected by their `\\.\PhysicalDriveN` path; model and capacity are shown when Windows provides them. Refresh the list after connecting. Opening remains read-only and may require running NxFileViewer as administrator. No drive letter, formatting or online-state change is needed for selection.
 
-In **Settings → Program → Windows file associations**, click **Register NxFileViewer Fork** to register `.nsp`, `.nsz`, `.xci`, `.xcz` and `.nro` for the current Windows user. The shared stable ProgID `NxFileViewerFork.File` uses the adjacent native `NxFileViewerFork.Open.exe` launcher, quoted together with the file argument. Its independent executable name keeps the Windows app entry separate from an original viewer named `NxFileViewer.exe`. The main executable name stays unchanged. The launcher is embedded in the main application (23,040 bytes), installed on registration and refreshed atomically on subsequent application starts if its embedded bytes changed. Existing single-EXE update ZIPs continue to work: the updater replaces only the main executable and retains the launcher. Then choose **NxFileViewer Fork** through Windows **Open with → Choose another app → Always** for each extension you want as default. Existing defaults and original-viewer registrations are preserved. Repeat registration after moving the app to another folder; no administrator rights are required. Registration takes effect immediately, independently of saving or cancelling settings.
+In **Settings → Program → Windows file associations**, click **Register NxFileViewer Fork** to register `.nsp`, `.nsz`, `.xci`, `.xcz` and `.nro` for the current Windows user. The shared stable ProgID `NxFileViewerFork.File` uses the adjacent native `NxFileViewerFork.Open.exe` launcher, quoted together with the file argument. The main application is `NxFileViewerFork.exe`; the launcher reads its name from an adjacent `NxFileViewerFork.Open.target` reference and is refreshed when the application starts. Package updates preserve file associations. Then choose **NxFileViewer Fork** through Windows **Open with → Choose another app → Always** for each extension you want as default. Existing defaults and original-viewer registrations are preserved. Repeat registration after moving the app to another folder; no administrator rights are required. Registration takes effect immediately, independently of saving or cancelling settings.
+
+Version 4.1.0 provides a one-time transition from the old executable and data paths; see [application updates](docs/Application-updates.md). New release packages use NxFileViewerFork_v4.1.0_*.zip.

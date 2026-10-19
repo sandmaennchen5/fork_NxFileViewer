@@ -18,7 +18,7 @@ public static class ForkFileAssociations
         executable = Path.GetFullPath(executable);
         if (!Path.GetExtension(executable).Equals(".exe", StringComparison.OrdinalIgnoreCase) ||
             Path.GetFileName(executable).Equals("dotnet.exe", StringComparison.OrdinalIgnoreCase) || executable.Contains('"'))
-            throw new ArgumentException("Select the NxFileViewer executable.", nameof(executable));
+            throw new ArgumentException("Select the NxFileViewer Fork executable.", nameof(executable));
         const string classes = @"Software\Classes\";
         const string capabilities = @"Software\NxFileViewerFork\Capabilities";
         var launcher = ForkAssociationLauncher.PathFor(executable);

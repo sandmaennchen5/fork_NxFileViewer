@@ -19,7 +19,7 @@ public class AppSettingsManager : IAppSettingsManager
 
     static AppSettingsManager()
     {
-        _settingsFilePath = Path.Combine(PathHelper.CurrentAppDir, "NxFileViewer.settings.json");
+        _settingsFilePath = Path.Combine(PathHelper.CurrentAppDir, "NxFileViewerFork.settings.json");
     }
 
     public AppSettingsManager(ILoggerFactory loggerFactory, AppSettings appSettings, IAppEvents appEvents, IShallowCopier shallowCopier)

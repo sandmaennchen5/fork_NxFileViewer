@@ -1,4 +1,4 @@
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 using Emignatik.NxFileViewer.Utils.MVVM;
 using Emignatik.NxFileViewer.Utils.MVVM.Localization;
 using Microsoft.Extensions.Logging;
@@ -243,6 +243,12 @@ public class AppSettings : NotifyPropertyChangedBase, IAppSettings
         get => _sdBatchDbiRootSaves;
         set { _sdBatchDbiRootSaves = value; NotifyPropertyChanged(); }
     }
+    private bool _saveBatchHistoryLogos;
+    public bool SaveBatchHistoryLogos
+    {
+        get => _saveBatchHistoryLogos;
+        set { _saveBatchHistoryLogos = value; NotifyPropertyChanged(); }
+    }
     private bool _enableBatchHistory = true;
     public bool EnableBatchHistory
     {
@@ -302,6 +308,42 @@ public class AppSettings : NotifyPropertyChangedBase, IAppSettings
     private string _lastOpenedFile = "";
     private string _prodKeysFilePath = "";
     private string _titleKeysFilePath = "";
+    private PluginLogLevel _nszLogLevel = PluginLogLevel.Inherit;
+
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public PluginLogLevel NszLogLevel
+    {
+        get => _nszLogLevel;
+        set { _nszLogLevel = value; NotifyPropertyChanged(); }
+    }
+
+    private PluginLogLevel _nandLogLevel = PluginLogLevel.Inherit;
+
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public PluginLogLevel NandLogLevel
+    {
+        get => _nandLogLevel;
+        set { _nandLogLevel = value; NotifyPropertyChanged(); }
+    }
+
+    private PluginLogLevel _mtpLogLevel = PluginLogLevel.Inherit;
+
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public PluginLogLevel MtpLogLevel
+    {
+        get => _mtpLogLevel;
+        set { _mtpLogLevel = value; NotifyPropertyChanged(); }
+    }
+
+    private PluginLogLevel _packageLogLevel = PluginLogLevel.Inherit;
+
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public PluginLogLevel PackageLogLevel
+    {
+        get => _packageLogLevel;
+        set { _packageLogLevel = value; NotifyPropertyChanged(); }
+    }
+
     private LogLevel _logLevel = LogLevel.Information;
     private string _keysDownloadHost = "192.168.178.100";
     public string KeysDownloadHost

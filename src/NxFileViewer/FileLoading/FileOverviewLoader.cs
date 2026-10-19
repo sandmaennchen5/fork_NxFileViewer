@@ -207,7 +207,7 @@ public class FileOverviewLoader : IFileOverviewLoader
             var iconItem = sectionItem.ChildItems.FirstOrDefault(item => string.Equals(item.Name, expectedFileName, StringComparison.OrdinalIgnoreCase));
             if (iconItem == null)
             {
-                _logger.LogError(LocalizationManager.Instance.Current.Keys.LoadingError_IconMissing_Log.SafeFormat(expectedFileName));
+                _logger.LogWarning(LocalizationManager.Instance.Current.Keys.LoadingError_IconMissing_Log.SafeFormat(expectedFileName));
                 return null;
             }
 
@@ -229,7 +229,7 @@ public class FileOverviewLoader : IFileOverviewLoader
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, LocalizationManager.Instance.Current.Keys.LoadingError_FailedToLoadIcon_Log.SafeFormat(ex.Message));
+                _logger.LogWarning(ex, LocalizationManager.Instance.Current.Keys.LoadingError_FailedToLoadIcon_Log.SafeFormat(ex.Message));
                 return null;
             }
         }

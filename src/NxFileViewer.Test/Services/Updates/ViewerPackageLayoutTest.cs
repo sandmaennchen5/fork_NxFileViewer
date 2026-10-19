@@ -165,15 +165,20 @@ public sealed class ViewerPackageLayoutTest : IDisposable
         Assert.False(Directory.Exists(prepared.Directory)); Assert.True(File.Exists(RootFile("NxFileViewerFork.exe")));
     }
     [Fact]
-    public void DataMigrationCopiesOldLocationsWithoutReplacingNewerDataAndLeavesGitHubSourcesIndependent()
+    public void TransitionMovesOldLocationsWithoutReplacingNewerDataAndLeavesConflicts()
     {
         Put("Cache/TitleDB/DE.de.json", "old-title"); Put("Cache/Updates/cache.json", "old-cache"); Put("fw/hashes/reference.json", "old-hash");
         Put("Plugins/TitleDB/DE.de.json", "newer-title");
-        ApplicationDataPaths.MigrateLegacy(_root);
+        Put("NxFileViewer.settings.json", "settings");
+        global::NxFileViewer.Transition.LegacyDataMigration.Move(_root);
+        Assert.Equal("settings", File.ReadAllText(RootFile("NxFileViewerFork.settings.json")));
+        Assert.False(File.Exists(RootFile("NxFileViewer.settings.json")));
         Assert.Equal("newer-title", File.ReadAllText(RootFile("Plugins/TitleDB/DE.de.json")));
         Assert.Equal("old-cache", File.ReadAllText(RootFile("Plugins/CacheUpdates/cache.json")));
         Assert.Equal("old-hash", File.ReadAllText(RootFile("Plugins/fwhashes/reference.json")));
-        Assert.Equal("old-hash", File.ReadAllText(RootFile("fw/hashes/reference.json")));
+        Assert.False(File.Exists(RootFile("fw/hashes/reference.json")));
+        Assert.Equal("old-title", File.ReadAllText(RootFile("Cache/TitleDB/DE.de.json")));
+        global::NxFileViewer.Transition.LegacyDataMigration.Move(_root);
         Assert.Equal(RootFile("Plugins/fwhashes"), ApplicationDataPaths.FirmwareHashes(_root));
     }
     public void Dispose() { if (Directory.Exists(_root)) Directory.Delete(_root, true); }

@@ -48,8 +48,8 @@ public sealed class BatchHistoryStoreTest : IDisposable
             Assert.Equal(result.Packages[i] with { Titles = System.Array.Empty<BatchTitleSummary>() },
                 restored.Packages[i] with { Titles = System.Array.Empty<BatchTitleSummary>() });
         }
-        Assert.DoesNotContain("Icon", File.ReadAllText(Path.Combine(root, "history.json")));
-        Assert.DoesNotContain("Logo", File.ReadAllText(Path.Combine(root, "history.json")));
+        Assert.True(File.Exists(store.EntryPath(entry.Id)));
+        Assert.False(File.Exists(Path.Combine(root, "history.json")));
         Assert.True(restored.HasMultiplePackages);
         Assert.False(restored.PackagesExpanded);
     }
@@ -94,7 +94,7 @@ public sealed class BatchHistoryStoreTest : IDisposable
         var restored = new BatchHistoryStore(path).Load(limit);
         Assert.Equal(limit, restored.Count);
         Assert.Equal(latest!.Id, restored[0].Id);
-        Assert.Equal(limit, System.Text.Json.JsonSerializer.Deserialize<BatchHistoryEntry[]>(File.ReadAllText(path))!.Length);
+        Assert.Equal(limit, Directory.GetFiles(store.EntriesDirectory, "*.zip").Length);
         store.Save(latest with { State = "Completed" }, limit);
         Assert.Equal(limit, store.Load(limit).Count);
         Assert.Equal("Completed", store.Load(limit)[0].State);

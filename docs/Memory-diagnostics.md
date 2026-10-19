@@ -1,6 +1,20 @@
 # Batch memory diagnostics
 
-This is an opt-in experiment for issue #21. Normal application launches are unchanged.
+## In-app Trace diagnostics (no PowerShell launcher required)
+
+Set the general minimum log level to **Trace** in Settings and apply. The application starts passive process measurements immediately and repeats them every ten seconds, including while idle. Change the level back to stop them. A plugin-only Trace override does not activate the process-wide memory sampler.
+
+The session log under `Logs` contains working-set/private/.NET managed bytes, heap and fragmentation at the last GC, total allocated bytes and generation 0/1/2 collection counters. File reading, integrity checks, detached metadata snapshots, logo deduplication, history writes/restores and cache release emit additional Trace events. No key material or icon contents are added to these events.
+
+In the batch page, Trace automatically enables the existing memory diagnostic area, CSV measurements and **Measure memory + GC** button. No restart or environment variables are required. CSV files remain under `%LOCALAPPDATA%\NxFileViewer\Diagnostics`; their schema is compatible with earlier captures. Stage samples include opening/closing the batch page, starting/finishing scans, each 100 results, restoring History, changing the diagnostic level, and measurements before/after the manual GC. The periodic process samples are in the session log.
+
+Automatic measurements never force GC. To compare retained memory after a scan, wait 30 seconds and use the manual button; it stays disabled during a running task. The last-GC heap counters are not live heap sizes, and total allocations are cumulative. Trace is more verbose and has diagnostic overhead. The on-screen log retains at most 2,000 entries, preserving the current file heading; older entries remain in the session log on disk.
+
+For a regular memory investigation, enable Trace, scan the affected folder, wait, optionally measure with GC, then save the session log and batch CSV and return to Information. The launcher below remains available only for the older controlled `no-logos` / `one-preview` experiments.
+
+## Optional comparison launcher
+
+This is an opt-in experiment for issue #21. Normal launches with a level above Trace do not enable memory diagnostics.
 Build first: dotnet build src/NxFileViewer/NxFileViewer.csproj
 
 Close the application between runs. Start each run from the repository root:
@@ -41,5 +55,6 @@ Interpretation:
 These measurements narrow the cause; they do not prove a leak or uniquely identify
 the allocation retaining all memory. Working set alone does not establish a leak.
 
-Remove the environment variables (or start normally) to disable diagnostics.
+Remove the environment variables and select a general log level above Trace to disable diagnostics.
 The launcher sets them only for its child process.
+After the History snapshot fix, baseline also releases completed live previews. The one-preview mode no longer restores the old unbounded cache; use previously captured baseline CSVs for before/after comparisons.

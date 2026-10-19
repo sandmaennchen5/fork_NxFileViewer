@@ -137,6 +137,7 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
         {
             cancellationToken.ThrowIfCancellationRequested();
             var file = files[index];
+            _logger.LogTrace("Batch file started: {Index}/{Count}; verify={Verify}; file={FilePath}", index + 1, files.Length, _verifyIntegrity, file);
             archiveOperations.Select(file);
             var fingerprint = BatchHistoryStore.Fingerprint(file);
             progressReporter.SetText($"Checking {index + 1}/{files.Length}: {Path.GetFileName(file)}");
@@ -213,7 +214,7 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
                                 DisplayVersion = nro.DisplayVersion, BuildId = nro.BuildId, Languages = string.Join(", ", nro.Titles.Select(t => t.Language)),
                                 Distribution = "Homebrew", FileSize = nxFile.Overview.FileSize };
                     }
-                    finally { if (!retained) nxFile.Dispose(); }
+                    finally { if (!retained) { nxFile.Dispose(); _logger.LogTrace("Released scanned file resources: {FilePath}", file); } }
                 }
             }
             catch (OperationCanceledException)
@@ -238,6 +239,7 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
 
             results[^1] = results[^1] with { SourceFingerprint = fingerprint != null &&
                 fingerprint == BatchHistoryStore.Fingerprint(file) ? fingerprint : null };
+            _logger.LogTrace("Batch file completed: {FilePath}; integrity={Integrity}", file, results[^1].Integrity);
             _resultCompleted?.Invoke(results[^1]);
             if (diskFull) throw new IOException(LocalizationManager.Instance.Current.Keys.LoadingError_DiskFull, unchecked((int)0x80070070));
 

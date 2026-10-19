@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
@@ -118,7 +118,7 @@ public class MainWindowViewModel : WindowViewModelBase, IFilesDropped
         var assemblyName = Assembly.GetExecutingAssembly().GetName();
         var assemblyVersion = (assemblyName.Version ?? new Version());
         var displayVersion = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0] ?? $"{assemblyVersion.Major}.{assemblyVersion.Minor}.{assemblyVersion.Build}";
-        _appNameAndVersion = $"{assemblyName.Name} v{displayVersion}";
+        _appNameAndVersion = $"NxFileViewer Fork v{displayVersion}";
 
         UpdateTitle();
         _fileOpeningService.OpenedFileChanged += OnFileOpeningChanged;
@@ -198,7 +198,7 @@ public class MainWindowViewModel : WindowViewModelBase, IFilesDropped
 
     private void OnLog(LogLevel logLevel, string message)
     {
-        if (logLevel == LogLevel.Error)
+        if (logLevel == LogLevel.Error || logLevel == LogLevel.Critical)
         {
             this.ErrorAnimationEnabled = true;
         }

@@ -16,7 +16,7 @@ public static class ForkAssociationLauncher
     }
     public static string Ensure(string executable) {
         _ = Emignatik.NxFileViewer.Services.Updates.ViewerPackageLayout.ExecutableName(Path.GetFileName(executable));
-        if (!File.Exists(executable)) throw new FileNotFoundException("NxFileViewer.exe not found.", executable);
+        if (!File.Exists(executable)) throw new FileNotFoundException("NxFileViewer Fork executable not found.", executable);
         var target = PathFor(executable); var payload = Payload();
         var reference = Path.Combine(Path.GetDirectoryName(target)!, "NxFileViewerFork.Open.target");
         var name = Path.GetFileName(executable);

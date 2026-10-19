@@ -166,7 +166,7 @@ public class FileRenamerService : IFileRenamerService
             }
 
             if (shouldBeRenamed)
-                logger?.LogWarning(LocalizationManager.Instance.Current.Keys.RenamingTool_LogFileRenamed.SafeFormat(logPrefix, oldFileName, newFileName));
+                logger?.LogInformation(LocalizationManager.Instance.Current.Keys.RenamingTool_LogFileRenamed.SafeFormat(logPrefix, oldFileName, newFileName));
             else
                 logger?.LogInformation(LocalizationManager.Instance.Current.Keys.RenamingTool_LogFileAlreadyNamedProperly.SafeFormat(logPrefix, oldFileName));
 

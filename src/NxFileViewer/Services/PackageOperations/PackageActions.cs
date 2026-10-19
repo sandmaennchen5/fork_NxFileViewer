@@ -1,4 +1,5 @@
 using System;
+using Microsoft.Extensions.Logging;
 using System.IO;
 using System.Windows;
 using Microsoft.Win32;
@@ -16,6 +17,7 @@ namespace Emignatik.NxFileViewer.Services.PackageOperations;
 
 public sealed class PackageActions : NotifyPropertyChangedBase
 {
+    private readonly ILogger<PackageActions>? _logger;
     private readonly IAppSettings _settings;
     private readonly IMainBackgroundTaskRunnerService _background;
     private readonly PackageOperationService _service;
@@ -23,8 +25,9 @@ public sealed class PackageActions : NotifyPropertyChangedBase
     private readonly IPromptService _prompts;
 
     public PackageActions(IAppSettings settings, IMainBackgroundTaskRunnerService background,
-        PackageOperationService service, IKeySetProviderService keys, IPromptService prompts)
+        PackageOperationService service, IKeySetProviderService keys, IPromptService prompts, ILogger<PackageActions>? logger = null)
     {
+        _logger = logger;
         _settings = settings; _background = background; _service = service; _keys = keys; _prompts = prompts;
         MergeNspCommand = Create(PackageOperation.Merge, "nsp");
         MergeXciCommand = Create(PackageOperation.Merge, "xci");
@@ -81,11 +84,13 @@ public sealed class PackageActions : NotifyPropertyChangedBase
             var runnable = new RunnableRelay((progress, token) =>
                 output = _service.Run(config, operation, dialog.FileNames, destination, type, keyPath, progress, token))
                 { SupportsCancellation = true, SupportProgress = true };
+            _logger?.LogInformation("Package operation {Operation} started with {Engine} for {Count} input files.", operation, config.Engine, dialog.FileNames.Length);
             await _background.RunAsync(runnable);
+            _logger?.LogInformation("Package operation {Operation} completed: {Output}", operation, output);
             if (output != null) ThemedDialog.Notice(text.Package_Done + output, text.Package_Title, MessageBoxImage.Information);
         }
-        catch (OperationCanceledException) { }
-        catch (Exception ex) { ThemedDialog.Notice(ex.Message, text.Package_Title, MessageBoxImage.Error); }
+        catch (OperationCanceledException) { _logger?.LogInformation("Package operation canceled."); }
+        catch (Exception ex) { _logger?.LogError(ex, "Package operation failed."); ThemedDialog.Notice(ex.Message, text.Package_Title, MessageBoxImage.Error); }
         finally { Refresh(); }
     }
 }

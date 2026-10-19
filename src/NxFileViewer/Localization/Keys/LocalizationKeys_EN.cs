@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Emignatik.NxFileViewer.Utils.MVVM.Localization;
 using LibHac.Ncm;
 
@@ -6,7 +6,12 @@ namespace Emignatik.NxFileViewer.Localization.Keys;
 
 public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
 {
-    public string Update_RollbackConfirm => "Restore the previous application version? NxFileViewer will close and restart. Removing old versions also removes this recovery option.";
+    public string PluginLog_Title => "Plugin log levels";
+    public string PluginLog_Inherit => "Use global setting";
+    public string PluginLog_Off => "Off";
+    public string PluginLog_Tip => "The plugin level overrides the global minimum for messages from this plugin. Applies to the log view and saved session log.";
+
+    public string Update_RollbackConfirm => "Restore the previous application version? NxFileViewer Fork will close and restart. Removing old versions also removes this recovery option.";
     public string Update_Cleanup => "Remove old versions";
     public string Update_CleanupConfirm => "Permanently remove these old versions or update backups?\n\n{0}\n\nThese rollback versions will no longer be available. The current version and configured custom executables are retained.";
     public string Update_CleanupEmpty => "No old versions eligible for cleanup found. Running, recently completed or failed application updates are retained.";
@@ -83,7 +88,7 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
     public string Nand_Info => "NAND information";
     public string Nand_Export => "Export partition…";
     public string Nand_SettingsTip => "Leave the EXE path empty to use managed downloads under Settings → Updates → Plugins → NxNandManager. A custom EXE is never replaced.";
-    public string Nand_BisKeys => "BIS key file (optional; empty = NxFileViewer's active prod.keys)";
+    public string Nand_BisKeys => "BIS key file (optional; empty = NxFileViewer Fork's active prod.keys)";
     public string Nand_Tip => "Open a NAND dump (first file for split dumps). Export copies the selected partition as stored, without decryption. Configure NxNandManager under Settings → Plugins.";
     public string Nand_NewTarget => "Select a new local output file. Existing files cannot be replaced.";
     public string Nand_SourceMissing => "NAND source file is missing or is not a local file.";
@@ -137,7 +142,7 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
     public string Component_CustomVersion => "Custom version: automatic checking unavailable.";
     public string Update_Available => "Version {0} is available.";
     public string Update_Failed => "Update failed.";
-    public string Update_Confirm => "Download and install version {0}? NxFileViewer will restart. Keys, settings and plugins are retained.";
+    public string Update_Confirm => "Download and install version {0}? NxFileViewer Fork will restart. Keys, settings and plugins are retained.";
     public string Update_Downloading => "Downloading and verifying update…";
     public string Update_Installing => "Installing update…";
     public string Update_Cancelled => "Update cancelled.";
@@ -156,11 +161,12 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
     public string TitlePage_Custom => "Custom";
     public string Info_WithRuntime => "With bundled .NET";
     public string Info_WithoutRuntime => "Without bundled .NET — requires .NET 8 Desktop Runtime";
-    public string Info_Description => "NxFileViewer inspects and verifies Nintendo Switch files. Supports NSP, NSZ, XCI, XCZ, NCA, ZIP and 7z archives, firmware verification and NSZ conversion.";
+    public string Info_Description => "NxFileViewer Fork inspects and verifies Nintendo Switch files. Supports NSP, NSZ, XCI, XCZ, NCA, ZIP and 7z archives, firmware verification and NSZ conversion.";
     public string Info_Shortcuts => "Keyboard shortcuts";
     public string BatchHistory_Show => "Show";
     public string BatchHistory_LoadedNotice => "Loaded from history.\nThe logo was not saved.";
     public string BatchHistory_Title => "Recent batch checks";
+    public string BatchHistory_SaveLogos => "Save logos in history";
     public string BatchHistory_Enable => "Save batch check history";
     public string BatchHistory_Limit => "Number of saved batch checks (1–100)";
     public string BatchHistory_Resume => "Resume";
@@ -742,7 +748,7 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
     public string Keys_DownloadAll => "Download keys";
     public string Keys_DownloadHost => "Download IP / hostname";
     public string Keys_DownloadHostTip => "{IP} in the download URLs is replaced with this address. Destination: custom path when set, otherwise the program directory.";
-    public string Keys_CopyToSwitchHelp => @"Optional: Copies the currently used prod.keys and, if available, title.keys to %USERPROFILE%\.switch. Programs and other NxFileViewer installations that support this shared search location can use the files there. Portable installations can keep their keys in their own program folder; an extra copy provides no additional decryption capability. The originals are retained. Later changes are not synchronized automatically. You are asked before existing destination files are replaced.";
+    public string Keys_CopyToSwitchHelp => @"Optional: Copies the currently used prod.keys and, if available, title.keys to %USERPROFILE%\.switch. Programs and other NxFileViewer Fork installations that support this shared search location can use the files there. Portable installations can keep their keys in their own program folder; an extra copy provides no additional decryption capability. The originals are retained. Later changes are not synchronized automatically. You are asked before existing destination files are replaced.";
     public string Keys_CopyToSwitch => @"Copy current keys to %USERPROFILE%\.switch";
     public string Keys_ReplaceShared => "Replace existing keys? Source files will be kept.";
     public string Keys_SharedCopied => "Keys are available in the shared .switch folder.";
@@ -761,12 +767,12 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
     public string SdBatch_SourceSd => "Switch SD";
     public string SdBatch_SourceTip => "Batch source type, including MTP. Auto detects Nintendo, emuMMC or hbmenu.nro at the root. Switch SD applies the SD area filter regardless of contents. Regular folder bypasses the SD area filter. Enable the area filter in Settings.";
     public string Nand_DriveRefresh => "Refresh drives";
-    public string Nand_DriveAccessDenied => "The device was detected, but Windows denied read access. Run NxFileViewer as administrator and select the drive again. Access remains read-only.";
+    public string Nand_DriveAccessDenied => "The device was detected, but Windows denied read access. Run NxFileViewer Fork as administrator and select the drive again. Access remains read-only.";
     public string Associations_Title => "Windows file associations";
     public string Associations_Remove => "Remove file associations";
     public string Associations_Removed => "NxFileViewer Fork file-association registration was removed. If it was the default app, select another app using Open with in Windows. Explorer context menus can be removed separately.";
     public string Explorer_Title => "Explorer context menu";
-    public string Explorer_Tip => "NxFileViewer offers Batch and File actions: open without hashing, or verify with hashing. Multiple files and folders offer Batch only. Works when the app is closed. Classic registration is per user without administrator rights; on Windows 11 use Show more options. Add again after moving the app. Changes take effect immediately.";
+    public string Explorer_Tip => "NxFileViewer Fork offers Batch and File actions: open without hashing, or verify with hashing. Multiple files and folders offer Batch only. Works when the app is closed. Classic registration is per user without administrator rights; on Windows 11 use Show more options. Add again after moving the app. Changes take effect immediately.";
     public string Explorer_AddClassic => "Add / update classic menu";
     public string Explorer_RemoveClassic => "Remove classic menu";
     public string Explorer_ModernTip => "Downloads the matching Explorer setup from GitHub and checks its version independently of the app. Confirm certificate trust and administrator access on first use. Windows may also show the menu in the classic menu; no additional classic registration is created. Preview releases follow the update setting. A local MSIX can be selected for offline installation.";

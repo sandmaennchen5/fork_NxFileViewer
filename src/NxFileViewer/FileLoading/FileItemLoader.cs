@@ -65,6 +65,7 @@ public class FileItemLoader : IFileItemLoader
 
     public StandaloneNcaFileItem LoadNca(string filePath)
     {
+        _logger.LogTrace("Reading NCA metadata: {FilePath}", filePath);
         var item = new StandaloneNcaFileItem(filePath, _keySetProviderService.GetKeySet(_appSettings.AlwaysReloadKeysBeforeOpen));
         try { BuildNcaChildItems(item.NcaItem); return item; }
         catch { item.Dispose(); throw; }
@@ -72,6 +73,7 @@ public class FileItemLoader : IFileItemLoader
 
     public NspItem LoadNsp(string nspFilePath)
     {
+        _logger.LogTrace("Reading NSP metadata: {FilePath}", nspFilePath);
         var keySet = _keySetProviderService.GetKeySet(_appSettings.AlwaysReloadKeysBeforeOpen);
         var nspItem = NspItem.FromFile(nspFilePath, keySet);
         try { BuildPartitionChildItems(nspItem); _loadToken.Value.ThrowIfCancellationRequested(); return nspItem; }
@@ -80,6 +82,7 @@ public class FileItemLoader : IFileItemLoader
 
     public XciItem LoadXci(string xciFilePath)
     {
+        _logger.LogTrace("Reading XCI metadata: {FilePath}", xciFilePath);
         var keySet = _keySetProviderService.GetKeySet(_appSettings.AlwaysReloadKeysBeforeOpen);
         var xciItem = XciItem.FromFile(xciFilePath, keySet);
         try { BuildXciChildItems(xciItem); _loadToken.Value.ThrowIfCancellationRequested(); return xciItem; }

@@ -42,7 +42,7 @@ public sealed class ViewerPreviewVersionTest
         tag_name = tag, draft = false, prerelease = tag.Contains('-'),
         assets = new[] { new
         {
-            name = $"NxFileViewer_v{tag}_x64.zip",
+            name = $"NxFileViewerFork_v{tag}_x64.zip",
             browser_download_url = $"https://github.com/{ViewerUpdateService.Repository}/releases/download/v{tag}/app.zip",
             digest = "sha256:" + new string('0', 64)
         } }
@@ -95,14 +95,14 @@ public sealed class ViewerPreviewVersionTest
             var archive = System.IO.Path.Combine(root, "payload.zip");
             using (var zip = System.IO.Compression.ZipFile.Open(archive, System.IO.Compression.ZipArchiveMode.Create))
             using (var output = zip.CreateEntry("NxFileViewer.exe").Open())
-            using (var input = System.IO.File.OpenRead(System.IO.Path.Combine(AppContext.BaseDirectory, "NxFileViewer.exe")))
+            using (var input = System.IO.File.OpenRead(System.IO.Path.Combine(AppContext.BaseDirectory, "NxFileViewerFork.exe")))
                 input.CopyTo(output);
             var bytes = System.IO.File.ReadAllBytes(archive);
             var assembly = typeof(ViewerUpdateService).Assembly;
             var installed = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion;
             Assert.True(ViewerVersion.TryParse(installed, out var version));
             var tag = mismatch ? version.Numeric + "-beta.999999" : installed;
-            var release = new ViewerRelease(version.Numeric, "NxFileViewer_v" + tag + "_x64.zip",
+            var release = new ViewerRelease(version.Numeric, "NxFileViewerFork_v" + tag + "_x64.zip",
                 new Uri($"https://github.com/{ViewerUpdateService.Repository}/releases/download/v{tag}/app.zip"),
                 "sha256:" + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes))) { Tag = tag };
             using var client = new HttpClient(new Handler(_ => new HttpResponseMessage(HttpStatusCode.OK)

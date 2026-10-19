@@ -1,4 +1,5 @@
 using System;
+using Microsoft.Extensions.Logging;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -18,9 +19,10 @@ public static class SphairaMtpActions
     public static async Task<string?> SelectAndImport(IServiceProvider services, IMainBackgroundTaskRunnerService runner, bool batch = false)
     {
         if (!services.GetRequiredService<Settings.IAppSettings>().MtpActive || runner.IsRunning) return null;
+        var logger = services.GetService<ILoggerFactory>()?.CreateLogger("Emignatik.NxFileViewer.Services.Mtp.SphairaMtpActions");
         try
         {
-            var dialog = new SphairaMtpWindow { Owner = Application.Current?.MainWindow };
+            var dialog = new SphairaMtpWindow(services.GetService<ILogger<SphairaMtpWindow>>()) { Owner = Application.Current?.MainWindow };
             if (dialog.ShowDialog() != true || dialog.Selection == null) return null;
             var selected = dialog.Selection;
             var cacheDirectory = dialog.CacheDirectory;
@@ -31,9 +33,10 @@ public static class SphairaMtpActions
                 services.GetRequiredService<MtpImportService>().Import(selected, reporter, token, cacheDirectory, areas).Run())
                 { SupportsCancellation = true, SupportProgress = true });
         }
-        catch (OperationCanceledException) { return null; }
+        catch (OperationCanceledException) { logger?.LogInformation("MTP import canceled."); return null; }
         catch (Exception ex)
         {
+            logger?.LogError(ex, "MTP import failed.");
             if (LoadingSpaceWarning.IsDiskFull(ex)) LoadingSpaceWarning.Show("Sphaira (MTP)");
             else ThemedDialog.Notice(ex.Message, LocalizationManager.Instance.Current.Keys.Mtp_Title, MessageBoxImage.Error);
             return null;

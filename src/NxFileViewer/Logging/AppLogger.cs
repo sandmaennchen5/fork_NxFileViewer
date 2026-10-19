@@ -36,7 +36,20 @@ public class AppLogger : ILogger
 
     public bool IsEnabled(LogLevel logLevel)
     {
-        return logLevel >= _appSettings.LogLevel;
+        var minimum = GetMinimumLevel();
+        return logLevel >= LogLevel.Trace && logLevel < LogLevel.None && logLevel >= minimum && minimum < LogLevel.None;
+    }
+
+    private LogLevel GetMinimumLevel()
+    {
+        var category = _categoryName ?? "";
+        var pluginLevel = category.StartsWith("Emignatik.NxFileViewer.Services.Nsz.", StringComparison.Ordinal) ? _appSettings.NszLogLevel
+            : category.StartsWith("Emignatik.NxFileViewer.Services.Nand.", StringComparison.Ordinal) || category == "Emignatik.NxFileViewer.Views.Windows.NandViewModel" ? _appSettings.NandLogLevel
+            : category.StartsWith("Emignatik.NxFileViewer.Services.Mtp.", StringComparison.Ordinal) || category == "Emignatik.NxFileViewer.Views.Windows.SphairaMtpWindow" ? _appSettings.MtpLogLevel
+            : category.StartsWith("Emignatik.NxFileViewer.Services.PackageOperations.", StringComparison.Ordinal) ? _appSettings.PackageLogLevel
+            : PluginLogLevel.Inherit;
+        return pluginLevel >= PluginLogLevel.Trace && pluginLevel <= PluginLogLevel.None
+            ? (LogLevel)pluginLevel : _appSettings.LogLevel;
     }
 
     public IDisposable BeginScope<TState>(TState state) where TState : notnull

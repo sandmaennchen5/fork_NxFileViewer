@@ -81,7 +81,11 @@ public sealed record BatchIntegrityResult(
     public string BuildId { get; init; } = "";
     public string Distribution { get; init; } = "";
     public string Languages { get; init; } = "";
+    public string SecurityDetails { get; init; } = "";
+    public string PatchLevel { get; init; } = "";
     public long? FileSize { get; init; }
+    public long? EstimatedUncompressedSize { get; init; }
+    public InstalledTitleInfo[] InstalledTitlesWithoutMeta { get; init; } = Array.Empty<InstalledTitleInfo>();
     public double? CompressionRatio { get; init; }
     public string? ConversionStatus { get; init; }
     public bool ConversionFailed { get; init; }
@@ -112,7 +116,7 @@ public sealed record BatchIntegrityResult(
             MasterKey = package.MasterKey, MinimumApplicationVersion = package.MinimumApplicationVersion,
             Distribution = package.Distribution, BuildId = package.BuildId, IsDemo = package.IsDemo,
             Permission = package.Permission, FileSystemPermissions = package.FileSystemPermissions,
-            AcidSignatureValidity = package.AcidSignatureValidity
+            AcidSignatureValidity = package.AcidSignatureValidity, SecurityDetails = package.SecurityDetails, PatchLevel = package.PatchLevel
         };
         // A presentation row must not inherit the original row's UI subscriptions.
         row.PropertyChanged = null;
@@ -143,6 +147,12 @@ public sealed record BatchPackageSummary(string Title, string TitleId, string Ty
     [JsonIgnore] public BatchVersionSortKey DisplayVersionSortKey => new(DisplayVersion);
     public string DisplayVersion { get; init; } = "";
     public string Languages { get; init; } = "";
+    public string SecurityDetails { get; init; } = "";
+    public string PatchLevel { get; init; } = "";
 }
 
-public sealed record BatchTitleSummary(string Language, string Title, string Publisher);
+public sealed record BatchTitleSummary(string Language, string Title, string Publisher)
+{
+    public BatchIconReference? Icon { get; init; }
+}
+public sealed record BatchIconReference(Guid EntryId, string Key);

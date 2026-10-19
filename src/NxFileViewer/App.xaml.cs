@@ -176,7 +176,7 @@ public partial class App : Application, IAppEvents
         }
         catch (Exception ex)
         {
-            MessageBox.Show(ex.Message, "NxFileViewer", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show(ex.Message, "NxFileViewer Fork", MessageBoxButton.OK, MessageBoxImage.Error);
             Shutdown(1);
             return;
         }
@@ -275,7 +275,7 @@ public partial class App : Application, IAppEvents
         catch (Exception ex)
         {
             _logger.LogError(ex, "Could not process Explorer selection.");
-            MessageBox.Show(ex.Message, "NxFileViewer", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show(ex.Message, "NxFileViewer Fork", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally { _handlingExplorerRequest = false; }
     }
