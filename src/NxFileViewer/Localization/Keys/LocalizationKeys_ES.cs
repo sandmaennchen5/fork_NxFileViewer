@@ -6,6 +6,9 @@ namespace Emignatik.NxFileViewer.Localization.Keys;
 
 public class LocalizationKeys_ES : LocalizationKeysBase, ILocalizationKeys
 {
+    public string Info_Credits => "Colaboradores y créditos";
+    public string Info_Licenses => "Textos de las licencias";
+
     public string PluginLog_Title => "Niveles de registro de complementos";
     public string PluginLog_Inherit => "Usar ajuste general";
     public string PluginLog_Off => "Desactivado";

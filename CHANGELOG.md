@@ -7,127 +7,55 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
-- Clean up unused Explorer DLL versions after menu changes and on application startup. Protect active registrations, loaded or locked DLLs and unexpected contents; retry deferred cleanup on later starts.
-
-- Added a program rollback button using the latest retained update backup, with confirmation, automatic restart, and disabled state when no backup remains.
+## [4.1.0-beta1] - 2026-10-19
 
 ### Added
 
-- Standalone diagnostic LogViewer with colored file groups, multiline exception details, combined text/severity/RAM filters, virtualized rendering and reload. Publish separate x64/x86 ZIPs with and without .NET; support `Publish.ps1 -LogViewerOnly`.
-
-- Offer manual cleanup of old managed NSZ/NxNandManager versions and complete successful application-update directories, including leftover folders whose backup EXE was already removed, with an exact-path confirmation and rollback warning. Preserve active/custom executables, keys, linked or locked directories, and pending or failed program updates.
-
-## [4.1.0] - 2026-10-18
+- Add Sphaira MTP browsing and read-only imports for file and batch checks, with a selectable local/network cache, progress, cancellation and cleanup. Offer experimental direct reads for supported packages and NCA files; cache mode remains required for archives, NAND and SD structures, and Windows may buffer direct reads internally.
+- Read NRO homebrew metadata and icons in individual, archive and batch views. Recognize confirmed and likely legacy JKSV save backups separately from game packages; homebrew and save backups do not receive NCA integrity checks.
+- Open installed SD-card NAX0 content with the matching sd_seed and active prod.keys. Support FAT32 split content, original Nintendo and RAW/file emuMMC content sets, a content-set selector and dedicated batch filters. Exclude SD content from package rename/conversion actions.
+- Configure Switch-SD batch areas and custom nested folders/files. Apply the filter before MTP copying and offer automatic, regular-folder and explicit Switch-SD source selection.
+- Browse NAND FAT32 partitions read-only from dumps, split dumps and physical Windows devices. Export individual files, resolve title names through local TitleDB and show readable save/NCA title IDs and save user IDs.
+- Browse recognized SaveFS containers and export individual files or complete saves, preserving empty folders. Use new timestamped destinations and clean staged output on cancellation or failure.
+- Add 37 configurable batch columns with saved visibility, order and widths; Games filtering; optional folder/archive grouping; and a collapsible details pane that remembers its width.
+- Expand multi-package rows and optionally list/export each contained package independently as file.nsp::1, ::2, etc., with its own metadata. Keep actions and paths tied to the source container and retain package details in history.
+- Export CSV or native Excel (.xlsx), optionally using only visible columns in table order. Excel preserves title IDs as text and provides a frozen header and filters; file names and full paths use separate columns.
+- Support mixed multi-file/folder drops with duplicate suppression, cancellation and resumable history. Add three independent opt-in automatic-verification settings for in-app opening, Windows opening and batch drops.
+- Make batch history retention configurable from 1 to 100 runs. Display stored metadata with the live overview layout, package/language selection and a history notice, without reopening sources.
+- Add Open in Explorer as the first batch context-menu action, selecting the source file or outer archive when available.
+- Add current-user Windows file associations for NSP/NSZ/XCI/XCZ/NRO through an embedded native launcher, preserving existing defaults and refreshing installed launchers when needed.
+- Add application rollback with confirmation and restart. Offer confirmed cleanup of old managed plugin versions and successful application-update directories while protecting active/custom files, keys, linked or locked directories and pending/failed updates.
+- Add a standalone LogViewer with file groups, multiline exceptions, text/severity/RAM filters, virtualized rendering and reload. Publish separate x64/x86 standard and self-contained ZIPs; support Publish.ps1 -LogViewerOnly.
+- Add offline Credits and license texts to Info, including library versions and verified per-file icon provenance. Existing artwork remains unchanged; individual third-party icon authors/licenses remain unverified.
 
 ### Changed
 
-- Publish `NxFileViewerFork.exe` and flat `NxFileViewerFork_v*` ZIPs with a stable package identity, full package updates and rollback; display NxFileViewer Fork and link the fork repository in application metadata.
-- Store TitleDB, GitHub update metadata and offline firmware references under `Plugins/TitleDB`, `Plugins/CacheUpdates` and `Plugins/fwhashes`. Only the optional one-time transition migrates old data and settings paths.
-- Publish Explorer setup files exclusively inside their setup ZIPs.
-
-### Added
-
-- Legacy-compatible transition ZIPs under the old `NxFileViewer_v*` names: the transition fetches the latest stable verified new package and installs the renamed application. Preserve architecture, runtime variant and conflicting user files; offer Retry on download failure. Generate transition EXEs with each release version automatically so older updaters accept their version check.
-## [4.0.1-beta4] - 2026-10-18
-
-### Added
-
-- Export batch results as CSV or native Excel (.xlsx), with a configurable default format and an optional export of visible columns in table order. Otherwise export all table columns in the program's default order. Excel preserves title IDs as text and includes a frozen header and filters.
-- Independently enable individual multi-package rows in the batch table and exports, named `file.nsp::1`, `::2`, etc., with each package's own metadata. Keep file paths, verification, history and file actions tied to the original container.
-- Collapse and reopen the batch details pane using an arrow, restoring its previous width and retaining the selected file and details tab.
-- Show existing field explanations on batch column-header hover, including expanded package tables. Add visible help icons beside Integrity and ACID signature, and explain ACID validity states and the distinction from NCA signature and integrity checks.
-
-### Changed
-
-- Sort combined multi-package values independently of package order by default: Base / Update / DLC, descending numeric versions and master-key revisions, and alphabetical text and IDs. Offer the original package order in Settings, including combined exports; preserve individual package numbering.
-- Make merge, split and NSP/XCI conversion an experimental, opt-in feature, disabled by default even for existing settings. Keep it in its existing Plugins location, hide its section while disabled, and enable it through Settings → Features after restarting.
+- Publish NxFileViewerFork.exe with a stable package identity and full package updates. Main application ZIPs contain only NxFileViewerFork.exe, nxfileviewer-package.json and LICENSE.txt; other notices are embedded in the executable.
+- Store TitleDB, GitHub update metadata and firmware references under Plugins/TitleDB, Plugins/CacheUpdates and Plugins/fwhashes. Provide optional old-name transition ZIPs that preserve architecture/runtime variant and user files; only the explicit transition migrates old data/settings paths. The transition downloads stable releases.
+- Keep Explorer setup files inside their setup ZIPs. Clean unused Explorer DLL versions after menu changes and startup while protecting active registrations, loaded/locked files and unexpected contents; retry deferred cleanup later.
+- Move keys to a dedicated Settings tab, keep both key sections visible and refresh locations on entry. Organize Program settings into focused sections with hover/click help.
+- Distinguish external NxNandManager/NSZ GUI launches on Start and supply active keys through an isolated temporary environment, respecting the NAND BIS-key override.
+- Sort combined package values independently of package order by default, with an option to retain source order. Sort versions numerically and show all contained content types and the highest known permission risk without treating missing program metadata as safe.
+- Require confirmation before resetting batch filters/sorting or column layout. Improve overview field order, column help, Integrity/ACID explanations, and monitor-aware resizable themed help windows.
+- Make merge, split and NSP/XCI conversion experimental opt-in features, disabled by default and enabled in Settings → Features after restart.
+- Use integrated Trace as the sole switch for passive RAM/GC and batch CSV diagnostics. Write new CSVs to Logs/Diagnostics in the application folder; leave previous AppData captures in place.
+- Remove the legacy memory-diagnostic launcher, comparison experiments, unused preview/navigation bookkeeping, the unused renaming-page logger and redundant fields, wrappers and Win32 declarations. Move the remaining test-only logger into the test project.
 
 ### Fixed
 
-- Export the file name and full path in separate columns rather than placing the full path in File.
-- Sort firmware and display versions by numeric version components rather than alphabetically, including prerelease versions and multi-package details.
-- Vertically center text in the batch search field.
-
-- Rebuild staged decompressed XCI Gamecard layouts on 512-byte boundaries and update Secure/LimArea addresses, the four-byte valid-data end address and root header hash. Preserve available certificate/extended prefix bytes through XCI/XCZ conversion; validate the rebuilt header before publication. This does not recreate Nintendo Gamecard RSA signatures or certificates absent from the source.
-
-## [4.0.1-beta3] - 2026-10-16
-
-### Added
-
-- Add Open in Explorer as the first batch row context-menu action. Select the source file or outer ZIP/7z archive; disable the action when the source is unavailable.
-
-### Changed
-
-- Ask for confirmation before resetting batch filters/sorting or the saved column layout. Declining or closing the dialog preserves the current settings.
-
-### Fixed
-
-- Correct NCZ lengths for sections starting before 0x4000, including firmware sections at 0xC00. Normalize the known NSZ 5.0.0 oversized HFS0 directory slots in staged XCZ decompression outputs only after every affected NCA hash matches; preserve extra files, refresh affected container hashes and reject unknown corruption. Check NCA hashes across all XCI partitions and verify non-game XCZ NCAs during conversion, preventing a valid Secure partition from hiding broken firmware contents. Source files and managed plugin binaries remain untouched.
-
-- Release solid NCZ decoder caches after each temporary integrity reader and when closing NSP/XCI content trees, preventing cumulative Temp/NCZ growth during large NSZ/XCZ batches. Propagate disk-full errors from loading and integrity checks so the batch interrupts instead of continuing with misleading hash failures. The active solid-compressed content still requires temporary disk space.
-- Distinguish NCA-only package structures from incomplete containers, align structure labels with help text in all four languages, and explain that structure classification does not establish missing game data. Use consistent labels in live/history overviews, batch rows and CSV. Existing history retains its recorded classification until the source is reread.
-- Shorten the Missing keys batch-column heading and distinguish missing title keys (ticket/title.keys, with Rights ID) from system/console keys in file warnings. Retain diagnostic key types in new history records and explain that newer prod.keys master keys do not replace title keys. Store key names/types only, never key values.
-- Open file locations through the Windows shell after the context menu closes and grant Explorer foreground permission, preventing the viewer from covering the opened location.
-
-## [4.0.1-beta2] - 2026-10-15
-
-### Added
-
-- Offer 37 selectable batch columns covering file, package, security, title, naming and conversion metadata. Remember column visibility, order and widths across restarts, with a column-layout reset. Expanded multi-package rows follow the selected package columns; CSV exports all fields independently of visible columns.
-- Support dropping multiple files, folders or mixed selections into one batch, with duplicate suppression, cancellation, combined progress and source-list persistence for history/resume. A single file dropped on the batch page stays in batch mode.
-- Add three independent, opt-in automatic verification settings: files opened inside the program, files opened through Windows associations/startup arguments, and files dropped into batch mode. Verification is cancellable; completed cached checks and unsupported content are skipped.
-- Make the saved batch history limit configurable from 1 to 100 runs (default 5). Apply the display limit immediately and prune older stored runs on the next history save.
-- Add a Games batch filter covering NSP/NSZ/XCI/XCZ, including archive members.
-
-### Changed
-
-- Render saved batch metadata with the same file, package, security and presentation layout as live overviews, including package/language selection. Restore details without reopening source files or archives; show a history notice instead of an unsaved logo. Older histories retain the fields they originally saved.
-- Show all contained content types (Base/Update/DLC) and the highest known program permission risk for multi-package files; missing program metadata is not classified as safe. Keep the included XCI system update at file level rather than repeating it in package rows.
-- Organize Program settings into General, Verification, History, SD areas, Windows associations, Title information and Logging sections. Move detailed explanations into hover/click help and shorten automatic-verification labels.
-- Size clicked help windows to their text within the current monitor, with scrolling for longer content, resizing, Escape to close and themed title bars. Explain optional shared-key copying versus portable installations in the Keys help and copy-button tooltip.
-- Swap compression and NCA signature positions in the shared individual/batch file overview. Combine the batch filter and sorting reset into one action and use consistent file-verification terminology.
-
-### Fixed
-
-- Do not download missing prod.keys or title.keys automatically at startup, including configured FTP sources. Key downloads start only through the explicit download action in Settings → Keys.
-- Share GitHub update metadata requests across the viewer and plugins, cache automatic checks for six hours across restarts, and honor persisted API cooldowns. Show retry times and dated saved results instead of a generic rate-limit failure; manual checks request fresh metadata when permitted. Automatic NSZ checks before conversion use the same cache.
-
-## [4.0.1-beta1] - 2026-10-15
-
-### Added
-
-- Add “Sphaira (MTP)” selection to individual and batch checks, using native Windows virtual-device browsing and read-only file transfers. Import supported contents to a selectable local/network cache with progress, cancellation and cleanup; preserve Nintendo/Contents paths and split NCA parts for the existing SD reader, including MTP views that provide NCAs without a NAX0 wrapper. Offer an experimental direct-read mode for individual NSP/NSZ, XCI/XCZ and NCA files and folders containing these files. Cache remains the default and is required for archives, NAND and SD structures; Windows may still buffer direct reads internally.
-- Add an optional batch checkbox to group files by their source folder or ZIP/7z archive, with collapsible groups and file counts. Preserve filters, sorting and per-file actions inside groups.
-- Read NRO homebrew metadata and icons in individual, ZIP/7z archive and batch mode, including embedded NACP titles, publisher, display version, languages and build ID. NRO files do not require keys or receive NCA signature/integrity verification.
-- Open and verify installed SD-card NAX0 content using the matching `sd_seed` and SD content keys from the active `prod.keys`. Support FAT32 split content, including copied folders without their archive attribute, and show control metadata without a corresponding Meta NCA. Add an SD-card folder picker, content-set selector and dedicated NRO/NAX0 batch filters; exclude SD contents from package rename/conversion actions.
-- Discover original Nintendo SD contents and RAW/file emuMMC content sets. Individual mode can switch between discovered sets; batch mode lists each set separately, including when recursive scanning is disabled, and the last SD source can be reopened.
-- Recognize JKSV ZIP/7z save backups through valid metadata or a supported legacy save layout, without assigning a game title. Show timestamped legacy archives under JKSV/oldJKSV as likely save backups when their contents pass the fallback checks; distinguish these candidates from content-confirmed backups and exclude saves from NCA verification and game-package actions.
-- Add a native, read-only NAND explorer with a folder tree, file list and individual file export. Browse USER/SYSTEM and other supported FAT32 partitions in dumps, split dumps and Windows drive/device sources; decrypt supported partitions with their BIS keys without mounting or modifying the source.
-- Show title IDs from readable save/NCA headers, resolve title names through the local regional TitleDB, and show user IDs from save headers while retaining the original filenames.
-- Open recognized SaveFS containers directly from NAND and browse their internal folders. Export individual files or the complete save, preserving directory structure and empty folders. Complete exports use a new timestamped destination and staging cleanup on cancellation/failure; existing destinations are not overwritten.
-- Expand multi-package batch rows to show each contained title, title ID, package type and version. Retain package details in batch history without persisting the expanded state.
-- Add configurable Switch-SD batch areas for `/switch`, `/Nintendo`, `/emuMMC`, `/tools`, root `hbmenu.nro`, `/DBIsaves`, `/dumps` and `/nxdt_rw_poc`, plus editable custom folders/files with nested paths. Save the selection and filter excluded areas before MTP copying. The source selector offers automatic detection, regular-folder scanning and explicit Switch-SD filtering.
-- Register `.nsp`, `.nsz`, `.xci`, `.xcz` and `.nro` for the current Windows user as “NxFileViewer Fork”. An embedded native launcher gives the fork a separate app identity while retaining `NxFileViewer.exe`; installed launchers refresh automatically when their embedded version changes. Existing single-EXE update packages remain compatible, and Windows default-app selection stays user controlled.
-
-### Changed
-
-- Move key settings into a dedicated Keys tab immediately after Program. Keep prod.keys and title.keys sections visible without expanders and refresh key locations on entering the tab.
-- Distinguish external NxNandManager and NSZ launches on Start with compact buttons, separate icons, purpose descriptions and an explicit external-launch action. Launch installed GUIs with NxFileViewer’s active keys in an isolated temporary environment; the NAND BIS-key override takes priority.
-
-### Fixed
-
-- Reuse archive extractions and recursive content lists throughout a load or consecutive batch entries from the same archive, preventing repeated unpacking of large nested firmware archives. Keep single-archive batch discovery and subsequent loading in the same operation, including ZIPs at the archive root and in subfolders. Release retained sessions on completion, cancellation or switching archives.
-- Show archive listing and ZIP/7z extraction/copy progress in the status bar during single-file opening, batch scans and overview loading, including the current entry, file count, byte counts and percentage.
-- Detect ZIP/7z readers from archive signatures so incorrectly named archives, including nested firmware archives with a ZIP extension but 7z contents, remain readable.
-- Automatically size the expanded SuperNSP/SuperXCI package columns to their headers and contents, with horizontal scrolling for long titles.
-- Restore UTF-8 localization text and keep the ungrouped batch table visible when optional source grouping is disabled.
-- Make the arrow beside multi-package filenames reliably expand/collapse the contained package list and select the matching overview; keep result-row hashes stable while expansion and UI subscriptions change.
-- Restore batch overview loading on selection when no cached model is available. Reuse cached models for subsequent selections, retain stored summaries for missing sources or load failures, and prevent delayed loads from replacing the latest selection.
-- Allow missing-key warnings to be dismissed in individual and batch file overviews, and keep batch overview content scrollable so warnings do not squeeze the remaining details. Refresh warnings when the selected file or key diagnostics change.
-- Show an on-screen warning when loading runs out of disk space, including the affected path. Stop an affected batch scan as interrupted instead of reporting successful completion or continuing after the disk-full error.
-- Automatically load the new NAND partition root when its selection changes, synchronize both partition selectors, and leave the SaveFS view when switching partitions.
-- Persist changes to the NSZ “check for stable updates before conversion” checkbox immediately on both update pages, and preserve the active choice when applying general settings.
-- List physical NAND drives without requiring drive letters or a successful initial read probe, including offline Hekate UMS devices. Show model/capacity when available, allow refreshing the list and explain when administrator rights are required.
+- Correct NCZ section lengths before offset 0x4000, including firmware sections at 0xC00. Repair known NSZ 5.0.0 oversized HFS0 slots only in staged outputs after every affected NCA hash matches; preserve extra files, refresh hashes and reject unknown corruption.
+- Verify NCAs across all XCI partitions, including non-game XCZ content during conversion, so a valid Secure partition cannot hide broken firmware contents. Preserve source files and managed plugin binaries.
+- Rebuild decompressed XCI layouts on 512-byte boundaries, updating Secure/LimArea addresses, valid-data end and root hash. Preserve available certificate/prefix bytes and validate rebuilt headers; missing Nintendo signatures/certificates cannot be recreated.
+- Release solid NCZ caches after temporary integrity readers and package closure. Surface disk-full paths and interrupt affected batches instead of continuing with misleading hash failures; active solid-compressed content still needs temporary disk space.
+- Reuse archive extraction and recursive lists across loads/batch entries, releasing retained sessions on completion/cancellation. Detect ZIP/7z by signature, support nested archives with misleading extensions and show extraction/copy progress.
+- Distinguish NCA-only containers from incomplete structures in all four languages and live/history/export views. Structure classification does not establish missing game data; old history keeps its recorded classification until reread.
+- Distinguish missing title keys from system/console keys, include Rights IDs and retain diagnostic key names/types in new history without key values. Allow warnings to be dismissed without squeezing overview details.
+- Restore UTF-8 localization, ungrouped table visibility, reliable package expansion/selection, stable result hashes, automatic package-column sizing and vertically centered batch search text.
+- Restore overview loading when cached models are missing, retain stored summaries for missing sources/errors and prevent delayed results from replacing newer selections.
+- List offline/unlettered physical NAND devices without an initial read probe, including Hekate UMS sources; show available model/capacity and explain permissions. Synchronize partition selectors, load new roots automatically and leave SaveFS on partition changes.
+- Start key downloads only through the explicit Settings action, never automatically at startup. Persist the NSZ stable-update preference immediately on both update pages.
+- Share GitHub metadata requests and a six-hour persistent cache across app/plugins, honor API cooldowns, and show retry times and dated cached results. Manual checks request fresh metadata when permitted.
+- Open source locations after the context menu closes and grant Explorer foreground permission.
 
 ## [4.0.0] - 2026-10-07
 

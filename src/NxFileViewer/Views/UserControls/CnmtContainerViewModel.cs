@@ -190,7 +190,7 @@ public class TitleInfoViewModel
         serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _logger = serviceProvider.GetRequiredService<ILoggerFactory>().CreateLogger(this.GetType());
 
-        Icon = Emignatik.NxFileViewer.Services.Integrity.BatchMemoryDiagnostics.DisableLogos ? null : BuildBitmapImage(Title.Icon);
+        Icon = BuildBitmapImage(Title.Icon);
     }
 
     public BitmapSource? Icon { get; }

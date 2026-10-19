@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <AssemblyName>NxFileViewer</AssemblyName>
     <RootNamespace>NxFileViewer.Transition</RootNamespace>
-    <Version>4.1.0</Version>
+    <Version>4.1.0-beta1</Version>
     <Product>NxFileViewer Fork</Product>
     <Authors>sandmaennchen5</Authors>
     <RepositoryUrl>https://github.com/sandmaennchen5/fork_NxFileViewer</RepositoryUrl>

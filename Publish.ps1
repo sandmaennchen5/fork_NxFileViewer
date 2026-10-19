@@ -1,4 +1,4 @@
-﻿<#
+<#
     Builds application and standalone LogViewer ZIPs, firmware hashes, and optional Explorer MSIX packages (x64/ARM64).
     By default Explorer MSIX packages use a persistent local signing certificate.
 #>
@@ -81,7 +81,13 @@ try {
             if (!(Test-Path -LiteralPath (Join-Path $ReleaseDir $ExecutableName))) { throw 'Published main executable missing.' }
             $identity = @{ SchemaVersion = 1; ApplicationId = 'NxFileViewerFork'; Executable = $ExecutableName } | ConvertTo-Json
             [IO.File]::WriteAllText((Join-Path $ReleaseDir 'nxfileviewer-package.json'), $identity, [Text.UTF8Encoding]::new($false))
-            Compress-Archive -LiteralPath @(Get-ChildItem -LiteralPath $ReleaseDir -Force | ForEach-Object FullName) -DestinationPath (Join-Path $OutDirRoot "$ReleaseName.zip") -Force
+            $applicationFiles = @($ExecutableName, 'nxfileviewer-package.json', 'LICENSE.txt')
+            $publishedFiles = @(Get-ChildItem -LiteralPath $ReleaseDir -Force)
+            if ($publishedFiles.Count -ne $applicationFiles.Count -or
+                @($publishedFiles | Where-Object { $_.PSIsContainer -or $_.Name -cnotin $applicationFiles }).Count -gt 0) {
+                throw 'Application package must contain only the main executable, nxfileviewer-package.json and LICENSE.txt.'
+            }
+            Compress-Archive -LiteralPath @($applicationFiles | ForEach-Object { Join-Path $ReleaseDir $_ }) -DestinationPath (Join-Path $OutDirRoot "$ReleaseName.zip") -Force
             if ($IncludeLegacyTransition) {
                 $transitionProject = Join-Path $PSScriptRoot 'src/NxFileViewer.Transition/NxFileViewer.Transition.csproj'
                 $transitionDir = Join-Path $StagingRoot ("transition${Variant}_${Architecture}")

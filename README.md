@@ -154,14 +154,14 @@ Screenshots illustrate the viewer and may show an earlier interface.
 
 ## Contributing and credits
 
-Contributions and translations are welcome.
+Contributions and translations are welcome. See [credits and dependency versions](CREDITS.txt), the [project license](LICENSE), and [third-party license texts](docs/THIRD-PARTY-NOTICES.txt). These notices are embedded in the application and available offline on the Info page. Application ZIPs contain only NxFileViewerFork.exe, nxfileviewer-package.json and LICENSE.txt. The inherited icon attribution is incomplete; see [icon provenance](src/NxFileViewer/Styling/Icons/README.md).
 
 Thanks to [Myster-Tee](https://github.com/Myster-Tee/NxFileViewer)
 
-Thanks to [Thealexbarney](https://github.com/Thealexbarney) for LibHac, [eliboa](https://github.com/elibo) and [THZoria](https://github.com/THZoria) for NxNandManager, [nicoboss](https://github.com/nicoboss) for NSZ and format guidance, and the Nintendo Switch community.
+Thanks to [Thealexbarney](https://github.com/Thealexbarney) for LibHac, [eliboa](https://github.com/eliboa) and [THZoria](https://github.com/THZoria) for NxNandManager, [nicoboss](https://github.com/nicoboss) for NSZ and format guidance, and the Nintendo Switch community.
 
 NAND drive selection enumerates physical devices independently of drive letters and raw-read permissions. Offline/unlettered Hekate UMS devices can be selected by their `\\.\PhysicalDriveN` path; model and capacity are shown when Windows provides them. Refresh the list after connecting. Opening remains read-only and may require running NxFileViewer as administrator. No drive letter, formatting or online-state change is needed for selection.
 
 In **Settings → Program → Windows file associations**, click **Register NxFileViewer Fork** to register `.nsp`, `.nsz`, `.xci`, `.xcz` and `.nro` for the current Windows user. The shared stable ProgID `NxFileViewerFork.File` uses the adjacent native `NxFileViewerFork.Open.exe` launcher, quoted together with the file argument. The main application is `NxFileViewerFork.exe`; the launcher reads its name from an adjacent `NxFileViewerFork.Open.target` reference and is refreshed when the application starts. Package updates preserve file associations. Then choose **NxFileViewer Fork** through Windows **Open with → Choose another app → Always** for each extension you want as default. Existing defaults and original-viewer registrations are preserved. Repeat registration after moving the app to another folder; no administrator rights are required. Registration takes effect immediately, independently of saving or cancelling settings.
 
-Version 4.1.0 provides a one-time transition from the old executable and data paths; see [application updates](docs/Application-updates.md). New release packages use NxFileViewerFork_v4.1.0_*.zip.
+Version 4.1.0-beta1 is a pre-release. For manual upgrades from older executable/data paths and the stable-only legacy transition, see [application updates](docs/Application-updates.md). New release packages use NxFileViewerFork_v4.1.0-beta1_*.zip.

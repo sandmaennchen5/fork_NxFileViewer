@@ -164,7 +164,6 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
                     ClearPreview();
                     _completedPreviews.Clear();
                     Results.Clear();
-                    _historyPreviewPaths.Clear();
                     _fingerprints.Clear();
                     _session = null;
                     VerifyAllCommand?.TriggerCanExecuteChanged();
@@ -178,12 +177,10 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
     }
     public RelayCommand ResumeHistoryCommand { get; }
     private bool _groupFiles;
-    private int _previewRequest;
     private bool _showOnlyErrors;
     private NxFile? _previewFile;
     private bool _closed;
     // Only the in-flight file has a live overview. Completed rows contain detached snapshots.
-    private readonly HashSet<string> _historyPreviewPaths = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, FileOverviewViewModel> _completedPreviews = new(StringComparer.OrdinalIgnoreCase);
     private FileOverviewViewModel? _previewOverview;
 
@@ -438,7 +435,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         var paths = verifyIntegrity && !rescan && !resume ? Results.Select(r => r.FilePath).ToArray() : null;
         if (!resume)
         {
-            if (!append) { _historyPreviewPaths.Clear(); _fingerprints.Clear(); }
+            if (!append) _fingerprints.Clear();
             _session = new BatchHistoryEntry((append || (verifyIntegrity && !rescan)) && _session != null ? _session.Id : Guid.NewGuid(), DateTime.UtcNow, InputDirectory, IncludeSubdirectories, IncludeArchives,
                 verifyIntegrity, _appSettings.IgnoreMissingDeltaFragments, "Running", Array.Empty<BatchIntegrityResult>(), new()) { SourcePaths = _sourcePaths.ToArray() };
         }
@@ -570,10 +567,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         IncludeArchives = saved.IncludeArchives; IncludeSubdirectories = saved.IncludeSubdirectories;
         NotifyPropertyChanged(nameof(IncludeArchives)); NotifyPropertyChanged(nameof(IncludeSubdirectories));
         SelectedResult = null;
-        ++_previewRequest;
         ClearPreview(); _completedPreviews.Clear(); Results.Clear(); _fingerprints.Clear();
-        _historyPreviewPaths.Clear();
-        foreach (var result in saved.Results) _historyPreviewPaths.Add(result.FilePath);
         foreach (var result in saved.Results)
             Results.Add(!prepareResume || saved.CanSkip(result.FilePath, _appSettings.IgnoreMissingDeltaFragments) ? result :
                 result with { Integrity = NcasIntegrity.Unchecked });
@@ -592,7 +586,6 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
             _previewFile?.Dispose();
             _previewFile = file;
             _logger.LogTrace("Creating live overview for {FilePath}", file.FilePath);
-            _historyPreviewPaths.Remove(file.FilePath);
             if (_closed) return;
             // Display the current file until its detached snapshot is published.
             _completedPreviews.Clear();
@@ -721,7 +714,6 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         // Selection is served entirely by StoredOverview, including in the current scan.
         // Opening a source remains an explicit action (OpenInSingle / VerifySelected).
         _logger.LogTrace("Selecting stored overview for {FilePath}; source file will not be reopened", SelectedResult?.FilePath);
-        ++_previewRequest;
         PreviewOverview = null;
     }
     public bool NszPluginActive => _serviceProvider.GetRequiredService<IAppSettings>().NszPluginActive;

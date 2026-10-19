@@ -49,19 +49,30 @@ public class MemoryTraceDiagnosticsTest
         var path = Path.Combine(Path.GetTempPath(), "NxMemoryTrace-" + Guid.NewGuid(), "memory.csv");
         try
         {
-            var logger = new LoggerSource { Level = LogLevel.Trace };
+            var logger = new LoggerSource { Level = LogLevel.Information };
             var messages = new ConcurrentQueue<string>();
             logger.Log += (_, message) => messages.Enqueue(message);
             var diagnostics = new BatchMemoryDiagnostics(logger, path);
+            Assert.False(diagnostics.IsEnabled);
+            Assert.Equal("off", diagnostics.ActiveMode);
+            Assert.Empty(diagnostics.Capture("disabled", 0, 0));
+            Assert.False(File.Exists(path));
+            logger.Level = LogLevel.Trace;
             Assert.True(diagnostics.IsEnabled);
+            Assert.Equal("trace", diagnostics.ActiveMode);
             Assert.Contains("Results 123", diagnostics.Capture("scan-progress", 123, 1));
             var lines = File.ReadAllLines(path);
             Assert.Equal(2, lines.Length);
             Assert.Equal(14, lines[0].Split(',').Length);
             Assert.Equal(14, lines[1].Split(',').Length);
-            Assert.Contains(",scan-progress,123,1,", lines[1]);
+            Assert.Contains(",trace,scan-progress,123,1,", lines[1]);
             Assert.Contains("results=123; previews=1", Assert.Single(messages));
             diagnostics.Capture("scan-completed", 123, 0);
+            Assert.Equal(3, File.ReadAllLines(path).Length);
+            logger.Level = LogLevel.Debug;
+            Assert.False(diagnostics.IsEnabled);
+            Assert.Equal("off", diagnostics.ActiveMode);
+            Assert.Empty(diagnostics.Capture("disabled-again", 123, 0));
             Assert.Equal(3, File.ReadAllLines(path).Length);
         }
         finally { if (Directory.Exists(Path.GetDirectoryName(path))) Directory.Delete(Path.GetDirectoryName(path)!, true); }

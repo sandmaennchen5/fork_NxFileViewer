@@ -163,8 +163,6 @@ public partial class MainWindow : Window
                 tab.IsEnabled = !_activeTaskTab.HasValue || index == _activeTaskTab || tab == LogTab;
     }
 
-    private void NavigateLog(object sender, RoutedEventArgs e) => Navigate(WorkspaceSection.Log);
-    private void NavigateHome(object sender, RoutedEventArgs e) => Navigate(WorkspaceSection.Home);
     private void NavigateFile(object sender, RoutedEventArgs e) => Navigate(WorkspaceSection.File);
     private void NavigateBatch(object sender, RoutedEventArgs e) => Navigate(WorkspaceSection.Batch);
     private void NavigateNand(object sender, RoutedEventArgs e) => Navigate(WorkspaceSection.Nand);

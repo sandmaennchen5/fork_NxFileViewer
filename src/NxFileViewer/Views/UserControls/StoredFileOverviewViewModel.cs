@@ -195,7 +195,6 @@ public sealed class StoredTitleInfoViewModel(BatchTitleSummary title, Func<Batch
         {
             if (_loaded) return _icon;
             _loaded = true;
-            if (BatchMemoryDiagnostics.DisableLogos) return null;
             try
             {
                 var bytes = LoadTitle().Icon;

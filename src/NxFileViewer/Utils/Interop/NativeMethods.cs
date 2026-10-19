@@ -9,9 +9,7 @@ namespace Emignatik.NxFileViewer.Utils.Interop;
 /// </summary>
 internal static class NativeMethods
 {
-    public const int SW_HIDE = 0;
     public const int SW_SHOWNORMAL = 1;
-    public const int SW_SHOWMINIMIZED = 2;
     public const int SW_SHOWMAXIMIZED = 3;
 
     public const int MONITOR_DEFAULTTONEAREST = 2;
@@ -89,9 +87,6 @@ internal static class NativeMethods
 
     [DllImport("user32.dll")]
     public static extern IntPtr MonitorFromRect(ref RECT lprc, int dwFlags);
-
-    [DllImport("user32.dll")]
-    public static extern IntPtr MonitorFromWindow(IntPtr hwnd, int dwFlags);
 
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     [return: MarshalAs(UnmanagedType.Bool)]

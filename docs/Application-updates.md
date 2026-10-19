@@ -36,19 +36,21 @@ Older single-executable archives remain readable by the new updater. Publishing 
 
 `NxFileViewer_v<version>_<variant/architecture>.zip` contains only a transition `NxFileViewer.exe`, compatible with old single-file updaters. Its download logic always requests GitHub's latest stable release, independently of the transition EXE's build version. It selects the matching `NxFileViewerFork_v*` package, verifies its SHA-256 digest, architecture, package identity and actual target release version, then migrates data and installs the renamed application. Failed downloads stay visible with a Retry button. Drafts, previews, old-name transition packages and another runtime variant are not substituted.
 
-The transition stays running beyond older helpers' early-startup check. Its own embedded version must still match the release advertising it: old updaters check the downloaded EXE version before starting it. Therefore a transition ZIP cannot simply be renamed and reused unchanged in a later release. `Publish.ps1` rebuilds all four transition variants with the current application version automatically. Upload those generated old-name ZIPs with each new release, together with the new-name application packages. A user who skipped 4.1.0 can then update directly through a later release; manually starting an older transition EXE also downloads the current stable release.
+The transition stays running beyond older helpers' early-startup check. Its own embedded version must still match the release advertising it: old updaters check the downloaded EXE version before starting it. Therefore a transition ZIP cannot simply be renamed and reused unchanged in a later release. `Publish.ps1` rebuilds all four transition variants with the current application version automatically. Upload those generated old-name ZIPs with each new release, together with the new-name application packages. A user who skipped 4.1.0-beta1 can then update directly through a later release; manually starting an older transition EXE also downloads the current stable release.
 
 Only the transition moves `Cache/TitleDB`, `Cache/Updates` and `fw/hashes` into `Plugins/TitleDB`, `Plugins/CacheUpdates` and `Plugins/fwhashes`, and renames `NxFileViewer.settings.json` to `NxFileViewerFork.settings.json`. Existing destination files take precedence; conflicting legacy files remain intact. The normal application does not inspect or migrate legacy locations. Manual upgrades from older versions must use the transition EXE or move these files once themselves.
 
-## Publishing 4.1.0
+## Publishing 4.1.0-beta1
 
-The project uses package version `4.1.0`. Run `Publish.ps1`, create a GitHub Release with tag `v4.1.0`, as a stable release. Attach:
+The project uses package version `4.1.0-beta1`. Run `Publish.ps1 -IncludeLegacyTransition:$false` and create a GitHub Release with tag `v4.1.0-beta1` with the GitHub pre-release flag enabled. Attach:
 
-- `NxFileViewerFork_v4.1.0_x64.zip`
-- `NxFileViewerFork_v4.1.0_x86.zip`
-- `NxFileViewerFork_v4.1.0_self-contained_x64.zip` (compressed, includes .NET)
-- `NxFileViewerFork_v4.1.0_self-contained_x86.zip` (compressed, includes .NET)
-- `NxFileViewerFork_v4.1.0_firmware-hashes.zip` (optional reference add-on)
+- `NxFileViewerFork_v4.1.0-beta1_x64.zip`
+- `NxFileViewerFork_v4.1.0-beta1_x86.zip`
+- `NxFileViewerFork_v4.1.0-beta1_self-contained_x64.zip` (compressed, includes .NET)
+- `NxFileViewerFork_v4.1.0-beta1_self-contained_x86.zip` (compressed, includes .NET)
+- `NxFileViewerFork_v4.1.0-beta1_firmware-hashes.zip` (optional reference add-on)
+
+Do not attach legacy transition ZIPs to this beta: the transition requests the latest stable release and cannot install this pre-release. Older installations must extract the beta application ZIP manually; legacy data/settings paths may need to be moved as described above.
 
 Application ZIPs include the portable executable with embedded debug symbols; firmware references stay in their separate ZIP. GitHub Actions artifacts alone are not releases available to the updater. Architecture selection follows the running viewer process.
 
@@ -64,7 +66,7 @@ The updater uses the installed assembly's informational version, including its b
 
 Preview updates require Include pre-releases to be enabled. Stable-only mode can still offer the final release at the same numeric version to an installed beta. The downloaded EXE must match the full offered version, not just its numeric part.
 
-The older 4.0.0 Beta 1 builds contained numeric-only comparison and needed a manual upgrade once. The 4.1.0 transition ZIPs retain the names expected by compatible older updaters.
+The older 4.0.0 Beta 1 builds contained numeric-only comparison and needed a manual upgrade once. Legacy transition ZIPs retain the names expected by compatible older updaters and are intended for stable target releases.
 
 ## Validation
 
@@ -72,7 +74,7 @@ Tests use mocked releases/downloads, corrupt and unsafe archives, and isolated d
 
 ## Runtime variants
 
-Each x64/x86 release offers a standard ZIP requiring .NET 8 Desktop Runtime and a compressed self-contained ZIP with .NET included. Standard names remain NxFileViewerFork_v<VERSION>_<ARCH>.zip; bundled-runtime names are NxFileViewerFork_v<VERSION>_self-contained_<ARCH>.zip. Both contain the main executable and the package manifest, plus any additional published files.
+Each x64/x86 release offers a standard ZIP requiring .NET 8 Desktop Runtime and a compressed self-contained ZIP with .NET included. Standard names remain NxFileViewerFork_v<VERSION>_<ARCH>.zip; bundled-runtime names are NxFileViewerFork_v<VERSION>_self-contained_<ARCH>.zip. Both contain exactly NxFileViewerFork.exe, nxfileviewer-package.json and LICENSE.txt. Credits and third-party notices are embedded and available offline on the Info page.
 
 The executable records its runtime distribution at build time. Updates preserve this distribution and architecture, including preview releases. A missing compatible package is reported or skipped while listing previews; another runtime distribution is never substituted. Previously installed standard builds continue using the original ZIP names.
 

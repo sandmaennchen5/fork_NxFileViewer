@@ -9,3 +9,7 @@ Tree item icons are 16x16 resolution, in the online editor don't forget to set c
 To obtain the PNG version, from the online editor, simply click «File -> Export as PNG».
 
 Once under Visual Studio, don't forget to set the PNG «Build Action» as «Resource» so that is can be referenced from a XAML file.
+
+## Provenance and attribution
+
+See [the per-file provenance inventory](../../../../docs/Icon-provenance.md) for verified upstream commits, current file hashes and unresolved author/license details. A Git contributor is not necessarily the original icon author. Existing artwork is retained unchanged.

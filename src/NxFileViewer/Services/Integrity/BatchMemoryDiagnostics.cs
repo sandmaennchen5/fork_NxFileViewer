@@ -9,16 +9,12 @@ namespace Emignatik.NxFileViewer.Services.Integrity;
 /// <summary>Opt-in measurements only; never forces GC during normal scans.</summary>
 public sealed class BatchMemoryDiagnostics(ILogger? logger = null, string? logPath = null)
 {
-    public static bool Enabled => Environment.GetEnvironmentVariable("NXFV_MEMORY_DIAGNOSTICS") == "1";
-    public static bool DisableLogos => Enabled && Environment.GetEnvironmentVariable("NXFV_MEMORY_MODE") == "no-logos";
-    public static bool LimitPreviews => Enabled && Environment.GetEnvironmentVariable("NXFV_MEMORY_MODE") == "one-preview";
-    public static string Mode => !Enabled ? "off" : DisableLogos ? "no-logos" : LimitPreviews ? "one-preview" : "baseline";
 
-    public bool IsEnabled => Enabled || logger?.IsEnabled(LogLevel.Trace) == true;
-    public string ActiveMode => Enabled ? Mode : IsEnabled ? "trace" : "off";
+    public bool IsEnabled => logger?.IsEnabled(LogLevel.Trace) == true;
+    public string ActiveMode => IsEnabled ? "trace" : "off";
 
     public string LogPath { get; } = logPath ?? Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "NxFileViewer", "Diagnostics",
+        AppContext.BaseDirectory, "Logs", "Diagnostics",
         $"memory-{DateTime.UtcNow:yyyyMMdd-HHmmss}-{Environment.ProcessId}-{Guid.NewGuid():N}.csv");
 
     public string Capture(string stage, int results, int previews)

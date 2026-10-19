@@ -209,6 +209,7 @@
                         </StackPanel>
                         <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Info_Description}" TextWrapping="Wrap" Margin="0,0,0,16"/>
                         <TextBlock Text="GitHub: sandmaennchen5/fork_NxFileViewer" Margin="0,0,0,8"/>
+                        <userControls:CreditsView/>
                         <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Info_Shortcuts}" Style="{StaticResource Title2}" Margin="0,16,0,12"/>
                         <DockPanel Margin="0,0,0,10"><TextBlock Text="Ctrl+O" Width="160" FontWeight="Bold"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.MenuItem_Open}"/></DockPanel>
                         <DockPanel Margin="0,0,0,10"><TextBlock Text="Ctrl+Shift+O" Width="160" FontWeight="Bold"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.MenuItem_OpenLast}"/></DockPanel>

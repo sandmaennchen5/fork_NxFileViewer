@@ -45,7 +45,6 @@ public sealed record SdBatchAreas(bool Enabled, bool Switch, bool Nintendo, bool
         relative = relative.Replace('\\', '/').Trim('/');
         return IncludesRelative(relative) || directory && Paths().Any(path => path.StartsWith(relative + "/", StringComparison.OrdinalIgnoreCase));
     }
-    public bool IncludesName(string name, bool directory) => AllowsTraversal(name, directory);
     public bool AppliesToNames(IEnumerable<string> names) => Enabled && (SourceMode == SdBatchSourceMode.SwitchSd
         || SourceMode == SdBatchSourceMode.Auto && IsSdRoot(names));
     public bool AppliesTo(string root) => Directory.Exists(root) && AppliesToNames(Directory.EnumerateFileSystemEntries(root).Select(Path.GetFileName)!);

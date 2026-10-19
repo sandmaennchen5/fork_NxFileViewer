@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <AssemblyName>NxFileViewerFork.LogViewer</AssemblyName>
     <RootNamespace>NxFileViewer.LogViewer</RootNamespace>
-    <Version>4.1.0</Version>
+    <Version>4.1.0-beta1</Version>
     <Product>NxFileViewer Fork LogViewer</Product>
     <Authors>sandmaennchen5</Authors>
     <ApplicationIcon>../NxFileViewer/Styling/Icons/Icon.ico</ApplicationIcon>

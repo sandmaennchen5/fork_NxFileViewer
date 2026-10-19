@@ -6,6 +6,9 @@ namespace Emignatik.NxFileViewer.Localization.Keys;
 
 public interface ILocalizationKeys : ILocalizationKeysBase
 {
+    string Info_Credits { get; }
+    string Info_Licenses { get; }
+
     string PluginLog_Title { get; }
     string PluginLog_Inherit { get; }
     string PluginLog_Off { get; }
