@@ -34,15 +34,15 @@ Older single-executable archives remain readable by the new updater. Publishing 
 ./Publish.ps1 -IncludeLegacyTransition:$false
 ```
 
-`NxFileViewer_v<version>_<variant/architecture>.zip` contains only a transition `NxFileViewer.exe`, compatible with old single-file updaters. Its download logic always requests GitHub's latest stable release, independently of the transition EXE's build version. It selects the matching `NxFileViewerFork_v*` package, verifies its SHA-256 digest, architecture, package identity and actual target release version, then migrates data and installs the renamed application. Failed downloads stay visible with a Retry button. Drafts, previews, old-name transition packages and another runtime variant are not substituted.
+`NxFileViewer_v<version>_<variant/architecture>.zip` contains only a transition `NxFileViewer.exe`, compatible with old single-file updaters. Before migration it reads IncludeViewerPrereleases from NxFileViewerFork.settings.json, or from NxFileViewer.settings.json when the fork file is absent. An explicit boolean true enables stable and pre-release candidates; otherwise it requests the latest stable release, independently of the transition EXE's build version. It selects the matching `NxFileViewerFork_v*` package, verifies its SHA-256 digest, architecture, package identity and actual target release version, then migrates data and installs the renamed application. Failed downloads stay visible with a Retry button. It selects the highest compatible semantic version. Drafts, old-name transition packages and another runtime variant are not substituted; previews require the explicit setting.
 
-The transition stays running beyond older helpers' early-startup check. Its own embedded version must still match the release advertising it: old updaters check the downloaded EXE version before starting it. Therefore a transition ZIP cannot simply be renamed and reused unchanged in a later release. `Publish.ps1` rebuilds all four transition variants with the current application version automatically. Upload those generated old-name ZIPs with each new release, together with the new-name application packages. A user who skipped 4.1.0-beta1 can then update directly through a later release; manually starting an older transition EXE also downloads the current stable release.
+The transition stays running beyond older helpers' early-startup check. Its own embedded version must still match the release advertising it: old updaters check the downloaded EXE version before starting it. Therefore a transition ZIP cannot simply be renamed and reused unchanged in a later release. `Publish.ps1` rebuilds all four transition variants with the current application version automatically. Upload those generated old-name ZIPs with each new release, together with the new-name application packages. A user who skipped 4.1.0-beta1 can then update directly through a later release; manually starting a transition EXE also follows its supported release-selection behavior (older transition builds may still be stable-only).
 
 Only the transition moves `Cache/TitleDB`, `Cache/Updates` and `fw/hashes` into `Plugins/TitleDB`, `Plugins/CacheUpdates` and `Plugins/fwhashes`, and renames `NxFileViewer.settings.json` to `NxFileViewerFork.settings.json`. Existing destination files take precedence; conflicting legacy files remain intact. The normal application does not inspect or migrate legacy locations. Manual upgrades from older versions must use the transition EXE or move these files once themselves.
 
 ## Publishing 4.1.0-beta1
 
-The project uses package version `4.1.0-beta1`. Run `Publish.ps1 -IncludeLegacyTransition:$false` and create a GitHub Release with tag `v4.1.0-beta1` with the GitHub pre-release flag enabled. Attach:
+The project uses package version `4.1.0-beta1`. Run `Publish.ps1` and create a GitHub Release with tag `v4.1.0-beta1` with the GitHub pre-release flag enabled. Attach:
 
 - `NxFileViewerFork_v4.1.0-beta1_x64.zip`
 - `NxFileViewerFork_v4.1.0-beta1_x86.zip`
@@ -50,7 +50,7 @@ The project uses package version `4.1.0-beta1`. Run `Publish.ps1 -IncludeLegacyT
 - `NxFileViewerFork_v4.1.0-beta1_self-contained_x86.zip` (compressed, includes .NET)
 - `NxFileViewerFork_v4.1.0-beta1_firmware-hashes.zip` (optional reference add-on)
 
-Do not attach legacy transition ZIPs to this beta: the transition requests the latest stable release and cannot install this pre-release. Older installations must extract the beta application ZIP manually; legacy data/settings paths may need to be moved as described above.
+Also attach the four NxFileViewer_v4.1.0-beta1_<variant/architecture>.zip transition packages for older installations. The transition installs this beta when IncludeViewerPrereleases is true in the existing configuration; false or an absent setting keeps stable-only selection. If both old and fork settings files exist, the fork file takes precedence. Malformed or unreadable configuration stops the transition with its retry/error view; files are not migrated before a package is downloaded and verified.
 
 Application ZIPs include the portable executable with embedded debug symbols; firmware references stay in their separate ZIP. GitHub Actions artifacts alone are not releases available to the updater. Architecture selection follows the running viewer process.
 
@@ -66,7 +66,7 @@ The updater uses the installed assembly's informational version, including its b
 
 Preview updates require Include pre-releases to be enabled. Stable-only mode can still offer the final release at the same numeric version to an installed beta. The downloaded EXE must match the full offered version, not just its numeric part.
 
-The older 4.0.0 Beta 1 builds contained numeric-only comparison and needed a manual upgrade once. Legacy transition ZIPs retain the names expected by compatible older updaters and are intended for stable target releases.
+The older 4.0.0 Beta 1 builds contained numeric-only comparison and needed a manual upgrade once. Legacy transition ZIPs retain the names expected by compatible older updaters and follow the configured stable/pre-release preference.
 
 ## Validation
 

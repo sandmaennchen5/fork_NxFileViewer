@@ -74,6 +74,55 @@ public sealed class TransitionReleaseTest
         }));
         await Assert.ThrowsAsync<InvalidDataException>(() => TransitionRelease.ResolveAsync(client, "x64", false, TestContext.Current.CancellationToken));
     }
+    [Theory]
+    [InlineData("x64", false)][InlineData("x86", false)]
+    [InlineData("x64", true)][InlineData("x86", true)]
+    public async Task EnabledPreviewsChooseHighestCompatibleVersion(string architecture, bool bundled)
+    {
+        object Release(string tag, string suffix, bool draft = false) => new {
+            tag_name = tag, draft, prerelease = tag.Contains('-'),
+            assets = new[] { new {
+                name = $"NxFileViewerFork_{tag}_{suffix}.zip",
+                browser_download_url = $"https://github.com/{ViewerUpdateService.Repository}/releases/download/{tag}/NxFileViewerFork_{tag}_{suffix}.zip",
+                digest = "sha256:" + new string('a', 64)
+            } }
+        };
+        var suffix = (bundled ? "self-contained_" : "") + architecture;
+        using var client = new HttpClient(new Handler(request => {
+            Assert.EndsWith("/releases?per_page=100&page=1", request.RequestUri!.AbsoluteUri);
+            return new(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new[] {
+                Release("v4.1.0-beta1", suffix), Release("v4.0.0", suffix),
+                Release("v4.1.0-beta2", suffix),
+                Release("v4.1.0-beta3", bundled ? architecture : "self-contained_" + architecture),
+                Release("v4.2.0-beta1", suffix, draft: true)
+            })) };
+        }));
+        var release = await TransitionRelease.ResolveAsync(client, architecture, bundled,
+            TestContext.Current.CancellationToken, includePrereleases: true);
+        Assert.Equal("v4.1.0-beta2", release.Tag);
+        Assert.Equal($"NxFileViewerFork_v4.1.0-beta2_{suffix}.zip", release.AssetName);
+        Assert.True(release.IsPrerelease);
+    }
+
+    [Theory]
+    [InlineData(null, null, false)]
+    [InlineData("""{"IncludeViewerPrereleases":true}""", null, true)]
+    [InlineData("""{"IncludeViewerPrereleases":false}""", null, false)]
+    [InlineData("""{"IncludeViewerPrereleases":true}""", """{}""", false)]
+    [InlineData("""{"IncludeViewerPrereleases":true}""", """{"IncludeViewerPrereleases":false}""", false)]
+    [InlineData("""{"IncludeViewerPrereleases":false}""", """{"IncludeViewerPrereleases":true}""", true)]
+    [InlineData("""{"IncludeViewerPrereleases":"true"}""", null, false)]
+    public void ReadsExplicitPreferenceBeforeMigration(string? legacy, string? fork, bool expected)
+    {
+        var root = Path.Combine(Path.GetTempPath(), "nxfv-transition-settings-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try {
+            if (legacy != null) File.WriteAllText(Path.Combine(root, "NxFileViewer.settings.json"), legacy);
+            if (fork != null) File.WriteAllText(Path.Combine(root, "NxFileViewerFork.settings.json"), fork);
+            Assert.Equal(expected, TransitionRelease.IncludePrereleases(root));
+            Assert.Equal(legacy != null, File.Exists(Path.Combine(root, "NxFileViewer.settings.json")));
+        } finally { Directory.Delete(root, true); }
+    }
     [Fact]
     public void NormalApplicationUsesNewPathsWithoutMigratingLegacyFiles()
     {

@@ -31,7 +31,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 ### Changed
 
 - Publish NxFileViewerFork.exe with a stable package identity and full package updates. Main application ZIPs contain only NxFileViewerFork.exe, nxfileviewer-package.json and LICENSE.txt; other notices are embedded in the executable.
-- Store TitleDB, GitHub update metadata and firmware references under Plugins/TitleDB, Plugins/CacheUpdates and Plugins/fwhashes. Provide optional old-name transition ZIPs that preserve architecture/runtime variant and user files; only the explicit transition migrates old data/settings paths. The transition downloads stable releases.
+- Store TitleDB, GitHub update metadata and firmware references under Plugins/TitleDB, Plugins/CacheUpdates and Plugins/fwhashes. Provide optional old-name transition ZIPs that preserve architecture/runtime variant and user files; only the explicit transition migrates old data/settings paths. The transition follows IncludeViewerPrereleases from the existing configuration (fork file first, legacy file otherwise), selecting the newest compatible stable/beta release when enabled and stable releases otherwise.
 - Keep Explorer setup files inside their setup ZIPs. Clean unused Explorer DLL versions after menu changes and startup while protecting active registrations, loaded/locked files and unexpected contents; retry deferred cleanup later.
 - Move keys to a dedicated Settings tab, keep both key sections visible and refresh locations on entry. Organize Program settings into focused sections with hover/click help.
 - Distinguish external NxNandManager/NSZ GUI launches on Start and supply active keys through an isolated temporary environment, respecting the NAND BIS-key override.

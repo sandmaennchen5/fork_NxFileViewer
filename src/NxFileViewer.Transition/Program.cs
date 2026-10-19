@@ -42,7 +42,7 @@ public static class Program
                 using var client = new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
                 client.DefaultRequestHeaders.UserAgent.ParseAdd("NxFileViewerFork-Transition/1.0");
                 text.Text = "Lade das neue Programmpaket … / Downloading the new application package …";
-                var release = await TransitionRelease.ResolveAsync(client, architecture, bundled, CancellationToken.None);
+                var release = await TransitionRelease.ResolveAsync(client, architecture, bundled, CancellationToken.None, TransitionRelease.IncludePrereleases(root));
                 var prepared = await new ViewerUpdateService(client).PrepareAsync(release, root, CancellationToken.None);
                 if (prepared.EntryPoint.Equals("NxFileViewer.exe", StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("Transition must install the renamed application.");
                 text.Text = "Übernehme Daten und installiere NxFileViewer Fork … / Migrating data and installing NxFileViewer Fork …";
