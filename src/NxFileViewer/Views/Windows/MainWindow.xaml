@@ -188,7 +188,8 @@
                 <TabItem.Header><StackPanel Orientation="Horizontal"><Image Source="/Styling/Icons/refresh_16x16.png" Width="16" Height="16" Margin="0,0,7,0"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.DataUpdate_Title}" VerticalAlignment="Center"/></StackPanel></TabItem.Header></TabItem>
             <TabItem x:Name="InfoTab">
                 <TabItem.Header><StackPanel Orientation="Horizontal"><TextBlock Text="ⓘ" Margin="0,0,7,0"/><TextBlock Text="Info"/></StackPanel></TabItem.Header>
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <!-- Receive initial tab focus before the credits text box can scroll itself into view. -->
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="True" IsTabStop="True">
                     <StackPanel Margin="24" MaxWidth="900" HorizontalAlignment="Left">
                         <Image Source="/Styling/Icons/Icon.ico" Width="72" Height="72" HorizontalAlignment="Left" Margin="0,0,0,16"/>
                         <TextBlock Text="{Binding ProgramVersion}" FontSize="28" Margin="0,0,0,16"/>

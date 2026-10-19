@@ -117,6 +117,8 @@ if ($plan.SchemaVersion -eq 2) {
             $relative=Relative-Path $file.Path
             if (!$seen.Add($relative) -or $file.Sha256 -notmatch '^[0-9a-fA-F]{64}$') { throw 'Duplicate path or invalid file hash.' }
             $destination=Within $root $relative
+            if ($file.ExpectedAbsent -and ([IO.File]::Exists($destination) -or [IO.Directory]::Exists($destination))) { throw 'Migration target appeared after preparation; retaining it.' }
+            if ($file.ExpectedPresent -and (![IO.File]::Exists($destination) -or (Hash $destination) -ne $file.Sha256)) { throw 'Migration source changed after preparation; retaining it.' }
             if (!$file.Remove) {
                 $source=Within (Join-Path $stage 'payload') $relative
                 if ((Hash $source) -ne $file.Sha256) { throw 'Prepared update hash mismatch.' }
@@ -140,6 +142,8 @@ if ($plan.SchemaVersion -eq 2) {
         foreach ($file in $files) {
             $relative=Relative-Path $file.Path
             $destination=Within $root $relative
+            if ($file.ExpectedAbsent -and ([IO.File]::Exists($destination) -or [IO.Directory]::Exists($destination))) { throw 'Migration target appeared after preparation; retaining it.' }
+            if ($file.ExpectedPresent -and (![IO.File]::Exists($destination) -or (Hash $destination) -ne $file.Sha256)) { throw 'Migration source changed after preparation; retaining it.' }
             $source=Within (Join-Path $stage 'payload') $relative
             if ($file.Remove) {
                 if (![IO.File]::Exists($destination)) { continue }

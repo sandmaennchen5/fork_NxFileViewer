@@ -181,5 +181,113 @@ public sealed class ViewerPackageLayoutTest : IDisposable
         global::NxFileViewer.Transition.LegacyDataMigration.Move(_root);
         Assert.Equal(RootFile("Plugins/fwhashes"), ApplicationDataPaths.FirmwareHashes(_root));
     }
+    private PreparedViewerUpdate MigrationPackage(string installedVersion = "4.0.0", string targetVersion = "4.2.0", ViewerMigration[]? migrations = null)
+    {
+        var archive = Package();
+        using (var zip = ZipFile.Open(archive, ZipArchiveMode.Update))
+        {
+            zip.GetEntry(ViewerPackageLayout.ManifestName)!.Delete();
+            var manifest = new ViewerPackageManifest(1, ViewerPackageLayout.ApplicationId, "NxFileViewerFork.exe") {
+                Version = targetVersion, UpdateSources = new[] { "new-owner/new-repository", ViewerUpdateService.Repository },
+                Migrations = migrations ?? new[] { new ViewerMigration("titles-v4.2", "4.0.1", "4.2.0", new[] { new ViewerMigrationAction("MoveDirectory", "Cache/TitleDB", "Plugins/TitleDB") }) }
+            };
+            using var writer = new StreamWriter(zip.CreateEntry(ViewerPackageLayout.ManifestName).Open());
+            writer.Write(JsonSerializer.Serialize(manifest));
+        }
+        var prepared = ViewerPackageLayout.Extract(archive, Stage(), "renamed-package.zip", CancellationToken.None);
+        return ViewerUpdateMetadata.Prepare(prepared, _root, installedVersion, targetVersion, CancellationToken.None);
+    }
+
+    [Theory]
+    [InlineData("4.0.0", "4.2.0", true)]
+    [InlineData("4.0.1", "4.2.0", false)]
+    [InlineData("4.0.0", "4.1.0", false)]
+    [InlineData("4.0.0", "4.0.0", false)]
+    public void MigrationRequiresNewReleaseAndBothVersionConditions(string installed, string target, bool applies)
+    {
+        Put("Cache/TitleDB/a.json", "old-title");
+        var prepared = MigrationPackage(installed, target);
+        Assert.Equal(applies, prepared.Files.Any(f => f.Path == "Cache/TitleDB/a.json" && f.Remove));
+        Assert.Equal("old-title", File.ReadAllText(RootFile("Cache/TitleDB/a.json")));
+        Assert.False(File.Exists(RootFile("Plugins/TitleDB/a.json")));
+        Assert.False(File.Exists(RootFile(ViewerUpdateMetadata.StateName)));
+    }
+
+    [Fact]
+    public async Task MigrationAndSourceStateAreTransactionalAndManualRollbackRestoresOldPaths()
+    {
+        Original();
+        Put("Cache/TitleDB/a.json", "old-title"); Put("Cache/TitleDB/conflict.json", "older");
+        Put("Plugins/TitleDB/conflict.json", "newer");
+        var prepared = MigrationPackage();
+        Assert.True(await Install(prepared) == 0, Error(prepared));
+        Assert.False(File.Exists(RootFile("Cache/TitleDB/a.json")));
+        Assert.Equal("old-title", File.ReadAllText(RootFile("Plugins/TitleDB/a.json")));
+        Assert.Equal("older", File.ReadAllText(RootFile("Cache/TitleDB/conflict.json")));
+        Assert.Equal("newer", File.ReadAllText(RootFile("Plugins/TitleDB/conflict.json")));
+        var state = ViewerUpdateMetadata.ReadState(_root);
+        Assert.Contains("titles-v4.2", state.CompletedMigrations);
+        Assert.Equal("new-owner/new-repository", state.UpdateSources[0]);
+        var rollback = ViewerRollback.Prepare(_root);
+        Assert.True(await Install(rollback, "NxFileViewerFork.exe") == 0, Error(rollback));
+        Assert.Equal("old-title", File.ReadAllText(RootFile("Cache/TitleDB/a.json")));
+        Assert.False(File.Exists(RootFile("Plugins/TitleDB/a.json")));
+        Assert.False(File.Exists(RootFile(ViewerUpdateMetadata.StateName)));
+        Assert.Equal("newer", File.ReadAllText(RootFile("Plugins/TitleDB/conflict.json")));
+    }
+
+    [Theory]
+    [InlineData(true)] [InlineData(false)]
+    public async Task ChangedMigrationSourceOrNewTargetCancelsAndRetainsUserChanges(bool changeSource)
+    {
+        Original(); Put("Cache/TitleDB/a.json", "old-title");
+        var prepared = MigrationPackage();
+        if (changeSource) Put("Cache/TitleDB/a.json", "edited-source");
+        else Put("Plugins/TitleDB/a.json", "new-target");
+        Assert.Equal(1, await Install(prepared));
+        Assert.Equal("old-main", File.ReadAllText(RootFile("NxFileViewer.exe")));
+        Assert.Equal(changeSource ? "edited-source" : "old-title", File.ReadAllText(RootFile("Cache/TitleDB/a.json")));
+        if (!changeSource) Assert.Equal("new-target", File.ReadAllText(RootFile("Plugins/TitleDB/a.json")));
+        Assert.False(File.Exists(RootFile(ViewerUpdateMetadata.StateName)));
+    }
+
+    [Fact]
+    public void CompletedMigrationIsNotAppliedAgain()
+    {
+        Put("Cache/TitleDB/a.json", "retained-conflict");
+        Put(ViewerUpdateMetadata.StateName, JsonSerializer.Serialize(new ViewerUpdateState(1, ViewerPackageLayout.ApplicationId,
+            new[] { ViewerUpdateService.Repository }, new[] { "titles-v4.2" })));
+        Assert.DoesNotContain(MigrationPackage().Files, f => f.Path == "Cache/TitleDB/a.json");
+    }
+    [Fact]
+    public async Task SkippedVersionsChainDirectoryMovesAndCanRollBack()
+    {
+        Original(); Put("Cache/TitleDB/a.json", "title");
+        var migrations = new[] {
+            new ViewerMigration("first-move", "4.0.1", "4.1.0", new[] { new ViewerMigrationAction("MoveDirectory", "Cache/TitleDB", "Intermediate/Titles") }),
+            new ViewerMigration("second-move", "4.1.1", "4.2.0", new[] { new ViewerMigrationAction("MoveDirectory", "Intermediate/Titles", "Plugins/TitleDB") })
+        };
+        var prepared = MigrationPackage(migrations: migrations);
+        Assert.DoesNotContain(prepared.Files, f => f.Path == "Intermediate/Titles/a.json");
+        Assert.True(await Install(prepared) == 0, Error(prepared));
+        Assert.Equal("title", File.ReadAllText(RootFile("Plugins/TitleDB/a.json")));
+        Assert.False(File.Exists(RootFile("Cache/TitleDB/a.json")));
+        Assert.False(Directory.Exists(RootFile("Intermediate/Titles")));
+        var rollback = ViewerRollback.Prepare(_root);
+        Assert.True(await Install(rollback, "NxFileViewerFork.exe") == 0, Error(rollback));
+        Assert.Equal("title", File.ReadAllText(RootFile("Cache/TitleDB/a.json")));
+        Assert.False(File.Exists(RootFile("Plugins/TitleDB/a.json")));
+    }
+
+    [Fact]
+    public async Task MissingMigrationSourceCancelsWithoutInstallingStaleCopy()
+    {
+        Original(); Put("Cache/TitleDB/a.json", "title");
+        var prepared = MigrationPackage();
+        File.Delete(RootFile("Cache/TitleDB/a.json"));
+        Assert.Equal(1, await Install(prepared));
+        Assert.False(File.Exists(RootFile("Plugins/TitleDB/a.json")));
+        Assert.Equal("old-main", File.ReadAllText(RootFile("NxFileViewer.exe")));
+    }
     public void Dispose() { if (Directory.Exists(_root)) Directory.Delete(_root, true); }
 }

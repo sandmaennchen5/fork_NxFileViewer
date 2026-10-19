@@ -25,8 +25,16 @@ public sealed class TransitionReleaseTest
         digest = digest ?? "sha256:" + new string('a', 64)
     };
     private static HttpClient Client(object[] assets, string tag = "v4.1.0") => new(new Handler(request => {
-        Assert.Equal("https://api.github.com/repos/" + ViewerUpdateService.Repository + "/releases/latest", request.RequestUri!.AbsoluteUri);
-        return new(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new { tag_name = tag, draft = false, prerelease = false, assets })) };
+        var latest = "https://api.github.com/repos/" + ViewerUpdateService.Repository + "/releases/latest";
+        var release = new { tag_name = tag, draft = false, prerelease = false, assets };
+        string body;
+        if (request.RequestUri!.AbsoluteUri == latest) body = JsonSerializer.Serialize(release);
+        else
+        {
+            Assert.Equal("https://api.github.com/repos/" + ViewerUpdateService.Repository + "/releases?per_page=100&page=1", request.RequestUri.AbsoluteUri);
+            body = JsonSerializer.Serialize(new[] { release });
+        }
+        return new(HttpStatusCode.OK) { Content = new StringContent(body) };
     }));
     [Theory]
     [InlineData("x64", false)][InlineData("x86", false)][InlineData("x64", true)][InlineData("x86", true)]

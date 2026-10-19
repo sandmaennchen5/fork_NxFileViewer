@@ -1,0 +1,9 @@
+{
+  "SchemaVersion": 1,
+  "ApplicationId": "NxFileViewerFork",
+  "Executable": "NxFileViewerFork.exe",
+  "UpdateSources": [
+    "github:sandmaennchen5/fork_NxFileViewer"
+  ],
+  "Migrations": []
+}

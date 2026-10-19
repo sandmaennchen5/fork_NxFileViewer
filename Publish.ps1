@@ -4,6 +4,8 @@
 #>
 param(
     [string]$OutputDirectory = "Publish",
+    [string]$Version,
+    [string]$PackageName = "NxFileViewerFork",
     [string]$ExecutableName,
     [string]$ExplorerPublisher = 'CN=NxFileViewer Fork',
     [string]$ExplorerCertificateThumbprint,
@@ -20,7 +22,8 @@ param(
 $ErrorActionPreference = "Stop"
 if ($LogViewerOnly -and $SkipLogViewer) { throw 'Choose either -LogViewerOnly or -SkipLogViewer.' }
 if ($UnsignedExplorerPackages -and $ExplorerCertificateThumbprint) { throw 'Choose either unsigned packages or a signing certificate.' }
-$AppName = "NxFileViewerFork"
+if ($PackageName -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$' -or $PackageName.EndsWith('.')) { throw 'Supply a plain release package name.' }
+$AppName = $PackageName
 $ProjectPath = Join-Path $PSScriptRoot "src/NxFileViewer/NxFileViewer.csproj"
 $PublishedExecutableName = (Select-Xml -LiteralPath $ProjectPath -XPath "//Project/PropertyGroup/AssemblyName").Node.InnerText
 if (!$PublishedExecutableName) { $PublishedExecutableName = [IO.Path]::GetFileNameWithoutExtension($ProjectPath) }
@@ -30,7 +33,54 @@ if ([IO.Path]::GetFileName($ExecutableName) -cne $ExecutableName -or $Executable
     $ExecutableName -in @('dotnet.exe','NxFileViewerFork.Open.exe') -or $ExecutableName.IndexOfAny([IO.Path]::GetInvalidFileNameChars()) -ge 0) {
     throw 'Supply a plain main executable filename ending in .exe.'
 }
-$AppVersion = (Select-Xml -LiteralPath $ProjectPath -XPath "//Project/PropertyGroup/Version").Node.InnerText
+$AppVersion = if ($Version) { $Version } else { (Select-Xml -LiteralPath $ProjectPath -XPath "//Project/PropertyGroup/Version").Node.InnerText }
+if ($AppVersion -notmatch '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$') {
+    throw 'Supply a version such as 4.2.0, 4.2.0-beta or 4.2.0-beta1, without a v prefix.'
+}
+$ManifestTemplatePath = Join-Path $PSScriptRoot 'update/package-manifest.json'
+if ((Get-Item -LiteralPath $ManifestTemplatePath).Length -gt 65536) { throw 'Package manifest template is too large.' }
+$PackageIdentity = Get-Content -LiteralPath $ManifestTemplatePath -Raw -Encoding UTF8 | ConvertFrom-Json
+if ($PackageIdentity.SchemaVersion -ne 1 -or $PackageIdentity.ApplicationId -cne 'NxFileViewerFork') { throw 'Invalid package manifest identity.' }
+if ($null -eq $PackageIdentity.UpdateSources -or @($PackageIdentity.UpdateSources).Count -gt 8 -or $null -eq $PackageIdentity.Migrations -or @($PackageIdentity.Migrations).Count -gt 128) { throw 'Invalid manifest sources or migrations.' }
+foreach ($source in $PackageIdentity.UpdateSources) {
+    if ([string]::IsNullOrWhiteSpace($source) -or $source.Length -gt 2048 -or $source -match '\s') { throw 'Invalid update source in template.' }
+    $value=$source
+    if ($value.StartsWith('github:',[StringComparison]::OrdinalIgnoreCase)) { $value=$value.Substring(7) }
+    elseif ($value -match '^(gitlab|forgejo|manifest):') { $value=$value.Substring($value.IndexOf(':')+1) }
+    if ($source -match '^(gitlab|forgejo|manifest):' -and !$value.StartsWith('https://',[StringComparison]::OrdinalIgnoreCase)) { throw 'Expected an HTTPS source address.' }
+    if ($source -match '^github:' -and $value.StartsWith('https://',[StringComparison]::OrdinalIgnoreCase)) { throw 'GitHub sources use owner/repository.' }
+    if ($value.StartsWith('https://',[StringComparison]::OrdinalIgnoreCase)) {
+        $uri=$null
+        if (![Uri]::TryCreate($value,[UriKind]::Absolute,[ref]$uri) -or $uri.Scheme -ne 'https' -or $uri.UserInfo -or $uri.Fragment) { throw 'Invalid HTTPS update source.' }
+        if ($source -match '^(gitlab|forgejo):' -and ($uri.Query -or $uri.AbsolutePath.Trim('/').Split('/').Count -lt 2)) { throw 'Expected a forge repository or project API URL.' }
+    } elseif ($value -notmatch '^[A-Za-z0-9_-][A-Za-z0-9_.-]*/[A-Za-z0-9_.-]+$' -or $value.Length -gt 201 -or @($value.Split('/') | Where-Object { $_ -in @('.','..') -or $_.EndsWith('.') }).Count) { throw 'Invalid GitHub repository in template.' }
+}
+function Assert-MigrationPath([string]$value) {
+    $value=$value.Replace('\','/')
+    if (!$value -or $value.Length -gt 1024 -or $value -match '[<>:"|?*\x00-\x1f]' -or $value -match '(?i)\.keys$|\.settings\.json$') { throw 'Unsafe migration path.' }
+    $parts=$value.Split('/')
+    if ($parts.Count -gt 32 -or $parts[0] -in @('Updates','.git','.codex') -or $value -in @('nxfileviewer-package.json','NxFileViewerFork.update-state.json')) { throw 'Protected migration path.' }
+    foreach ($part in $parts) {
+        if (!$part -or $part -in @('.','..') -or $part.EndsWith('.') -or $part.EndsWith(' ') -or $part.Split('.')[0] -match '^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$') { throw 'Unsafe migration path component.' }
+    }
+    return $value
+}
+$MigrationIds = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+foreach ($migration in $PackageIdentity.Migrations) {
+    if ([string]::IsNullOrWhiteSpace($migration.Id) -or $migration.Id.Length -gt 128 -or !$MigrationIds.Add($migration.Id) -or
+        $migration.WhenInstalledVersionBelow -notmatch '^\d+\.\d+\.\d+(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$' -or
+        $migration.ApplyFromTargetVersion -notmatch '^\d+\.\d+\.\d+(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$' -or
+        $null -eq $migration.Actions -or @($migration.Actions).Count -gt 128) { throw 'Invalid migration identity or version conditions.' }
+    foreach ($action in $migration.Actions) {
+        if ($action.Type -cnotin @('MoveDirectory','MoveFile') -or ($action.IfTargetExists -and $action.IfTargetExists -cne 'KeepExisting')) { throw 'Unsupported migration action.' }
+        $from=Assert-MigrationPath $action.From; $to=Assert-MigrationPath $action.To
+        if ($from -ieq $to -or $from.StartsWith($to+'/',[StringComparison]::OrdinalIgnoreCase) -or $to.StartsWith($from+'/',[StringComparison]::OrdinalIgnoreCase)) { throw 'Overlapping migration paths.' }
+    }
+}
+$PackageIdentity | Add-Member -NotePropertyName Version -NotePropertyValue $AppVersion -Force
+$PackageIdentity | Add-Member -NotePropertyName Executable -NotePropertyValue $ExecutableName -Force
+$PackageIdentityJson = $PackageIdentity | ConvertTo-Json -Depth 16
+$ReleasePackages = @()
 if (!$ExplorerPackageVersion) {
     $ExplorerPackageVersion = (Select-Xml -LiteralPath $ProjectPath -XPath '//Project/PropertyGroup/ExplorerPackageVersion').Node.InnerText
 }
@@ -70,7 +120,7 @@ try {
             $ReleaseName = "${AppName}_v${AppVersion}${Variant}_${Architecture}"
             $ReleaseDir = Join-Path $StagingRoot $ReleaseName
             Write-Host "Publishing $ReleaseName"
-            dotnet publish $ProjectPath -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=$WithRuntime -c Release --self-contained $WithRuntime -r "win-$Architecture" -o $ReleaseDir
+            dotnet publish $ProjectPath -p:Version=$AppVersion -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=$WithRuntime -c Release --self-contained $WithRuntime -r "win-$Architecture" -o $ReleaseDir
             if ($LASTEXITCODE -ne 0) { throw "Publishing $Architecture failed ($LASTEXITCODE)." }
             if (Test-Path -LiteralPath (Join-Path $ReleaseDir "Plugins/fwhashes")) {
                 throw "Firmware hashes must not be included in application archives."
@@ -79,7 +129,7 @@ try {
                 Move-Item -LiteralPath (Join-Path $ReleaseDir $PublishedExecutableName) -Destination (Join-Path $ReleaseDir $ExecutableName)
             }
             if (!(Test-Path -LiteralPath (Join-Path $ReleaseDir $ExecutableName))) { throw 'Published main executable missing.' }
-            $identity = @{ SchemaVersion = 1; ApplicationId = 'NxFileViewerFork'; Executable = $ExecutableName } | ConvertTo-Json
+            $identity = $PackageIdentityJson
             [IO.File]::WriteAllText((Join-Path $ReleaseDir 'nxfileviewer-package.json'), $identity, [Text.UTF8Encoding]::new($false))
             $applicationFiles = @($ExecutableName, 'nxfileviewer-package.json', 'LICENSE.txt')
             $publishedFiles = @(Get-ChildItem -LiteralPath $ReleaseDir -Force)
@@ -88,6 +138,7 @@ try {
                 throw 'Application package must contain only the main executable, nxfileviewer-package.json and LICENSE.txt.'
             }
             Compress-Archive -LiteralPath @($applicationFiles | ForEach-Object { Join-Path $ReleaseDir $_ }) -DestinationPath (Join-Path $OutDirRoot "$ReleaseName.zip") -Force
+            $ReleasePackages += [pscustomobject]@{ Architecture=$Architecture; SelfContained=[bool]$WithRuntime; AssetName="$ReleaseName.zip"; Sha256=(Get-FileHash -LiteralPath (Join-Path $OutDirRoot "$ReleaseName.zip") -Algorithm SHA256).Hash }
             if ($IncludeLegacyTransition) {
                 $transitionProject = Join-Path $PSScriptRoot 'src/NxFileViewer.Transition/NxFileViewer.Transition.csproj'
                 $transitionDir = Join-Path $StagingRoot ("transition${Variant}_${Architecture}")
@@ -100,6 +151,8 @@ try {
         }
     }
 
+    $ReleaseDescriptor = [ordered]@{ SchemaVersion=1; ApplicationId='NxFileViewerFork'; Version=$AppVersion; Prerelease=$AppVersion.Contains('-'); Packages=$ReleasePackages }
+    [IO.File]::WriteAllText((Join-Path $OutDirRoot 'nxfileviewer-update.json'), ($ReleaseDescriptor | ConvertTo-Json -Depth 8), [Text.UTF8Encoding]::new($false))
     # The add-on extracts to Plugins/fwhashes next to either architecture's executable.
     $HashRoot = Join-Path $StagingRoot "firmware-hashes"
     $HashDirectory = Join-Path $HashRoot "Plugins/fwhashes"

@@ -16,6 +16,9 @@
     <Compile Include="../NxFileViewer/Services/Updates/ViewerUpdateService.cs" Link="ViewerUpdateService.cs" />
     <Compile Include="../NxFileViewer/Services/Updates/ViewerPackageLayout.cs" Link="ViewerPackageLayout.cs" />
     <Compile Include="../NxFileViewer/Services/Updates/ViewerVersion.cs" Link="ViewerVersion.cs" />
+    <Compile Include="../NxFileViewer/Services/Updates/ViewerUpdateMetadata.cs" Link="ViewerUpdateMetadata.cs" />
+    <Compile Include="../NxFileViewer/Services/Updates/ViewerUpdateSource.cs" Link="ViewerUpdateSource.cs" />
+    <Compile Include="../NxFileViewer/Services/Updates/ViewerRemoteReleaseSource.cs" Link="ViewerRemoteReleaseSource.cs" />
     <EmbeddedResource Include="../NxFileViewer/Services/Updates/InstallUpdate.ps1" LogicalName="ViewerUpdate.InstallUpdate.ps1" />
     <AssemblyMetadata Include="ViewerSelfContained" Value="$(SelfContained)" />
   </ItemGroup>

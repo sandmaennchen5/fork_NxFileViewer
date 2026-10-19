@@ -4,6 +4,85 @@ Open **Settings → Updates** to check for an application update or download and
 
 By default only stable releases are offered. Enable **Include pre-releases in application updates** and apply settings to include published previews. Drafts and older/equal semantic versions are ignored; changing the channel invalidates the current offer.
 
+## Automatic releases from version tags
+
+Push a tag such as `v4.2.0` (or `4.2.0`) to build and publish a stable GitHub Release. Tags such as `v4.2.0-beta`, `v4.2.0-beta1` and `v4.2.0-beta2` create pre-releases. Other version suffixes are not accepted by the release workflow.
+
+`.github/workflows/release.yml` checks out the tagged commit and passes the tag version to `Publish.ps1 -Version`. The main application, LogViewer and legacy transition executables and their ZIP names therefore use the same version even if the project files still contain a different development version. Explorer MSIX packages retain their separately configured package version. Local publishing without `-Version` continues to use the main project version.
+
+Before building, `.github/scripts/Prepare-Release.ps1` compares the application project version with the tag and corrects it in the workflow checkout if necessary. The tag is authoritative for the application, LogViewer, transition executables and package manifests. The correction is local to that workflow run: it does not commit, push or move the tag, and it does not change the independently configured Explorer MSIX version.
+
+Release notes come from the matching version section in the tagged `CHANGELOG.md`, for example `## [4.2.0] - 2026-10-19` or `## [4.2.0-beta1]`. A `v` prefix inside the brackets is also accepted. Only that section body is used, preserving its Markdown subsections and lists; `Unreleased` and other versions are excluded. Add the version section before pushing the tag. A missing, duplicate or empty matching section stops the workflow before building or creating a release. There is no fallback to generated commit notes or to `Unreleased`.
+All generated ZIPs, including the legacy transition packages, are uploaded to a draft release before it is published. A failed upload does not expose a partial release to the updater; inspect or remove any remaining draft before retrying a failed run. Existing published releases are not overwritten. The workflow needs Actions permission to write repository contents.
+
+The package manifest is generated from the tagged source by `Publish.ps1` and is included in each application ZIP. Merely committing changes to `master` continues to build Actions artifacts; it does not publish a release or affect installed applications. Git tags must be pushed to trigger publication. The release descriptor and package migration instructions described below are generated from this same tagged source.
+
+## Manifest-driven updates and repository moves
+
+Edit `update/package-manifest.json` in the repository. `Publish.ps1` validates this template, fills in `Version` and `Executable`, and embeds it as `nxfileviewer-package.json` in every application ZIP. `-ExecutableName NewName.exe -PackageName NewName` changes the executable and ZIP prefix while keeping the internal `ApplicationId` stable.
+
+Publishing also generates `nxfileviewer-update.json` next to the ZIPs. The release workflow uploads this small JSON asset alongside the packages; no additional ZIP or helper EXE is required. It maps each architecture/runtime distribution to its actual ZIP name. The updater verifies the descriptor against its GitHub asset SHA-256 digest, checks identity and version, and uses the chosen ZIP's own GitHub SHA-256 digest. Older releases without a descriptor continue to use the original naming convention. If the latest stable release lacks a matching distribution, the new updater searches older releases for a compatible version newer than the installed version. It never substitutes another architecture or runtime distribution.
+
+`UpdateSources` accepts legacy GitHub names and typed GitHub, GitLab, Forgejo or independent HTTPS-manifest sources. See [update/README.md](../update/README.md) for formats and portable hosting. To prepare a move, publish an update containing both the new and old repositories before moving. After successful installation they are remembered in `NxFileViewerFork.update-state.json`; failed installations roll this state back. Checks try the remembered sources and choose the highest eligible version found. GitHub downloads must belong to the supplying repository. Native GitLab/Forgejo addresses use the configured origin; independent HTTPS manifests can explicitly name download hosts/CDNs. A nonempty UpdateSources list replaces the remembered list after installation. Include both repositories during the transition; a later release can explicitly remove the old source. Without local update state, the original repository is the initial source. Installations that missed the preparatory update still need a working old location or a manual update; keep the old source available during the transition. This uses the existing GitHub/HTTPS trust model and asset digests, not a separate developer-signature system.
+
+A migration example (add to the template's `Migrations` array):
+
+```json
+{
+  "Id": "titles-from-before-4.0.1",
+  "WhenInstalledVersionBelow": "4.0.1",
+  "ApplyFromTargetVersion": "4.2.0",
+  "Actions": [
+    {
+      "Type": "MoveDirectory",
+      "From": "Cache/TitleDB",
+      "To": "Plugins/TitleDB",
+      "IfTargetExists": "KeepExisting"
+    }
+  ]
+}
+```
+
+This applies only when upgrading from below 4.0.1 to 4.2.0 or later. Committing the template, checking for updates or downloading metadata moves no files. Rules come from the verified ZIP being installed, not from the current development branch. A rule committed ahead of its target release remains inactive in earlier packages. Applicable migrations execute in manifest order; completed IDs are remembered only with the successful installation. IDs must remain stable and unique.
+
+### Available manifest actions
+
+| Action | Supported | Behavior |
+| --- | --- | --- |
+| `MoveFile` | Yes | Moves one file; changing its name also renames it. |
+| `MoveDirectory` | Yes | Moves a directory recursively, including subdirectories. |
+| `CopyFile` / `CopyDirectory` | No | Copying while retaining all source files is not implemented. |
+| `DeleteFile` / `DeleteDirectory` | No | Standalone deletion is not implemented. |
+| Run a command or script | No | Migration entries cannot execute arbitrary commands. |
+
+For both supported actions, `From` and `To` are paths relative to the application directory. `IfTargetExists` supports only `KeepExisting`: an existing destination file and its conflicting source file are both retained. Successfully moved source files are removed; source directories are removed only when empty. This cleanup is part of moving, not a general delete action.
+
+For example, add this entry to `Migrations` in `update/package-manifest.json` to move and rename a file:
+
+```json
+{
+  "Id": "rename-title-list-for-4.2.0",
+  "WhenInstalledVersionBelow": "4.2.0",
+  "ApplyFromTargetVersion": "4.2.0",
+  "Actions": [
+    {
+      "Type": "MoveFile",
+      "From": "Data/old-titles.json",
+      "To": "Data/titles.json",
+      "IfTargetExists": "KeepExisting"
+    }
+  ]
+}
+```
+
+This runs only during installation of a newer release, when the original installed version is below 4.2.0 and the target version is 4.2.0 or newer. Keep required rules in later releases so users can skip versions. Merely committing the template or checking for updates does not run actions. Each successfully installed migration ID is remembered, so do not reuse an ID for a different operation. Applicable entries run in manifest order.
+
+Paths outside the application directory, directory links, keys, settings files and updater metadata are excluded. Files are staged and installed transactionally with backup and rollback; user changes detected between staging and installation cancel installation. Unsupported action names are rejected during publication and package validation.
+
+Supported actions are `MoveDirectory` and `MoveFile`, relative to the application directory. Existing target files and their conflicting source files are both retained. Unsupported commands, overlapping paths, links, paths escaping the application directory, keys, settings files and updater metadata are rejected. Changed source files or newly appearing target files cancel installation instead of overwriting user changes. Files are staged first and committed through the existing embedded PowerShell installer, with the same recovery journal and manual rollback as program files. Newly empty source directories are removed; rollback can recreate them. The shipped template has no active migrations.
+
+These features require this new updater. Already distributed older versions do not gain manifest or migration support merely from a repository commit. Continue publishing legacy transition ZIPs while supporting old-name installations. Pre-manifest 4.1 updaters also still need the original NxFileViewerFork_v... ZIP names; keep those names as compatibility aliases when renaming packages, or require users to install the preparatory updater first. Keep `SchemaVersion: 1` and `ApplicationId: NxFileViewerFork`; the visible product, executable and ZIP names may change independently.
+
 ## Request cache and GitHub limits
 
 Viewer, managed-plugin, TitleDB and firmware-hash update checks share GitHub metadata requests. Automatic startup checks and NSZ checks before conversion reuse successful responses for six hours. Metadata is stored under `Plugins/CacheUpdates` beside the executable and survives restarts. Manual checks request fresh metadata; simultaneous requests for the same endpoint reuse a completed in-flight response.

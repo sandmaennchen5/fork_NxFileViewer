@@ -10,8 +10,17 @@ using System.Threading;
 
 namespace Emignatik.NxFileViewer.Services.Updates;
 
-public sealed record ViewerPackageManifest(int SchemaVersion, string ApplicationId, string Executable);
-public sealed record ViewerPackageFile(string Path, string Sha256, bool Remove = false);
+public sealed record ViewerPackageManifest(int SchemaVersion, string ApplicationId, string Executable)
+{
+    public string? Version { get; init; }
+    public string[] UpdateSources { get; init; } = Array.Empty<string>();
+    public ViewerMigration[] Migrations { get; init; } = Array.Empty<ViewerMigration>();
+}
+public sealed record ViewerPackageFile(string Path, string Sha256, bool Remove = false)
+{
+    public bool ExpectedAbsent { get; init; }
+    public bool ExpectedPresent { get; init; }
+}
 public sealed record ViewerUpdateJournalEntry(string Path, bool Existed, string? BeforeHash, string? AfterHash);
 public sealed record ViewerUpdateJournal(int SchemaVersion, string ApplicationId, string PreviousExecutable,
     string Executable, ViewerUpdateJournalEntry[] Entries, string[] CreatedDirectories, string[] RemovedDirectories);
@@ -67,8 +76,9 @@ public static class ViewerPackageLayout
     {
         if (bytes.Length > 65536) throw new InvalidDataException("Package manifest is too large.");
         var manifest = JsonSerializer.Deserialize<ViewerPackageManifest>(bytes) ?? throw new InvalidDataException("Package manifest missing.");
-        if (manifest.SchemaVersion != 1 || manifest.ApplicationId != ApplicationId) throw new InvalidDataException("Not a compatible NxFileViewer Fork package.");
+        if (manifest.SchemaVersion != 1 || manifest.ApplicationId != ApplicationId || string.IsNullOrEmpty(manifest.Executable)) throw new InvalidDataException("Not a compatible NxFileViewer Fork package.");
         _ = ExecutableName(manifest.Executable);
+        ViewerUpdateMetadata.Validate(manifest);
         return manifest;
     }
     public static PreparedViewerUpdate Extract(string archive, string stage, string assetName, CancellationToken token)
@@ -93,6 +103,7 @@ public static class ViewerPackageLayout
             if (stripLegacy) name = name[legacyPrefix.Length..];
             var isDirectory = name.EndsWith('/');
             name = Relative(name, isDirectory);
+            if (name.Equals(ViewerUpdateMetadata.StateName, StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("Local update state cannot be supplied by a package.");
             if (((entry.ExternalAttributes >> 16) & 0xF000) == 0xA000 || !seen.Add(name) ||
                 entry.Length < 0 || (total += entry.Length) > MaximumSize || (isDirectory && entry.Length != 0))
                 throw new InvalidDataException("Duplicate, linked or oversized package entry.");
