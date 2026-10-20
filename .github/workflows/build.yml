@@ -24,60 +24,134 @@ jobs:
         shell: pwsh
         run: ./Publish.ps1
 
-      - name: Upload x64 ZIP
+      - name: Upload application x64
         uses: actions/upload-artifact@v7
         with:
           path: |
-            Publish/*_x64.zip
-            !Publish/*_self-contained_x64.zip
-            !Publish/NxFileViewerFork.LogViewer_*.zip
+            Publish/NxFileViewerFork_v*_x64.zip
+            !Publish/NxFileViewerFork_v*_self-contained_x64.zip
           archive: false
           if-no-files-found: error
           retention-days: 7
 
-      - name: Upload x86 ZIP
+      - name: Upload application x64 with .NET
         uses: actions/upload-artifact@v7
         with:
           path: |
-            Publish/*_x86.zip
-            !Publish/*_self-contained_x86.zip
-            !Publish/NxFileViewerFork.LogViewer_*.zip
+            Publish/NxFileViewerFork_v*_self-contained_x64.zip
           archive: false
           if-no-files-found: error
           retention-days: 7
 
-      - name: Upload x64 ZIP with .NET (compressed)
+      - name: Upload application x86
         uses: actions/upload-artifact@v7
         with:
           path: |
-            Publish/*_self-contained_x64.zip
-            !Publish/NxFileViewerFork.LogViewer_*.zip
+            Publish/NxFileViewerFork_v*_x86.zip
+            !Publish/NxFileViewerFork_v*_self-contained_x86.zip
           archive: false
           if-no-files-found: error
           retention-days: 7
 
-      - name: Upload x86 ZIP with .NET (compressed)
+      - name: Upload application x86 with .NET
         uses: actions/upload-artifact@v7
         with:
           path: |
-            Publish/*_self-contained_x86.zip
-            !Publish/NxFileViewerFork.LogViewer_*.zip
+            Publish/NxFileViewerFork_v*_self-contained_x86.zip
           archive: false
           if-no-files-found: error
           retention-days: 7
 
-      - name: Upload optional firmware hashes ZIP
+      - name: Upload legacy transition x64
         uses: actions/upload-artifact@v7
         with:
-          path: Publish/*_firmware-hashes.zip
+          path: |
+            Publish/NxFileViewer_v*_x64.zip
+            !Publish/NxFileViewer_v*_self-contained_x64.zip
           archive: false
           if-no-files-found: error
           retention-days: 7
 
-      - name: Upload standalone diagnostic LogViewer ZIPs
+      - name: Upload legacy transition x64 with .NET
         uses: actions/upload-artifact@v7
         with:
-          path: Publish/NxFileViewerFork.LogViewer_*.zip
+          path: |
+            Publish/NxFileViewer_v*_self-contained_x64.zip
+          archive: false
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload legacy transition x86
+        uses: actions/upload-artifact@v7
+        with:
+          path: |
+            Publish/NxFileViewer_v*_x86.zip
+            !Publish/NxFileViewer_v*_self-contained_x86.zip
+          archive: false
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload legacy transition x86 with .NET
+        uses: actions/upload-artifact@v7
+        with:
+          path: |
+            Publish/NxFileViewer_v*_self-contained_x86.zip
+          archive: false
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload LogViewer x64
+        uses: actions/upload-artifact@v7
+        with:
+          path: |
+            Publish/NxFileViewerFork.LogViewer_v*_x64.zip
+            !Publish/NxFileViewerFork.LogViewer_v*_self-contained_x64.zip
+          archive: false
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload LogViewer x64 with .NET
+        uses: actions/upload-artifact@v7
+        with:
+          path: |
+            Publish/NxFileViewerFork.LogViewer_v*_self-contained_x64.zip
+          archive: false
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload LogViewer x86
+        uses: actions/upload-artifact@v7
+        with:
+          path: |
+            Publish/NxFileViewerFork.LogViewer_v*_x86.zip
+            !Publish/NxFileViewerFork.LogViewer_v*_self-contained_x86.zip
+          archive: false
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload LogViewer x86 with .NET
+        uses: actions/upload-artifact@v7
+        with:
+          path: |
+            Publish/NxFileViewerFork.LogViewer_v*_self-contained_x86.zip
+          archive: false
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload firmware hashes ZIP
+        uses: actions/upload-artifact@v7
+        with:
+          path: |
+            Publish/*_firmware-hashes.zip
+          archive: false
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload update release manifest
+        uses: actions/upload-artifact@v7
+        with:
+          path: |
+            Publish/nxfileviewer-update.json
           archive: false
           if-no-files-found: error
           retention-days: 7
