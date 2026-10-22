@@ -41,7 +41,7 @@ public class DownloadFileRunnable : IDownloadFileRunnable
         }
         catch (OperationCanceledException)
         {
-            _logger.LogWarning(LocalizationManager.Instance.Current.Keys.Log_DownloadFileCanceled);
+            _logger.LogInformation(LocalizationManager.Instance.Current.Keys.Log_DownloadFileCanceled);
 
             try { File.Delete(_filePath!); }
             catch

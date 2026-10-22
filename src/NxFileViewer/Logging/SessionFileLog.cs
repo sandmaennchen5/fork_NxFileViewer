@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
@@ -25,7 +26,10 @@ public sealed class SessionFileLog : IDisposable
             Directory.CreateDirectory(directory);
             var path = Path.Combine(directory, $"NxFileViewer-{DateTime.UtcNow:yyyyMMdd-HHmmss-fffffff}-{Guid.NewGuid():N}.log");
             _writer = new StreamWriter(new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.Read), new UTF8Encoding(false)) { AutoFlush = true };
-            Write(LogLevel.Information, "NxFileViewer session started.");
+            var assembly = typeof(SessionFileLog).Assembly;
+            var version = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+                ?? assembly.GetName().Version?.ToString() ?? "unknown";
+            Write(LogLevel.Information, $"NxFileViewer Fork session started. Version: {version}; Assembly: {assembly.GetName().Version}.");
             Trim(retentionCount);
         }
         catch (IOException) { Dispose(); }

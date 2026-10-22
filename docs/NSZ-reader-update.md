@@ -22,9 +22,13 @@ Scope: NCZ reading used by NxFileViewer, rather than importing the Python applic
 - Block lookup uses its index directly rather than scanning every preceding block.
 - Raw blocks tolerate short source reads. Zero-byte reads do not decompress blocks.
 - MaxCacheSize=0 disables caching correctly instead of attempting to dequeue an empty queue.
-- The earlier solid-reader change remains: lazy disk-backed prefix caching eliminates repeated decompression on backwards reads. First-time forward skips still require decoding the preceding solid prefix, and temporary storage under `Temp/NCZ` next to the executable can grow to the payload size. Cache files are deleted on close, and an unwritable program directory fails rather than falling back to AppData or the system temp directory.
+- The earlier solid-reader change remains: lazy disk-backed prefix caching eliminates repeated decompression on backwards reads. First-time forward skips still require decoding the preceding solid prefix, and temporary storage under `Temp/NCZ` next to the executable can grow to the payload size. Temporary Original-mode readers used for hashing are closed after each NCA, including failure and cancellation. Closing an NSP/XCI also closes its nested NCZ readers, so finished batch entries do not retain their decoded disk caches. Cache files are deleted on close, and an unwritable program directory fails rather than falling back to AppData or the system temp directory.
 
 Changed in this comparison: `src/LibHac.NSZ/Streams/NczBlockDecompressionStream.cs`, new `src/LibHac.NSZ.Test/BlockNczTest.cs`, and this document.
+
+## Firmware sections inside the original prefix
+
+NCZ section extents can start at 0xC00 rather than 0x4000. The restored NCA length is the maximum section end (at least the original prefix length), not 0x4000 plus the sum of section sizes. Bytes before 0x4000 are already supplied by the original prefix and must not be counted twice. The solid and block readers use this corrected length; regression coverage includes a section overlapping the prefix.
 
 ## Already covered or outside scope
 

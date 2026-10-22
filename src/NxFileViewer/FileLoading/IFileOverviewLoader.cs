@@ -8,4 +8,5 @@ public interface IFileOverviewLoader
     FileOverview Load(XciItem xciItem);
 
     FileOverview Load(NspItem nspItem);
+    FileOverview Load(SdCardItem sdCardItem) => new(sdCardItem);
 }

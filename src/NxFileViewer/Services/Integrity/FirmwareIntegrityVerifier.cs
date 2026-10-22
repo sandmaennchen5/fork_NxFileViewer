@@ -12,14 +12,14 @@ using Emignatik.NxFileViewer.FileLoading;
 
 namespace Emignatik.NxFileViewer.Services.Integrity;
 
-/// <summary>Checks firmware against the bundled fw/hashes manifests without keys or extraction.</summary>
+/// <summary>Checks firmware against the local Plugins/fwhashes manifests without keys or extraction.</summary>
 public sealed class FirmwareIntegrityVerifier
 {
     private readonly List<Reference> _references = new();
     private readonly HashSet<string> _knownNames = new(StringComparer.OrdinalIgnoreCase);
     public FirmwareIntegrityVerifier(string? referenceDirectory = null)
     {
-        referenceDirectory ??= Path.Combine(AppContext.BaseDirectory, "fw", "hashes");
+        referenceDirectory ??= ApplicationDataPaths.FirmwareHashes(AppContext.BaseDirectory);
         Load(Directory.EnumerateFiles(referenceDirectory, "*.json").Select(File.ReadAllText));
     }
 

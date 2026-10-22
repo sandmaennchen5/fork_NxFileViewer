@@ -35,8 +35,13 @@ public sealed class ViewerUpdateActions : NotifyPropertyChangedBase
     {
         _components = components; _service = service; _settings = settings; _background = background; _logger = logger;
         CheckCommand = new RelayCommand(() => _ = CheckAsync(false), () => !_busy);
-        InstallCommand = new RelayCommand(Install, () => !_busy && !_background.IsRunning && _release != null && (!_release.IsPrerelease || _settings.IncludeViewerPrereleases));
-        _background.PropertyChanged += (_, _) => InstallCommand.TriggerCanExecuteChanged(true);
+        InstallCommand = new RelayCommand(() => Install(), () => !_busy && !_background.IsRunning && _release != null && (!_release.IsPrerelease || _settings.IncludeViewerPrereleases));
+        RollbackCommand = new RelayCommand(() => Install(true), () => !_busy && !_background.IsRunning && CanRollback());
+        CleanupCommand = OldVersionCleanupCommand.Create("NxFileViewer Fork", background, () => !_busy,
+            () => OldVersionCleanup.ViewerUpdateDirectories(AppContext.BaseDirectory),
+            paths => OldVersionCleanup.DeleteViewerUpdates(AppContext.BaseDirectory, paths),
+            () => { CleanupCommand!.TriggerCanExecuteChanged(true); RollbackCommand.TriggerCanExecuteChanged(true); });
+        _background.PropertyChanged += (_, _) => { InstallCommand.TriggerCanExecuteChanged(true); RollbackCommand.TriggerCanExecuteChanged(true); CleanupCommand.TriggerCanExecuteChanged(true); };
         _settings.PropertyChanged += (_, args) =>
         {
             if (args.PropertyName != nameof(IAppSettings.IncludeViewerPrereleases)) return;
@@ -49,6 +54,8 @@ public sealed class ViewerUpdateActions : NotifyPropertyChangedBase
     }
     public RelayCommand CheckCommand { get; }
     public RelayCommand InstallCommand { get; }
+    public RelayCommand RollbackCommand { get; }
+    public RelayCommand CleanupCommand { get; }
     public string Status { get => _status; private set { _status = value; NotifyPropertyChanged(); } }
     public string AvailableUpdates { get => _availableUpdates; private set { _availableUpdates = value; NotifyPropertyChanged(); } }
     public bool HasViewerUpdate => _release != null && (!_release.IsPrerelease || _settings.IncludeViewerPrereleases);
@@ -58,12 +65,13 @@ public sealed class ViewerUpdateActions : NotifyPropertyChangedBase
         NotifyPropertyChanged(nameof(HasViewerUpdate));
         CheckCommand.TriggerCanExecuteChanged();
         InstallCommand.TriggerCanExecuteChanged();
+        CleanupCommand.TriggerCanExecuteChanged();
+        RollbackCommand.TriggerCanExecuteChanged();
     }
     public async Task CheckAsync(bool automatic)
     {
         if (_busy || (automatic && !_settings.CheckViewerUpdatesOnStartup)) return;
         SetBusy(true);
-        AvailableUpdates = "";
         Status = LocalizationManager.Instance.Current.Keys.Update_Checking;
         try
         {
@@ -71,11 +79,16 @@ public sealed class ViewerUpdateActions : NotifyPropertyChangedBase
             var architecture = RuntimeInformation.ProcessArchitecture switch
             { Architecture.X64 => "x64", Architecture.X86 => "x86", _ => throw new NotSupportedException("No release package for this architecture.") };
             var includePrereleases = _settings.IncludeViewerPrereleases;
-            _release = await _service.CheckAsync(Assembly.GetExecutingAssembly().GetName().Version!, architecture, timeout.Token, includePrereleases, Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion, ViewerDistribution.IsSelfContained);
+            _release = await _service.CheckAsync(Assembly.GetExecutingAssembly().GetName().Version!, architecture, timeout.Token, includePrereleases, Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion, ViewerDistribution.IsSelfContained, automatic);
             if (includePrereleases != _settings.IncludeViewerPrereleases) { _release = null; Status = ""; return; }
             Status = _release == null ? LocalizationManager.Instance.Current.Keys.Update_Current :
                 string.Format(LocalizationManager.Instance.Current.Keys.Update_Available, ReleaseLabel(_release));
+            if (_service.LastCheckNotice.Length > 0) Status += " — " + _service.LastCheckNotice;
 
+        }
+        catch (GitHubRateLimitException ex)
+        {
+            Status = ex.Message;
         }
         catch (Exception ex)
         {
@@ -89,42 +102,54 @@ public sealed class ViewerUpdateActions : NotifyPropertyChangedBase
             try
             {
                 using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(45));
-                var results = await _components.CheckResultsAsync(timeout.Token);
+                var results = await _components.CheckResultsAsync(timeout.Token, automatic);
                 Status += Environment.NewLine + string.Join(Environment.NewLine, results.Select(r => r.Name + ": " + r.Status));
                 AvailableUpdates = UpdateAvailabilitySummary.Format(_release == null ? null : ReleaseLabel(_release), results);
             }
             catch (Exception ex) { AvailableUpdates = UpdateAvailabilitySummary.Format(_release == null ? null : ReleaseLabel(_release), Array.Empty<ComponentUpdateResult>()); Status += Environment.NewLine + LocalizationManager.Instance.Current.Keys.Update_Failed; _logger.LogWarning(ex, "Component update check failed."); }
             SetBusy(false);
-            if (!automatic) Emignatik.NxFileViewer.Views.Windows.ThemedDialog.Notice(Status, "NxFileViewer Update", MessageBoxImage.Information);
+            if (!automatic) Emignatik.NxFileViewer.Views.Windows.ThemedDialog.Notice(Status, "NxFileViewer Fork Update", MessageBoxImage.Information);
         }
     }
     private static string ReleaseLabel(ViewerRelease release) => release.DisplayVersion +
         (release.IsPrerelease ? " (" + LocalizationManager.Instance.Current.Keys.Update_Prerelease + ")" : "");
-    private async void Install()
+    private static bool CanRollback()
     {
-        if (!InstallCommand.CanExecute(null)) return;
+        try { return ViewerRollback.FindBackup(AppContext.BaseDirectory) != null; }
+        catch (Exception) { return false; }
+    }
+    private async void Install(bool rollback = false)
+    {
+        if (!(rollback ? RollbackCommand : InstallCommand).CanExecute(null)) return;
         var release = _release!;
-        if (Emignatik.NxFileViewer.Views.Windows.ThemedDialog.Confirm("NxFileViewer Update", string.Format(LocalizationManager.Instance.Current.Keys.Update_Confirm, ReleaseLabel(release)), false) != MessageBoxResult.Yes) return;
+        if (Emignatik.NxFileViewer.Views.Windows.ThemedDialog.Confirm("NxFileViewer Fork Update", rollback ? LocalizationManager.Instance.Current.Keys.Update_RollbackConfirm : string.Format(LocalizationManager.Instance.Current.Keys.Update_Confirm, ReleaseLabel(release)), false) != MessageBoxResult.Yes) return;
         SetBusy(true);
         var main = Application.Current.MainWindow;
         try
         {
-            var target = Path.Combine(AppContext.BaseDirectory, "NxFileViewer.exe");
-            if (!string.Equals(Environment.ProcessPath, target, StringComparison.OrdinalIgnoreCase))
-                throw new InvalidOperationException("Automatic installation requires the portable NxFileViewer.exe release.");
+            var currentExecutable = Environment.ProcessPath ?? throw new InvalidOperationException("Application executable unavailable.");
+            _ = ViewerPackageLayout.ExecutableName(Path.GetFileName(currentExecutable));
+            if (!string.Equals(Path.GetDirectoryName(Path.GetFullPath(currentExecutable)), Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory), StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("Automatic installation requires the portable application executable.");
             var prepared = await _background.RunAsync(new RunnableRelay<PreparedViewerUpdate>((progress, token) =>
             {
                 progress.SetText(LocalizationManager.Instance.Current.Keys.Update_Downloading);
-                return _service.PrepareAsync(release, AppContext.BaseDirectory, token).GetAwaiter().GetResult();
+                return rollback ? ViewerRollback.Prepare(AppContext.BaseDirectory) : _service.PrepareAsync(release, AppContext.BaseDirectory, token).GetAwaiter().GetResult();
             }) { SupportsCancellation = true });
             main.IsEnabled = false;
             Status = LocalizationManager.Instance.Current.Keys.Update_Installing;
             var script = Path.Combine(prepared.Directory, "install.ps1");
             await using (var input = Assembly.GetExecutingAssembly().GetManifestResourceStream("ViewerUpdate.InstallUpdate.ps1")!)
             await using (var output = File.Create(script)) await input.CopyToAsync(output);
-            var hash = Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(prepared.Executable)));
             var plan = Path.Combine(prepared.Directory, "plan.json");
-            await File.WriteAllTextAsync(plan, JsonSerializer.Serialize(new { Target = target, ProcessId = Environment.ProcessId, ExecutableHash = hash }));
+            var target = Path.Combine(AppContext.BaseDirectory, prepared.EntryPoint);
+            await File.WriteAllTextAsync(plan, JsonSerializer.Serialize(new {
+                SchemaVersion = 2, ApplicationId = ViewerPackageLayout.ApplicationId, TargetRoot = Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory),
+                Target = target, PreviousTarget = currentExecutable, ProcessId = Environment.ProcessId,
+                ProcessStartTicks = Process.GetCurrentProcess().StartTime.ToUniversalTime().Ticks,
+                OriginalExecutableHash = Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(currentExecutable))),
+                Files = prepared.Files, Directories = prepared.Directories, RemoveDirectories = prepared.RemoveDirectories
+            }));
             var start = new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "WindowsPowerShell", "v1.0", "powershell.exe"))
             { UseShellExecute = false, CreateNoWindow = true, WorkingDirectory = prepared.Directory };
             foreach (var arg in new[] { "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", script, "-PlanPath", plan }) start.ArgumentList.Add(arg);
@@ -148,7 +173,7 @@ public sealed class ViewerUpdateActions : NotifyPropertyChangedBase
         {
             Status = LocalizationManager.Instance.Current.Keys.Update_Failed;
             _logger.LogError(ex, "Viewer installation failed.");
-            Emignatik.NxFileViewer.Views.Windows.ThemedDialog.Notice(Status + Environment.NewLine + ex.Message, "NxFileViewer Update", MessageBoxImage.Error);
+            Emignatik.NxFileViewer.Views.Windows.ThemedDialog.Notice(Status + Environment.NewLine + ex.Message, "NxFileViewer Fork Update", MessageBoxImage.Error);
         }
         finally { main.IsEnabled = true; SetBusy(false); }
     }

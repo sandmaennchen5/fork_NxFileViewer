@@ -34,7 +34,7 @@ public class DropFilesBehaviorExtension
     {
         // NOTE: PreviewDragOver subscription is required at least when FrameworkElement is a TextBox
         // because it appears that TextBox by default prevent Drag on preview...
-        e.Effects = DragDropEffects.Move;
+        e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop) ? DragDropEffects.Copy : DragDropEffects.None;
         e.Handled = true;
     }
 

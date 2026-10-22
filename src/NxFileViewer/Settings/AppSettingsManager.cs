@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Text.Json;
 using Emignatik.NxFileViewer.Localization;
@@ -19,7 +19,7 @@ public class AppSettingsManager : IAppSettingsManager
 
     static AppSettingsManager()
     {
-        _settingsFilePath = Path.Combine(PathHelper.CurrentAppDir, $"{AppDomain.CurrentDomain.FriendlyName}.settings.json");
+        _settingsFilePath = Path.Combine(PathHelper.CurrentAppDir, "NxFileViewerFork.settings.json");
     }
 
     public AppSettingsManager(ILoggerFactory loggerFactory, AppSettings appSettings, IAppEvents appEvents, IShallowCopier shallowCopier)

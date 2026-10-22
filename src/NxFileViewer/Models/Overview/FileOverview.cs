@@ -75,6 +75,8 @@ public class FileOverview : NotifyPropertyChangedBase
 
         return BaseFileType switch
         {
+            NxBaseFileType.NRO => NxFileType.NRO,
+            NxBaseFileType.NAX0 => NxFileType.NAX0,
             NxBaseFileType.NCA => NxFileType.NCA,
             NxBaseFileType.XCI => (isSuperPackage, compressed) switch
             {
@@ -95,6 +97,7 @@ public class FileOverview : NotifyPropertyChangedBase
     }
 
     public List<CnmtContainer> CnmtContainers { get; } = new();
+    public List<InstalledTitleInfo> InstalledTitlesWithoutMeta { get; } = new();
 
     public NcasIntegrity NcasIntegrity
     {
@@ -117,6 +120,10 @@ public class FileOverview : NotifyPropertyChangedBase
             baseFileType = NxBaseFileType.NSP;
         else if (rootItemType == typeof(StandaloneNcaFileItem))
             baseFileType = NxBaseFileType.NCA;
+        else if (rootItemType == typeof(NroFileItem))
+            baseFileType = NxBaseFileType.NRO;
+        else if (rootItemType == typeof(SdCardItem))
+            baseFileType = NxBaseFileType.NAX0;
         else
             baseFileType = NxBaseFileType.Unknown;
 
@@ -162,6 +169,8 @@ public enum NcasIntegrity
     NoNca
 }
 
+public sealed record InstalledTitleInfo(string TitleId, string Title, string Publisher, string DisplayVersion);
+
 public enum NxFileType
 {
     SuperXCI,
@@ -174,6 +183,8 @@ public enum NxFileType
     NSZ,
     Unknown,
     NCA,
+    NRO,
+    NAX0,
 }
 
 public enum NxBaseFileType
@@ -182,6 +193,8 @@ public enum NxBaseFileType
     NSP,
     Unknown,
     NCA,
+    NRO,
+    NAX0,
 }
 
 public enum NcaCompressionType

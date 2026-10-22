@@ -27,7 +27,7 @@ public class OpenLastFileCommand : CommandBase, IOpenLastFileCommand
     public override bool CanExecute(object? parameter)
     {
         var lastOpenedFile = _appSettings.LastOpenedFile;
-        return !string.IsNullOrEmpty(lastOpenedFile) && File.Exists(lastOpenedFile);
+        return !string.IsNullOrEmpty(lastOpenedFile) && (File.Exists(lastOpenedFile) || FileLoading.SdCardSource.FindContents(lastOpenedFile) != null);
     }
 
     public override void Execute(object? parameter)

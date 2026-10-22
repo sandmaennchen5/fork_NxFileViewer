@@ -15,6 +15,15 @@ internal sealed class TitleDbCatalog(string cacheDirectory, ILogger? logger)
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly Dictionary<string, (Dictionary<string, OnlineTitleInfo> Titles, DateTime RefreshAfter)> _catalogs = new();
 
+    public static IReadOnlyDictionary<string, OnlineTitleInfo> ReadLocal(string region)
+    {
+        if (!Regex.IsMatch(region, "^[A-Z]{2}\\.[a-z]{2}$")) return new Dictionary<string, OnlineTitleInfo>();
+        var path = Path.Combine(ApplicationDataPaths.TitleDb(AppContext.BaseDirectory), region + ".json");
+        try { return File.Exists(path) ? Parse(File.ReadAllText(path)) : new Dictionary<string, OnlineTitleInfo>(); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        { return new Dictionary<string, OnlineTitleInfo>(); }
+    }
+
     public async Task<OnlineTitleInfo?> FindAsync(string region, string titleId, HttpClient client)
     {
         if (!Regex.IsMatch(region, "^[A-Z]{2}\\.[a-z]{2}$"))
@@ -45,7 +54,7 @@ internal sealed class TitleDbCatalog(string cacheDirectory, ILogger? logger)
             {
                 try
                 {
-                    var json = await client.GetStringAsync($"https://raw.githubusercontent.com/blawar/titledb/master/{region}.json");
+                    var json = await client.GetStringAsync(ExternalSources.Current.TitleDb.RawUrl(region + ".json"));
                     titles = Parse(json); // Never replace a good cache with invalid JSON.
                     refreshed = now;
                     try
@@ -83,7 +92,7 @@ internal sealed class TitleDbCatalog(string cacheDirectory, ILogger? logger)
         await _gate.WaitAsync(token);
         try
         {
-            var json = await client.GetStringAsync($"https://raw.githubusercontent.com/blawar/titledb/master/{region}.json", token);
+            var json = await client.GetStringAsync(ExternalSources.Current.TitleDb.RawUrl(region + ".json"), token);
             var titles = Parse(json);
             Directory.CreateDirectory(cacheDirectory);
             var path = Path.Combine(cacheDirectory, region + ".json");

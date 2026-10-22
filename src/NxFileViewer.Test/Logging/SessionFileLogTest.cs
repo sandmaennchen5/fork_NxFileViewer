@@ -73,6 +73,18 @@ public sealed class SessionFileLogTest : IDisposable
         Assert.Equal(2, Directory.GetFiles(_root).Length);
     }
 
+    [Fact]
+    public void FirstLineIdentifiesApplicationVersionIncludingBuildMetadata()
+    {
+        using var log = new SessionFileLog(_root);
+        var assembly = typeof(SessionFileLog).Assembly;
+        var version = System.Reflection.CustomAttributeExtensions.GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>(assembly)!.InformationalVersion;
+        using var reader = new StreamReader(new FileStream(Assert.Single(Directory.GetFiles(_root, "NxFileViewer-*.log")), FileMode.Open, FileAccess.Read, FileShare.ReadWrite));
+        var firstLine = reader.ReadLine()!;
+        Assert.Contains("[Information] NxFileViewer Fork session started.", firstLine);
+        Assert.Contains("Version: " + version + ";", firstLine);
+        Assert.Contains("Assembly: " + assembly.GetName().Version, firstLine);
+    }
     public void Dispose()
     {
         if (Directory.Exists(_root)) Directory.Delete(_root, true);

@@ -36,12 +36,13 @@ public class XciItem : ItemBase
 
     public override void Dispose()
     {
-        _storage.Dispose();
+        try { base.Dispose(); }
+        finally { _storage.Dispose(); }
     }
 
     public static XciItem FromFile(string xciFilePath, KeySet keySet)
     {
-        var fileStorage = new LocalStorage(xciFilePath, FileAccess.Read);
+        var fileStorage = Services.Mtp.MtpDirectSource.OpenStorage(xciFilePath);
         try
         {
 

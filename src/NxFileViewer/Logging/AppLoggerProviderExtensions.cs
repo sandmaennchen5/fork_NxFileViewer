@@ -7,6 +7,8 @@ public static class AppLoggerProviderExtensions
 {
     public static ILoggingBuilder AddAppLoggerProvider(this ILoggingBuilder builder)
     {
+        // AppLogger applies the live global and per-plugin thresholds itself.
+        builder.AddFilter<AppLoggerProvider>((_, _) => true);
         builder.Services
             .AddSingleton<AppLoggerProvider>()
             .AddSingleton<ILoggerProvider>(x => x.GetRequiredService<AppLoggerProvider>())

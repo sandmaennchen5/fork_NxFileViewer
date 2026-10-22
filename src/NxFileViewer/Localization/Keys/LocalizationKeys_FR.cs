@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Emignatik.NxFileViewer.Utils.MVVM.Localization;
 using LibHac.Ncm;
 
@@ -6,7 +6,83 @@ namespace Emignatik.NxFileViewer.Localization.Keys;
 
 public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
 {
+    public string Info_Credits => "Contributions et remerciements";
+    public string Info_Licenses => "Textes des licences";
+
+    public string PluginLog_Title => "Niveaux de journalisation des plugins";
+    public string PluginLog_Inherit => "Utiliser le réglage général";
+    public string PluginLog_Off => "Désactivé";
+    public string PluginLog_Tip => "Le niveau du plugin remplace le minimum général pour ses messages dans la vue et le fichier journal.";
+
+    public string Update_RollbackConfirm => "Restaurer la version précédente du programme ? NxFileViewer Fork sera fermé et redémarré. Supprimer les anciennes versions supprime aussi cette possibilité de restauration.";
+    public string Update_Cleanup => "Supprimer les anciennes versions";
+    public string Update_CleanupConfirm => "Supprimer définitivement ces anciennes versions ou sauvegardes de mise à jour ?\n\n{0}\n\nCes versions de repli ne seront plus disponibles. La version actuelle et les exécutables personnalisés configurés sont conservés.";
+    public string Update_CleanupEmpty => "Aucune ancienne version à supprimer. Les mises à jour en cours, récentes ou échouées sont conservées.";
+    public string Update_CleanupDone => "{0} ancienne(s) version(s) ou sauvegarde(s) supprimée(s).";
+    public string BatchDetails_Show => "Afficher le volet de détails";
+    public string BatchDetails_Hide => "Masquer le volet de détails";
+    public string BatchPackages_SummaryOrder => "Utiliser l’ordre original des paquets dans les résumés";
+    public string BatchPackages_SummaryOrderTip => "Désactivé (par défaut) : les valeurs de chaque colonne regroupée sont triées indépendamment de l’ordre des paquets.\n\n- Type : Base / Update / DLC.\n- Version, version affichée et version minimale du système : la plus élevée d’abord, par exemple 22.0.0 / 17.0.0 / 2.0.0. Les composantes sont comparées numériquement.\n- Clé maître : révision la plus élevée d’abord, par exemple MasterKey 10 / MasterKey 9 / MasterKey 2.\n- Autres textes et identifiants : ordre alphabétique croissant (A–Z), sans distinction de casse.\n\nChaque colonne est triée séparément. Des valeurs à la même position dans différentes colonnes ne correspondent donc pas forcément au même paquet.\n\nActivé : les valeurs conservent l’ordre original des paquets dans le fichier.\n\nS’applique aussi aux exports CSV/Excel regroupés. L’ordre et la numérotation des lignes individuelles (::1, ::2, …) restent inchangés.";
+    public string BatchPackages_Title => "Paquets multiples";
+    public string BatchPackages_Display => "Afficher les paquets sur des lignes distinctes (::1, ::2, …)";
+    public string BatchPackages_Export => "Exporter les paquets sur des lignes distinctes (::1, ::2, …)";
+    public string BatchPackages_Tip => "Chaque ligne affiche les métadonnées d’un paquet. Le chemin, la taille, la vérification et les actions concernent le fichier conteneur entier. Affichage et export sont indépendants.";
+    public string BatchExport_Title => "Export par lot";
+    public string BatchExport_VisibleOnly => "Exporter uniquement les colonnes visibles dans l’ordre du tableau (sinon : toutes dans l’ordre par défaut)";
+    public string BatchExport_Format => "Format d’export par défaut";
+    public string BatchExport_NoColumns => "Aucune colonne visible. Affichez au moins une colonne avant l’export.";
+    public string BatchExport_InvalidExtension => "Choisissez un nom de fichier .csv ou .xlsx.";
+    public string Package_PublicationRecovery => "La publication a été interrompue. Les fichiers validés sont conservés dans les dossiers suivants. Un dossier contenant NXFV-INCOMPLETE.txt est incomplet.";
+    public string Features_PackageOperations => "Activer fusion / séparation / NSP ↔ XCI (expérimental)";
+    public string Features_PackageOperationsDisabled => "Cette fonction expérimentale est désactivée. Activez-la dans Paramètres → Fonctions et redémarrez l’application.";
+    public string Package_Title => "Fusionner / Séparer le contenu / NSP ↔ XCI (expérimental)";
+    public string Package_Engine => "Moteur de paquets";
+    public string Package_RustPath => "cxfcxf / nscb_rust — exécutable";
+    public string Package_KronosPath => "Kronos — dossier portable (runtime et ztools)";
+    public string Package_Tip => "Appliquez les paramètres avant de démarrer. Sélectionnez une version par titre. Les sources sont conservées et les résultats sont enregistrés dans un nouveau dossier. La compression NSZ utilise le module existant.";
+    public string Package_MergeNsp => "Fusionner → NSP";
+    public string Package_MergeXci => "Fusionner → XCI";
+    public string Package_ConvertNsp => "Convertir → NSP";
+    public string Package_ConvertXci => "Convertir → XCI";
+    public string Package_Split => "Séparer le contenu → NSP";
+    public string Package_Destination => "Choisir le dossier de sortie";
+    public string Package_Inputs => "Choisir des fichiers NSP/XCI locaux";
+    public string Package_Done => "Dossier de sortie : ";
+    public string Package_Missing => "Le moteur sélectionné est absent ou incomplet.";
+    public string Package_Invalid => "La validation a échoué. Aucun résultat n’a été publié.";
+    public string Package_Ready => "Prêt";
+    public string Package_Apply => "Paramètre enregistré : ";
+
+    public string XciRepair_Title => "Réparer le conteneur XCI";
+    public string XciRepair_Inspect => "Recherche d’erreurs de structure XCI connues…";
+    public string XciRepair_Prompt => "Une erreur de conteneur connue et réparable a été détectée dans « {0} » : {1}\n\nCréer et ouvrir une copie réparée ? L’original restera inchangé. La copie sera entièrement vérifiée avant sa publication.";
+    public string XciRepair_HeaderIssue => "L’en-tête Gamecard ne correspond pas au contenu.";
+    public string XciRepair_LayoutIssue => "Les tailles des entrées après décompression sont incorrectes. Le XCZ correspondant dans le même dossier permet la correction.";
+    public string XciRepair_SaveCopy => "Enregistrer la copie XCI réparée";
+    public string XciRepair_Copying => "Copie du XCI pour réparation…";
+    public string XciRepair_Verifying => "Vérification du XCI réparé";
+    public string XciRepair_NewFileRequired => "Choisissez un nouveau nom se terminant par .xci. Aucun fichier existant ne sera écrasé.";
+    public string XciRepair_SourceChanged => "Le fichier ou sa source XCZ a changé depuis la vérification. Ouvrez-le à nouveau.";
+    public string XciRepair_VerificationFailed => "La copie réparée a échoué au contrôle d’intégrité.";
+    public string XciRepair_Failed => "La réparation n’a pas abouti. L’original reste inchangé.\n\n{0}";
+    public string Features_Nand => "Activer les fonctions NAND";
+    public string Features_NandDisabled => "Les fonctions NAND sont désactivées. Activez-les dans les paramètres et redémarrez.";
+    public string Features_NszPlugin => "Activer le plugin NSZ";
+    public string Features_NandPlugin => "Activer le plugin NxNandManager";
+    public string Features_Firmware => "Activer la vérification du firmware";
+    public string Features_FirmwareDisabled => "La vérification du firmware est désactivée. Activez-la dans les paramètres et redémarrez.";
+    public string Features_Title => "Fonctions optionnelles";
+    public string Features_Plugins => "Activer les plugins (NSZ / NxNandManager)";
+    public string Features_Mtp => "Activer MTP (expérimental)";
+    public string Features_Restart => "Les modifications prennent effet après le redémarrage de l’application.";
+    public string Features_PluginsDisabled => "Les plugins sont désactivés. Activez-les dans les paramètres et redémarrez.";
+
     public string Nand_Detected => "Signatures NAND détectées. Intégrité non vérifiée.";
+    public string Nand_OpenSave => "Ouvrir la sauvegarde";
+    public string Nand_LeaveSave => "Retour à la partition";
+    public string Nand_ExportSave => "Exporter la sauvegarde…";
+    public string Nand_ExplorerTitle => "Titre";
+    public string Nand_ExplorerUserId => "ID utilisateur";
     public string Nand_NameCandidate => "Candidat NAND identifié par le nom du fichier. Consultez les informations NAND pour confirmer et obtenir les détails.";
     public string Nand_Installed => "Plugin NxNandManager installé";
     public string Nand_CustomUpdate => "Effacez puis appliquez le chemin EXE personnalisé pour utiliser les téléchargements gérés.";
@@ -15,11 +91,17 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
     public string Nand_Info => "Informations NAND";
     public string Nand_Export => "Exporter la partition…";
     public string Nand_SettingsTip => "Laissez le chemin EXE vide pour les téléchargements gérés dans Paramètres → Updates → Plugins → NxNandManager. Un EXE personnalisé reste inchangé.";
-    public string Nand_BisKeys => "Fichier de clés BIS (facultatif ; vide = prod.keys actif de NxFileViewer)";
+    public string Nand_BisKeys => "Fichier de clés BIS (facultatif ; vide = prod.keys actif de NxFileViewer Fork)";
     public string Nand_Tip => "Ouvrez un dump NAND (premier fichier pour un dump fractionné). L’export copie la partition telle quelle, sans déchiffrement. Configurez NxNandManager dans Paramètres → Plugins.";
     public string Nand_NewTarget => "Choisissez un nouveau fichier local. Les fichiers existants ne peuvent pas être remplacés.";
     public string Nand_SourceMissing => "Le fichier source NAND est absent ou n’est pas local.";
     public string Nand_NotInstalled => "NxNandManager non installé. Installez-le dans Paramètres → Updates → Plugins.";
+    public string Nand_OpenDrive => "Ouvrir un lecteur…";
+    public string Nand_Explorer => "Explorateur NAND";
+    public string Nand_ExplorerUp => "Dossier parent";
+    public string Nand_ExportFile => "Exporter le fichier…";
+    public string Nand_ExplorerFolder => "Dossier";
+    public string Nand_DriveTip => "Sélectionnez un lecteur NAND. Accès en lecture seule. Les disques physiques peuvent nécessiter des droits administrateur.";
     public string Nand_KeysMissing => "Le fichier de clés BIS configuré est introuvable.";
     public string Nand_ExportFailed => "NxNandManager n’a pas produit de fichier de partition non vide.";
     public string Nand_ExportDone => "Partition exportée.";
@@ -54,6 +136,8 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
     public string Update_Auto => "Rechercher les mises à jour au démarrage";
     public string Update_Check => "Rechercher les mises à jour";
     public string Update_Install => "Télécharger et installer";
+    public string Update_RateLimited => "Limite de requêtes GitHub atteinte. Réessayez après {0:g}.";
+    public string Update_CachedAt => "Résultat enregistré le {0:g}.";
     public string Update_Checking => "Recherche de mises à jour…";
     public string Update_Current => "Aucune version publiée plus récente.";
     public string Component_UpdateAvailable => "Mise à jour disponible.";
@@ -61,7 +145,7 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
     public string Component_CustomVersion => "Version personnalisée : vérification automatique indisponible.";
     public string Update_Available => "La version {0} est disponible.";
     public string Update_Failed => "Échec de la mise à jour.";
-    public string Update_Confirm => "Télécharger et installer la version {0} ? NxFileViewer redémarrera. Les clés, paramètres et plugins sont conservés.";
+    public string Update_Confirm => "Télécharger et installer la version {0} ? NxFileViewer Fork redémarrera. Les clés, paramètres et plugins sont conservés.";
     public string Update_Downloading => "Téléchargement et vérification…";
     public string Update_Installing => "Installation…";
     public string Update_Cancelled => "Mise à jour annulée.";
@@ -80,10 +164,14 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
     public string TitlePage_Custom => "Personnalisée";
     public string Info_WithRuntime => "Avec .NET intégré";
     public string Info_WithoutRuntime => "Sans .NET intégré — nécessite .NET 8 Desktop Runtime";
-    public string Info_Description => "NxFileViewer affiche et vérifie les fichiers Nintendo Switch : NSP, NSZ, XCI, XCZ, NCA, ZIP et 7z, le firmware et la conversion NSZ.";
+    public string Info_Description => "NxFileViewer Fork affiche et vérifie les fichiers Nintendo Switch : NSP, NSZ, XCI, XCZ, NCA, ZIP et 7z, le firmware et la conversion NSZ.";
     public string Info_Shortcuts => "Raccourcis clavier";
     public string BatchHistory_Show => "Afficher";
-    public string BatchHistory_Title => "5 dernières vérifications";
+    public string BatchHistory_LoadedNotice => "Chargé depuis l’historique.\nLe logo n’a pas été enregistré.";
+    public string BatchHistory_Title => "Dernières vérifications";
+    public string BatchHistory_SaveLogos => "Enregistrer les logos dans l'historique";
+    public string BatchHistory_Enable => "Enregistrer l’historique des vérifications";
+    public string BatchHistory_Limit => "Nombre de vérifications conservées (1–100)";
     public string BatchHistory_Resume => "Reprendre";
     public string Dialog_Yes => "Oui";
     public string Dialog_No => "Non";
@@ -138,7 +226,8 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
     public override string LanguageAuto => "Automatique";
 
     public string FileNotSupported_Log => "Fichier «{0}» non supporté.";
-    public string OpenFile_Filter => "Fichiers Nintendo Switch (*.nsp;*.nsz;*.xci;*.xcz;*.nca;*.zip;*.7z;*.bin;*.img;*.00)|*.nsp;*.nsz;*.xci;*.xcz;*.nca;*.zip;*.7z;*.bin;*.img;*.00|Paquets de jeux Switch (*.nsp;*.nsz;*.xci;*.xcz)|*.nsp;*.nsz;*.xci;*.xcz|Archives (*.zip;*.7z)|*.zip;*.7z|Fichiers de contenu Switch (*.nca)|*.nca|Images NAND et dumps fractionnés (*.bin;*.img;*.00)|*.bin;*.img;*.00|Tous les fichiers (*.*)|*.*";
+    public string OpenSdCard => "Ouvrir une carte SD";
+    public string OpenFile_Filter => "Fichiers Nintendo Switch (*.nsp;*.nsz;*.xci;*.xcz;*.nca;*.nro;*.zip;*.7z;*.bin;*.img;*.00)|*.nsp;*.nsz;*.xci;*.xcz;*.nca;*.nro;*.zip;*.7z;*.bin;*.img;*.00|Paquets de jeux Switch (*.nsp;*.nsz;*.xci;*.xcz)|*.nsp;*.nsz;*.xci;*.xcz|Archives (*.zip;*.7z)|*.zip;*.7z|Fichiers de contenu Switch (*.nca)|*.nca|Images NAND et dumps fractionnés (*.bin;*.img;*.00)|*.bin;*.img;*.00|Tous les fichiers (*.*)|*.*";
     public string MenuItem_File => "Fichier";
     public string MenuItem_Open => "Ouvrir...";
     public string MenuItem_OpenLast => "Ouvrir le _dernier";
@@ -153,13 +242,22 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
     public string BatchNaming_Check => "Vérifier les noms";
     public string BatchNaming_RenameAll => "Renommer les fichiers non conformes";
     public string BatchNaming_Error => "Erreur de nommage";
-    public string BatchIntegrity_Title => "Vérification d’intégrité par lot";
+    public string BatchIntegrity_Title => "Vérification de fichiers par lot";
     public string BatchIntegrity_SelectDirectory => "Sélectionner le dossier des fichiers Switch";
     public string BatchIntegrity_Browse => "Parcourir…";
     public string BatchIntegrity_IncludeSubdirectories => "Inclure les sous-dossiers";
+    public string BatchTable_Games => "Jeux";
+    public string BatchTable_Type => "Type";
+    public string BatchTable_ConfirmResetFiltersAndSort => "Réinitialiser la recherche, tous les filtres et le tri du tableau par lots ?";
+    public string BatchTable_ConfirmResetColumns => "Rétablir la visibilité, l’ordre et la largeur par défaut de toutes les colonnes ? La disposition enregistrée sera remplacée.";
+    public string BatchTable_OpenExplorer => "Ouvrir dans l’Explorateur";
+    public string BatchTable_ResetColumns => "Réinitialiser les colonnes";
+    public string BatchTable_ConversionStatus => "État de conversion";
+    public string BatchTable_OutputPath => "Chemin de sortie";
     public string BatchTable_Columns => "Colonnes…";
     public string BatchTable_Search => "Rechercher";
     public string BatchTable_All => "Tous";
+    public string BatchTable_ResetFiltersAndSort => "Réinitialiser les filtres et le tri";
     public string BatchTable_ResetFilters => "Réinitialiser les filtres";
     public string BatchTable_ResetSort => "Réinitialiser le tri";
     public string BatchIntegrity_File => "Fichier";
@@ -172,22 +270,23 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
     public string Signature_Passed => "Réussie";
     public string Signature_NotPassed => "Échouée";
     public string Signature_Unchecked => "Non vérifiée";
-    public string ToolTip_PackageStructure => "Structure selon Nx Game Info :\nScene (XCI) : partitions Update, Normal et Secure.\nConverti (XCI) : uniquement Secure ; typique de NSP → XCI.\nScene (NSP) : legalinfo.xml, nacp.xml, programinfo.xml et cardspec.xml ; typique des releases BBB.\nHomebrew (NSP) : authoringtoolinfo.xml présent.\nCDN (NSP) : certificat (.cert) et ticket (.tik) ; typique des dumps eShop CDN.\nConverti (NSP) : sans certificat ni ticket ; typique de XCI → NSP.\nSystème de fichiers : titres NAX0 installés sur une carte SD Switch.\nIncomplet : contenus NCA uniquement. NSZ/XCZ suivent les règles du paquet correspondant ; NCZ compte comme NCA.";
+    public string ToolTip_PackageStructure => "Structure selon Nx Game Info :\nScene (XCI) : partitions Update, Normal et Secure.\nConverti (XCI) : uniquement Secure ; typique de NSP → XCI.\nScene (NSP) : legalinfo.xml, nacp.xml, programinfo.xml et cardspec.xml ; typique des releases BBB.\nHomebrew (NSP) : authoringtoolinfo.xml présent.\nCDN (NSP) : certificat (.cert) et ticket (.tik) ; typique des dumps eShop CDN.\nConverti (NSP) : contenus NCA/NCZ et autres fichiers, sans ticket/certificat ni marqueurs Scene/Homebrew. Cette classification structurelle ne prouve pas l’origine du paquet.\nSystème de fichiers : titres NAX0 installés sur une carte SD Switch.\nContenus NCA uniquement : le paquet ne contient que des fichiers .nca/.ncz, sans ticket, certificat ni fichiers XML supplémentaires. Cela peut arriver après un reconditionnement ou une conversion et ne prouve pas que des données du jeu manquent.\nIncomplet : aucun contenu NCA/NCZ, ticket sans certificat (ou inversement), ou partitions XCI hors des règles Scene/Converti. Cela décrit la structure du conteneur ; la vérification d’intégrité recherche les contenus manquants ou modifiés.\nNSZ/XCZ suivent les règles du paquet correspondant ; NCZ compte comme NCA.";
     public string ToolTip_NcaSignature => "Réussie : signatures NCA valides, attendues pour les titres officiels.\nÉchouée : au moins une signature NCA invalide ; possible pour les homebrews, anormal pour les titres officiels.\nNon vérifiée : vérification NCA non terminée. Lancez le contrôle d’intégrité.\nCette indication concerne les en-têtes NCA ; ACID est une signature NPDM distincte.";
     public string ToolTip_Permission => "Sûr : aucun accès aux services de fichiers ou bit 0x8000000000000000 absent.\nNon sûr : accès aux services de fichiers et bit 0x8000000000000000 présent (EraseMmc).\nDangereux : accès aux services de fichiers et masque 0xffffffffffffffff (toutes les permissions).\nNon sûr/Dangereux ne devrait concerner que les homebrews. Disponible uniquement pour les jeux de base et mises à jour. Ce classement ne constitue pas une évaluation complète de sécurité.";
-    public string ToolTip_AcidSignature => "Signature de la section ACID de main.npdm, indépendante de la signature de l’en-tête NCA.";
+    public string ToolTip_AcidSignature => "La signature ACID est un sceau numérique pour la section des autorisations de main.npdm. Elle décrit les services système et les fonctions du système de fichiers auxquels le programme peut accéder.\n\nSignification de l’état affiché :\n- Valid : la signature correspond aux données ACID vérifiées et à la clé de vérification utilisée.\n- Invalid : la vérification a échoué. Les données peuvent avoir été modifiées ou ne pas correspondre à la signature. Cela seul ne prouve pas la présence de logiciel malveillant.\n- Unchecked : la signature n’a pas été vérifiée. Sa validité reste indéterminée.\n- Champ vide : aucune information ACID disponible pour cet affichage.\n\nDifférence entre les contrôles :\n- Signature ACID : vérifie la section signée des autorisations du programme.\n- Signature NCA : vérifie l’en-tête NCA.\n- Integrity : vérifie le contenu des fichiers à partir de leurs empreintes.\n\nUne signature ACID valide ne garantit pas que tous les fichiers sont inchangés ni que le programme est inoffensif.";
     public string PackageStructure_Title => "Structure du paquet";
     public string PackageStructure_Scene => "Version Scene";
     public string PackageStructure_Cdn => "Copie CDN";
     public string PackageStructure_Converted => "Converti";
     public string PackageStructure_Homebrew => "Homebrew";
+    public string PackageStructure_NcaOnly => "Contenus NCA uniquement";
     public string PackageStructure_Incomplete => "Incomplet";
     public string PackageStructure_Unknown => "Inconnu";
     public string FileInfo_FileSize => "Taille du fichier";
     public string FileInfo_CompressionRatio => "Taux de compression";
     public string FileInfo_Uncompressed => "décompressé";
     public string FileInfo_SystemUpdate => "Mise à jour système incluse (XCI)";
-    public string BatchIntegrity_Export => "Exporter CSV…";
+    public string BatchIntegrity_Export => "Exporter…";
     public string BatchIntegrity_Start => "Démarrer";
     public string BatchIntegrity_OpenSelected => "Ouvrir dans la vérification de fichier";
     public string BatchIntegrity_MoveSelected => "Déplacer…";
@@ -262,7 +361,7 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
                                                Afin de pouvoir ouvrir n'importe quel fichier sans erreur, veuillez vous assurer de toujours posséder un fichier "prod.keys" contenant l'ensemble de toutes les clés de tous les firmwares existants.
 
                                                Les fichiers de clé doivent contenir une clé par ligne, sous la forme «NOM_CLE = VALEUR_HEXADECIMAL»."
-                                               """;
+                                               """ + "\n\n" + Keys_CopyToSwitchHelp;
 
     public string SettingsView_ToolTip_ProdKeys => """
                                                    Ce fichier contient les clés communes à toutes les consoles Switch. Ce fichier est requis pour ouvrir les contenus chiffrés.
@@ -271,8 +370,8 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
                                                        2. le répertoire courant du programme
                                                        3. le dossier «%UserProfile%\\.switch»
 
-                                                   Au démarrage, le programme peut automatiquement télécharger le fichier de clés quand aucun n'est trouvé sur le système.
-                                                   Le fichier de clés sera téléchargé dans le répertoire courant de l'application.
+                                                   Les fichiers de clés sont téléchargés uniquement avec les boutons de téléchargement de l’onglet Clés.
+                                                   Aucune clé n’est téléchargée automatiquement au démarrage.
                                                    """;
 
     public string SettingsView_ToolTip_TitleKeys => """
@@ -282,8 +381,8 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
                                                         2. le répertoire courant du programme
                                                         3. le dossier «%UserProfile%\\.switch»
 
-                                                    Au démarrage, le programme peut automatiquement télécharger le fichier de clés quand aucun n'est trouvé sur le système.
-                                                    Le fichier de clés sera téléchargé dans le répertoire courant de l'application.
+                                                    Les fichiers de clés sont téléchargés uniquement avec les boutons de téléchargement de l’onglet Clés.
+                                                    Aucune clé n’est téléchargée automatiquement au démarrage.
                                                     """;
 
     public string SettingsView_LogFileRetention => "Conserver les journaux (1–100 lancements)";
@@ -361,6 +460,7 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
     public string SettingsLoadingError => "Echec du chargment des paramètres: {0}";
     public string SettingsSavingError => "Echec de sauvegarde des paramètres: {0}";
 
+    public string LoadingError_DiskFull => "Espace disque insuffisant pour charger ou extraire le fichier. Libérez de la place sur le lecteur du dossier temporaire, puis réessayez. Le chargement a été arrêté.";
     public string LoadingError_Failed => "Echec de chargement du fichier «{0}»: {1}";
     public string LoadingError_FailedToCheckIfXciPartitionExists => "Echec de vérification de l'existence de la partition XCI: {0}";
     public string LoadingError_FailedToOpenXciPartition => "Echec d'ouverture de la partition XCI: {0}";
@@ -604,14 +704,48 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
     public string Window_Tip_Title => "Astuce";
     public string Nsz_Installed => "Plugin NSZ installé";
     public string Nsz_CustomExecutable => "Exécutable personnalisé";
+    public string Settings_AutoVerifyBatchDrop => "Fichiers déposés en mode lot";
+    public string Settings_AutoVerifyBatchDropTip => "Concerne plusieurs fichiers, dossiers, sélections mixtes et les fichiers individuels déposés dans l’onglet de lot. Charge les fichiers et vérifie leur intégrité. La vérification peut être annulée.";
+    public string Settings_AutoVerifyProgram => "Fichiers ouverts dans le programme";
+    public string Settings_AutoVerifyProgramTip => "Concerne Ouvrir un fichier et les fichiers individuels déposés par glisser-déposer. La vérification démarre après le chargement et peut être annulée. Les lots et l’historique gardent leur fonctionnement.";
+    public string Settings_AutoVerifyWindows => "Fichiers ouverts depuis Windows";
+    public string Settings_AutoVerifyWindowsTip => "Concerne le double-clic, Ouvrir avec et un chemin de fichier fourni au démarrage. Ce réglage est indépendant de l’ouverture dans le programme.";
+    public string Settings_GroupGeneral => "Général";
+    public string Settings_GroupHistory => "Historique";
+    public string Settings_GroupTitleInfo => "Informations des titres";
+    public string Settings_GroupLogging => "Journalisation";
+    public string Settings_AutoVerifyTitle => "Vérification automatique de l’intégrité";
+    public string BatchHistory_RetentionTip => "La limite modifie immédiatement l’affichage. À la prochaine sauvegarde d’un lot, seules les entrées les plus récentes sont conservées dans cette limite. Les fichiers vérifiés ne sont pas supprimés.";
     public string Settings_Program => "Programme";
     public string Nsz_PhaseSource => "Vérifier la source";
+    public string Nsz_PhaseLayout => "Vérification et correction des partitions XCZ…";
     public string Nsz_PhaseOutput => "Vérifier le résultat";
     public string Nsz_PhasePublish => "Enregistrer le résultat";
     public string Batch_IncludeArchives => "Inclure ZIP / 7z";
     public string Batch_Scan => "Analyser les fichiers";
     public string Batch_VerifyAll => "Vérifier tous les fichiers";
-    public string File_MissingKeys => "Clés requises manquantes. Le contenu ne peut pas être entièrement lu. Vérifiez prod.keys / title.keys.";
+    public string File_SaveBackupSuspected => "Sauvegarde de jeu (supposée)";
+    public string Mtp_Title => "Sphaira (MTP)";
+    public string Mtp_Tip => "Connectez la Switch par USB et activez MTP dans Sphaira. Ouvrez l’appareil puis sélectionnez microSD, Contents, un fichier ou un dossier. Les contenus compatibles sont copiés vers le cache choisi. La Switch reste inchangée. Les contenus SD nécessitent les clés correspondantes.";
+    public string Mtp_Devices => "Actualiser les appareils";
+    public string Mtp_Select => "Utiliser la sélection";
+    public string Mtp_SelectContent => "Sélectionnez un fichier ou dossier de contenu sur l’appareil.";
+    public string Mtp_Listing => "Sphaira (MTP) : lecture du dossier…";
+    public string Mtp_NoFiles => "Aucun fichier compatible dans cette sélection.";
+    public string Mtp_NoDevice => "Aucune entrée. Vérifiez la connexion MTP ou actualisez les appareils.";
+    public string Mtp_Copying => "Sphaira (MTP) : copie {0} — fichier {1}/{2} — {3:N0}/{4:N0} octets";
+    public string Mtp_Cache => "Cache pour la copie locale";
+    public string Archive_Reading => "Lecture de l’archive : {0}";
+    public string Archive_Extracting => "Extraction / copie : {0} — fichier {1}/{2} — {3:N0}/{4:N0} octets";
+    public string Batch_GroupFiles => "Regrouper par dossier / archive";
+    public string Batch_MultiPackageDetails => "Afficher ou masquer les paquets inclus";
+    public string File_SaveBackup => "Sauvegarde de jeu";
+    public string File_MissingKeysHeader => "Clés manquantes";
+    public string File_MissingTitleKeysHeading => "Clés de titre manquantes (ticket / title.keys)";
+    public string File_MissingTitleKeyEntry => "Clé de titre manquante · Rights ID : {0}";
+    public string File_MissingTitleKeysHelp => "Les clés de titre correspondent au Rights ID indiqué et proviennent du ticket (.tik) correspondant ou de title.keys. Une master key plus récente dans prod.keys ne les remplace pas. Vérifiez le ticket et, si nécessaire, activez l’injection des clés des tickets.";
+    public string File_MissingSystemKeysHelp => "Pour les clés système ou console manquantes, vérifiez les noms indiqués dans les fichiers utilisés (par exemple prod.keys). Une révision élevée de master key ne garantit pas la présence de chaque clé requise.";
+    public string File_MissingKeys => "Des clés requises manquent. Certains contenus ne peuvent pas être entièrement lus.";
     public string File_CopyMissingKeys => "Copier les noms des clés manquantes";
     public string Keys_ProgramFolder => "Dossier du programme";
     public string Keys_SharedFolder => "Profil utilisateur (.switch)";
@@ -619,8 +753,48 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
     public string Keys_DownloadAll => "Télécharger les clés";
     public string Keys_DownloadHost => "IP / nom d’hôte du téléchargement";
     public string Keys_DownloadHostTip => "{IP} dans les URL est remplacé par cette adresse. Destination : chemin personnalisé si défini, sinon dossier du programme.";
+    public string Keys_CopyToSwitchHelp => @"Facultatif : copie les fichiers prod.keys et, si disponible, title.keys actuellement utilisés dans %USERPROFILE%\.switch. Les programmes et autres installations de NxFileViewer Fork qui prennent en charge cet emplacement partagé peuvent les utiliser. Une installation portable peut conserver ses clés dans son propre dossier ; une copie supplémentaire ne permet aucun déchiffrement supplémentaire. Les originaux sont conservés. Les modifications ultérieures ne sont pas synchronisées automatiquement. Une confirmation est demandée avant de remplacer les fichiers existants.";
     public string Keys_CopyToSwitch => @"Copier les clés actuelles vers %USERPROFILE%\.switch";
     public string Keys_ReplaceShared => "Remplacer les clés existantes ? Les fichiers sources seront conservés.";
     public string Keys_SharedCopied => "Clés disponibles dans le dossier partagé .switch.";
     public string Batch_ScanAndVerify => "Analyser les fichiers et vérifier leur intégrité";
+    public string Mtp_Direct => "Lecture directe (expérimentale ; sinon cache local)";
+    public string Mtp_DirectTip => "Sans copie préalable pour NSP/NSZ, XCI/XCZ et NCA individuels. Windows peut utiliser un cache interne ; les déplacements peuvent être longs et non annulables. Utilisez le cache local pour archives, NAND et structures SD.";
+    public string Mtp_DirectUnsupported => "Cette sélection nécessite le cache local (archive, NAND ou NCA fractionné). Désactivez la lecture directe.";
+    public string SdBatch_Title => "SD Switch : zones de vérification par lot";
+    public string SdBatch_Enable => "Vérifier uniquement les zones sélectionnées";
+    public string SdBatch_Tip => "Lors de l’ouverture de toute la carte SD Switch, y compris via MTP. Les zones désélectionnées sont ignorées et non copiées via MTP. Les fichiers ou sous-dossiers ouverts séparément restent vérifiables.";
+    public string SdBatch_Custom => "Zones personnalisées (un chemin par ligne)";
+    public string SdBatch_CustomTip => "En plus des cases. Dossiers ou fichiers relatifs à la racine SD, par ex. /atmosphere, /backup/saves ou /apps/tool.nro. Supprimez une ligne pour retirer un chemin. Aucun lecteur, joker ou .. autorisé.";
+    public string SdBatch_InvalidPath => "Chemin SD invalide :";
+    public string SdBatch_SourceAuto => "Détection automatique";
+    public string SdBatch_SourceFolder => "Dossier normal";
+    public string SdBatch_SourceSd => "SD Switch";
+    public string SdBatch_SourceTip => "Type de source par lot, aussi via MTP. Auto détecte Nintendo, emuMMC ou hbmenu.nro à la racine. SD Switch applique le filtre SD quel que soit le contenu. Dossier normal ignore le filtre SD. Activez le filtre dans les paramètres.";
+    public string Nand_DriveRefresh => "Actualiser les lecteurs";
+    public string Nand_DriveAccessDenied => "Le disque a été détecté, mais Windows refuse la lecture. Lancez NxFileViewer Fork en administrateur et sélectionnez à nouveau le disque. Accès en lecture seule.";
+    public string Associations_Title => "Associations de fichiers Windows";
+    public string Associations_Remove => "Supprimer les associations";
+    public string Associations_Removed => "L’enregistrement des associations de NxFileViewer Fork a été supprimé. S’il était l’application par défaut, choisissez une autre application via Ouvrir avec dans Windows. Les menus de l’Explorateur se suppriment séparément.";
+    public string Explorer_Title => "Menu contextuel de l’Explorateur";
+    public string Explorer_Tip => "Actions File et Batch : ouvrir sans hachage ou vérifier avec hachage. Plusieurs fichiers ou dossiers : Batch uniquement. Fonctionne application fermée. Menu classique par utilisateur sans administrateur. Sous Windows 11 : Afficher plus d’options. Réajouter après un déplacement. Effet immédiat.";
+    public string Explorer_AddClassic => "Ajouter / actualiser le menu classique";
+    public string Explorer_RemoveClassic => "Supprimer le menu classique";
+    public string Explorer_ModernTip => "Télécharge le paquet Explorer adapté depuis GitHub et vérifie sa version séparément du programme. Confirmez le certificat et les droits administrateur la première fois. Windows peut aussi afficher ce menu dans le menu classique ; aucun enregistrement classique supplémentaire ne sera créé. Les versions préliminaires suivent le réglage des mises à jour. Un MSIX local reste disponible pour une installation hors ligne.";
+    public string Explorer_AddModern => "Installer / mettre à jour le menu moderne";
+    public string Explorer_RemoveModern => "Supprimer le menu moderne";
+    public string Explorer_Local => "Sélectionner un MSIX local…";
+    public string Explorer_Trusting => "Confirmez le certificat dans la fenêtre ouverte.";
+    public string Explorer_NoPackage => "Aucun paquet Explorer compatible dans les versions GitHub. Activez les mises à jour préliminaires si nécessaire ou sélectionnez un MSIX local.";
+    public string Explorer_Done => "Intégration actualisée. Si le menu reste inchangé, redémarrez l’Explorateur ou Windows.";
+    public string Associations_Register => "Enregistrer NxFileViewer Fork";
+    public string Associations_Tip => "Identité distincte pour .nsp, .nsz, .xci, .xcz et .nro avec le chemin EXE actuel. Sélectionnez ensuite NxFileViewer Fork dans Ouvrir avec → Choisir une autre application → Toujours. Réenregistrez après un déplacement. Effet immédiat.";
+    public string Associations_Done => "NxFileViewer Fork est enregistré pour .nsp, .nsz, .xci, .xcz et .nro. Choisissez-le par défaut via Ouvrir avec → Choisir une autre application → Toujours.";
+    public string Home_PluginLaunchTitle => "Lancer les plugins directement";
+    public string Home_PluginLaunchTip => "Ouvre le programme installé dans sa propre fenêtre.";
+    public string Home_NandDescription => "Gérer NAND, partitions et sauvegardes";
+    public string Home_NszDescription => "Compresser et décompresser les jeux";
+    public string Home_LaunchExternal => "Ouvrir séparément ↗";
+    public string Home_NandLaunchTip => "Lance NxNandManager avec les clés configurées. Disponible si installé et sans tâche en cours.";
+    public string Home_NszLaunchTip => "Lance NSZ avec les prod.keys actifs. Nécessite une version GUI installée et aucune tâche en cours.";
 }

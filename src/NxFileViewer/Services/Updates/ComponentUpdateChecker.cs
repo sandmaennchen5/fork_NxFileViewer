@@ -23,64 +23,60 @@ public sealed class ComponentUpdateChecker(NszPluginManager nsz, NandPluginManag
 {
     public async Task<string> CheckAsync(CancellationToken token) => string.Join(Environment.NewLine, (await CheckResultsAsync(token)).Select(r => r.Name + ": " + r.Status));
 
-    public async Task<ComponentUpdateResult[]> CheckResultsAsync(CancellationToken token)
+    public async Task<ComponentUpdateResult[]> CheckResultsAsync(CancellationToken token, bool automatic = false)
     {
-        using var owned = httpClient == null ? new HttpClient { Timeout = TimeSpan.FromSeconds(20) } : null;
-        var client = httpClient ?? owned!;
         var directory = applicationDirectory ?? AppContext.BaseDirectory;
         var keys = LocalizationManager.Instance.Current.Keys;
+        var requests = GitHubUpdateRequests.For(httpClient);
+        var notices = new System.Collections.Concurrent.ConcurrentDictionary<string, string>();
         async Task<ComponentUpdateResult> Check(string label, Func<Task<(string Status, bool Available)>> action)
         {
-            try { var result = await action(); return new(label, result.Status, result.Available); }
+            try { var result = await action(); return new(label, result.Status + (notices.TryGetValue(label, out var notice) ? " — " + notice : ""), result.Available); }
             catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
+            catch (GitHubRateLimitException ex) { return new(label, ex.Message, false); }
             catch (Exception) { return new(label, keys.Update_Failed, false); }
         }
-        async Task<JsonDocument> Get(string url)
+        async Task<JsonDocument> Get(string url, string label)
         {
-            using var request = new HttpRequestMessage(HttpMethod.Get, url);
-            request.Headers.UserAgent.ParseAdd("NxFileViewer-Update/1.0");
-            request.Headers.CacheControl = new System.Net.Http.Headers.CacheControlHeaderValue { NoCache = true };
-            using var response = await client.SendAsync(request, token);
-            response.EnsureSuccessStatusCode();
-            return JsonDocument.Parse(await response.Content.ReadAsStringAsync(token));
+            var response = await requests.GetAsync(url, automatic, token);
+            if (response.Notice.Length > 0) notices[label] = response.Notice;
+            return JsonDocument.Parse(response.Body);
         }
-        async Task<(string Status, bool Available)> Plugin(string executable, string? version, string repository)
+        async Task<(string Status, bool Available)> Plugin(string executable, string? version, string repository, string label)
         {
             if (!File.Exists(executable)) return (keys.Component_NotInstalled, false);
             if (version == null) return (keys.Component_CustomVersion, false);
-            using var release = await Get("https://api.github.com/repos/" + repository + "/releases/latest");
+            using var release = await Get("https://api.github.com/repos/" + repository + "/releases/latest", label);
             var latest = release.RootElement.GetProperty("tag_name").GetString()!;
             var available = IsNewer(version, latest);
             return (available ? string.Format(keys.Update_Available, latest) : keys.Update_Current, available);
         }
-        var checks = new List<Task<ComponentUpdateResult>>
-        {
-            Check("NSZ", () => Plugin(nsz.ExecutablePath, nsz.InstalledVersion, "nicoboss/nsz")),
-            Check("NxNandManager", () => Plugin(nand.ExecutablePath, nand.InstalledVersion, "THZoria/NxNandManager"))
-        };
+        var checks = new List<Task<ComponentUpdateResult>>();
+        if (settings.NszPluginActive)
+            checks.Add(Check("NSZ", () => Plugin(nsz.ExecutablePath, nsz.InstalledVersion, ExternalSources.Current.NszRepository, "NSZ")));
+        if (settings.NandPluginActive)
+            checks.Add(Check("NxNandManager", () => Plugin(nand.ExecutablePath, nand.InstalledVersion, ExternalSources.Current.NandRepository, "NxNandManager")));
         foreach (var region in new[] { settings.TitleDbRegion, "US.en" }.Distinct())
         {
             var captured = region;
             checks.Add(Check("Title DB " + region, async () =>
             {
                 if (!Regex.IsMatch(captured, @"^[A-Z]{2}\.[a-z]{2}\z")) throw new InvalidDataException();
-                using var entry = await Get("https://api.github.com/repos/blawar/titledb/contents/" + captured + ".json?ref=master");
-                var path = Path.Combine(directory, "Cache", "TitleDB", captured + ".json");
+                using var entry = await Get(ExternalSources.Current.TitleDb.ApiUrl(captured + ".json"), "Title DB " + captured);
+                var path = Path.Combine(ApplicationDataPaths.TitleDb(directory), captured + ".json");
                 var available = !MatchesGitBlob(path, entry.RootElement.GetProperty("sha").GetString()!);
                 return (available ? keys.Component_UpdateAvailable : keys.Update_Current, available);
             }));
         }
-        checks.Add(Check(keys.DataUpdate_Firmware, async () =>
+        if (settings.FirmwareCheckActive) checks.Add(Check(keys.DataUpdate_Firmware, async () =>
         {
-            using var listing = await Get("https://api.github.com/repos/sandmaennchen5/fork_NxFileViewer/contents/fw/hashes?ref=master");
-            var entries = listing.RootElement.EnumerateArray().Where(e => e.GetProperty("type").GetString() == "file" && e.GetProperty("name").GetString()!.EndsWith(".json", StringComparison.OrdinalIgnoreCase)).ToArray();
-            if (entries.Length == 0) throw new InvalidDataException();
+            var mirrors = new RepositoryMirrors(httpClient, requests, automatic);
+            var entries = await mirrors.FirmwareListingAsync(ExternalSources.Current.FirmwareHashes, token);
+            if (mirrors.LastNotice.Length > 0) notices[keys.DataUpdate_Firmware] = mirrors.LastNotice;
             foreach (var entry in entries)
             {
                 token.ThrowIfCancellationRequested();
-                var name = entry.GetProperty("name").GetString()!;
-                if (Path.GetFileName(name) != name) throw new InvalidDataException();
-                if (!MatchesGitBlob(Path.Combine(directory, "fw", "hashes", name), entry.GetProperty("sha").GetString()!)) return (keys.Component_UpdateAvailable, true);
+                if (!MatchesGitBlob(Path.Combine(ApplicationDataPaths.FirmwareHashes(directory), entry.Name), entry.Sha)) return (keys.Component_UpdateAvailable, true);
             }
             return (keys.Update_Current, false);
         }));

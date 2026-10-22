@@ -192,7 +192,9 @@ public class NczHeader
         {
             var section = nczBinaryReader.ReadNczSectionRaw();
             nczHeader.Sections[i] = new NczSection(section);
-            ncaSize += section.Size;
+            if (section.Offset < 0 || section.Size < 0) throw new NczFormatException("Invalid NCZ section extent.");
+            // Sections can begin before 0x4000; those bytes are already in OriginalBytes.
+            ncaSize = Math.Max(ncaSize, checked(section.Offset + section.Size));
         }
         nczHeader.NcaSize = ncaSize;
 

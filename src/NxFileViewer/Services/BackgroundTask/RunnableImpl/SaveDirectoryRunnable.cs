@@ -73,7 +73,7 @@ public class SaveDirectoryRunnable : ISaveDirectoryRunnable
         }
         catch (OperationCanceledException)
         {
-            _logger.LogWarning(LocalizationManager.Instance.Current.Keys.Log_SaveToDirCanceled);
+            _logger.LogInformation(LocalizationManager.Instance.Current.Keys.Log_SaveToDirCanceled);
         }
 
     }

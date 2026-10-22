@@ -122,7 +122,10 @@
                     <TextBox Style="{StaticResource ReadOnlyTextBox}" Text="{Binding Path=FileSystemPermissions, Mode=OneWay}"/>
                 </StackPanel>
                 <StackPanel Grid.Column="4" ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.ToolTip_AcidSignature}">
-                    <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Security_AcidSignature}" Style="{StaticResource Title2}"/>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Security_AcidSignature}" Style="{StaticResource Title2}"/>
+                        <customControls:TipLabel ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.ToolTip_AcidSignature}"/>
+                    </StackPanel>
                     <TextBox Style="{StaticResource ReadOnlyTextBox}" Text="{Binding Path=AcidSignatureValidity, Mode=OneWay}"/>
                 </StackPanel>
             </Grid>
@@ -171,7 +174,8 @@
                     <TextBox Style="{StaticResource ReadOnlyTextBox}" Text="{Binding Path=SelectedTitle.Publisher, Mode=OneWay}" DockPanel.Dock="Top" />
 
                     <Border HorizontalAlignment="Center" VerticalAlignment="Center" BorderThickness="1" BorderBrush="Black" Margin="0,2,0,0">
-                        <Image Source="{Binding Path=SelectedTitle.Icon}" MaxWidth="{Binding Path=SelectedTitle.Icon.PixelWidth}" MaxHeight="{Binding Path=SelectedTitle.Icon.PixelHeight}" MinWidth="50" MinHeight="50">
+                        <Grid>
+                        <Image Visibility="{Binding LogoVisibility}" Source="{Binding Path=SelectedTitle.Icon}" MaxWidth="{Binding Path=SelectedTitle.Icon.PixelWidth}" MaxHeight="{Binding Path=SelectedTitle.Icon.PixelHeight}" MinWidth="50" MinHeight="50">
                             <Image.ContextMenu>
                                 <ContextMenu>
                                     <MenuItem Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.ContextMenu_SaveImage}" Command="{Binding Path=SaveSelectedImageCommand}" />
@@ -179,6 +183,8 @@
                                 </ContextMenu>
                             </Image.ContextMenu>
                         </Image>
+                        <TextBlock x:Name="HistoryLogoNotice" Visibility="{Binding HistoryNoticeVisibility}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchHistory_LoadedNotice}" Width="200" MinHeight="160" Padding="16" TextWrapping="Wrap" TextAlignment="Center" VerticalAlignment="Center"/>
+                        </Grid>
                     </Border>
                 </DockPanel>
 

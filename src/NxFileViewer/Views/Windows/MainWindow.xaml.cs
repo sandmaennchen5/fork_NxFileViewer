@@ -1,3 +1,6 @@
+using System.IO;
+using System.Linq;
+using System.Collections.Generic;
 using System;
 using System.ComponentModel;
 using System.Windows;
@@ -37,8 +40,34 @@ public partial class MainWindow : Window
         };
     }
 
+    public static bool ShouldUseBatchDrop(IReadOnlyList<string> paths, bool isBatchPage) =>
+        isBatchPage || paths.Count > 1 || paths.Any(Directory.Exists);
+
+    public void OpenExplorerBatch(IReadOnlyList<string> paths, bool verify)
+    {
+        Navigate(WorkspaceSection.Batch);
+        _batch!.LoadExplorerSources(paths, verify);
+    }
+
+    private void FilesPreviewDrop(object sender, DragEventArgs e)
+    {
+        if (!e.Data.GetDataPresent(DataFormats.FileDrop) || e.Data.GetData(DataFormats.FileDrop) is not string[] paths || paths.Length == 0) return;
+        if (_taskRunner?.IsRunning == true)
+        {
+            e.Effects = DragDropEffects.None;
+            e.Handled = true;
+            return;
+        }
+        if (!ShouldUseBatchDrop(paths, WorkspaceTabs.SelectedItem == BatchTab)) return;
+        Navigate(WorkspaceSection.Batch);
+        _batch!.LoadDroppedSources(paths);
+        e.Effects = DragDropEffects.Copy;
+        e.Handled = true;
+    }
+
     public void Navigate(WorkspaceSection section)
     {
+        if (section == WorkspaceSection.Nand && !App.Features.NandActive) return;
         var target = section is WorkspaceSection.Plugins or WorkspaceSection.Updates ? WorkspaceSection.Settings : section;
         if (_activeTaskTab.HasValue && (int)target != _activeTaskTab && target != WorkspaceSection.Log) return;
         if (section is WorkspaceSection.Plugins or WorkspaceSection.Updates)
@@ -46,7 +75,8 @@ public partial class MainWindow : Window
             EnsurePage(section);
             EnsurePage(WorkspaceSection.Settings);
             WorkspaceTabs.SelectedIndex = (int)WorkspaceSection.Settings;
-            ((SettingsWindow)SettingsTab.Content).SettingsSections.SelectedIndex = section == WorkspaceSection.Updates ? 2 : 3;
+            var page = (SettingsWindow)SettingsTab.Content;
+            page.SettingsSections.SelectedItem = section == WorkspaceSection.Updates ? page.UpdatesSettingsTab : page.PluginsSettingsTab;
             return;
         }
         WorkspaceTabs.SelectedIndex = (int)section;
@@ -70,7 +100,7 @@ public partial class MainWindow : Window
         // attached to their tabs, keeping results, drafts and running tasks intact.
         switch (section)
         {
-            case WorkspaceSection.Nand when NandTab.Content == null:
+            case WorkspaceSection.Nand when App.Features.NandActive && NandTab.Content == null:
                 NandTab.Content = new NandView { DataContext = App.ServiceProvider.GetRequiredService<NandViewModel>() };
                 break;
             case WorkspaceSection.Updates when UpdatesTab.Content == null:
@@ -133,8 +163,6 @@ public partial class MainWindow : Window
                 tab.IsEnabled = !_activeTaskTab.HasValue || index == _activeTaskTab || tab == LogTab;
     }
 
-    private void NavigateLog(object sender, RoutedEventArgs e) => Navigate(WorkspaceSection.Log);
-    private void NavigateHome(object sender, RoutedEventArgs e) => Navigate(WorkspaceSection.Home);
     private void NavigateFile(object sender, RoutedEventArgs e) => Navigate(WorkspaceSection.File);
     private void NavigateBatch(object sender, RoutedEventArgs e) => Navigate(WorkspaceSection.Batch);
     private void NavigateNand(object sender, RoutedEventArgs e) => Navigate(WorkspaceSection.Nand);

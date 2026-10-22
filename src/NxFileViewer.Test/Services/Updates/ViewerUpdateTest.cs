@@ -26,9 +26,9 @@ public sealed class ViewerUpdateTest : IDisposable
     {
         var names = new[] { "x64", "x86", "self-contained_x64", "self-contained_x86" };
         var json = JsonSerializer.SerializeToElement(new { tag_name = "v4.0.0-beta.3", draft = false, prerelease = true,
-            assets = names.Select(suffix => new { name = "NxFileViewer_v4.0.0-beta.3_" + suffix + ".zip", browser_download_url = Url, digest = "sha256:" + new string('1', 64) }) });
+            assets = names.Select(suffix => new { name = "NxFileViewerFork_v4.0.0-beta.3_" + suffix + ".zip", browser_download_url = Url, digest = "sha256:" + new string('1', 64) }) });
         var result = ViewerUpdateService.SelectRelease(json, new Version(4,0,0), architecture, true, currentTag: "4.0.0-beta.2", selfContained: selfContained)!;
-        Assert.Equal("NxFileViewer_v4.0.0-beta.3_" + (selfContained ? "self-contained_" : "") + architecture + ".zip", result.AssetName);
+        Assert.Equal("NxFileViewerFork_v4.0.0-beta.3_" + (selfContained ? "self-contained_" : "") + architecture + ".zip", result.AssetName);
     }
     [Fact]
     public void DoesNotSwitchDistributionWhenRuntimeAssetIsMissing()
@@ -36,13 +36,13 @@ public sealed class ViewerUpdateTest : IDisposable
         Assert.Null(ViewerUpdateService.SelectRelease(Release(), new Version(3,0,4), "x64", skipMissingPackage: true, selfContained: true));
         Assert.Throws<InvalidDataException>(() => ViewerUpdateService.SelectRelease(Release(), new Version(3,0,4), "x64", selfContained: true));
     }
-    private const string Url = "https://github.com/sandmaennchen5/fork_NxFileViewer/releases/download/v3.0.5/NxFileViewer_v3.0.5_x64.zip";
+    private const string Url = "https://github.com/sandmaennchen5/fork_NxFileViewer/releases/download/v3.0.5/NxFileViewerFork_v3.0.5_x64.zip";
     private static JsonElement Release(string tag = "v3.0.5", bool draft = false, bool prerelease = false, string url = Url) =>
         JsonSerializer.SerializeToElement(new { tag_name = tag, draft, prerelease, assets = new[]
         {
-            new { name = "NxFileViewer_v3.0.5_firmware-hashes.zip", browser_download_url = url, digest = "sha256:" + new string('0',64) },
-            new { name = "NxFileViewer_v3.0.5_x64.zip", browser_download_url = url, digest = "sha256:" + new string('1',64) },
-            new { name = "NxFileViewer_v3.0.5_x86.zip", browser_download_url = url.Replace("x64", "x86"), digest = "sha256:" + new string('2',64) }
+            new { name = "NxFileViewerFork_v3.0.5_firmware-hashes.zip", browser_download_url = url, digest = "sha256:" + new string('0',64) },
+            new { name = "NxFileViewerFork_v3.0.5_x64.zip", browser_download_url = url, digest = "sha256:" + new string('1',64) },
+            new { name = "NxFileViewerFork_v3.0.5_x86.zip", browser_download_url = url.Replace("x64", "x86"), digest = "sha256:" + new string('2',64) }
         }});
     [Theory]
     [InlineData("x64")]
@@ -79,9 +79,9 @@ public sealed class ViewerUpdateTest : IDisposable
     }
     [Fact] public void SupportsPrereleaseNamedAssetAndSkipsMissingArchitectureWhenListing()
     {
-        var tagged = JsonDocument.Parse(Release("v3.0.5-rc.1", prerelease: true).GetRawText().Replace("NxFileViewer_v3.0.5_", "NxFileViewer_v3.0.5-rc.1_"));
+        var tagged = JsonDocument.Parse(Release("v3.0.5-rc.1", prerelease: true).GetRawText().Replace("NxFileViewerFork_v3.0.5_", "NxFileViewerFork_v3.0.5-rc.1_"));
         using (tagged)
-            Assert.Equal("NxFileViewer_v3.0.5-rc.1_x64.zip", ViewerUpdateService.SelectRelease(tagged.RootElement, new Version(3,0,4), "x64", true)!.AssetName);
+            Assert.Equal("NxFileViewerFork_v3.0.5-rc.1_x64.zip", ViewerUpdateService.SelectRelease(tagged.RootElement, new Version(3,0,4), "x64", true)!.AssetName);
         var missing = JsonSerializer.SerializeToElement(new { tag_name = "v3.0.6-beta", draft = false, prerelease = true, assets = Array.Empty<object>() });
         Assert.Null(ViewerUpdateService.SelectRelease(missing, new Version(3,0,4), "x64", true, true));
     }
@@ -152,11 +152,11 @@ public sealed class ViewerUpdateTest : IDisposable
         var assembly = typeof(ViewerUpdateService).Assembly.GetName().Version!;
         var version = new Version(assembly.Major, assembly.Minor, assembly.Build);
         var architecture = System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.ToString().ToLowerInvariant();
-        var name = $"NxFileViewer_v{version}_{architecture}.zip";
+        var name = $"NxFileViewerFork_v{version}_{architecture}.zip";
         var archive = Path.Combine(_root, "verified.zip");
         using (var zip = ZipFile.Open(archive, ZipArchiveMode.Create))
         using (var output = zip.CreateEntry("NxFileViewer.exe").Open())
-        using (var input = File.OpenRead(Path.Combine(AppContext.BaseDirectory, "NxFileViewer.exe"))) input.CopyTo(output);
+        using (var input = File.OpenRead(Path.Combine(AppContext.BaseDirectory, "NxFileViewerFork.exe"))) input.CopyTo(output);
         var bytes = File.ReadAllBytes(archive);
         var release = new ViewerRelease(version, name, new Uri(Url), "sha256:" + Convert.ToHexString(SHA256.HashData(bytes)));
         using var client = new HttpClient(new Handler(_ => new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(bytes) }));
@@ -165,6 +165,30 @@ public sealed class ViewerUpdateTest : IDisposable
         Assert.StartsWith(Path.Combine(_root, "Updates"), prepared.Directory);
         Assert.Equal("previous installation", File.ReadAllText(installed));
         Assert.False(File.Exists(Path.Combine(prepared.Directory, "release.zip")));
+    }
+    [Fact]
+    public async Task VerifiedRenamedMainWithCompanionFilesUsesPackageIdentity()
+    {
+        var assembly = typeof(ViewerUpdateService).Assembly.GetName().Version!;
+        var version = new Version(assembly.Major, assembly.Minor, assembly.Build);
+        var architecture = System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.ToString().ToLowerInvariant();
+        var archive = Path.Combine(_root, "multi.zip");
+        using (var zip = ZipFile.Open(archive, ZipArchiveMode.Create))
+        {
+            using (var output = zip.CreateEntry("NxFileViewerFork.exe").Open())
+            using (var input = File.OpenRead(Path.Combine(AppContext.BaseDirectory, "NxFileViewerFork.exe"))) input.CopyTo(output);
+            using (var writer = new StreamWriter(zip.CreateEntry(ViewerPackageLayout.ManifestName).Open()))
+                writer.Write(JsonSerializer.Serialize(new ViewerPackageManifest(1, ViewerPackageLayout.ApplicationId, "NxFileViewerFork.exe")));
+            using (var writer = new StreamWriter(zip.CreateEntry("Tools/helper.exe").Open())) writer.Write("auxiliary executable");
+            using (var writer = new StreamWriter(zip.CreateEntry("Assets/data.txt").Open())) writer.Write("asset");
+        }
+        var bytes=File.ReadAllBytes(archive);
+        var release=new ViewerRelease(version,$"NxFileViewerFork_v{version}_{architecture}.zip",new Uri(Url),"sha256:"+Convert.ToHexString(SHA256.HashData(bytes)));
+        using var client=new HttpClient(new Handler(_ => new HttpResponseMessage(HttpStatusCode.OK) { Content=new ByteArrayContent(bytes) }));
+        var prepared=await new ViewerUpdateService(client).PrepareAsync(release,_root,TestContext.Current.CancellationToken);
+        Assert.Equal("NxFileViewerFork.exe",prepared.EntryPoint);
+        Assert.Equal(4,prepared.Files.Length);
+        Assert.Equal("asset",File.ReadAllText(Path.Combine(prepared.Directory,"payload","Assets","data.txt")));
     }
     private string Zip(params string[] entries)
     {
@@ -178,27 +202,27 @@ public sealed class ViewerUpdateTest : IDisposable
         return archive;
     }
     [Theory]
-    [InlineData("NxFileViewer_v3.0.5_x64/NxFileViewer.exe")]
-    [InlineData("NxFileViewer_v3.0.5_x64\\NxFileViewer.exe")]
+    [InlineData("NxFileViewerFork_v3.0.5_x64/NxFileViewer.exe")]
+    [InlineData("NxFileViewerFork_v3.0.5_x64\\NxFileViewer.exe")]
     public void ExtractsOnlyExpectedExecutableToFixedPath(string entry)
     {
         var exe = ViewerUpdateService.ExtractExecutable(Zip(entry), _root,
-            "NxFileViewer_v3.0.5_x64.zip", TestContext.Current.CancellationToken);
+            "NxFileViewerFork_v3.0.5_x64.zip", TestContext.Current.CancellationToken);
         Assert.Equal(Path.Combine(_root, "new.exe"), exe);
         Assert.Equal("new executable content", File.ReadAllText(exe));
     }
     [Theory]
     [InlineData("../prod.keys")]
     [InlineData("..\\prod.keys")]
-    [InlineData("NxFileViewer_v3.0.5_x64\\..\\..\\NxFileViewer.exe")]
-    [InlineData("NxFileViewer_v3.0.5_x64/../../NxFileViewer.exe")]
+    [InlineData("NxFileViewerFork_v3.0.5_x64\\..\\..\\NxFileViewer.exe")]
+    [InlineData("NxFileViewerFork_v3.0.5_x64/../../NxFileViewer.exe")]
     [InlineData("other/NxFileViewer.exe")]
     public void RejectsUntrustedArchivePaths(string entry) =>
-        Assert.Throws<InvalidDataException>(() => ViewerUpdateService.ExtractExecutable(Zip(entry), _root, "NxFileViewer_v3.0.5_x64.zip", TestContext.Current.CancellationToken));
+        Assert.Throws<InvalidDataException>(() => ViewerUpdateService.ExtractExecutable(Zip(entry), _root, "NxFileViewerFork_v3.0.5_x64.zip", TestContext.Current.CancellationToken));
     [Fact]
     public void RejectsArchivesContainingUserData() =>
         Assert.Throws<InvalidDataException>(() => ViewerUpdateService.ExtractExecutable(Zip("NxFileViewer.exe", "prod.keys"), _root,
-            "NxFileViewer_v3.0.5_x64.zip", TestContext.Current.CancellationToken));
+            "NxFileViewerFork_v3.0.5_x64.zip", TestContext.Current.CancellationToken));
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
@@ -208,6 +232,8 @@ public sealed class ViewerUpdateTest : IDisposable
         Directory.CreateDirectory(stage);
         var target = Path.Combine(_root, "NxFileViewer.exe");
         File.WriteAllText(target, "previous executable");
+        var associationLauncher = Emignatik.NxFileViewer.Services.FileAssociations.ForkAssociationLauncher.Ensure(target);
+        var originalLauncher = File.ReadAllBytes(associationLauncher);
         File.WriteAllText(Path.Combine(_root, "prod.keys"), "private user data");
         Directory.CreateDirectory(Path.Combine(_root, "Plugins"));
         File.WriteAllText(Path.Combine(_root, "Plugins", "plugin.txt"), "plugin data");
@@ -234,6 +260,7 @@ public sealed class ViewerUpdateTest : IDisposable
             (File.Exists(Path.Combine(stage, "error.txt")) ? File.ReadAllText(Path.Combine(stage, "error.txt")) : ""));
         Assert.Equal(validHash ? "new executable" : "previous executable", File.ReadAllText(target));
         if (validHash) Assert.Equal("previous executable", File.ReadAllText(Path.Combine(stage, "previous.exe")));
+        Assert.Equal(originalLauncher, File.ReadAllBytes(associationLauncher));
         Assert.Equal("private user data", File.ReadAllText(Path.Combine(_root, "prod.keys")));
         Assert.Equal("plugin data", File.ReadAllText(Path.Combine(_root, "Plugins", "plugin.txt")));
     }

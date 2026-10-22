@@ -15,5 +15,6 @@ public enum PackageType
 {
     UNKNOWN,
     XCI,
-    NSP
+    NSP,
+    NRO
 }

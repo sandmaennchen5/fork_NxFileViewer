@@ -41,6 +41,7 @@ public abstract class ItemBase : NotifyPropertyChangedBase, IItem
 
     public virtual void Dispose()
     {
+        foreach (var child in _childItems) child.Dispose();
     }
 
     private void OnErrorsChanged(object sender, ErrorsChangedHandlerArgs args)

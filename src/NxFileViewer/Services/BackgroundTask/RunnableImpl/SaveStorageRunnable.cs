@@ -45,7 +45,7 @@ public class SaveStorageRunnable : ISaveStorageRunnable
         }
         catch (OperationCanceledException)
         {
-            _logger.LogWarning(LocalizationManager.Instance.Current.Keys.Log_SaveStorageCanceled);
+            _logger.LogInformation(LocalizationManager.Instance.Current.Keys.Log_SaveStorageCanceled);
         }
     }
 

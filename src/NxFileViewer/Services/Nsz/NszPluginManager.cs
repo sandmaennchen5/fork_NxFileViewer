@@ -19,6 +19,10 @@ namespace Emignatik.NxFileViewer.Services.Nsz;
 public sealed class NszPluginManager(IAppSettings settings, ILogger<NszPluginManager> logger,
     string? rootDirectory = null, HttpClient? httpClient = null, Action<string, CancellationToken>? compatibilityCheck = null)
 {
+    private void EnsureEnabled()
+    {
+        if (!settings.NszPluginActive) throw new InvalidOperationException(LocalizationManager.Instance.Current.Keys.Features_PluginsDisabled);
+    }
     private static readonly HttpClient Client = CreateClient();
     private readonly System.Collections.Generic.Dictionary<string, (long Length, long Modified)> _checkedExecutables = new(StringComparer.OrdinalIgnoreCase);
     private static HttpClient CreateClient()
@@ -33,6 +37,7 @@ public sealed class NszPluginManager(IAppSettings settings, ILogger<NszPluginMan
         string? SourceAssetName = null, string? SourceDigest = null, string? ExecutableDigest = null);
     private State? ReadState()
     {
+        if (!settings.NszPluginActive) return null;
         if (!File.Exists(StatePath)) return null;
         var state = JsonSerializer.Deserialize<State>(File.ReadAllText(StatePath))!;
         string Resolve(string path)
@@ -47,7 +52,7 @@ public sealed class NszPluginManager(IAppSettings settings, ILogger<NszPluginMan
             PreviousExecutable = state.PreviousExecutable == null ? null : Resolve(state.PreviousExecutable) };
     }
     public string? InstalledVersion => string.IsNullOrWhiteSpace(settings.NszExecutablePath) ? ReadState()?.Version : null;
-    public string ExecutablePath => string.IsNullOrWhiteSpace(settings.NszExecutablePath)
+    public string ExecutablePath => !settings.NszPluginActive ? "" : string.IsNullOrWhiteSpace(settings.NszExecutablePath)
         ? ReadState()?.Executable ?? "" : Path.GetFullPath(settings.NszExecutablePath);
     public string GuiExecutablePath
     {
@@ -58,6 +63,7 @@ public sealed class NszPluginManager(IAppSettings settings, ILogger<NszPluginMan
         get
         {
             var keys = LocalizationManager.Instance.Current.Keys;
+            if (!settings.NszPluginActive) return keys.Features_PluginsDisabled;
             try
             {
                 var state = string.IsNullOrWhiteSpace(settings.NszExecutablePath) ? ReadState() : null;
@@ -72,8 +78,33 @@ public sealed class NszPluginManager(IAppSettings settings, ILogger<NszPluginMan
     }
     public bool CanRollback => string.IsNullOrWhiteSpace(settings.NszExecutablePath) && File.Exists(ReadState()?.PreviousExecutable);
 
+    public System.Collections.Generic.IReadOnlyList<string> OldVersionDirectories()
+    {
+        EnsureEnabled();
+        var state = ReadState();
+        return state == null ? Array.Empty<string>() : Updates.OldVersionCleanup.PluginVersions(RootDirectory, state.Executable, settings.NszExecutablePath);
+    }
+
+    public void RemoveOldVersions(System.Collections.Generic.IReadOnlyList<string> confirmedPaths)
+    {
+        EnsureEnabled();
+        var state = ReadState() ?? throw new InvalidDataException("No managed plugin installation state.");
+        foreach (var path in confirmedPaths)
+        {
+            if (!OldVersionDirectories().Contains(Path.GetFullPath(path), StringComparer.OrdinalIgnoreCase))
+                throw new IOException("The old plugin version is no longer eligible for removal: " + path);
+            if (state.PreviousExecutable != null && Path.GetFullPath(state.PreviousExecutable).StartsWith(
+                Path.TrimEndingDirectorySeparator(Path.GetFullPath(path)) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            {
+                state = state with { PreviousExecutable = null, PreviousVersion = null };
+                WriteState(state);
+            }
+            Updates.OldVersionCleanup.DeletePluginVersion(RootDirectory, path, state.Executable, settings.NszExecutablePath);
+        }
+    }
     public void Rollback()
     {
+        EnsureEnabled();
         var state = ReadState();
         if (!CanRollback || state == null) throw new InvalidOperationException("No previous NSZ version.");
         WriteState(new(state.PreviousExecutable!, state.PreviousVersion!, state.Executable, state.Version));
@@ -92,6 +123,7 @@ public sealed class NszPluginManager(IAppSettings settings, ILogger<NszPluginMan
 
     public void Prepare(IProgressReporter progress, CancellationToken token)
     {
+        EnsureEnabled();
         if (!string.IsNullOrWhiteSpace(settings.NszExecutablePath))
         {
             (compatibilityCheck ?? CheckManagedCompatibility)(ExecutablePath, token);
@@ -99,7 +131,7 @@ public sealed class NszPluginManager(IAppSettings settings, ILogger<NszPluginMan
         }
         if (settings.NszCheckUpdates || !File.Exists(ExecutablePath))
         {
-            try { UpdateAsync(progress, token).GetAwaiter().GetResult(); }
+            try { UpdateAsync(progress, token, automatic: true).GetAwaiter().GetResult(); }
             catch (Exception ex) when (!token.IsCancellationRequested && File.Exists(ExecutablePath) &&
                 ex is HttpRequestException or IOException or JsonException or OperationCanceledException or InvalidOperationException or System.Collections.Generic.KeyNotFoundException)
             {
@@ -112,14 +144,14 @@ public sealed class NszPluginManager(IAppSettings settings, ILogger<NszPluginMan
         progress.SetMode(false);
     }
 
-    public async Task UpdateAsync(IProgressReporter progress, CancellationToken token)
+    public async Task UpdateAsync(IProgressReporter progress, CancellationToken token, bool automatic = false)
     {
+        EnsureEnabled();
         progress.SetMode(true);
         progress.SetText(LocalizationManager.Instance.Current.Keys.Nsz_Updating);
         var client = httpClient ?? Client;
-        using var response = await client.GetAsync("https://api.github.com/repos/nicoboss/nsz/releases/latest", token).ConfigureAwait(false);
-        response.EnsureSuccessStatusCode();
-        using var release = JsonDocument.Parse(await response.Content.ReadAsStringAsync(token).ConfigureAwait(false));
+        var response = await Emignatik.NxFileViewer.Services.Updates.GitHubUpdateRequests.For(httpClient).GetAsync(ExternalSources.ReleaseApi(ExternalSources.Current.NszRepository), automatic, token).ConfigureAwait(false);
+        using var release = JsonDocument.Parse(response.Body);
         var root = release.RootElement;
         if (root.GetProperty("draft").GetBoolean() || root.GetProperty("prerelease").GetBoolean())
             throw new InvalidDataException("NSZ release is not stable.");
@@ -147,7 +179,7 @@ public sealed class NszPluginManager(IAppSettings settings, ILogger<NszPluginMan
             }
         }
         var url = new Uri(asset.GetProperty("browser_download_url").GetString()!);
-        if (url.Scheme != "https" || url.Host != "github.com" || !url.AbsolutePath.StartsWith("/nicoboss/nsz/releases/download/", StringComparison.Ordinal))
+        if (url.Scheme != "https" || url.Host != "github.com" || !url.AbsolutePath.StartsWith(ExternalSources.ReleaseDownloadPrefix(ExternalSources.Current.NszRepository), StringComparison.Ordinal))
             throw new InvalidDataException("Unexpected NSZ download URL.");
         Directory.CreateDirectory(RootDirectory);
         var versionDirectory = Path.Combine(RootDirectory, "version-" + Guid.NewGuid().ToString("N"));
@@ -203,7 +235,7 @@ public sealed class NszPluginManager(IAppSettings settings, ILogger<NszPluginMan
         if (digest == null || !digest.StartsWith("sha256:", StringComparison.Ordinal) || digest.Length != 71)
             throw new InvalidDataException("NSZ asset has no SHA-256 digest.");
         var url = new Uri(asset.GetProperty("browser_download_url").GetString()!);
-        if (url.Scheme != "https" || url.Host != "github.com" || !url.AbsolutePath.StartsWith("/nicoboss/nsz/releases/download/", StringComparison.Ordinal))
+        if (url.Scheme != "https" || url.Host != "github.com" || !url.AbsolutePath.StartsWith(ExternalSources.ReleaseDownloadPrefix(ExternalSources.Current.NszRepository), StringComparison.Ordinal))
             throw new InvalidDataException("Unexpected NSZ download URL.");
         var cacheDirectory = Path.Combine(RootDirectory, "Downloads");
         Directory.CreateDirectory(cacheDirectory);

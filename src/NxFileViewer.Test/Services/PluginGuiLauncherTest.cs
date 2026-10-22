@@ -24,6 +24,35 @@ public sealed class PluginGuiLauncherTest
         Assert.Equal(nand ? new[] { "--gui" } : Array.Empty<string>(), info.ArgumentList);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ActiveKeysAreIsolatedAndGuiStillStartsWithoutCliKeyArguments(bool nand)
+    {
+        var root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var source = Path.Combine(root, "active keys.txt");
+            File.WriteAllText(source, "fixture");
+            var session = Path.Combine(root, "session");
+            var info = PluginGuiLauncher.CreateKeyedStartInfo(Path.Combine(root, "plugin.exe"), nand, source, session);
+            var copied = nand ? Path.Combine(session, "keys.dat") : Path.Combine(session, ".switch", "prod.keys");
+            Assert.Equal("fixture", File.ReadAllText(copied));
+            Assert.Equal(nand ? new[] { "--gui" } : Array.Empty<string>(), info.ArgumentList);
+            if (nand) Assert.Equal(session, info.WorkingDirectory);
+            else
+            {
+                Assert.False(info.UseShellExecute);
+                Assert.Equal(session, info.Environment["USERPROFILE"]);
+                File.WriteAllText(Path.Combine(root, "prod.keys"), "existing");
+                Assert.Throws<IOException>(() => PluginGuiLauncher.CreateKeyedStartInfo(info.FileName, false, source, Path.Combine(root, "other")));
+                Assert.Equal("existing", File.ReadAllText(Path.Combine(root, "prod.keys")));
+            }
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
     [Fact]
     public void NszGuiRequiresAnExistingGuiBuild()
     {

@@ -29,6 +29,7 @@ public class NcaItemIntegrityService : INcaItemIntegrityService
         if (ncaItem == null)
             throw new ArgumentNullException(nameof(ncaItem));
 
+        _logger.LogTrace("NCA integrity started: {Nca}; expectedHashProvided={HasExpectedHash}", ncaItem.DisplayName, expectedHash != null);
         // Clear previous errors
         ncaItem.Errors.RemoveAllOfCategory(Category.IntegrityCheck);
 
@@ -37,12 +38,16 @@ public class NcaItemIntegrityService : INcaItemIntegrityService
         {
             nca = ncaItem.GetOriginalNca();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException && !FileOpening.LoadingSpaceWarning.IsDiskFull(ex))
         {
             ncaItem.Errors.Add(Category.IntegrityCheck, LocalizationManager.Instance.Current.Keys.NcaIntegrity_GetOriginalNcaError.SafeFormat(ex.Message));
             _logger.LogError(LocalizationManager.Instance.Current.Keys.NcaIntegrity_GetOriginalNcaError_Log.SafeFormat(ncaItem.DisplayName, ex.Message));
             return NcaIntegrity.Error;
         }
+
+        // Switching Fast -> Original creates a separate decoder and disk cache.
+        // Only this temporary reader belongs to the integrity check; keep the live reader open.
+        using var originalReader = !ReferenceEquals(nca, ncaItem.Nca) && nca is LibHac.NSZ.Ncz ncz ? ncz.NcaStream : null;
 
         cancellationToken?.ThrowIfCancellationRequested();
 
@@ -67,7 +72,7 @@ public class NcaItemIntegrityService : INcaItemIntegrityService
                     break;
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException && !FileOpening.LoadingSpaceWarning.IsDiskFull(ex))
         {
             signatureValid = false;
             signatureEx = ex;
@@ -82,6 +87,7 @@ public class NcaItemIntegrityService : INcaItemIntegrityService
         Exception? hashEx = null;
         try
         {
+            _logger.LogTrace("Computing original NCA SHA256: {Nca}", ncaItem.DisplayName);
             var actualHash = await _ncaHashService.ComputeSha256Async(nca, cancellationToken, progressReporter, bufferSize);
 
             if (expectedHash == null)
@@ -117,7 +123,7 @@ public class NcaItemIntegrityService : INcaItemIntegrityService
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException && !FileOpening.LoadingSpaceWarning.IsDiskFull(ex))
         {
             hashValid = false;
             hashEx = ex;
@@ -135,6 +141,7 @@ public class NcaItemIntegrityService : INcaItemIntegrityService
             (false, true) => NcaIntegrity.Modified,
             (true, true) => NcaIntegrity.Original
         };
+        _logger.LogTrace("NCA integrity completed: {Nca}; result={Result}", ncaItem.DisplayName, ncaIntegrity);
         return ncaIntegrity;
     }
 }

@@ -5,7 +5,6 @@ using System.Windows;
 using Emignatik.NxFileViewer.Services.FileRenaming.Models;
 using Emignatik.NxFileViewer.Commands;
 using Emignatik.NxFileViewer.Localization;
-using Emignatik.NxFileViewer.Logging;
 using Emignatik.NxFileViewer.Services.BackgroundTask;
 using Emignatik.NxFileViewer.Services.FileRenaming;
 using Emignatik.NxFileViewer.Services.Prompting;
@@ -24,7 +23,6 @@ public class RenameToolWindowViewModel : WindowViewModelBase, IFilesDropped
     private string? _applicationPatternError;
     private string? _patchPatternError;
     private string? _addonPatternError;
-    private readonly LoggerSource _loggerSource = new();
     private readonly IAppSettings _appSettings;
 
     public RenameToolWindowViewModel(INamingPatternsParser namingPatternsParser, IAppSettings appSettings, IPromptService promptService, IRenameFilesCommand renameFilesCommand, IBackgroundTaskRunner backgroundTaskRunner)
@@ -57,7 +55,6 @@ public class RenameToolWindowViewModel : WindowViewModelBase, IFilesDropped
 
     public IBackgroundTaskRunner BackgroundTask { get; }
 
-    public ILogSource LogSource => _loggerSource;
 
     public IRenameFilesCommand RenameCommand { get; }
 

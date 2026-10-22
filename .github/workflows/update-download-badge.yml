@@ -1,0 +1,92 @@
+name: Update Download Badge
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-downloads:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate download count
+        env:
+          GITHUB_REPO: sandmaennchen5/fork_NxFileViewer
+          GITLAB_PROJECT_ID: "87924127"
+          FORGEJO_URL: "https://git.sandmaennchen5.de/"
+          FORGEJO_OWNER: "sandmaennchen5"
+          FORGEJO_REPO: "fork_NxFileViewer"
+
+        run: |
+          python << 'EOF'
+          import json
+          import os
+          import requests
+
+          total = 0
+
+          # GitHub
+          github_repo = os.environ["GITHUB_REPO"]
+          releases = requests.get(
+              f"https://api.github.com/repos/{github_repo}/releases"
+          ).json()
+
+          for release in releases:
+              for asset in release.get("assets", []):
+                  total += asset.get("download_count", 0)
+
+          # GitLab
+          project_id = os.environ["GITLAB_PROJECT_ID"]
+
+          releases = requests.get(
+              f"https://gitlab.com/api/v4/projects/{project_id}/releases"
+          ).json()
+
+          for release in releases:
+              assets = release.get("assets", {})
+              links = assets.get("links", [])
+              for link in links:
+                  total += link.get("direct_asset_download_count", 0)
+
+          # Forgejo/Gitea
+          forgejo_url = os.environ["FORGEJO_URL"]
+          owner = os.environ["FORGEJO_OWNER"]
+          repo = os.environ["FORGEJO_REPO"]
+
+          releases = requests.get(
+              f"{forgejo_url}/api/v1/repos/{owner}/{repo}/releases"
+          ).json()
+
+          for release in releases:
+              for asset in release.get("assets", []):
+                  total += asset.get("download_count", 0)
+
+          os.makedirs("badge", exist_ok=True)
+
+          with open("badge/downloads.json", "w") as f:
+              json.dump({
+                  "schemaVersion": 1,
+                  "label": "downloads",
+                  "message": str(total),
+                  "color": "blue"
+              }, f)
+          EOF
+
+      - name: Commit badge
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+
+          git add badge/downloads.json
+
+          git diff --cached --quiet || (
+            git commit -m "Update download badge"
+            git push
+          )

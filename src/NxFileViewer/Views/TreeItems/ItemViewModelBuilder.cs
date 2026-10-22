@@ -65,6 +65,8 @@ public class ItemViewModelBuilder : IItemViewModelBuilder
                 break;
             case FirmwareFileItem:
             case NandFileItem:
+            case NroFileItem:
+            case SdCardItem:
                 itemViewModel = new ItemViewModel(item, _serviceProvider);
                 break;
             default:

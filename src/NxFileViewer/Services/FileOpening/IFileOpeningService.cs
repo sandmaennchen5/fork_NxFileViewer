@@ -25,6 +25,8 @@ public interface IFileOpeningService
     /// <param name="filePath"></param>
     Task SafeOpenFile(string filePath);
 
+    Task SafeOpenFile(string filePath, FileOpenOrigin origin) => SafeOpenFile(filePath);
+
     /// <summary>
     /// Closes the opened file.
     /// </summary>
@@ -42,3 +44,5 @@ public class OpenedFileChangedHandlerArgs
 
     public NxFile? NewFile { get; }
 }
+
+public enum FileOpenOrigin { Program, WindowsAssociation, ExplorerOpen, ExplorerVerify }

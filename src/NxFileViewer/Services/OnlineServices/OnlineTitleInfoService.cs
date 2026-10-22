@@ -23,7 +23,7 @@ public class OnlineTitleInfoService : IOnlineTitleInfoService, ITitleDbUpdater
         _appSettings = appSettings ?? throw new ArgumentNullException(nameof(appSettings));
         _logger = loggerFactory?.CreateLogger<OnlineTitleInfoService>();
         _httpClient = httpClient;
-        _titleDb = new TitleDbCatalog(cacheDirectory ?? Path.Combine(AppContext.BaseDirectory, "Cache", "TitleDB"), _logger);
+        _titleDb = new TitleDbCatalog(cacheDirectory ?? ApplicationDataPaths.TitleDb(AppContext.BaseDirectory), _logger);
     }
 
 

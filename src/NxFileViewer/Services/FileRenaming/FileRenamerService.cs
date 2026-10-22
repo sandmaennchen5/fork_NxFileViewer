@@ -45,7 +45,7 @@ public class FileRenamerService : IFileRenamerService
 
         var fileFiltersRegex = fileFilters?.Split(';').Select(filter => new Regex(filter.Replace("*", ".*"), RegexOptions.IgnoreCase | RegexOptions.Singleline)).ToArray();
 
-        var matchingFiles = directoryInfo.GetFiles("*", searchOption).Where(file =>
+        var matchingFiles = directoryInfo.GetFiles("*", searchOption).Where(file => !Mtp.MtpDirectSource.IsDirect(file.FullName)).Where(file =>
         {
             return fileFiltersRegex == null || fileFiltersRegex.Any(regex => regex.IsMatch(file.Name));
         }).ToArray();
@@ -76,6 +76,7 @@ public class FileRenamerService : IFileRenamerService
 
     public async Task<RenamingResult> RenameFileAsync(string inputFile, bool automaticallyCloseOpenedFile, INamingSettings namingSettings, bool isSimulation, ILogger? logger, CancellationToken cancellationToken)
     {
+        if (Mtp.MtpDirectSource.IsDirect(inputFile)) throw new IOException("Direct MTP sources are read-only. Use local cache for renaming.");
         ValidateNamingSettings(namingSettings);
         var renamingResult = await RenameFileAsyncInternalSafe(new FileInfo(inputFile), namingSettings, isSimulation, logger, cancellationToken, automaticallyCloseOpenedFile);
 
@@ -165,7 +166,7 @@ public class FileRenamerService : IFileRenamerService
             }
 
             if (shouldBeRenamed)
-                logger?.LogWarning(LocalizationManager.Instance.Current.Keys.RenamingTool_LogFileRenamed.SafeFormat(logPrefix, oldFileName, newFileName));
+                logger?.LogInformation(LocalizationManager.Instance.Current.Keys.RenamingTool_LogFileRenamed.SafeFormat(logPrefix, oldFileName, newFileName));
             else
                 logger?.LogInformation(LocalizationManager.Instance.Current.Keys.RenamingTool_LogFileAlreadyNamedProperly.SafeFormat(logPrefix, oldFileName));
 

@@ -22,29 +22,46 @@ public sealed class UpdateCenterViewModel : ViewModelBase
     private readonly ITitleDbUpdater _titles;
     private readonly ICachedOnlineTitleInfoService _cache;
     private readonly IAppSettings _settings;
+    private readonly IAppSettingsManager? _settingsManager;
     private readonly ILogger<UpdateCenterViewModel> _logger;
     private string _titleStatus = "";
     private string _firmwareStatus = "";
     public UpdateCenterViewModel(IMainBackgroundTaskRunnerService background, ITitleDbUpdater titles,
         ICachedOnlineTitleInfoService cache, IAppSettings settings, NszActions nsz,
-        ViewerUpdateActions viewer, ILogger<UpdateCenterViewModel> logger, Emignatik.NxFileViewer.Services.Nand.NandPluginActions nand)
+        ViewerUpdateActions viewer, ILogger<UpdateCenterViewModel> logger, Emignatik.NxFileViewer.Services.Nand.NandPluginActions nand,
+        IAppSettingsManager? settingsManager = null)
     {
         _background = background; _titles = titles; _cache = cache; _settings = settings; _logger = logger;
+        _settingsManager = settingsManager;
         Nsz = nsz; Viewer = viewer;
         Nand = nand;
         RefreshTitlesCommand = new RelayCommand(RefreshTitles, () => !background.IsRunning);
-        CheckFirmwareCommand = new RelayCommand(() => RefreshFirmware(false), () => !background.IsRunning);
-        SaveFirmwareCommand = new RelayCommand(() => RefreshFirmware(true), () => !background.IsRunning);
+        CheckFirmwareCommand = new RelayCommand(() => RefreshFirmware(false), () => settings.FirmwareCheckActive && !background.IsRunning);
+        SaveFirmwareCommand = new RelayCommand(() => RefreshFirmware(true), () => settings.FirmwareCheckActive && !background.IsRunning);
         background.PropertyChanged += (_, _) =>
         {
             RefreshTitlesCommand.TriggerCanExecuteChanged(true);
             CheckFirmwareCommand.TriggerCanExecuteChanged(true);
             SaveFirmwareCommand.TriggerCanExecuteChanged(true);
         };
-        settings.PropertyChanged += (_, args) => { if (args.PropertyName == nameof(IAppSettings.TitleDbRegion)) RefreshInstalledData(); };
+        settings.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(IAppSettings.TitleDbRegion)) RefreshInstalledData();
+            if (args.PropertyName == nameof(IAppSettings.NszCheckUpdates)) NotifyPropertyChanged(nameof(NszCheckUpdates));
+        };
         RefreshInstalledData();
     }
     public IMainBackgroundTaskRunnerService Background => _background;
+    public bool NszCheckUpdates
+    {
+        get => _settings.NszCheckUpdates;
+        set
+        {
+            if (_settings.NszCheckUpdates == value) return;
+            _settings.NszCheckUpdates = value;
+            _settingsManager?.SaveSafe();
+        }
+    }
     public NszActions Nsz { get; }
     public Emignatik.NxFileViewer.Services.Nand.NandPluginActions Nand { get; }
     public ViewerUpdateActions Viewer { get; }
@@ -66,7 +83,7 @@ public sealed class UpdateCenterViewModel : ViewModelBase
         }
         TitleCatalogSummary = Catalog(_settings.TitleDbRegion);
         if (_settings.TitleDbRegion != "US.en") TitleCatalogSummary += Environment.NewLine + Catalog("US.en");
-        var version = InstalledDataStatus.LocalFirmwareVersion(AppContext.BaseDirectory);
+        var version = _settings.FirmwareCheckActive ? InstalledDataStatus.LocalFirmwareVersion(AppContext.BaseDirectory) : null;
         LocalFirmwareSummary = version == null ? keys.DataUpdate_NoLocalFirmware : string.Format(keys.DataUpdate_LocalFirmwareVersion, version);
         NotifyPropertyChanged(nameof(TitleCatalogSummary));
         NotifyPropertyChanged(nameof(LocalFirmwareSummary));
@@ -97,7 +114,7 @@ public sealed class UpdateCenterViewModel : ViewModelBase
     }
     private async void RefreshFirmware(bool save)
     {
-        if (_background.IsRunning) return;
+        if (!_settings.FirmwareCheckActive || _background.IsRunning) return;
         FirmwareStatus = LocalizationManager.Instance.Current.Keys.DataUpdate_Working;
         string? onlineVersion = null;
         try
@@ -108,7 +125,7 @@ public sealed class UpdateCenterViewModel : ViewModelBase
                 using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
                 using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
                 timeout.CancelAfter(TimeSpan.FromMinutes(2));
-                var manifests = GitHubFirmwareReferences.LoadManifestsAsync(client, timeout.Token).GetAwaiter().GetResult();
+                var manifests = GitHubFirmwareReferences.LoadManifestsAsync(client, timeout.Token, GitHubUpdateRequests.For(null)).GetAwaiter().GetResult();
                 onlineVersion = InstalledDataStatus.HighestFirmwareVersion(manifests.Values);
                 if (save) FirmwareReferenceStore.Save(manifests, AppContext.BaseDirectory, token);
                 return manifests.Count;

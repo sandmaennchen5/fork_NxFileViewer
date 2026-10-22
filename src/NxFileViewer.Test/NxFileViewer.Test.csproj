@@ -21,7 +21,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="..\NxFileViewer.Transition\LegacyDataMigration.cs" Link="Transition\LegacyDataMigration.cs" />
+    <Compile Include="..\NxFileViewer.Transition\TransitionRelease.cs" Link="Transition\TransitionRelease.cs" />
     <ProjectReference Include="..\NxFileViewer\NxFileViewer.csproj" />
+    <ProjectReference Include="..\NxFileViewer.LogViewer\NxFileViewer.LogViewer.csproj" />
   </ItemGroup>
 
 </Project>

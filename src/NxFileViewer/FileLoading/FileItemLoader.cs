@@ -46,6 +46,13 @@ public class FileItemLoader : IFileItemLoader
     public NspItem LoadNsp(string path, CancellationToken token) => WithCancellation(token, () => LoadNsp(path));
     public XciItem LoadXci(string path, CancellationToken token) => WithCancellation(token, () => LoadXci(path));
     public StandaloneNcaFileItem LoadNca(string path, CancellationToken token) => WithCancellation(token, () => LoadNca(path));
+    public SdCardItem LoadSdCard(string contents, CancellationToken token) => WithCancellation(token, () =>
+    {
+        var item = SdCardItem.Open(contents, _keySetProviderService.GetKeySet(_appSettings.AlwaysReloadKeysBeforeOpen),
+            System.IO.File.Exists(System.IO.Path.Combine(contents, ".nxfileviewer-mtp")));
+        try { BuildPartitionChildItems(item); token.ThrowIfCancellationRequested(); return item; }
+        catch { item.Dispose(); throw; }
+    });
 
     public FileItemLoader(IKeySetProviderService keySetProviderService, ILoggerFactory loggerFactory, IAppSettings appSettings)
     {
@@ -58,6 +65,7 @@ public class FileItemLoader : IFileItemLoader
 
     public StandaloneNcaFileItem LoadNca(string filePath)
     {
+        _logger.LogTrace("Reading NCA metadata: {FilePath}", filePath);
         var item = new StandaloneNcaFileItem(filePath, _keySetProviderService.GetKeySet(_appSettings.AlwaysReloadKeysBeforeOpen));
         try { BuildNcaChildItems(item.NcaItem); return item; }
         catch { item.Dispose(); throw; }
@@ -65,6 +73,7 @@ public class FileItemLoader : IFileItemLoader
 
     public NspItem LoadNsp(string nspFilePath)
     {
+        _logger.LogTrace("Reading NSP metadata: {FilePath}", nspFilePath);
         var keySet = _keySetProviderService.GetKeySet(_appSettings.AlwaysReloadKeysBeforeOpen);
         var nspItem = NspItem.FromFile(nspFilePath, keySet);
         try { BuildPartitionChildItems(nspItem); _loadToken.Value.ThrowIfCancellationRequested(); return nspItem; }
@@ -73,6 +82,7 @@ public class FileItemLoader : IFileItemLoader
 
     public XciItem LoadXci(string xciFilePath)
     {
+        _logger.LogTrace("Reading XCI metadata: {FilePath}", xciFilePath);
         var keySet = _keySetProviderService.GetKeySet(_appSettings.AlwaysReloadKeysBeforeOpen);
         var xciItem = XciItem.FromFile(xciFilePath, keySet);
         try { BuildXciChildItems(xciItem); _loadToken.Value.ThrowIfCancellationRequested(); return xciItem; }
@@ -139,7 +149,9 @@ public class FileItemLoader : IFileItemLoader
             var remainingEntries = new List<DirectoryEntryEx>();
 
             // First loop on *.tik files to inject title keys in KeySet
-            foreach (var partitionFileEntry in partitionFileSystem.EnumerateEntries().Where(e => e.Type == DirectoryEntryType.File))
+            foreach (var partitionFileEntry in (parentItem is SdCardItem sd
+                ? sd.EnumerateContent(_loadToken.Value)
+                : partitionFileSystem.EnumerateEntries()).Where(e => e.Type == DirectoryEntryType.File))
             {
                 _loadToken.Value.ThrowIfCancellationRequested();
                 var fileName = partitionFileEntry.Name;
@@ -661,6 +673,8 @@ public class FileItemLoader : IFileItemLoader
 
     private void OnLoadingException(Exception ex, IItem relatedItem)
     {
+        if (Services.FileOpening.LoadingSpaceWarning.IsDiskFull(ex))
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(ex).Throw();
         if (ex is MissingKeyException missingKeyException)
             NotifyMissingKey(missingKeyException, relatedItem);
     }

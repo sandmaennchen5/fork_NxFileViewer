@@ -15,17 +15,17 @@ public sealed class FirmwareReferenceStoreTest : IDisposable
         files = new Dictionary<string, object> { ["new.nca"] = new { size = 1, sha256 = new string('a',64) } } });
     public FirmwareReferenceStoreTest()
     {
-        Directory.CreateDirectory(Path.Combine(_root, "fw", "hashes"));
-        File.WriteAllText(Path.Combine(_root, "fw", "hashes", "old.json"), "previous data");
+        Directory.CreateDirectory(Path.Combine(_root, "Plugins", "fwhashes"));
+        File.WriteAllText(Path.Combine(_root, "Plugins", "fwhashes", "old.json"), "previous data");
         File.WriteAllText(Path.Combine(_root, "prod.keys"), "private data");
     }
     [Fact]
     public void ManualUpdatePublishesValidatedSetAndKeepsPreviousFolder()
     {
         FirmwareReferenceStore.Save(new Dictionary<string,string> { ["new.json"] = Manifest }, _root, TestContext.Current.CancellationToken);
-        Assert.Equal(Manifest, File.ReadAllText(Path.Combine(_root, "fw", "hashes", "new.json")));
-        Assert.False(File.Exists(Path.Combine(_root, "fw", "hashes", "old.json")));
-        var backup = Assert.Single(Directory.GetDirectories(Path.Combine(_root, "fw"), "hashes-backup-*"));
+        Assert.Equal(Manifest, File.ReadAllText(Path.Combine(_root, "Plugins", "fwhashes", "new.json")));
+        Assert.False(File.Exists(Path.Combine(_root, "Plugins", "fwhashes", "old.json")));
+        var backup = Assert.Single(Directory.GetDirectories(Path.Combine(_root, "Plugins"), "fwhashes-backup-*"));
         Assert.Equal("previous data", File.ReadAllText(Path.Combine(backup, "old.json")));
         Assert.Equal("private data", File.ReadAllText(Path.Combine(_root, "prod.keys")));
     }
@@ -34,15 +34,15 @@ public sealed class FirmwareReferenceStoreTest : IDisposable
     {
         Assert.Throws<OperationCanceledException>(() => FirmwareReferenceStore.Save(
             new Dictionary<string,string> { ["new.json"] = Manifest }, _root, new CancellationToken(true)));
-        Assert.Equal("previous data", File.ReadAllText(Path.Combine(_root, "fw", "hashes", "old.json")));
-        Assert.Empty(Directory.GetDirectories(Path.Combine(_root, "fw"), ".hashes-stage-*"));
+        Assert.Equal("previous data", File.ReadAllText(Path.Combine(_root, "Plugins", "fwhashes", "old.json")));
+        Assert.Empty(Directory.GetDirectories(Path.Combine(_root, "Plugins"), ".fwhashes-stage-*"));
     }
     [Fact]
     public void InvalidReferencesCannotReplacePreviousSet()
     {
         Assert.ThrowsAny<Exception>(() => FirmwareReferenceStore.Save(
             new Dictionary<string,string> { ["bad.json"] = "{}" }, _root, TestContext.Current.CancellationToken));
-        Assert.Equal("previous data", File.ReadAllText(Path.Combine(_root, "fw", "hashes", "old.json")));
+        Assert.Equal("previous data", File.ReadAllText(Path.Combine(_root, "Plugins", "fwhashes", "old.json")));
     }
     [Fact]
     public void ManifestNamesCannotEscapeOfflineFolder()

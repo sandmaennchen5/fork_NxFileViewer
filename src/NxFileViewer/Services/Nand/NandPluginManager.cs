@@ -17,6 +17,10 @@ namespace Emignatik.NxFileViewer.Services.Nand;
 public sealed class NandPluginManager(IAppSettings settings, string? rootDirectory = null,
     HttpClient? httpClient = null, Action<string, CancellationToken>? compatibilityCheck = null)
 {
+    private void EnsureEnabled()
+    {
+        if (!settings.NandPluginActive) throw new InvalidOperationException(LocalizationManager.Instance.Current.Keys.Features_PluginsDisabled);
+    }
     private static readonly HttpClient Client = CreateClient();
     private static HttpClient CreateClient()
     {
@@ -37,12 +41,13 @@ public sealed class NandPluginManager(IAppSettings settings, string? rootDirecto
     }
     private State? ReadState()
     {
+        if (!settings.NandPluginActive) return null;
         if (!File.Exists(StatePath)) return null;
         var state = JsonSerializer.Deserialize<State>(File.ReadAllText(StatePath)) ?? throw new InvalidDataException("Invalid NAND installation state.");
         return state with { Executable = Resolve(state.Executable), PreviousExecutable = state.PreviousExecutable == null ? null : Resolve(state.PreviousExecutable) };
     }
     public string? InstalledVersion => string.IsNullOrWhiteSpace(settings.NandExecutablePath) ? ReadState()?.Version : null;
-    public string ExecutablePath => string.IsNullOrWhiteSpace(settings.NandExecutablePath) ? ReadState()?.Executable ?? "" : Path.GetFullPath(settings.NandExecutablePath);
+    public string ExecutablePath => !settings.NandPluginActive ? "" : string.IsNullOrWhiteSpace(settings.NandExecutablePath) ? ReadState()?.Executable ?? "" : Path.GetFullPath(settings.NandExecutablePath);
     public bool CanRollback
     {
         get { try { return string.IsNullOrWhiteSpace(settings.NandExecutablePath) && File.Exists(ReadState()?.PreviousExecutable); } catch { return false; } }
@@ -51,6 +56,7 @@ public sealed class NandPluginManager(IAppSettings settings, string? rootDirecto
     {
         get
         {
+            if (!settings.NandPluginActive) return LocalizationManager.Instance.Current.Keys.Features_PluginsDisabled;
             try
             {
                 var state = string.IsNullOrWhiteSpace(settings.NandExecutablePath) ? ReadState() : null;
@@ -70,8 +76,33 @@ public sealed class NandPluginManager(IAppSettings settings, string? rootDirecto
         try { File.WriteAllText(temporary, JsonSerializer.Serialize(state)); File.Move(temporary, StatePath, true); }
         finally { if (File.Exists(temporary)) File.Delete(temporary); }
     }
+    public System.Collections.Generic.IReadOnlyList<string> OldVersionDirectories()
+    {
+        EnsureEnabled();
+        var state = ReadState();
+        return state == null ? Array.Empty<string>() : Updates.OldVersionCleanup.PluginVersions(RootDirectory, state.Executable, settings.NandExecutablePath);
+    }
+
+    public void RemoveOldVersions(System.Collections.Generic.IReadOnlyList<string> confirmedPaths)
+    {
+        EnsureEnabled();
+        var state = ReadState() ?? throw new InvalidDataException("No managed plugin installation state.");
+        foreach (var path in confirmedPaths)
+        {
+            if (!OldVersionDirectories().Contains(Path.GetFullPath(path), StringComparer.OrdinalIgnoreCase))
+                throw new IOException("The old plugin version is no longer eligible for removal: " + path);
+            if (state.PreviousExecutable != null && Path.GetFullPath(state.PreviousExecutable).StartsWith(
+                Path.TrimEndingDirectorySeparator(Path.GetFullPath(path)) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            {
+                state = state with { PreviousExecutable = null, PreviousVersion = null };
+                WriteState(state);
+            }
+            Updates.OldVersionCleanup.DeletePluginVersion(RootDirectory, path, state.Executable, settings.NandExecutablePath);
+        }
+    }
     public void Rollback()
     {
+        EnsureEnabled();
         var state = ReadState();
         if (!CanRollback || state == null) throw new InvalidOperationException("No previous NAND version.");
         using var file = File.OpenRead(state.PreviousExecutable!);
@@ -80,18 +111,19 @@ public sealed class NandPluginManager(IAppSettings settings, string? rootDirecto
     }
     public void Prepare(IProgressReporter progress, CancellationToken token)
     {
+        EnsureEnabled();
         if (string.IsNullOrWhiteSpace(settings.NandExecutablePath) && !File.Exists(ExecutablePath))
             UpdateAsync(progress, token).GetAwaiter().GetResult();
     }
     public async Task UpdateAsync(IProgressReporter progress, CancellationToken token)
     {
+        EnsureEnabled();
         if (!string.IsNullOrWhiteSpace(settings.NandExecutablePath)) throw new InvalidOperationException(LocalizationManager.Instance.Current.Keys.Nand_CustomUpdate);
         progress.SetMode(true);
         progress.SetText(LocalizationManager.Instance.Current.Keys.Nand_Updating);
         var client = httpClient ?? Client;
-        using var response = await client.GetAsync("https://api.github.com/repos/THZoria/NxNandManager/releases/latest", token).ConfigureAwait(false);
-        response.EnsureSuccessStatusCode();
-        using var release = JsonDocument.Parse(await response.Content.ReadAsStringAsync(token).ConfigureAwait(false));
+        var response = await Emignatik.NxFileViewer.Services.Updates.GitHubUpdateRequests.For(httpClient).GetAsync(ExternalSources.ReleaseApi(ExternalSources.Current.NandRepository), false, token).ConfigureAwait(false);
+        using var release = JsonDocument.Parse(response.Body);
         var root = release.RootElement;
         if (root.GetProperty("draft").GetBoolean() || root.GetProperty("prerelease").GetBoolean()) throw new InvalidDataException("NAND release is not stable.");
         var tag = root.GetProperty("tag_name").GetString()!;
@@ -102,7 +134,7 @@ public sealed class NandPluginManager(IAppSettings settings, string? rootDirecto
         if (digest == null || !digest.StartsWith("sha256:", StringComparison.Ordinal) || digest.Length != 71 || !digest[7..].All(Uri.IsHexDigit))
             throw new InvalidDataException("NAND package has no SHA-256 digest.");
         var url = new Uri(asset.GetProperty("browser_download_url").GetString()!);
-        if (url.Scheme != "https" || url.Host != "github.com" || !url.AbsolutePath.StartsWith("/THZoria/NxNandManager/releases/download/", StringComparison.Ordinal))
+        if (url.Scheme != "https" || url.Host != "github.com" || !url.AbsolutePath.StartsWith(ExternalSources.ReleaseDownloadPrefix(ExternalSources.Current.NandRepository), StringComparison.Ordinal))
             throw new InvalidDataException("Unexpected NAND download URL.");
         var state = ReadState();
         if (state?.Version == tag && state.Digest == digest && File.Exists(state.Executable))

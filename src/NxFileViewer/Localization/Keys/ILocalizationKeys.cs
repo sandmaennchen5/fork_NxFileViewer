@@ -1,4 +1,4 @@
-using Emignatik.NxFileViewer.Utils.MVVM.Localization;
+﻿using Emignatik.NxFileViewer.Utils.MVVM.Localization;
 
 // ReSharper disable InconsistentNaming
 
@@ -6,7 +6,83 @@ namespace Emignatik.NxFileViewer.Localization.Keys;
 
 public interface ILocalizationKeys : ILocalizationKeysBase
 {
+    string Info_Credits { get; }
+    string Info_Licenses { get; }
+
+    string PluginLog_Title { get; }
+    string PluginLog_Inherit { get; }
+    string PluginLog_Off { get; }
+    string PluginLog_Tip { get; }
+
+    string Update_RollbackConfirm { get; }
+    string Update_Cleanup { get; }
+    string Update_CleanupConfirm { get; }
+    string Update_CleanupEmpty { get; }
+    string Update_CleanupDone { get; }
+    string BatchDetails_Show { get; }
+    string BatchDetails_Hide { get; }
+    string BatchPackages_SummaryOrder { get; }
+    string BatchPackages_SummaryOrderTip { get; }
+    string BatchPackages_Title { get; }
+    string BatchPackages_Display { get; }
+    string BatchPackages_Export { get; }
+    string BatchPackages_Tip { get; }
+    string BatchExport_Title { get; }
+    string BatchExport_VisibleOnly { get; }
+    string BatchExport_Format { get; }
+    string BatchExport_NoColumns { get; }
+    string BatchExport_InvalidExtension { get; }
+    string Package_PublicationRecovery { get; }
+    string Features_PackageOperations { get; }
+    string Features_PackageOperationsDisabled { get; }
+    string Package_Title { get; }
+    string Package_Engine { get; }
+    string Package_RustPath { get; }
+    string Package_KronosPath { get; }
+    string Package_Tip { get; }
+    string Package_MergeNsp { get; }
+    string Package_MergeXci { get; }
+    string Package_ConvertNsp { get; }
+    string Package_ConvertXci { get; }
+    string Package_Split { get; }
+    string Package_Destination { get; }
+    string Package_Inputs { get; }
+    string Package_Done { get; }
+    string Package_Missing { get; }
+    string Package_Invalid { get; }
+    string Package_Ready { get; }
+    string Package_Apply { get; }
+
+    string XciRepair_Title { get; }
+    string XciRepair_Inspect { get; }
+    string XciRepair_Prompt { get; }
+    string XciRepair_HeaderIssue { get; }
+    string XciRepair_LayoutIssue { get; }
+    string XciRepair_SaveCopy { get; }
+    string XciRepair_Copying { get; }
+    string XciRepair_Verifying { get; }
+    string XciRepair_NewFileRequired { get; }
+    string XciRepair_SourceChanged { get; }
+    string XciRepair_VerificationFailed { get; }
+    string XciRepair_Failed { get; }
+    string Features_Nand { get; }
+    string Features_NandDisabled { get; }
+    string Features_NszPlugin { get; }
+    string Features_NandPlugin { get; }
+    string Features_Firmware { get; }
+    string Features_FirmwareDisabled { get; }
+    string Features_Title { get; }
+    string Features_Plugins { get; }
+    string Features_Mtp { get; }
+    string Features_Restart { get; }
+    string Features_PluginsDisabled { get; }
+
     string Nand_Detected { get; }
+    string Nand_OpenSave { get; }
+    string Nand_LeaveSave { get; }
+    string Nand_ExportSave { get; }
+    string Nand_ExplorerTitle { get; }
+    string Nand_ExplorerUserId { get; }
     string Nand_NameCandidate { get; }
     string Nand_Installed { get; }
     string Nand_Updating { get; }
@@ -20,6 +96,12 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string Nand_NewTarget { get; }
     string Nand_SourceMissing { get; }
     string Nand_NotInstalled { get; }
+    string Nand_OpenDrive { get; }
+    string Nand_Explorer { get; }
+    string Nand_ExplorerUp { get; }
+    string Nand_ExportFile { get; }
+    string Nand_ExplorerFolder { get; }
+    string Nand_DriveTip { get; }
     string Nand_KeysMissing { get; }
     string Nand_ExportFailed { get; }
     string Nand_ExportDone { get; }
@@ -54,6 +136,8 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string Update_Prerelease { get; }
     string Update_Check { get; }
     string Update_Install { get; }
+    string Update_RateLimited { get; }
+    string Update_CachedAt { get; }
     string Update_Checking { get; }
     string Update_Current { get; }
     string Component_UpdateAvailable { get; }
@@ -83,7 +167,11 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string Info_Description { get; }
     string Info_Shortcuts { get; }
     string BatchHistory_Show { get; }
+    string BatchHistory_LoadedNotice { get; }
     string BatchHistory_Title { get; }
+    string BatchHistory_SaveLogos { get; }
+    string BatchHistory_Enable { get; }
+    string BatchHistory_Limit { get; }
     string BatchHistory_Resume { get; }
     string Dialog_Yes { get; }
     string Dialog_No { get; }
@@ -134,6 +222,7 @@ public interface ILocalizationKeys : ILocalizationKeysBase
 
     string FileNotSupported_Log { get; }
     string OpenFile_Filter { get; }
+    string OpenSdCard { get; }
 
     string MenuItem_File { get; }
     string MenuItem_Open { get; }
@@ -153,9 +242,18 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string BatchIntegrity_SelectDirectory { get; }
     string BatchIntegrity_Browse { get; }
     string BatchIntegrity_IncludeSubdirectories { get; }
+    string BatchTable_Games { get; }
+    string BatchTable_Type { get; }
+    string BatchTable_ConfirmResetFiltersAndSort { get; }
+    string BatchTable_ConfirmResetColumns { get; }
+    string BatchTable_OpenExplorer { get; }
+    string BatchTable_ResetColumns { get; }
+    string BatchTable_ConversionStatus { get; }
+    string BatchTable_OutputPath { get; }
     string BatchTable_Columns { get; }
     string BatchTable_Search { get; }
     string BatchTable_All { get; }
+    string BatchTable_ResetFiltersAndSort { get; }
     string BatchTable_ResetFilters { get; }
     string BatchTable_ResetSort { get; }
     string BatchIntegrity_File { get; }
@@ -177,6 +275,7 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string PackageStructure_Cdn { get; }
     string PackageStructure_Converted { get; }
     string PackageStructure_Homebrew { get; }
+    string PackageStructure_NcaOnly { get; }
     string PackageStructure_Incomplete { get; }
     string PackageStructure_Unknown { get; }
     string FileInfo_FileSize { get; }
@@ -320,6 +419,7 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string SettingsLoadingError { get; }
     string SettingsSavingError { get; }
 
+    string LoadingError_DiskFull { get; }
     string LoadingError_Failed { get; }
     string LoadingError_FailedToCheckIfXciPartitionExists { get; }
     string LoadingError_FailedToOpenXciPartition { get; }
@@ -503,13 +603,47 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string Window_Tip_Title { get; }
     string Nsz_Installed { get; }
     string Nsz_CustomExecutable { get; }
+    string Settings_AutoVerifyBatchDrop { get; }
+    string Settings_AutoVerifyBatchDropTip { get; }
+    string Settings_AutoVerifyProgram { get; }
+    string Settings_AutoVerifyProgramTip { get; }
+    string Settings_AutoVerifyWindows { get; }
+    string Settings_AutoVerifyWindowsTip { get; }
+    string Settings_GroupGeneral { get; }
+    string Settings_GroupHistory { get; }
+    string Settings_GroupTitleInfo { get; }
+    string Settings_GroupLogging { get; }
+    string Settings_AutoVerifyTitle { get; }
+    string BatchHistory_RetentionTip { get; }
     string Settings_Program { get; }
     string Nsz_PhaseSource { get; }
+    string Nsz_PhaseLayout { get; }
     string Nsz_PhaseOutput { get; }
     string Nsz_PhasePublish { get; }
     string Batch_IncludeArchives { get; }
     string Batch_Scan { get; }
     string Batch_VerifyAll { get; }
+    string File_SaveBackupSuspected { get; }
+    string Mtp_Title { get; }
+    string Mtp_Tip { get; }
+    string Mtp_Devices { get; }
+    string Mtp_Select { get; }
+    string Mtp_SelectContent { get; }
+    string Mtp_Listing { get; }
+    string Mtp_NoFiles { get; }
+    string Mtp_NoDevice { get; }
+    string Mtp_Copying { get; }
+    string Mtp_Cache { get; }
+    string Archive_Reading { get; }
+    string Archive_Extracting { get; }
+    string Batch_GroupFiles { get; }
+    string Batch_MultiPackageDetails { get; }
+    string File_SaveBackup { get; }
+    string File_MissingKeysHeader { get; }
+    string File_MissingTitleKeysHeading { get; }
+    string File_MissingTitleKeyEntry { get; }
+    string File_MissingTitleKeysHelp { get; }
+    string File_MissingSystemKeysHelp { get; }
     string File_MissingKeys { get; }
     string File_CopyMissingKeys { get; }
     string Keys_ProgramFolder { get; }
@@ -518,8 +652,48 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string Keys_DownloadAll { get; }
     string Keys_DownloadHost { get; }
     string Keys_DownloadHostTip { get; }
+    string Keys_CopyToSwitchHelp { get; }
     string Keys_CopyToSwitch { get; }
     string Keys_ReplaceShared { get; }
     string Keys_SharedCopied { get; }
     string Batch_ScanAndVerify { get; }
+    string Mtp_Direct { get; }
+    string Mtp_DirectTip { get; }
+    string Mtp_DirectUnsupported { get; }
+    string SdBatch_Title { get; }
+    string SdBatch_Enable { get; }
+    string SdBatch_Tip { get; }
+    string SdBatch_Custom { get; }
+    string SdBatch_CustomTip { get; }
+    string SdBatch_InvalidPath { get; }
+    string SdBatch_SourceAuto { get; }
+    string SdBatch_SourceFolder { get; }
+    string SdBatch_SourceSd { get; }
+    string SdBatch_SourceTip { get; }
+    string Nand_DriveRefresh { get; }
+    string Nand_DriveAccessDenied { get; }
+    string Associations_Title { get; }
+    string Associations_Remove { get; }
+    string Associations_Removed { get; }
+    string Explorer_Title { get; }
+    string Explorer_Tip { get; }
+    string Explorer_AddClassic { get; }
+    string Explorer_RemoveClassic { get; }
+    string Explorer_ModernTip { get; }
+    string Explorer_AddModern { get; }
+    string Explorer_RemoveModern { get; }
+    string Explorer_Local { get; }
+    string Explorer_Trusting { get; }
+    string Explorer_NoPackage { get; }
+    string Explorer_Done { get; }
+    string Associations_Register { get; }
+    string Associations_Tip { get; }
+    string Associations_Done { get; }
+    string Home_PluginLaunchTitle { get; }
+    string Home_PluginLaunchTip { get; }
+    string Home_NandDescription { get; }
+    string Home_NszDescription { get; }
+    string Home_LaunchExternal { get; }
+    string Home_NandLaunchTip { get; }
+    string Home_NszLaunchTip { get; }
 }

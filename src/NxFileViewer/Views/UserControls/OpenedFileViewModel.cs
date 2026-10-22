@@ -14,7 +14,7 @@ public class OpenedFileViewModel : ViewModelBase
     {
         serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _nxFile = nxFile ?? throw new ArgumentNullException(nameof(nxFile));
-        if (nxFile.NandResult != null)
+        if (nxFile.NandResult != null && serviceProvider.GetRequiredService<Settings.IAppSettings>().NandActive)
         {
             Nand = new Windows.NandViewModel(serviceProvider.GetRequiredService<Services.Nand.NandCliPlugin>(),
                 serviceProvider.GetRequiredService<Services.BackgroundTask.IMainBackgroundTaskRunnerService>());
@@ -33,7 +33,7 @@ public class OpenedFileViewModel : ViewModelBase
 
     public string FilePath => _nxFile.FilePath;
     public Windows.NandViewModel? Nand { get; }
-    public bool IsNand => _nxFile.NandResult != null;
+    public bool IsNand => Nand != null;
     public bool IsSpecialFile => IsFirmwareOnly || IsNand;
     public bool HasFirmwareInfo => _nxFile.FirmwareResult != null;
     public bool IsFirmwareOnly => _nxFile.RootItem is Models.TreeItems.Impl.FirmwareFileItem;

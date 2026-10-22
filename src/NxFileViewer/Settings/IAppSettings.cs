@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using Microsoft.Extensions.Logging;
 using Emignatik.NxFileViewer.Styling.Theme;
 
@@ -9,6 +9,32 @@ namespace Emignatik.NxFileViewer.Settings;
 /// </summary>
 public interface IAppSettings : INotifyPropertyChanged
 {
+    PackageEngine PackageEngine { get; set; }
+    string RustPackageExecutablePath { get; set; }
+    string KronosPackageDirectory { get; set; }
+    bool EnablePlugins { get; set; }
+    bool EnableNszPlugin { get; set; }
+    bool EnableNandPlugin { get; set; }
+    bool EnableNand { get; set; }
+    bool NandActive { get; }
+    bool EnablePackageOperations { get; set; }
+    bool PackageOperationsActive { get; }
+    bool EnableFirmwareCheck { get; set; }
+    bool NszPluginActive { get; }
+    bool NandPluginActive { get; }
+    bool FirmwareCheckActive { get; }
+    bool EnableMtp { get; set; }
+    bool PluginsActive { get; }
+    bool MtpActive { get; }
+    bool VerifyBatchDrops { get; set; }
+    bool VerifyFilesOpenedInProgram { get; set; }
+    bool VerifyFilesOpenedFromWindows { get; set; }
+    string BatchTableLayout { get; set; }
+    bool BatchSummaryPreservePackageOrder { get; set; }
+    bool BatchSeparatePackages { get; set; }
+    bool BatchExportSeparatePackages { get; set; }
+    bool BatchExportVisibleColumnsOnly { get; set; }
+    bool BatchExportExcel { get; set; }
     string NandExecutablePath { get; set; }
     string NandBisKeysPath { get; set; }
     bool CheckViewerUpdatesOnStartup { get; set; }
@@ -19,7 +45,22 @@ public interface IAppSettings : INotifyPropertyChanged
     NszCompressionMode NszCompressionMode { get; set; }
     int NszBlockSizeExponent { get; set; }
 
+    SdBatchSourceMode SdBatchSourceMode { get; set; }
+    string SdBatchCustomPaths { get; set; }
+    bool SdBatchSelectedAreasOnly { get; set; }
+    bool SdBatchSwitch { get; set; }
+    bool SdBatchNintendo { get; set; }
+    bool SdBatchEmuMmc { get; set; }
+    bool SdBatchHbmenu { get; set; }
+    bool SdBatchTools { get; set; }
+    bool SdBatchDumps { get; set; }
+    bool SdBatchNxdtRwPoc { get; set; }
+    bool SdBatchDbiRootSaves { get; set; }
+
+
+    int BatchHistoryLimit { get; set; }
     bool EnableBatchHistory { get; set; }
+    bool SaveBatchHistoryLogos { get; set; }
     int LogFileRetentionCount { get; set; }
     string AppLanguage { get; set; }
 
@@ -45,6 +86,14 @@ public interface IAppSettings : INotifyPropertyChanged
     bool OpenBlocklessCompressionNCZ { get; set; }
 
     bool IgnoreMissingDeltaFragments { get; set; }
+
+    PluginLogLevel NszLogLevel { get; set; }
+
+    PluginLogLevel NandLogLevel { get; set; }
+
+    PluginLogLevel MtpLogLevel { get; set; }
+
+    PluginLogLevel PackageLogLevel { get; set; }
 
     LogLevel LogLevel { get; set; }
 

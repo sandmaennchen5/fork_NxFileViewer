@@ -3,7 +3,7 @@
 Choose **Title name source** under **Settings → Program**. Presets are named choices; editable URL fields are shown where applicable.
 
 - **Tinfoil** uses the built-in Tinfoil API template.
-- **TitleDB (GitHub)** downloads the selected regional catalog (default DE.de) and looks up embedded title IDs, with US.en fallback. Valid catalogs are cached under `Cache/TitleDB` beside the executable and refreshed after 24 hours. Failed refreshes retain old catalogs and retry after five minutes when cached data exists.
+- **TitleDB (GitHub)** downloads the selected regional catalog (default DE.de) and looks up embedded title IDs, with US.en fallback. Valid catalogs are cached under `Plugins/TitleDB` beside the executable and refreshed after 24 hours. Failed refreshes retain old catalogs and retry after five minutes when cached data exists.
 - **NLib API** uses `https://api.nlib.cc/nx/{TitleId}?lang={Language}`. Language follows the interface/system language, with English fallback for unsupported languages. NLib's icon field is mapped to the title image.
 - **Custom** allows editing a title API template, initially based on Tinfoil.
 

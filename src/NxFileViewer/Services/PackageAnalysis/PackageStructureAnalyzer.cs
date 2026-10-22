@@ -16,9 +16,26 @@ public static class PackageStructureAnalyzer
     {
         NspItem nsp => AnalyzeNspNames(nsp.ChildItems.Select(item => item.Name)),
         XciItem xci => AnalyzeXciPartitions(xci.ChildItems.Select(item => item.XciPartitionType)),
+        NroFileItem => PackageStructure.Homebrew,
         _ when string.Equals(rootItem.Format, "NAX0", StringComparison.OrdinalIgnoreCase) => PackageStructure.Filesystem,
         _ => PackageStructure.Unknown
     };
+
+    public static string GetDisplayName(string value, Localization.Keys.ILocalizationKeys keys)
+    {
+        if (!Enum.TryParse<PackageStructure>(value, out var structure) || !Enum.IsDefined(structure)) return value;
+        return structure switch
+        {
+            PackageStructure.Scene => keys.PackageStructure_Scene,
+            PackageStructure.Cdn => keys.PackageStructure_Cdn,
+            PackageStructure.Converted => keys.PackageStructure_Converted,
+            PackageStructure.Homebrew => keys.PackageStructure_Homebrew,
+            PackageStructure.Incomplete => keys.PackageStructure_Incomplete,
+            PackageStructure.Filesystem => keys.PackageStructure_Filesystem,
+            PackageStructure.NcaOnly => keys.PackageStructure_NcaOnly,
+            _ => keys.PackageStructure_Unknown
+        };
+    }
 
     public static PackageStructure AnalyzeNspNames(IEnumerable<string> fileNames)
     {
@@ -39,7 +56,8 @@ public static class PackageStructureAnalyzer
             return PackageStructure.Cdn;
 
         var containsOnlyNcas = names.All(name => name.EndsWith(".nca") || name.EndsWith(".ncz"));
-        return containsOnlyNcas || hasTicket || hasCertificate ? PackageStructure.Incomplete : PackageStructure.Converted;
+        if (containsOnlyNcas) return PackageStructure.NcaOnly;
+        return hasTicket || hasCertificate ? PackageStructure.Incomplete : PackageStructure.Converted;
     }
 
     public static PackageStructure AnalyzeXciPartitions(IEnumerable<XciPartitionType> partitions)
@@ -64,5 +82,6 @@ public enum PackageStructure
     Converted,
     Homebrew,
     Incomplete,
-    Filesystem
+    Filesystem,
+    NcaOnly
 }

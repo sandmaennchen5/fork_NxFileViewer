@@ -22,7 +22,7 @@ public sealed class InstalledDataStatusTest : IDisposable
     public void LocalStatusHandlesMissingDirectoryAndReadsInstalledReferences()
     {
         Assert.Null(InstalledDataStatus.LocalFirmwareVersion(_root));
-        var directory = Path.Combine(_root, "fw", "hashes");
+        var directory = Path.Combine(_root, "Plugins", "fwhashes");
         Directory.CreateDirectory(directory);
         File.WriteAllText(Path.Combine(directory, "22.json"), Manifest("22.5.0r3"));
         Assert.Equal("22.5.0", InstalledDataStatus.LocalFirmwareVersion(_root));
@@ -31,7 +31,7 @@ public sealed class InstalledDataStatusTest : IDisposable
     public void TitleDbReportsLocalTimestampAndRejectsPathsOutsideCatalog()
     {
         Assert.Null(InstalledDataStatus.TitleDbDate(_root, "DE.de"));
-        var directory = Path.Combine(_root, "Cache", "TitleDB");
+        var directory = Path.Combine(_root, "Plugins", "TitleDB");
         Directory.CreateDirectory(directory);
         var path = Path.Combine(directory, "DE.de.json");
         File.WriteAllText(path, "{}");

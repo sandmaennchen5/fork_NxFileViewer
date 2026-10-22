@@ -1,0 +1,50 @@
+NxFileViewer Fork — Credits
+
+Fork maintained by sandmaennchen5:
+https://github.com/sandmaennchen5/fork_NxFileViewer
+Fork changes include the integrated workspace, batch checks, NAND/MTP support,
+renaming, localization and application updates. See CHANGELOG.md for details.
+
+Original NxFileViewer: Myster-Tee and contributors
+https://github.com/Myster-Tee/NxFileViewer
+The original project and its copyright notices remain credited.
+
+Libraries (including transitive runtime dependencies)
+LibHac 0.19.0 — Alex Barney — MIT
+https://github.com/Thealexbarney/LibHac
+SharpCompress 0.50.3 — Adam Hathcock and contributors — MIT
+https://github.com/adamhathcock/sharpcompress
+ZstdSharp.Port 0.8.8 — Oleg Stepanischev — MIT
+https://github.com/oleg-st/ZstdSharp
+Microsoft-WindowsAPICodePack-Core / Shell 1.1.5
+rpastric, contre, dahall; Microsoft — custom Microsoft license
+https://github.com/contre/Windows-API-Code-Pack-1.1
+Microsoft.Extensions.DependencyInjection / DependencyInjection.Abstractions /
+Logging / Logging.Abstractions / Options / Primitives 10.0.11 — Microsoft — MIT
+System.Diagnostics.DiagnosticSource 10.0.11 — Microsoft — MIT
+https://dot.net/
+
+Optional external tools (installed separately)
+NxNandManager — eliboa and contributors; THZoria fork
+https://github.com/eliboa/NxNandManager
+https://github.com/THZoria/NxNandManager
+NSZ and compression format guidance — nicoboss and contributors
+https://github.com/nicoboss/nsz
+These tools retain their own licenses and notices in their distributions.
+
+Artwork
+The inherited icon documentation names Iconfinder and Method Draw, but does
+not identify the individual icon authors or licenses. Attribution is incomplete;
+no blanket third-party artwork license is claimed here.
+Verified upstream additions and file hashes follow in the license section.
+Source: docs/Icon-provenance.md in the repository.
+
+Thanks to translators, contributors and the Nintendo Switch community.
+Nintendo Switch is a trademark of Nintendo. This project is independent.
+
+Licenses
+The project's existing GNU GPL version 3 text is supplied as LICENSE.txt.
+Third-party software retains its respective license. Full bundled notices follow
+in the license section. Source files are available under docs/licenses.
+The library inventory is based on the resolved main application dependencies;
+it excludes test/build tools and separately installed plugins.

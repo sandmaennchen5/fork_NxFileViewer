@@ -35,13 +35,17 @@ public class NspItem : PartitionFileSystemItemBase
 
     public override void Dispose()
     {
-        _nspPartitionFileSystem.Dispose();
-        _storage.Dispose();
+        try { base.Dispose(); }
+        finally
+        {
+            try { _nspPartitionFileSystem.Dispose(); }
+            finally { _storage.Dispose(); }
+        }
     }
 
     public static NspItem FromFile(string nspFilePath, KeySet keySet)
     {
-        var localStorage = new LocalStorage(nspFilePath, FileAccess.Read);
+        var localStorage = Services.Mtp.MtpDirectSource.OpenStorage(nspFilePath);
         try
         {
             var partitionFileSystem = localStorage.LoadPartition();

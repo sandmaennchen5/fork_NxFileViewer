@@ -19,6 +19,7 @@ public sealed class NszCliPlugin(NszPluginManager manager, IKeySetProviderServic
     public void Convert(string source, string outputDirectory, NszOperation operation,
         IProgressReporter progress, CancellationToken cancellationToken)
     {
+        if (!settings.NszPluginActive) throw new InvalidOperationException(LocalizationManager.Instance.Current.Keys.Features_PluginsDisabled);
         var executable = manager.ExecutablePath;
         if (!File.Exists(executable))
             throw new FileNotFoundException(LocalizationManager.Instance.Current.Keys.Nsz_NotInstalled);
@@ -51,10 +52,27 @@ public sealed class NszCliPlugin(NszPluginManager manager, IKeySetProviderServic
                     diagnostics.Enqueue(line);
                     while (diagnostics.Count > 30) diagnostics.Dequeue();
                 }
-                logger?.LogInformation("NSZ: {Output}", line);
+                logger?.LogDebug("NSZ: {Output}", line);
             });
             cancellationToken.ThrowIfCancellationRequested();
             alias.RestoreOutputName(operation);
+            if (Path.GetExtension(source).Equals(".xci", StringComparison.OrdinalIgnoreCase) ||
+                Path.GetExtension(source).Equals(".xcz", StringComparison.OrdinalIgnoreCase))
+            {
+                var extension = operation == NszOperation.Compress ? ".xcz" : ".xci";
+                XciPartitionIntegrity.PreserveStagedPrefix(source,
+                    Path.Combine(outputDirectory, Path.GetFileNameWithoutExtension(source) + extension), cancellationToken);
+            }
+            if (operation == NszOperation.Decompress && Path.GetExtension(source).Equals(".xcz", StringComparison.OrdinalIgnoreCase))
+            {
+                progress.SetMode(true);
+                progress.SetText(LocalizationManager.Instance.Current.Keys.Nsz_PhaseLayout);
+                var output = Path.Combine(outputDirectory, Path.GetFileNameWithoutExtension(source) + ".xci");
+                var corrected = XciPartitionIntegrity.CorrectStagedLayout(source, output, cancellationToken);
+                var rebuilt = XciPartitionIntegrity.NormalizeStagedGamecardHeader(output, cancellationToken);
+                logger?.LogInformation("XCI Gamecard layout rebuilt: {Rebuilt}", rebuilt);
+                logger?.LogInformation("XCZ output layout checked; corrected {Count} HFS0 entries after validating their content hashes.", corrected);
+            }
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException)
         {

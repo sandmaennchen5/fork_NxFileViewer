@@ -7,15 +7,18 @@
     <RootNamespace>Emignatik.NxFileViewer</RootNamespace>
     <Nullable>enable</Nullable>
     <ApplicationIcon>Styling\Icons\Icon.ico</ApplicationIcon>
-    <PackageId>NxFileViewer</PackageId>
-    <Company>NxFileViewer</Company>
-    <Product>NxFileViewer</Product>
-    <Authors>NxFileViewer</Authors>
-    <Version>4.0.0</Version>
-    <PackageProjectUrl></PackageProjectUrl>
+    <AssemblyName>NxFileViewerFork</AssemblyName>
+    <PackageId>NxFileViewerFork</PackageId>
+    <Company>sandmaennchen5</Company>
+    <Product>NxFileViewer Fork</Product>
+    <Authors>sandmaennchen5</Authors>
+    <Version>4.1.0-beta2</Version>
+    <!-- Increment when the packaged Explorer extension changes. -->
+    <ExplorerPackageVersion>1.0.0.0</ExplorerPackageVersion>
+    <PackageProjectUrl>https://github.com/sandmaennchen5/fork_NxFileViewer</PackageProjectUrl>
     <PackageIcon>Icon.ico</PackageIcon>
     <Description>Browse content of Nintendo Switch files</Description>
-    <RepositoryUrl>https://github.com/Myster-Tee/NxFileViewer</RepositoryUrl>
+    <RepositoryUrl>https://github.com/sandmaennchen5/fork_NxFileViewer</RepositoryUrl>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
@@ -102,12 +105,29 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="..\..\fw\hashes\*.json" Link="fw\hashes\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" ExcludeFromSingleFile="true" />
+    <Content Include="..\..\fw\hashes\*.json" Link="Plugins\fwhashes\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" ExcludeFromSingleFile="true" />
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="Services\FileAssociations\Launcher\NxFileViewerFork.Open.exe" LogicalName="Viewer.AssociationLauncher" />
+    <EmbeddedResource Include="..\NxFileViewer.Explorer\Native\x64\NxFileViewer.Explorer.dll" LogicalName="Viewer.Explorer.x64" />
+    <EmbeddedResource Include="..\NxFileViewer.Explorer\Native\x86\NxFileViewer.Explorer.dll" LogicalName="Viewer.Explorer.x86" />
+    <EmbeddedResource Include="..\NxFileViewer.Explorer\Native\arm64\NxFileViewer.Explorer.dll" LogicalName="Viewer.Explorer.arm64" />
+    <EmbeddedResource Include="..\NxFileViewer.Explorer\Trust-ExplorerCertificate.ps1" LogicalName="Viewer.Explorer.Trust.ps1" />
     <EmbeddedResource Include="Services\Updates\InstallUpdate.ps1" LogicalName="ViewerUpdate.InstallUpdate.ps1" />
   </ItemGroup>
   <ItemGroup>
     <AssemblyMetadata Include="ViewerSelfContained" Value="$(SelfContained)" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="../../update/external-sources.json" LogicalName="Viewer.ExternalSources.json" />
+    <EmbeddedResource Include="../../CREDITS.txt" LogicalName="Viewer.Credits" />
+    <EmbeddedResource Include="../../LICENSE" LogicalName="Viewer.License" />
+    <EmbeddedResource Include="../../docs/THIRD-PARTY-NOTICES.txt" LogicalName="Viewer.ThirdPartyNotices" />
+    <EmbeddedResource Include="../../docs/Icon-provenance.md" LogicalName="Viewer.IconProvenance" />
+    <None Include="../../docs/Icon-provenance.md" Link="Icon-provenance.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" ExcludeFromSingleFile="true" />
+    <None Include="../../CREDITS.txt" Link="CREDITS.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" ExcludeFromSingleFile="true" />
+    <None Include="../../LICENSE" Link="LICENSE.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
+    <None Include="../../docs/THIRD-PARTY-NOTICES.txt" Link="THIRD-PARTY-NOTICES.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" ExcludeFromSingleFile="true" />
+    <None Include="../../docs/licenses/*.txt" Link="licenses/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" ExcludeFromSingleFile="true" />
   </ItemGroup>
 </Project>

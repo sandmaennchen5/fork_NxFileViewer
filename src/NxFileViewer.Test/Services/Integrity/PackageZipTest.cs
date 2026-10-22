@@ -42,6 +42,139 @@ public sealed class PackageZipTest : IDisposable
         input.CopyTo(output);
         return outer;
     }
+    [Fact]
+    public void BatchDiscoveryAndLoadingShareRootAndSubfolderZipExtractions()
+    {
+        var inner = CreatePackageArchive(false);
+        var outer = Path.Combine(_root, "root-and-subfolder.zip");
+        using (var zip = ZipFile.Open(outer, ZipArchiveMode.Create))
+            foreach (var name in new[] { "one.zip", "subfolder/two.zip" })
+            {
+                using var output = zip.CreateEntry(name).Open();
+                using var input = File.OpenRead(inner);
+                input.CopyTo(output);
+            }
+        var reporter = new ArchiveProgressCapture();
+        var rows = new VerifyDirectoryIntegrityRunnable(CreateLoader(), null!, new AppSettings(),
+            NullLogger<VerifyDirectoryIntegrityRunnable>.Instance)
+            .Setup(outer, false, verifyIntegrity: false).Run(reporter, TestContext.Current.CancellationToken);
+        Assert.Equal(4, rows.Count);
+        Assert.All(rows, row => Assert.Null(row.Error));
+        Assert.Equal(4, rows.Select(row => row.FilePath).Distinct().Count());
+        Assert.Equal(6, reporter.Percentages.Count(value => value == 0));
+        Assert.Contains(rows, row => row.FilePath.Contains("subfolder/two.zip::", StringComparison.Ordinal));
+        Assert.Contains(rows, row => row.FilePath.Contains("::one.zip::", StringComparison.Ordinal));
+    }
+    [Fact]
+    public void BatchArchiveSwitchReleasesPreviousExtraction()
+    {
+        var first = CreatePackageArchive(false);
+        var second = CreatePackageArchive(false);
+        var temp = Path.Combine(_root, "batch-operations");
+        using var operations = new PackageZip.BatchOperations();
+        operations.Select(PackageZip.MemberPath(first, "first.nsp"));
+        string firstPath;
+        using (var extracted = PackageZip.Extract(first, PackageZip.GetFileEntries(first)[0], TestContext.Current.CancellationToken, temp)) firstPath = extracted.FilePath;
+        Assert.True(File.Exists(firstPath));
+        operations.Select(PackageZip.MemberPath(second, "first.nsp"));
+        Assert.False(File.Exists(firstPath));
+        string secondPath;
+        using (var extracted = PackageZip.Extract(second, PackageZip.GetFileEntries(second)[0], TestContext.Current.CancellationToken, temp)) secondPath = extracted.FilePath;
+        Assert.True(File.Exists(secondPath));
+        operations.Dispose();
+        Assert.False(File.Exists(secondPath));
+        Assert.Empty(Directory.GetDirectories(temp));
+    }
+    [Fact]
+    public void ListingAndLoadingMultipleInnerArchivesReuseEachExtractionOnce()
+    {
+        var inner = CreatePackageArchive(false);
+        var outer = Path.Combine(_root, "multiple-inner.zip");
+        using (var zip = ZipFile.Open(outer, ZipArchiveMode.Create))
+            foreach (var name in new[] { "one.zip", "two.zip" })
+            {
+                using var output = zip.CreateEntry(name).Open();
+                using var input = File.OpenRead(inner);
+                input.CopyTo(output);
+            }
+        var temp = Path.Combine(AppContext.BaseDirectory, "Temp", "ZIP");
+        var before = Directory.Exists(temp) ? Directory.GetDirectories(temp).Order().ToArray() : Array.Empty<string>();
+        var reporter = new ArchiveProgressCapture();
+        using (PackageZip.ReportProgress(reporter))
+        using (PackageZip.BeginOperation())
+        {
+            var entries = PackageZip.GetEntries(outer, token: TestContext.Current.CancellationToken, includeFirmware: true);
+            Assert.Equal(4, entries.Count);
+            // Listing extracts the two outer members, but not their package contents.
+            Assert.Equal(2, reporter.Percentages.Count(value => value == 0));
+            var updates = reporter.Percentages.Count;
+            Assert.Equal(entries, PackageZip.GetEntries(outer, token: TestContext.Current.CancellationToken, includeFirmware: true));
+            Assert.Equal(updates, reporter.Percentages.Count);
+            using var first = CreateLoader().Load(PackageZip.MemberPath(outer, entries[0]), TestContext.Current.CancellationToken);
+            using var last = CreateLoader().Load(PackageZip.MemberPath(outer, entries[^1]), TestContext.Current.CancellationToken);
+            Assert.IsType<NspItem>(first.RootItem);
+            Assert.IsType<NspItem>(last.RootItem);
+            Assert.Equal(6, reporter.Percentages.Count(value => value == 0));
+            var afterLoads = reporter.Percentages.Count;
+            using var repeated = CreateLoader().Load(PackageZip.MemberPath(outer, entries[0]), TestContext.Current.CancellationToken);
+            Assert.Equal(afterLoads, reporter.Percentages.Count);
+        }
+        Assert.Equal(before, Directory.GetDirectories(temp).Order().ToArray());
+    }
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void NestedExtractionReportsReadingCopyBytesAndCompletionWithoutLeakingScope(bool sevenZip)
+    {
+        var path = WrapArchive(CreatePackageArchive(sevenZip));
+        var reporter = new ArchiveProgressCapture();
+        using (PackageZip.ReportProgress(reporter))
+        using (var file = CreateLoader().Load(path, TestContext.Current.CancellationToken))
+        {
+            Assert.Contains(reporter.Texts, text => text.Contains(Path.GetFileName(path), StringComparison.Ordinal));
+            Assert.Contains(reporter.Texts, text => text.Contains("nested/inner.zip", StringComparison.Ordinal));
+            Assert.Contains(reporter.Texts, text => text.Contains("/", StringComparison.Ordinal));
+            Assert.Contains(0d, reporter.Percentages);
+            Assert.Contains(1d, reporter.Percentages);
+            Assert.All(reporter.Percentages, value => Assert.InRange(value, 0, 1));
+            Assert.Contains(false, reporter.Modes);
+            Assert.Contains(true, reporter.Modes);
+        }
+        var messages = reporter.Texts.Count;
+        PackageZip.GetFileEntries(path);
+        Assert.Equal(messages, reporter.Texts.Count);
+    }
+    private sealed class ArchiveProgressCapture : IProgressReporter
+    {
+        public System.Collections.Generic.List<string> Texts { get; } = new();
+        public System.Collections.Generic.List<double> Percentages { get; } = new();
+        public System.Collections.Generic.List<bool> Modes { get; } = new();
+        public void SetText(string text) => Texts.Add(text);
+        public void SetPercentage(double value) => Percentages.Add(value);
+        public void SetMode(bool value) => Modes.Add(value);
+    }
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ArchiveSignatureOverridesWrongExtensionIncludingNestedFirmware(bool sevenZip)
+    {
+        var original = sevenZip ? Create7z() : CreatePackageArchive(false);
+        var originalEntryCount = PackageZip.GetFileEntries(original).Count;
+        var renamed = Path.Combine(_root, "renamed" + (sevenZip ? ".zip" : ".7z"));
+        File.Move(original, renamed);
+        Assert.Equal(originalEntryCount, PackageZip.GetFileEntries(renamed).Count);
+        using var file = CreateLoader().Load(renamed, TestContext.Current.CancellationToken);
+        Assert.Equal(originalEntryCount, file.ArchiveEntries.Count);
+        Assert.IsType<NspItem>(file.RootItem);
+        var outer = WrapArchive(renamed);
+        Assert.Equal(originalEntryCount, PackageZip.GetEntries(outer, false, TestContext.Current.CancellationToken).Count);
+        var firmware = Create7z(true);
+        var misleadingFirmware = Path.Combine(_root, "firmware.zip");
+        File.Move(firmware, misleadingFirmware);
+        Assert.Equal(2, PackageZip.GetFileEntries(misleadingFirmware).Count);
+        Assert.Contains("nested/inner.zip", PackageZip.GetEntries(WrapArchive(misleadingFirmware), false,
+            TestContext.Current.CancellationToken, includeFirmware: true));
+    }
     [Fact] public void NestedZipPackagesLoadInSingleAndBatchAndShareExtraction()
     {
         var outer = WrapArchive(CreatePackageArchive(false));
@@ -478,6 +611,66 @@ public sealed class PackageZipTest : IDisposable
         Assert.Equal(known, file.FirmwareResult!.IsFirmware);
         if (known) Assert.Equal("plain-test", file.FirmwareResult.Structure);
     }
+    [Fact]
+    public void MixedDroppedSourcesProcessOverlappingSelectionsOnlyOnce()
+    {
+        var archive = CreatePackageArchive(false);
+        var folder = Directory.CreateDirectory(Path.Combine(_root, "dropped-folder")).FullName;
+        ZipFile.ExtractToDirectory(archive, folder);
+        var loader = new CountingLoader();
+        var callbacks = new System.Collections.Generic.List<Emignatik.NxFileViewer.Services.Integrity.BatchIntegrityResult>();
+        var runnable = new VerifyBatchSourcesRunnable(new[] { folder, Path.Combine(folder, "a.nsp"), archive, archive },
+            () => new VerifyDirectoryIntegrityRunnable(loader, null!, new AppSettings(), NullLogger<VerifyDirectoryIntegrityRunnable>.Instance),
+            true, true, false, resultCompleted: callbacks.Add);
+        var rows = runnable.Run(new Progress(), TestContext.Current.CancellationToken);
+        Assert.Equal(4, rows.Count);
+        Assert.Equal(4, callbacks.Count);
+        Assert.Equal(4, loader.Calls);
+        Assert.Equal(4, rows.Select(row => row.FilePath).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        Assert.All(rows, row => Assert.Null(row.Error));
+    }
+
+    [Fact]
+    public void BrokenDroppedArchiveDoesNotPreventOtherSourcesFromLoading()
+    {
+        var broken = Path.Combine(_root, "broken.zip"); File.WriteAllText(broken, "not a zip");
+        var archive = CreatePackageArchive(false);
+        var loader = new CountingLoader();
+        var runnable = new VerifyBatchSourcesRunnable(new[] { broken, archive },
+            () => new VerifyDirectoryIntegrityRunnable(loader, null!, new AppSettings(), NullLogger<VerifyDirectoryIntegrityRunnable>.Instance),
+            true, true, false);
+        var rows = runnable.Run(new Progress(), TestContext.Current.CancellationToken);
+        Assert.Equal(3, rows.Count);
+        Assert.Equal(2, loader.Calls);
+        Assert.NotNull(Assert.Single(rows, row => row.FilePath == broken).Error);
+        Assert.All(rows.Where(row => row.FilePath != broken), row => Assert.Null(row.Error));
+    }
+
+    [Fact]
+    public void MixedDroppedSourcesHonorResumeAndCancellation()
+    {
+        var archive = CreatePackageArchive(false);
+        var loader = new CountingLoader();
+        var runnable = new VerifyBatchSourcesRunnable(new[] { archive },
+            () => new VerifyDirectoryIntegrityRunnable(loader, null!, new AppSettings(), NullLogger<VerifyDirectoryIntegrityRunnable>.Instance),
+            true, true, false, skipCompleted: path => path.EndsWith("a.nsp", StringComparison.OrdinalIgnoreCase));
+        var row = Assert.Single(runnable.Run(new Progress(), TestContext.Current.CancellationToken));
+        Assert.EndsWith("b.nsz", row.FilePath);
+        Assert.Equal(1, loader.Calls);
+        Assert.ThrowsAny<OperationCanceledException>(() => runnable.Run(new Progress(), new CancellationToken(true)));
+        Assert.Equal(1, loader.Calls);
+    }
+
+    [Fact]
+    public void BatchDropRoutingPreservesOrdinarySingleFileOpening()
+    {
+        var file = Path.Combine(_root, "a.nsp");
+        Assert.False(Emignatik.NxFileViewer.Views.Windows.MainWindow.ShouldUseBatchDrop(new[] { file }, false));
+        Assert.True(Emignatik.NxFileViewer.Views.Windows.MainWindow.ShouldUseBatchDrop(new[] { file }, true));
+        Assert.True(Emignatik.NxFileViewer.Views.Windows.MainWindow.ShouldUseBatchDrop(new[] { file, "other.nsz" }, false));
+        Assert.True(Emignatik.NxFileViewer.Views.Windows.MainWindow.ShouldUseBatchDrop(new[] { _root }, false));
+    }
+
     private string CreatePackageArchive(bool sevenZip)
     {
         if (sevenZip) return Create7z();
@@ -507,6 +700,103 @@ public sealed class PackageZipTest : IDisposable
             return LastLoaded;
         }
     }
+    private sealed class AutomaticVerifier : IVerifyNcasIntegrityRunnable
+    {
+        public int Calls;
+        public bool IgnoreDelta;
+        public bool Cancel;
+        private FileOverview? _overview;
+        public bool SupportsCancellation => true;
+        public bool SupportProgress => true;
+        public void Setup(FileOverview overview, bool ignoreMissingDeltaFragments) { _overview = overview; IgnoreDelta = ignoreMissingDeltaFragments; }
+        public void Run(IProgressReporter progress, CancellationToken token)
+        {
+            Calls++;
+            if (Cancel) throw new OperationCanceledException();
+            _overview!.NcasIntegrity = NcasIntegrity.Original;
+        }
+    }
+
+    [Theory]
+    [InlineData(false, false, false, 0)]
+    [InlineData(true, false, false, 1)]
+    [InlineData(false, true, false, 0)]
+    [InlineData(true, true, false, 1)]
+    [InlineData(false, false, true, 0)]
+    [InlineData(true, false, true, 0)]
+    [InlineData(false, true, true, 1)]
+    [InlineData(true, true, true, 1)]
+    public async Task AutomaticVerificationUsesOnlyTheOpeningOriginsSetting(bool program, bool windows, bool fromWindows, int checks)
+    {
+        var settings = new AppSettings { VerifyFilesOpenedInProgram = program, VerifyFilesOpenedFromWindows = windows, IgnoreMissingDeltaFragments = true };
+        var restored = System.Text.Json.JsonSerializer.Deserialize<AppSettings>(System.Text.Json.JsonSerializer.Serialize(settings))!;
+        Assert.Equal(program, restored.VerifyFilesOpenedInProgram);
+        Assert.Equal(windows, restored.VerifyFilesOpenedFromWindows);
+        var verifier = new AutomaticVerifier();
+        Emignatik.NxFileViewer.Services.FileOpening.IFileOpeningService service = new Emignatik.NxFileViewer.Services.FileOpening.FileOpeningService(
+            NullLoggerFactory.Instance, restored, new CountingLoader(), new ImmediateRunner(), verifier);
+        await service.SafeOpenFile(CreatePackageArchive(false), fromWindows
+            ? Emignatik.NxFileViewer.Services.FileOpening.FileOpenOrigin.WindowsAssociation
+            : Emignatik.NxFileViewer.Services.FileOpening.FileOpenOrigin.Program);
+        Assert.NotNull(service.OpenedFile);
+        Assert.Equal(checks, verifier.Calls);
+        if (checks > 0) { Assert.True(verifier.IgnoreDelta); Assert.Equal(NcasIntegrity.Original, service.OpenedFile.Overview.NcasIntegrity); }
+        service.SafeClose();
+    }
+
+    [Fact]
+    public async Task AutomaticVerificationSkipsCompletedCachedMembersAndChecksPreviouslyUncheckedOnes()
+    {
+        var settings = new AppSettings { VerifyFilesOpenedInProgram = false, VerifyFilesOpenedFromWindows = true };
+        var verifier = new AutomaticVerifier();
+        var archive = CreatePackageArchive(false);
+        var service = new Emignatik.NxFileViewer.Services.FileOpening.FileOpeningService(NullLoggerFactory.Instance, settings,
+            new CountingLoader(), new ImmediateRunner(), verifier);
+        await service.SafeOpenFile(archive);
+        Assert.Equal(0, verifier.Calls);
+        var first = service.OpenedFile!.FilePath;
+        await service.SafeOpenFile(first, Emignatik.NxFileViewer.Services.FileOpening.FileOpenOrigin.WindowsAssociation);
+        Assert.Equal(1, verifier.Calls);
+        await service.SafeOpenFile(PackageZip.MemberPath(archive, "b.nsz"));
+        Assert.Equal(1, verifier.Calls);
+        await service.SafeOpenFile(first, Emignatik.NxFileViewer.Services.FileOpening.FileOpenOrigin.WindowsAssociation);
+        Assert.Equal(1, verifier.Calls);
+        service.SafeClose();
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task ExplicitExplorerActionsOverrideAutomaticHashSettings(bool program, bool windows)
+    {
+        var settings = new AppSettings { VerifyFilesOpenedInProgram = program, VerifyFilesOpenedFromWindows = windows };
+        var verifier = new AutomaticVerifier();
+        var service = new Emignatik.NxFileViewer.Services.FileOpening.FileOpeningService(NullLoggerFactory.Instance,
+            settings, new CountingLoader(), new ImmediateRunner(), verifier);
+        await service.SafeOpenFile(CreatePackageArchive(false), Emignatik.NxFileViewer.Services.FileOpening.FileOpenOrigin.ExplorerOpen);
+        Assert.NotNull(service.OpenedFile);
+        Assert.Equal(0, verifier.Calls);
+        await service.SafeOpenFile(CreatePackageArchive(false), Emignatik.NxFileViewer.Services.FileOpening.FileOpenOrigin.ExplorerVerify);
+        Assert.Equal(1, verifier.Calls);
+        Assert.Equal(program, settings.VerifyFilesOpenedInProgram);
+        Assert.Equal(windows, settings.VerifyFilesOpenedFromWindows);
+        service.SafeClose();
+    }
+
+    [Fact]
+    public async Task CancellingAutomaticVerificationKeepsTheLoadedOverview()
+    {
+        var verifier = new AutomaticVerifier { Cancel = true };
+        var service = new Emignatik.NxFileViewer.Services.FileOpening.FileOpeningService(NullLoggerFactory.Instance,
+            new AppSettings { VerifyFilesOpenedInProgram = true }, new CountingLoader(), new ImmediateRunner(), verifier);
+        await service.SafeOpenFile(CreatePackageArchive(false));
+        Assert.Equal(1, verifier.Calls);
+        Assert.NotNull(service.OpenedFile);
+        service.SafeClose();
+    }
+
     private sealed class ImmediateRunner : IMainBackgroundTaskRunnerService
     {
         public TaskCompletionSource<bool>? Gate;
@@ -621,6 +911,87 @@ public sealed class PackageZipTest : IDisposable
         typeof(IFileLoader).Assembly.GetType("Emignatik.NxFileViewer.FileLoading.FileLoader")!,
         NullLoggerFactory.Instance, new PackageTypeAnalyzer(NullLoggerFactory.Instance), new SyntheticItemLoader(),
         new FileOverviewLoader(NullLoggerFactory.Instance), references ?? new EmptyReferences())!;
+    [Fact]
+    public void DisabledFirmwareSkipsLooseNcasArchivesAndNetworkButProcessesGames()
+    {
+        File.WriteAllBytes(Path.Combine(_root, "disabled.nca"), new byte[] { 0 });
+        File.WriteAllBytes(Path.Combine(_root, "game.nsp"), new byte[] { 0 });
+        using (var archive = ZipFile.Open(Path.Combine(_root, "firmware.zip"), ZipArchiveMode.Create))
+        using (var stream = archive.CreateEntry("disabled.nca").Open()) stream.WriteByte(0);
+        var handler = new OfflineHandler();
+        using var client = new HttpClient(handler);
+        var loader = new FailingLoader();
+        var settings = new AppSettings { EnableFirmwareCheck = false };
+        settings.InitializeFeatures();
+        var runnable = new VerifyDirectoryIntegrityRunnable(loader, null!, settings,
+            NullLogger<VerifyDirectoryIntegrityRunnable>.Instance, Path.Combine(_root, "missing"), client);
+        var result = Assert.Single(runnable.Setup(_root, false).Run(new Progress(), TestContext.Current.CancellationToken));
+        Assert.False(result.IsFirmware);
+        Assert.EndsWith("game.nsp", result.FilePath);
+        Assert.Equal(1, loader.Calls);
+        Assert.Equal(0, handler.Requests);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void DisabledNandIsOmittedFromArchiveListingsAndCache(bool nested)
+    {
+        var path = Path.Combine(_root, "optional-nand.zip");
+        using (var archive = ZipFile.Open(path, ZipArchiveMode.Create))
+        {
+            var bytes = new byte[512];
+            System.Text.Encoding.ASCII.GetBytes("CAL0").CopyTo(bytes, 0);
+            using (var stream = archive.CreateEntry("PRODINFO.bin").Open()) stream.Write(bytes);
+            using (var stream = archive.CreateEntry("game.nsp").Open()) stream.WriteByte(0);
+        }
+        if (nested) path = WrapArchive(path);
+        using var operation = PackageZip.BeginOperation();
+        var enabled = PackageZip.GetEntries(path, token: TestContext.Current.CancellationToken, includeNand: true);
+        Assert.Contains(enabled, entry => entry.EndsWith("PRODINFO.bin", StringComparison.Ordinal));
+        var disabled = PackageZip.GetEntries(path, token: TestContext.Current.CancellationToken, includeNand: false);
+        Assert.DoesNotContain(disabled, entry => entry.EndsWith("PRODINFO.bin", StringComparison.Ordinal));
+        Assert.Contains(disabled, entry => entry.EndsWith("game.nsp", StringComparison.Ordinal));
+        Assert.Equal(enabled, PackageZip.GetEntries(path, token: TestContext.Current.CancellationToken, includeNand: true));
+    }
+
+    [Fact]
+    public void DisabledNandIsNotOpenedAsANandImage()
+    {
+        var path = Path.Combine(_root, "PRODINFO.bin");
+        var bytes = new byte[512];
+        System.Text.Encoding.ASCII.GetBytes("CAL0").CopyTo(bytes, 0);
+        File.WriteAllBytes(path, bytes);
+        var settings = new AppSettings { EnableNand = false };
+        settings.InitializeFeatures();
+        var loader = (IFileLoader)Activator.CreateInstance(
+            typeof(IFileLoader).Assembly.GetType("Emignatik.NxFileViewer.FileLoading.FileLoader")!,
+            settings, NullLoggerFactory.Instance, new PackageTypeAnalyzer(NullLoggerFactory.Instance),
+            new SyntheticItemLoader(), new FileOverviewLoader(NullLoggerFactory.Instance), new EmptyReferences())!;
+        Assert.ThrowsAny<Exception>(() => loader.Load(path, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public void DisabledFirmwareDoesNotLoadReferencesWhenOpeningAnNca()
+    {
+        var path = Path.Combine(_root, "disabled-firmware.nca");
+        File.WriteAllBytes(path, new byte[] { 0 });
+        var references = new CountingFeatureReferences();
+        var settings = new AppSettings { EnableFirmwareCheck = false };
+        settings.InitializeFeatures();
+        var loader = (IFileLoader)Activator.CreateInstance(
+            typeof(IFileLoader).Assembly.GetType("Emignatik.NxFileViewer.FileLoading.FileLoader")!,
+            settings, NullLoggerFactory.Instance, new PackageTypeAnalyzer(NullLoggerFactory.Instance),
+            new SyntheticItemLoader(), new FileOverviewLoader(NullLoggerFactory.Instance), references)!;
+        Assert.ThrowsAny<Exception>(() => loader.Load(path, TestContext.Current.CancellationToken));
+        Assert.Equal(0, references.Calls);
+    }
+    private sealed class CountingFeatureReferences : Emignatik.NxFileViewer.Services.Integrity.IFirmwareReferenceProvider
+    {
+        public int Calls;
+        public (Emignatik.NxFileViewer.Services.Integrity.FirmwareIntegrityVerifier?, string) Load(CancellationToken token)
+        { Calls++; return (null, "no references"); }
+    }
     private sealed class EmptyReferences : Emignatik.NxFileViewer.Services.Integrity.IFirmwareReferenceProvider
     {
         public (Emignatik.NxFileViewer.Services.Integrity.FirmwareIntegrityVerifier?, string) Load(CancellationToken token) => (null, "no references");

@@ -56,6 +56,8 @@ public class CnmtContainerViewModel : ViewModelBase
 
     public ISaveTitleImageCommand SaveSelectedImageCommand { get; }
 
+    public Visibility HistoryNoticeVisibility => Visibility.Collapsed;
+    public Visibility LogoVisibility => Visibility.Visible;
     public string TitleId => _cnmtContainer.CnmtItem.TitleId;
 
     public string BaseTitleId => _cnmtContainer.CnmtItem.ApplicationTitleId;
@@ -111,7 +113,8 @@ public class CnmtContainerViewModel : ViewModelBase
         }
     }
 
-    public string Distribution => _cnmtContainer.CnmtItem.ParentItem.ParentItem.DistributionType.ToString();
+    public string Distribution => _cnmtContainer.CnmtItem.ParentItem.ParentItem.ParentItem is SdCardItem
+        ? "Filesystem" : _cnmtContainer.CnmtItem.ParentItem.ParentItem.DistributionType.ToString();
 
     /// <summary>
     /// End user displayed version
@@ -141,6 +144,9 @@ public class CnmtContainerViewModel : ViewModelBase
 
     public Visibility SecurityVisibility => _cnmtContainer.NpdmItem != null && _cnmtContainer.CnmtItem.ContentType is LibHac.Ncm.ContentMetaType.Application or LibHac.Ncm.ContentMetaType.Patch ? Visibility.Visible : Visibility.Collapsed;
 
+    public ProgramSecurityLevel? SecurityAssessment => _cnmtContainer.CnmtItem.ContentType is LibHac.Ncm.ContentMetaType.Application or LibHac.Ncm.ContentMetaType.Patch
+        ? _cnmtContainer.NpdmItem?.SecurityLevel : null;
+    public bool? DemoStatus => _cnmtContainer.NacpContainer == null ? null : IsDemo;
     public string SecurityLevel => _cnmtContainer.NpdmItem?.SecurityLevel switch
     {
         ProgramSecurityLevel.Safe => LocalizationManager.Instance.Current.Keys.Security_Safe,
@@ -215,7 +221,7 @@ public class TitleInfoViewModel
         catch (Exception ex)
         {
             var message = LocalizationManager.Instance.Current.Keys.LoadingError_FailedToLoadIcon_Log.SafeFormat(ex.Message);
-            _logger.LogError(ex, message);
+            _logger.LogWarning(ex, message);
             return null;
         }
     }

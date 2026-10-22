@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
@@ -38,6 +38,19 @@ public class MainWindowViewModel : WindowViewModelBase, IFilesDropped
     private string? _selectedArchiveEntry;
     public System.Collections.Generic.IReadOnlyList<string> ArchiveEntries => _fileOpeningService.OpenedFile?.ArchiveEntries ?? Array.Empty<string>();
     public bool HasArchiveEntries => ArchiveEntries.Count > 0;
+    private System.Collections.Generic.IReadOnlyList<FileLoading.SdContentSource> _sdSources = Array.Empty<FileLoading.SdContentSource>();
+    private FileLoading.SdContentSource? _selectedSdSource;
+    public System.Collections.Generic.IReadOnlyList<FileLoading.SdContentSource> SdSources => _sdSources;
+    public bool HasSdSources => SdSources.Count > 0;
+    public FileLoading.SdContentSource? SelectedSdSource
+    {
+        get => _selectedSdSource;
+        set
+        {
+            if (value == null || value == _selectedSdSource || BackgroundTaskRunner.IsRunning) return;
+            _ = _fileOpeningService.SafeOpenFile(value.ContentsPath);
+        }
+    }
     public string? SelectedArchiveEntry
     {
         get => _selectedArchiveEntry;
@@ -73,6 +86,22 @@ public class MainWindowViewModel : WindowViewModelBase, IFilesDropped
         _appSettings = appSettings ?? throw new ArgumentNullException(nameof(appSettings));
         _fileOpeningService = fileOpeningService ?? throw new ArgumentNullException(nameof(fileOpeningService));
         OpenFileCommand = openFileCommand ?? throw new ArgumentNullException(nameof(openFileCommand));
+        OpenSphairaCommand = new Utils.MVVM.Commands.RelayCommand(async () =>
+        {
+            var path = await Services.Mtp.SphairaMtpActions.SelectAndImport(serviceProvider, backgroundTaskRunnerService);
+            if (path != null) await _fileOpeningService.SafeOpenFile(Services.Mtp.SphairaMtpActions.SinglePath(path));
+        }, () => appSettings.MtpActive && !backgroundTaskRunnerService.IsRunning);
+        OpenSdCardCommand = new Utils.MVVM.Commands.RelayCommand(() =>
+        {
+            var dialog = new Microsoft.Win32.OpenFolderDialog { Title = LocalizationManager.Instance.Current.Keys.OpenSdCard };
+            if (dialog.ShowDialog() != true) return;
+            _sdSources = FileLoading.SdCardSource.FindAllContents(dialog.FolderName);
+            _selectedSdSource = null;
+            NotifyPropertyChanged(nameof(SdSources));
+            NotifyPropertyChanged(nameof(HasSdSources));
+            NotifyPropertyChanged(nameof(SelectedSdSource));
+            _ = _fileOpeningService.SafeOpenFile(_sdSources.FirstOrDefault()?.ContentsPath ?? dialog.FolderName);
+        });
         ExitAppCommand = exitAppCommand ?? throw new ArgumentNullException(nameof(exitAppCommand));
         ShowSettingsWindowCommand = showSettingsWindowCommand ?? throw new ArgumentNullException(nameof(showSettingsWindowCommand));
         VerifyNcasIntegrityCommand = verifyNcasIntegrityCommand ?? throw new ArgumentNullException(nameof(verifyNcasIntegrityCommand));
@@ -89,7 +118,7 @@ public class MainWindowViewModel : WindowViewModelBase, IFilesDropped
         var assemblyName = Assembly.GetExecutingAssembly().GetName();
         var assemblyVersion = (assemblyName.Version ?? new Version());
         var displayVersion = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0] ?? $"{assemblyVersion.Major}.{assemblyVersion.Minor}.{assemblyVersion.Build}";
-        _appNameAndVersion = $"{assemblyName.Name} v{displayVersion}";
+        _appNameAndVersion = $"NxFileViewer Fork v{displayVersion}";
 
         UpdateTitle();
         _fileOpeningService.OpenedFileChanged += OnFileOpeningChanged;
@@ -104,6 +133,8 @@ public class MainWindowViewModel : WindowViewModelBase, IFilesDropped
     public NszActions Nsz => ServiceProvider.GetRequiredService<NszActions>();
 
     public IOpenFileCommand OpenFileCommand { get; }
+    public Utils.MVVM.Commands.RelayCommand OpenSphairaCommand { get; }
+    public Utils.MVVM.Commands.RelayCommand OpenSdCardCommand { get; }
 
     public IExitAppCommand ExitAppCommand { get; }
 
@@ -167,7 +198,7 @@ public class MainWindowViewModel : WindowViewModelBase, IFilesDropped
 
     private void OnLog(LogLevel logLevel, string message)
     {
-        if (logLevel == LogLevel.Error)
+        if (logLevel == LogLevel.Error || logLevel == LogLevel.Critical)
         {
             this.ErrorAnimationEnabled = true;
         }
@@ -178,6 +209,11 @@ public class MainWindowViewModel : WindowViewModelBase, IFilesDropped
         var newFile = args.NewFile;
         OpenedFile = newFile != null ? _openedViews.GetValue(newFile, file => new OpenedFileViewModel(file, ServiceProvider)) : null;
         _selectedArchiveEntry = newFile?.ArchiveEntry;
+        _sdSources = newFile?.SdSources ?? Array.Empty<FileLoading.SdContentSource>();
+        _selectedSdSource = _sdSources.FirstOrDefault(source => source.ContentsPath.Equals(newFile?.SdContentsPath, StringComparison.OrdinalIgnoreCase));
+        NotifyPropertyChanged(nameof(SdSources));
+        NotifyPropertyChanged(nameof(HasSdSources));
+        NotifyPropertyChanged(nameof(SelectedSdSource));
         NotifyPropertyChanged(nameof(ArchiveEntries));
         NotifyPropertyChanged(nameof(HasArchiveEntries));
         NotifyPropertyChanged(nameof(SelectedArchiveEntry));

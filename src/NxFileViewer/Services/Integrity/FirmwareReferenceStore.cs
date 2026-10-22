@@ -13,14 +13,15 @@ public static class FirmwareReferenceStore
         foreach (var name in manifests.Keys)
             if (Path.GetFileName(name) != name || !name.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
                 throw new InvalidDataException("Invalid firmware manifest filename.");
-        var root = Path.GetFullPath(Path.Combine(applicationDirectory, "fw"));
+
+        var root = Path.GetFullPath(Path.Combine(applicationDirectory, "Plugins"));
         Directory.CreateDirectory(root);
-        var target = Path.Combine(root, "hashes");
+        var target = Path.Combine(root, "fwhashes");
         if ((File.GetAttributes(root) & FileAttributes.ReparsePoint) != 0 ||
             (Directory.Exists(target) && (File.GetAttributes(target) & FileAttributes.ReparsePoint) != 0))
             throw new IOException("Firmware references must be in the program directory.");
-        var stage = Path.Combine(root, ".hashes-stage-" + Guid.NewGuid().ToString("N"));
-        var backup = Path.Combine(root, "hashes-backup-" + Guid.NewGuid().ToString("N"));
+        var stage = Path.Combine(root, ".fwhashes-stage-" + Guid.NewGuid().ToString("N"));
+        var backup = Path.Combine(root, "fwhashes-backup-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(stage);
         var backedUp = false;
         try
@@ -41,7 +42,7 @@ public static class FirmwareReferenceStore
         }
         finally
         {
-            // This unique directory was created here, and stays under the fixed fw root.
+            // This unique directory was created here, and stays under the fixed Plugins root.
             if (Path.GetFullPath(stage).StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) && Directory.Exists(stage))
                 Directory.Delete(stage, recursive: true);
         }

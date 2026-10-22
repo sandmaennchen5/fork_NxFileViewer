@@ -4,11 +4,11 @@ Use File check to open a firmware ZIP/7z, a firmware folder or an individual NCA
 
 ## Reference sources
 
-Checks load current JSON references from [the repository's firmware hashes](https://github.com/sandmaennchen5/fork_NxFileViewer/tree/master/fw/hashes) into memory when firmware candidates are found or explicitly selected. Ordinary game folders make no reference request. Each firmware check fetches fresh data without a disk cache; Git blob hashes detect changes during download.
+Checks load current JSON references from [the repository's firmware hashes](https://github.com/sandmaennchen5/fork_NxFileViewer/tree/master/fw/hashes) into memory when firmware candidates are found or explicitly selected. Ordinary game folders make no reference request. Firmware checks request a fresh directory listing through the shared GitHub metadata service. API cooldowns apply; a saved listing can be reused while blocked. Manifest contents are still downloaded into memory and checked against the listing’s Git blob hashes, so changed or unavailable references trigger the offline fallback. See [update request caching](Application-updates.md#request-cache-and-github-limits).
 
-On network or validation failure, locally installed `fw/hashes/*.json` references provide an explicitly reported offline fallback. Local references are optional. If neither source is available, firmware candidates remain visible with an unavailable-reference error; game checks continue.
+On network or validation failure, locally installed `Plugins/fwhashes/*.json` references provide an explicitly reported offline fallback. Local references are optional. If neither source is available, firmware candidates remain visible with an unavailable-reference error; game checks continue.
 
-Development builds include references. Published application ZIPs exclude them: extract `NxFileViewer_v<version>_firmware-hashes.zip` beside the executable to install `fw/hashes/*.json`. The same add-on works with x64 and x86.
+Development builds include references. Published application ZIPs exclude them: extract `NxFileViewerFork_v<version>_firmware-hashes.zip` beside the executable to install `Plugins/fwhashes/*.json`. The same add-on works with x64 and x86.
 
 ## Matching and integrity
 
@@ -32,7 +32,7 @@ Direct ZIP firmware hashing can read entries without extraction; navigating mixe
 
 **Check online hashes** loads and validates references in memory and reports their count. It does not verify firmware files or save references.
 
-**Update offline hashes** explicitly downloads and validates the complete reference set before replacing local `fw/hashes`. The previous folder remains as `fw/hashes-backup-<id>`. Download failures, validation errors and cancellation before publication retain the current set. Normal firmware checks still prefer fresh online references.
+**Update offline hashes** explicitly downloads and validates the complete reference set before replacing local `Plugins/fwhashes`. The previous folder remains as `Plugins/fwhashes-backup-<id>`. Download failures, validation errors and cancellation before publication retain the current set. Normal firmware checks still prefer fresh online references.
 
 See [reference maintenance](../fw/README.md) for database generation.
 

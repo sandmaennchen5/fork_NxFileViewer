@@ -24,7 +24,7 @@ public class TitleProviderTest : IDisposable
     [Fact]
     public async Task DefaultTitleDbCacheIsInsideProgramDirectory()
     {
-        var path = Path.Combine(AppContext.BaseDirectory, "Cache", "TitleDB", "XY.xy.json");
+        var path = Path.Combine(AppContext.BaseDirectory, "Plugins", "TitleDB", "XY.xy.json");
         var previous = File.Exists(path) ? File.ReadAllBytes(path) : null;
         try
         {

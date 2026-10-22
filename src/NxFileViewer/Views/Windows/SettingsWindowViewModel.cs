@@ -58,11 +58,50 @@ public class SettingsWindowViewModel : WindowViewModelBase
             var dialog = new OpenFileDialog { Filter = "BIS keys (*.*)|*.*" };
             if (dialog.ShowDialog() == true) EditedSettings.NandBisKeysPath = dialog.FileName;
         });
+        BrowseRustPackageCommand = new RelayCommand(() =>
+        {
+            var dialog = new OpenFileDialog { Filter = "nscb_rust (*.exe)|*.exe" };
+            if (dialog.ShowDialog() == true) EditedSettings.RustPackageExecutablePath = dialog.FileName;
+        });
+        BrowseKronosPackageCommand = new RelayCommand(() =>
+        {
+            var path = _serviceProvider.GetRequiredService<Services.Prompting.IPromptService>()
+                .PromptSelectDir(LocalizationManager.Instance.Current.Keys.Package_KronosPath);
+            if (path != null) EditedSettings.KronosPackageDirectory = path;
+        });
         BrowseNszCommand = new RelayCommand(() =>
         {
             var dialog = new OpenFileDialog { Filter = "NSZ CLI (*.exe)|*.exe" };
             if (dialog.ShowDialog() == true) EditedSettings.NszExecutablePath = dialog.FileName;
         });
+        RegisterFileAssociationsCommand = new RelayCommand(() => {
+            var keys = LocalizationManager.Instance.Current.Keys;
+            try {
+                Services.FileAssociations.ForkFileAssociations.RegisterCurrentExecutable();
+                ThemedDialog.Notice(keys.Associations_Done, keys.Associations_Title, MessageBoxImage.Information);
+            } catch (Exception ex) { ThemedDialog.Notice(ex.Message, keys.Associations_Title, MessageBoxImage.Error); }
+        });
+        RegisterClassicExplorerCommand = new RelayCommand(() => ConfigureExplorer(() => {
+            Services.FileAssociations.ExplorerIntegration.RegisterClassic(); return System.Threading.Tasks.Task.CompletedTask;
+        }), () => !_explorerSetupBusy);
+        RemoveFileAssociationsCommand = new RelayCommand(() => {
+            var keys = LocalizationManager.Instance.Current.Keys;
+            try {
+                Services.FileAssociations.ForkFileAssociations.Unregister();
+                ThemedDialog.Notice(keys.Associations_Removed, keys.Associations_Title, MessageBoxImage.Information);
+            } catch (Exception ex) { ThemedDialog.Notice(ex.Message, keys.Associations_Title, MessageBoxImage.Error); }
+        });
+        RemoveClassicExplorerCommand = new RelayCommand(() => ConfigureExplorer(() => {
+            Services.FileAssociations.ExplorerIntegration.RemoveClassic(); return System.Threading.Tasks.Task.CompletedTask;
+        }), () => !_explorerSetupBusy);
+        RegisterModernExplorerCommand = new RelayCommand(() => ConfigureExplorer(InstallModernFromRelease),
+            () => !_explorerSetupBusy && OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000));
+        InstallLocalModernExplorerCommand = new RelayCommand(() => {
+            var dialog = new OpenFileDialog { Filter = "NxFileViewer Explorer (*.msix)|*.msix" };
+            if (dialog.ShowDialog() == true) ConfigureExplorer(() => Services.FileAssociations.ExplorerIntegration.InstallModern(dialog.FileName));
+        }, () => !_explorerSetupBusy && OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000));
+        RemoveModernExplorerCommand = new RelayCommand(() => ConfigureExplorer(Services.FileAssociations.ExplorerIntegration.RemoveModern),
+            () => !_explorerSetupBusy && OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000));
         ApplySettingsCommand = new RelayCommand(ApplySettings);
         CancelSettingsCommand = new RelayCommand(CancelSettings);
         ResetSettingsCommand = new RelayCommand(ResetSettings);
@@ -109,8 +148,8 @@ public class SettingsWindowViewModel : WindowViewModelBase
         };
     }
 
-    private const string TinfoilPage = "https://tinfoil.media/Title/{TitleId}";
-    private const string NxContentPage = "https://nx-content.ghostland.at/?game={TitleId}";
+    private static readonly string TinfoilPage = Emignatik.NxFileViewer.Services.ExternalSources.Current.TitlePageUrl;
+    private static readonly string NxContentPage = Emignatik.NxFileViewer.Services.ExternalSources.Current.NxContentPageUrl;
     private int _titlePageSource;
     private string _customTitlePageUrl = TinfoilPage;
     public IReadOnlyList<TitlePageOption> TitlePageOptions => new[]
@@ -199,10 +238,63 @@ public class SettingsWindowViewModel : WindowViewModelBase
 
     public Emignatik.NxFileViewer.Services.Updates.ViewerUpdateActions ViewerUpdates => _serviceProvider.GetRequiredService<Emignatik.NxFileViewer.Services.Updates.ViewerUpdateActions>();
 
+    public ICommand BrowseRustPackageCommand { get; }
+    public ICommand BrowseKronosPackageCommand { get; }
+    public PackageEngineOption[] PackageEngines { get; } =
+    {
+        new(PackageEngine.Rust, "cxfcxf / nscb_rust"),
+        new(PackageEngine.Kronos, "Kronos / NSC_BUILDER")
+    };
+    public Services.PackageOperations.PackageActions Packages => _serviceProvider.GetRequiredService<Services.PackageOperations.PackageActions>();
     public ICommand BrowseNszCommand { get; }
+    public Services.Nand.NandPluginActions Nand => _serviceProvider.GetRequiredService<Services.Nand.NandPluginActions>();
     public ICommand BrowseNandCommand { get; }
     public ICommand BrowseBisKeysCommand { get; }
 
+    public ICommand RegisterFileAssociationsCommand { get; }
+    public ICommand RemoveFileAssociationsCommand { get; }
+    public RelayCommand RegisterClassicExplorerCommand { get; }
+    public RelayCommand RemoveClassicExplorerCommand { get; }
+    public RelayCommand RegisterModernExplorerCommand { get; }
+    public RelayCommand RemoveModernExplorerCommand { get; }
+    public RelayCommand InstallLocalModernExplorerCommand { get; }
+    private string _explorerStatus = "";
+    public string ExplorerStatus { get => _explorerStatus; private set { _explorerStatus = value; NotifyPropertyChanged(); } }
+    private async System.Threading.Tasks.Task InstallModernFromRelease()
+    {
+        var keys = LocalizationManager.Instance.Current.Keys;
+        string Stage(Services.FileAssociations.ExplorerInstallStage stage) => stage switch {
+            Services.FileAssociations.ExplorerInstallStage.Checking => keys.Update_Checking,
+            Services.FileAssociations.ExplorerInstallStage.Downloading => keys.Update_Downloading,
+            Services.FileAssociations.ExplorerInstallStage.Trusting => keys.Explorer_Trusting,
+            Services.FileAssociations.ExplorerInstallStage.Current => keys.Update_Current,
+            Services.FileAssociations.ExplorerInstallStage.Installed => keys.Explorer_Done,
+            _ => keys.Update_Installing
+        };
+        var result = await Services.FileAssociations.ExplorerIntegration.InstallModernFromRelease(
+            _appSettingsManager.Settings.IncludeViewerPrereleases,
+            new Progress<Services.FileAssociations.ExplorerInstallStage>(stage => ExplorerStatus = Stage(stage)));
+        ExplorerStatus = Stage(result);
+    }
+    private bool _explorerSetupBusy;
+    private async void ConfigureExplorer(Func<System.Threading.Tasks.Task> action)
+    {
+        if (_explorerSetupBusy) return;
+        _explorerSetupBusy = true;
+        ExplorerStatus = "";
+        RefreshExplorerCommands();
+        var keys = LocalizationManager.Instance.Current.Keys;
+        try {
+            await action();
+            ThemedDialog.Notice(ExplorerStatus.Length > 0 ? ExplorerStatus : keys.Explorer_Done, keys.Explorer_Title, MessageBoxImage.Information);
+        } catch (Exception ex) { ExplorerStatus = ex.Message; ThemedDialog.Notice(ex.Message, keys.Explorer_Title, MessageBoxImage.Error); }
+        finally { _explorerSetupBusy = false; RefreshExplorerCommands(); }
+    }
+    private void RefreshExplorerCommands()
+    {
+        RegisterClassicExplorerCommand.TriggerCanExecuteChanged(); RemoveClassicExplorerCommand.TriggerCanExecuteChanged();
+        RegisterModernExplorerCommand.TriggerCanExecuteChanged(); RemoveModernExplorerCommand.TriggerCanExecuteChanged(); InstallLocalModernExplorerCommand.TriggerCanExecuteChanged();
+    }
     public ICommand ApplySettingsCommand { get; }
 
     public ICommand CancelSettingsCommand { get; }
@@ -227,6 +319,13 @@ public class SettingsWindowViewModel : WindowViewModelBase
     public RelayCommand EditTitleKeysCommand { get; }
 
 
+    public IEnumerable<PluginLogLevelOption> PluginLogLevels => Enum.GetValues<PluginLogLevel>()
+        .Select(level => new PluginLogLevelOption(level, level == PluginLogLevel.Inherit
+            ? LocalizationManager.Instance.Current.Keys.PluginLog_Inherit
+            : level == PluginLogLevel.None ? LocalizationManager.Instance.Current.Keys.PluginLog_Off : level.ToString()));
+
+    public record PluginLogLevelOption(PluginLogLevel Value, string DisplayName);
+
     public IEnumerable<LogLevel> LogLevels => Enum.GetValues<LogLevel>();
     public IEnumerable<TitleProviderOption> TitleProviderOptions { get; } = new[]
     {
@@ -240,8 +339,8 @@ public class SettingsWindowViewModel : WindowViewModelBase
         get => EditedSettings.TitleInfoProvider;
         set {
             EditedSettings.TitleInfoProvider = value;
-            if (value == TitleInfoProvider.Tinfoil) EditedSettings.TitleInfoApiUrl = "https://tinfoil.media/api/title/{TitleId}";
-            if (value == TitleInfoProvider.NLib) EditedSettings.NLibApiUrl = "https://api.nlib.cc/nx/{TitleId}?lang={Language}";
+            if (value == TitleInfoProvider.Tinfoil) EditedSettings.TitleInfoApiUrl = Emignatik.NxFileViewer.Services.ExternalSources.Current.TitleInfoApiUrl;
+            if (value == TitleInfoProvider.NLib) EditedSettings.NLibApiUrl = Emignatik.NxFileViewer.Services.ExternalSources.Current.NLibApiUrl;
             NotifyPropertyChanged();
         }
     }
@@ -480,6 +579,13 @@ public class SettingsWindowViewModel : WindowViewModelBase
 
     private static void CopyPluginSettings(IAppSettings source, IAppSettings destination)
     {
+        destination.NszLogLevel = source.NszLogLevel;
+        destination.NandLogLevel = source.NandLogLevel;
+        destination.MtpLogLevel = source.MtpLogLevel;
+        destination.PackageLogLevel = source.PackageLogLevel;
+        destination.PackageEngine = source.PackageEngine;
+        destination.RustPackageExecutablePath = source.RustPackageExecutablePath;
+        destination.KronosPackageDirectory = source.KronosPackageDirectory;
         destination.NandExecutablePath = source.NandExecutablePath;
         destination.NandBisKeysPath = source.NandBisKeysPath;
         destination.NszExecutablePath = source.NszExecutablePath;
@@ -498,8 +604,10 @@ public class SettingsWindowViewModel : WindowViewModelBase
         {
             // A general-settings draft must not overwrite separately saved plugin settings.
             CopyPluginSettings(_appSettingsManager.Clone(), EditedSettings);
+            EditedSettings.BatchTableLayout = _appSettingsManager.Settings.BatchTableLayout;
             _appSettingsManager.Load(EditedSettings);
         }
+        _appSettingsManager.SaveSafe();
         InitializeFromSettings(_appSettingsManager.Clone());
         EditingCompleted?.Invoke();
     }
@@ -523,3 +631,5 @@ public sealed record NszModeOption(NszCompressionMode Value, string DisplayName)
 public sealed record NszBlockSizeOption(int Value, string DisplayName);
 
 public sealed record TitlePageOption(int Value, string DisplayName);
+
+public sealed record PackageEngineOption(PackageEngine Value, string DisplayName);

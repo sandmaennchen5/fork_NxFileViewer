@@ -8,6 +8,156 @@ namespace Emignatik.NxFileViewer.Settings;
 
 public class AppSettings : NotifyPropertyChangedBase, IAppSettings
 {
+    private PackageEngine _packageEngine;
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public PackageEngine PackageEngine
+    {
+        get => _packageEngine;
+        set { _packageEngine = System.Enum.IsDefined(value) ? value : default; NotifyPropertyChanged(); }
+    }
+    private string _rustPackageExecutablePath = "";
+    public string RustPackageExecutablePath
+    {
+        get => _rustPackageExecutablePath;
+        set { _rustPackageExecutablePath = value ?? ""; NotifyPropertyChanged(); }
+    }
+    private string _kronosPackageDirectory = "";
+    public string KronosPackageDirectory
+    {
+        get => _kronosPackageDirectory;
+        set { _kronosPackageDirectory = value ?? ""; NotifyPropertyChanged(); }
+    }
+    // Legacy fallback preserves the previous combined plugin setting when loading old JSON.
+    private bool _enablePlugins = true;
+    private bool? _enableNszPlugin;
+    private bool? _enableNandPlugin;
+    private bool _enableMtp = true;
+    private bool _enableNand = true;
+    private bool? _nandActive;
+    private bool _enablePackageOperations;
+    private bool? _packageOperationsActive;
+    private bool _enableFirmwareCheck = true;
+    private bool? _nszPluginActive, _nandPluginActive, _mtpActive, _firmwareCheckActive;
+    public bool EnablePlugins
+    {
+        get => _enablePlugins;
+        set { _enablePlugins = value; NotifyPropertyChanged(); }
+    }
+    public bool EnableNszPlugin
+    {
+        get => _enableNszPlugin ?? EnablePlugins;
+        set { _enableNszPlugin = value; NotifyPropertyChanged(); }
+    }
+    public bool EnableNandPlugin
+    {
+        get => _enableNandPlugin ?? EnablePlugins;
+        set { _enableNandPlugin = value; NotifyPropertyChanged(); }
+    }
+    public bool EnableNand
+    {
+        get => _enableNand;
+        set { _enableNand = value; NotifyPropertyChanged(); }
+    }
+    public bool EnableMtp
+    {
+        get => _enableMtp;
+        set { _enableMtp = value; NotifyPropertyChanged(); }
+    }
+    public bool EnablePackageOperations
+    {
+        get => _enablePackageOperations;
+        set { _enablePackageOperations = value; NotifyPropertyChanged(); }
+    }
+    [JsonIgnore]
+    public bool PackageOperationsActive => _packageOperationsActive ?? EnablePackageOperations;
+    public bool EnableFirmwareCheck
+    {
+        get => _enableFirmwareCheck;
+        set { _enableFirmwareCheck = value; NotifyPropertyChanged(); }
+    }
+    [JsonIgnore]
+    public bool NszPluginActive => _nszPluginActive ?? EnableNszPlugin;
+    [JsonIgnore]
+    public bool NandPluginActive => NandActive && (_nandPluginActive ?? EnableNandPlugin);
+    [JsonIgnore]
+    public bool NandActive => _nandActive ?? EnableNand;
+    [JsonIgnore]
+    public bool PluginsActive => NszPluginActive || NandPluginActive;
+    [JsonIgnore]
+    public bool MtpActive => _mtpActive ?? EnableMtp;
+    [JsonIgnore]
+    public bool FirmwareCheckActive => _firmwareCheckActive ?? EnableFirmwareCheck;
+
+    // Capture once after loading settings; later edits take effect on the next launch.
+    public void InitializeFeatures()
+    {
+        _nszPluginActive ??= EnableNszPlugin;
+        _nandPluginActive ??= EnableNandPlugin;
+        _nandActive ??= EnableNand;
+        _mtpActive ??= EnableMtp;
+        _firmwareCheckActive ??= EnableFirmwareCheck;
+        _packageOperationsActive ??= EnablePackageOperations;
+    }
+    private int _batchHistoryLimit = 5;
+    public int BatchHistoryLimit
+    {
+        get => _batchHistoryLimit;
+        set { _batchHistoryLimit = System.Math.Clamp(value, 1, 100); NotifyPropertyChanged(); }
+    }
+    private bool _verifyBatchDrops;
+    public bool VerifyBatchDrops
+    {
+        get => _verifyBatchDrops;
+        set { _verifyBatchDrops = value; NotifyPropertyChanged(); }
+    }
+    private bool _verifyFilesOpenedInProgram;
+    public bool VerifyFilesOpenedInProgram
+    {
+        get => _verifyFilesOpenedInProgram;
+        set { _verifyFilesOpenedInProgram = value; NotifyPropertyChanged(); }
+    }
+    private bool _verifyFilesOpenedFromWindows;
+    public bool VerifyFilesOpenedFromWindows
+    {
+        get => _verifyFilesOpenedFromWindows;
+        set { _verifyFilesOpenedFromWindows = value; NotifyPropertyChanged(); }
+    }
+    private string _batchTableLayout = "";
+    private bool _batchSummaryPreservePackageOrder;
+    public bool BatchSummaryPreservePackageOrder
+    {
+        get => _batchSummaryPreservePackageOrder;
+        set { _batchSummaryPreservePackageOrder = value; NotifyPropertyChanged(); }
+    }
+    private bool _batchSeparatePackages;
+    public bool BatchSeparatePackages
+    {
+        get => _batchSeparatePackages;
+        set { _batchSeparatePackages = value; NotifyPropertyChanged(); }
+    }
+    private bool _batchExportSeparatePackages;
+    public bool BatchExportSeparatePackages
+    {
+        get => _batchExportSeparatePackages;
+        set { _batchExportSeparatePackages = value; NotifyPropertyChanged(); }
+    }
+    private bool _batchExportVisibleColumnsOnly;
+    public bool BatchExportVisibleColumnsOnly
+    {
+        get => _batchExportVisibleColumnsOnly;
+        set { _batchExportVisibleColumnsOnly = value; NotifyPropertyChanged(); }
+    }
+    private bool _batchExportExcel;
+    public bool BatchExportExcel
+    {
+        get => _batchExportExcel;
+        set { _batchExportExcel = value; NotifyPropertyChanged(); }
+    }
+    public string BatchTableLayout
+    {
+        get => _batchTableLayout;
+        set { _batchTableLayout = value ?? ""; NotifyPropertyChanged(); }
+    }
     private string _nandExecutablePath = "";
     private string _nandBisKeysPath = "";
     public string NandExecutablePath
@@ -25,6 +175,79 @@ public class AppSettings : NotifyPropertyChangedBase, IAppSettings
     {
         get => _logFileRetentionCount;
         set { _logFileRetentionCount = System.Math.Clamp(value, 1, 100); NotifyPropertyChanged(); }
+    }
+    private SdBatchSourceMode _sdBatchSourceMode;
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public SdBatchSourceMode SdBatchSourceMode
+    {
+        get => _sdBatchSourceMode;
+        set { _sdBatchSourceMode = System.Enum.IsDefined(value) ? value : default; NotifyPropertyChanged(); }
+    }
+    private string _sdBatchCustomPaths = "";
+    public string SdBatchCustomPaths
+    {
+        get => _sdBatchCustomPaths;
+        set { _sdBatchCustomPaths = value ?? ""; NotifyPropertyChanged(); }
+    }
+    private bool _sdBatchSelectedAreasOnly = false;
+    public bool SdBatchSelectedAreasOnly
+    {
+        get => _sdBatchSelectedAreasOnly;
+        set { _sdBatchSelectedAreasOnly = value; NotifyPropertyChanged(); }
+    }
+    private bool _sdBatchSwitch = true;
+    public bool SdBatchSwitch
+    {
+        get => _sdBatchSwitch;
+        set { _sdBatchSwitch = value; NotifyPropertyChanged(); }
+    }
+    private bool _sdBatchNintendo = true;
+    public bool SdBatchNintendo
+    {
+        get => _sdBatchNintendo;
+        set { _sdBatchNintendo = value; NotifyPropertyChanged(); }
+    }
+    private bool _sdBatchEmuMmc = true;
+    public bool SdBatchEmuMmc
+    {
+        get => _sdBatchEmuMmc;
+        set { _sdBatchEmuMmc = value; NotifyPropertyChanged(); }
+    }
+    private bool _sdBatchHbmenu = true;
+    public bool SdBatchHbmenu
+    {
+        get => _sdBatchHbmenu;
+        set { _sdBatchHbmenu = value; NotifyPropertyChanged(); }
+    }
+    private bool _sdBatchTools = true;
+    public bool SdBatchTools
+    {
+        get => _sdBatchTools;
+        set { _sdBatchTools = value; NotifyPropertyChanged(); }
+    }
+    private bool _sdBatchDumps;
+    public bool SdBatchDumps
+    {
+        get => _sdBatchDumps;
+        set { _sdBatchDumps = value; NotifyPropertyChanged(); }
+    }
+    private bool _sdBatchNxdtRwPoc;
+    public bool SdBatchNxdtRwPoc
+    {
+        get => _sdBatchNxdtRwPoc;
+        set { _sdBatchNxdtRwPoc = value; NotifyPropertyChanged(); }
+    }
+    private bool _sdBatchDbiRootSaves;
+    public bool SdBatchDbiRootSaves
+    {
+        get => _sdBatchDbiRootSaves;
+        set { _sdBatchDbiRootSaves = value; NotifyPropertyChanged(); }
+    }
+    private bool _saveBatchHistoryLogos;
+    public bool SaveBatchHistoryLogos
+    {
+        get => _saveBatchHistoryLogos;
+        set { _saveBatchHistoryLogos = value; NotifyPropertyChanged(); }
     }
     private bool _enableBatchHistory = true;
     public bool EnableBatchHistory
@@ -85,6 +308,42 @@ public class AppSettings : NotifyPropertyChangedBase, IAppSettings
     private string _lastOpenedFile = "";
     private string _prodKeysFilePath = "";
     private string _titleKeysFilePath = "";
+    private PluginLogLevel _nszLogLevel = PluginLogLevel.Inherit;
+
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public PluginLogLevel NszLogLevel
+    {
+        get => _nszLogLevel;
+        set { _nszLogLevel = value; NotifyPropertyChanged(); }
+    }
+
+    private PluginLogLevel _nandLogLevel = PluginLogLevel.Inherit;
+
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public PluginLogLevel NandLogLevel
+    {
+        get => _nandLogLevel;
+        set { _nandLogLevel = value; NotifyPropertyChanged(); }
+    }
+
+    private PluginLogLevel _mtpLogLevel = PluginLogLevel.Inherit;
+
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public PluginLogLevel MtpLogLevel
+    {
+        get => _mtpLogLevel;
+        set { _mtpLogLevel = value; NotifyPropertyChanged(); }
+    }
+
+    private PluginLogLevel _packageLogLevel = PluginLogLevel.Inherit;
+
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public PluginLogLevel PackageLogLevel
+    {
+        get => _packageLogLevel;
+        set { _packageLogLevel = value; NotifyPropertyChanged(); }
+    }
+
     private LogLevel _logLevel = LogLevel.Information;
     private string _keysDownloadHost = "192.168.178.100";
     public string KeysDownloadHost
@@ -96,11 +355,11 @@ public class AppSettings : NotifyPropertyChangedBase, IAppSettings
     private string _titleKeysDownloadUrl = "ftp://{IP}:5000/sdmc:/switch/title.keys";
     private bool _alwaysReloadKeysBeforeOpen = false;
 
-    private string _titlePageUrl = "https://tinfoil.media/Title/{TitleId}";
-    private string _titleInfoApiUrl = "https://tinfoil.media/api/title/{TitleId}";
+    private string _titlePageUrl = Emignatik.NxFileViewer.Services.ExternalSources.Current.TitlePageUrl;
+    private string _titleInfoApiUrl = Emignatik.NxFileViewer.Services.ExternalSources.Current.TitleInfoApiUrl;
     private TitleInfoProvider _titleInfoProvider;
     private string _titleDbRegion = "DE.de";
-    private string _nLibApiUrl = "https://api.nlib.cc/nx/{TitleId}?lang={Language}";
+    private string _nLibApiUrl = Emignatik.NxFileViewer.Services.ExternalSources.Current.NLibApiUrl;
     private string _lastUsedDir = "";
     private bool _allowNczBlocklessCompressionOpening = true;
     private bool _acceptMissingDeltaFragments = true;

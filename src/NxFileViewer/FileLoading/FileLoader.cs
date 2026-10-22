@@ -19,6 +19,17 @@ internal class FileLoader : IFileLoader
     private readonly IFileOverviewLoader _fileOverviewLoader;
     private readonly ILogger _logger;
     private readonly IFirmwareReferenceProvider _firmwareReferences;
+    private readonly Settings.IAppSettings? _appSettings;
+    private bool NandEnabled => _appSettings?.NandActive ?? true;
+    private bool FirmwareEnabled => _appSettings?.FirmwareCheckActive ?? true;
+
+    public FileLoader(Settings.IAppSettings appSettings, ILoggerFactory loggerFactory, IPackageTypeAnalyzer packageTypeAnalyzer,
+        IFileItemLoader fileItemLoader, IFileOverviewLoader fileOverviewLoader, IFirmwareReferenceProvider? firmwareReferences = null)
+        : this(loggerFactory, packageTypeAnalyzer, fileItemLoader, fileOverviewLoader, firmwareReferences)
+    {
+        _appSettings = appSettings;
+    }
+
 
     public FileLoader(ILoggerFactory loggerFactory, IPackageTypeAnalyzer packageTypeAnalyzer, IFileItemLoader fileItemLoader, IFileOverviewLoader fileOverviewLoader,
         IFirmwareReferenceProvider? firmwareReferences = null)
@@ -34,12 +45,39 @@ internal class FileLoader : IFileLoader
 
     public NxFile Load(string filePath, System.Threading.CancellationToken token)
     {
+        using var archiveOperation = PackageZip.BeginOperation();
         token.ThrowIfCancellationRequested();
+        PackageZip.ReportLoading(filePath);
+        if (!PackageZip.IsMember(filePath) && SaveBackupDetection.IsBackup(filePath, token))
+        {
+            var root = new SaveBackupFileItem(filePath, SaveBackupDetection.IsLikelyLegacyBackup(filePath, token));
+            return new NxFile(filePath, root, new FileOverview(root)
+            { FileSize = new FileInfo(filePath).Length, NcasIntegrity = NcasIntegrity.NoNca });
+        }
+        var sdContents = SdCardSource.FindContents(filePath);
+        if (sdContents != null || SdCardSource.IsNax0(filePath))
+        {
+            sdContents ??= SdCardSource.ContentsForFile(filePath) ?? throw new InvalidDataException("Open the SD card root or Nintendo/Contents folder; the original NAX0 path is required.");
+            var sdMissingKeys = new HashSet<MissingKey>();
+            MissingKeyExceptionHandler sdHandler = (_, args) => sdMissingKeys.Add(new MissingKey(args.Exception.Name, args.Exception.Type));
+            _fileItemLoader.MissingKey += sdHandler;
+            SdCardItem sdItem;
+            try { sdItem = _fileItemLoader.LoadSdCard(sdContents, token); }
+            finally { _fileItemLoader.MissingKey -= sdHandler; }
+            try
+            {
+                var overview = _fileOverviewLoader.Load(sdItem);
+                overview.FileSize = sdItem.NcaChildItems.Sum(item => item.Size);
+                foreach (var key in sdMissingKeys) overview.MissingKeys.Add(key);
+                return new NxFile(filePath, sdItem, overview) { SdContentsPath = sdContents, SdSources = SdCardSource.FindRelatedContents(sdContents) };
+            }
+            catch { sdItem.Dispose(); throw; }
+        }
         if (PackageZip.IsMember(filePath) || PackageZip.IsArchive(filePath))
         {
             var archive = PackageZip.ArchivePath(filePath);
-            var entries = PackageZip.GetEntries(archive, token: token, includeFirmware: true);
-            if (!PackageZip.IsMember(filePath) && entries.Count > 0 && !entries.Any(entry => entry.Contains(PackageZip.Separator, StringComparison.Ordinal)) && PackageZip.GetEntries(archive, includeNca: false, token: token).Count == 0)
+            var entries = PackageZip.GetEntries(archive, token: token, includeFirmware: FirmwareEnabled, includeNand: NandEnabled);
+            if (FirmwareEnabled && !PackageZip.IsMember(filePath) && entries.Count > 0 && !entries.Any(entry => entry.Contains(PackageZip.Separator, StringComparison.Ordinal)) && PackageZip.GetEntries(archive, includeNca: false, token: token, includeNand: NandEnabled).Count == 0)
             {
                 var firmwareExtraction = PackageZip.Extract(archive, entries[0], token);
                 try
@@ -54,11 +92,13 @@ internal class FileLoader : IFileLoader
             var entry = PackageZip.IsMember(filePath) ? filePath.Split(PackageZip.Separator, 2)[1] :
                 entries.Count > 0 ? entries[0] : throw new FileNotSupportedException(filePath);
             var extracted = PackageZip.Extract(archive, entry, token);
+            PackageZip.ReportLoading(extracted.FilePath);
             NxFile? loaded = null;
             try
             {
                 if (Directory.Exists(extracted.FilePath) || PackageZip.IsArchive(extracted.FilePath))
                 {
+                    if (!FirmwareEnabled) throw new InvalidOperationException(LocalizationManager.Instance.Current.Keys.Features_FirmwareDisabled);
                     var (verifier, notice) = _firmwareReferences.Load(token);
                     var logical = PackageZip.MemberPath(archive, entry);
                     var result = verifier?.Verify(extracted.FilePath, token) ?? UnavailableFirmware(logical, notice);
@@ -75,7 +115,8 @@ internal class FileLoader : IFileLoader
         }
         _logger.LogInformation(LocalizationManager.Instance.Current.Keys.Log_OpeningFile.SafeFormat(filePath));
 
-        var nand = Services.Nand.NandDetection.Detect(filePath, token);
+        _logger.LogTrace("Detecting content type and building overview: {FilePath}", filePath);
+        var nand = !NandEnabled || Services.Mtp.MtpDirectSource.IsDirect(filePath) ? null : Services.Nand.NandDetection.Detect(filePath, token);
         if (nand != null)
         {
             var root = new NandFileItem(filePath);
@@ -84,7 +125,7 @@ internal class FileLoader : IFileLoader
         }
 
         BatchIntegrityResult? ncaFirmware = null;
-        if (Path.GetExtension(filePath).Equals(".nca", StringComparison.OrdinalIgnoreCase))
+        if (FirmwareEnabled && !Services.Mtp.MtpDirectSource.IsDirect(filePath) && Path.GetExtension(filePath).Equals(".nca", StringComparison.OrdinalIgnoreCase))
         {
             var (verifier, notice) = _firmwareReferences.Load(token);
             token.ThrowIfCancellationRequested();
@@ -120,6 +161,10 @@ internal class FileLoader : IFileLoader
             }
             else switch (_packageTypeAnalyzer.GetType(filePath))
             {
+                case PackageType.NRO:
+                    rootItem = new NroFileItem(filePath, token);
+                    fileOverview = new FileOverview(rootItem) { NcasIntegrity = NcasIntegrity.NoNca };
+                    break;
                 case PackageType.UNKNOWN:
                     throw new FileNotSupportedException(filePath);
 
@@ -143,9 +188,10 @@ internal class FileLoader : IFileLoader
             foreach (var missingKey in missingKeys)
                 fileOverview.MissingKeys.Add(missingKey);
 
-            fileOverview.FileSize = new System.IO.FileInfo(filePath).Length;
+            fileOverview.FileSize = Services.Mtp.MtpDirectSource.Length(filePath);
 
             var openedFile = new NxFile(filePath, rootItem, fileOverview) { FirmwareResult = ncaFirmware };
+            _logger.LogTrace("File overview complete: {FilePath}; bytes={Size}; missingKeys={Count}", filePath, fileOverview.FileSize, missingKeys.Count);
             return openedFile;
         }
         catch { rootItem?.Dispose(); throw; }

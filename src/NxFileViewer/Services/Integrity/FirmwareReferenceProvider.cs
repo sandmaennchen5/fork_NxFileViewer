@@ -20,7 +20,7 @@ public sealed class FirmwareReferenceProvider(ILogger logger) : IFirmwareReferen
         using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
         timeout.CancelAfter(TimeSpan.FromSeconds(60));
-        try { return (GitHubFirmwareReferences.LoadAsync(client, timeout.Token).GetAwaiter().GetResult(), keys.Firmware_OnlineSource); }
+        try { return (GitHubFirmwareReferences.LoadAsync(client, timeout.Token, Emignatik.NxFileViewer.Services.Updates.GitHubUpdateRequests.For(null)).GetAwaiter().GetResult(), keys.Firmware_OnlineSource); }
         catch (Exception ex) when (!token.IsCancellationRequested && IsReferenceFailure(ex))
         {
             logger.LogWarning(ex, "Online firmware references unavailable.");

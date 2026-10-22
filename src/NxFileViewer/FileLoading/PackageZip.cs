@@ -5,11 +5,40 @@ using System.IO.Compression;
 using System.Linq;
 using System.Threading;
 using SharpCompress.Archives.SevenZip;
+using Emignatik.NxFileViewer.Services.BackgroundTask;
+using Emignatik.NxFileViewer.Localization;
+using System.Diagnostics;
 
 namespace Emignatik.NxFileViewer.FileLoading;
 
-public static class PackageZip
+public static partial class PackageZip
 {
+    private static readonly AsyncLocal<IProgressReporter?> ArchiveReporter = new();
+    public static IDisposable ReportProgress(IProgressReporter reporter) => new ProgressScope(reporter);
+    private sealed class ProgressScope : IDisposable
+    {
+        private readonly IProgressReporter? _previous = ArchiveReporter.Value;
+        public ProgressScope(IProgressReporter reporter) { ArchiveReporter.Value = reporter; }
+        public void Dispose() { ArchiveReporter.Value = _previous; }
+    }
+    public static void ReportLoading(string path)
+    {
+        ArchiveReporter.Value?.SetMode(true);
+        ArchiveReporter.Value?.SetText(LocalizationManager.Instance.Current.Keys.LoadingFile_PleaseWait + " " + Path.GetFileName(path));
+    }
+    private static void ReportListing(string path)
+    {
+        ArchiveReporter.Value?.SetMode(true);
+        ArchiveReporter.Value?.SetText(string.Format(LocalizationManager.Instance.Current.Keys.Archive_Reading, Path.GetFileName(path)));
+    }
+    private static void ReportCopy(string name, int index, int count, long copied, long size)
+    {
+        var reporter = ArchiveReporter.Value;
+        if (reporter == null) return;
+        reporter.SetMode(false);
+        reporter.SetText(string.Format(LocalizationManager.Instance.Current.Keys.Archive_Extracting, name, index, count, copied, size));
+        reporter.SetPercentage(size == 0 ? 1 : Math.Clamp((double)copied / size, 0, 1));
+    }
     public const string Separator = "::";
     public static bool IsMember(string path) => path.Contains(Separator, StringComparison.Ordinal);
     public static string ArchivePath(string path) => path.Split(Separator, 2)[0];
@@ -22,9 +51,28 @@ public static class PackageZip
         return type + " (" + (archiveType == "7Z" ? "7z" : archiveType) + ")";
     }
     public static bool IsArchive(string path) => Path.GetExtension(path).ToLowerInvariant() is ".zip" or ".7z";
+    private static bool IsSevenZip(string path)
+    {
+        using var stream = File.OpenRead(path);
+        Span<byte> signature = stackalloc byte[6];
+        var read = stream.ReadAtLeast(signature, signature.Length, throwOnEndOfStream: false);
+        if (read == 6 && signature.SequenceEqual(new byte[] { 0x37, 0x7a, 0xbc, 0xaf, 0x27, 0x1c })) return true;
+        if (read >= 4 && signature[0] == 0x50 && signature[1] == 0x4b &&
+            (signature[2] == 3 && signature[3] == 4 || signature[2] == 5 && signature[3] == 6 || signature[2] == 7 && signature[3] == 8)) return false;
+        return Path.GetExtension(path).Equals(".7z", StringComparison.OrdinalIgnoreCase);
+    }
     public static IReadOnlyList<string> GetFileEntries(string path)
     {
-        if (Path.GetExtension(path).Equals(".7z", StringComparison.OrdinalIgnoreCase))
+        var key = Path.GetFullPath(path);
+        if (ActiveOperation.Value?.Names.TryGetValue(key, out var cached) == true) return cached;
+        var names = ReadFileEntries(path);
+        if (ActiveOperation.Value != null) ActiveOperation.Value.Names[key] = names;
+        return names;
+    }
+    private static IReadOnlyList<string> ReadFileEntries(string path)
+    {
+        ReportListing(path);
+        if (IsSevenZip(path))
         {
             try
             {
@@ -40,7 +88,7 @@ public static class PackageZip
     public static void ReadEntries(string path, Func<string, bool> include, Action<string, Stream, long> read,
         CancellationToken token = default, bool stopAfterMatch = false)
     {
-        if (Path.GetExtension(path).Equals(".7z", StringComparison.OrdinalIgnoreCase))
+        if (IsSevenZip(path))
         {
             using var archive = SevenZipArchive.OpenArchive(path);
             using var reader = archive.ExtractAllEntries();
@@ -71,16 +119,21 @@ public static class PackageZip
         }
     }
     private const int MaximumArchiveDepth = 8;
-    public static IReadOnlyList<string> GetEntries(string path, bool includeNca = true, CancellationToken token = default, bool includeFirmware = false) =>
-        GetEntriesRecursive(path, includeNca, token, 0, includeFirmware);
+    public static IReadOnlyList<string> GetEntries(string path, bool includeNca = true, CancellationToken token = default, bool includeFirmware = false, bool includeNand = true)
+    {
+        using var operation = BeginOperation();
+        return GetEntriesRecursive(path, includeNca, token, 0, includeFirmware, includeNand);
+    }
 
-    private static IReadOnlyList<string> GetEntriesRecursive(string path, bool includeNca, CancellationToken token, int depth, bool includeFirmware)
+    private static IReadOnlyList<string> GetEntriesRecursive(string path, bool includeNca, CancellationToken token, int depth, bool includeFirmware, bool includeNand)
     {
         token.ThrowIfCancellationRequested();
         if (depth >= MaximumArchiveDepth) throw new InvalidDataException("Archive nesting exceeds the supported depth of 8.");
+        var listingKey = (Path.GetFullPath(path), includeNca, includeFirmware, includeNand, depth);
+        if (ActiveOperation.Value?.Listings.TryGetValue(listingKey, out var cached) == true) return cached;
         var names = GetFileEntries(path);
         var nandNames = new HashSet<string>(StringComparer.Ordinal);
-        var nandCandidates = names.Where(Services.Nand.NandDetection.IsCandidateName).ToHashSet(StringComparer.Ordinal);
+        var nandCandidates = !includeNand ? new HashSet<string>(StringComparer.Ordinal) : names.Where(Services.Nand.NandDetection.IsCandidateName).ToHashSet(StringComparer.Ordinal);
         foreach (var candidate in nandCandidates) ValidateName(candidate);
         var reusedNandSession = false;
         if (nandCandidates.Count > 0)
@@ -121,7 +174,7 @@ public static class PackageZip
             .Where(name => Path.GetFileNameWithoutExtension(name).Length >= 28 && Path.GetFileNameWithoutExtension(name).All(Uri.IsHexDigit)
                 || name.Contains("firmware", StringComparison.OrdinalIgnoreCase))
             .Select(name => name[..(name.LastIndexOf('/') + 1)]).Distinct(StringComparer.Ordinal).ToArray() : Array.Empty<string>();
-        var entries = names.Where(e => (IsSupported(e, includeNca) && (!Services.Nand.NandDetection.IsCandidateName(e) || nandNames.Contains(e)) || IsArchive(e)) &&
+        var entries = names.Where(e => (IsSupported(e, includeNca, includeNand) && (!Services.Nand.NandDetection.IsCandidateName(e) || nandNames.Contains(e)) || IsArchive(e)) &&
             !Services.Nand.NandDetection.IsContinuationName(e, first => names.Any(name => name.Replace('\\', '/').Equals(first.Replace('\\', '/'), StringComparison.OrdinalIgnoreCase)))).ToArray();
         foreach (var entry in entries) ValidateName(entry);
         if (entries.Distinct(StringComparer.Ordinal).Count() != entries.Length)
@@ -139,19 +192,20 @@ public static class PackageZip
             using var nested = Extract(path, entry, token);
             var nestedNames = GetFileEntries(nested.FilePath);
             if (includeFirmware && nestedNames.Any(name => name.EndsWith(".nca", StringComparison.OrdinalIgnoreCase))
-                && !nestedNames.Any(name => IsSupported(name, false) || IsArchive(name)))
+                && !nestedNames.Any(name => IsSupported(name, false, includeNand) || IsArchive(name)))
             {
                 packages.Add(entry);
                 continue;
             }
-            foreach (var member in GetEntriesRecursive(nested.FilePath, includeNca, token, depth + 1, includeFirmware))
+            foreach (var member in GetEntriesRecursive(nested.FilePath, includeNca, token, depth + 1, includeFirmware, includeNand))
                 packages.Add(entry + Separator + member);
         }
+        if (ActiveOperation.Value != null) ActiveOperation.Value.Listings[listingKey] = packages;
         return packages;
     }
-    private static bool IsSupported(string name, bool includeNca) => Path.GetExtension(name).ToLowerInvariant() is
-        ".nsp" or ".nsz" or ".xci" or ".xcz" || (includeNca && name.EndsWith(".nca", StringComparison.OrdinalIgnoreCase)) ||
-        Services.Nand.NandDetection.IsCandidateName(name);
+    private static bool IsSupported(string name, bool includeNca, bool includeNand = true) => Path.GetExtension(name).ToLowerInvariant() is
+        ".nsp" or ".nsz" or ".xci" or ".xcz" or ".nro" || (includeNca && name.EndsWith(".nca", StringComparison.OrdinalIgnoreCase)) ||
+        (includeNand && Services.Nand.NandDetection.IsCandidateName(name));
     private static void ValidateName(string name)
     {
         var normalized = name.Replace('\\', '/');
@@ -205,10 +259,14 @@ public static class PackageZip
                 try
                 {
                     var index = 0;
+                    var fileIndex = 0;
+                    var progressClock = Stopwatch.StartNew();
                     var directories = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                     ReadEntries(archive, _ => true, (name, input, size) =>
                     {
                         token.ThrowIfCancellationRequested();
+                        fileIndex++;
+                        ReportCopy(name, fileIndex, names.Count, 0, size);
                         // Preserve sibling relationships for split NAND dumps while keeping archive paths out of disk paths.
                         var parent = Path.GetDirectoryName(name.Replace('/', Path.DirectorySeparatorChar).Replace('\\', Path.DirectorySeparatorChar)) ?? "";
                         if (!directories.TryGetValue(parent, out var directory))
@@ -228,8 +286,14 @@ public static class PackageZip
                             total += count;
                             if (total > size) throw new InvalidDataException("Invalid archive entry size.");
                             output.Write(buffer, 0, count);
+                            if (progressClock.ElapsedMilliseconds >= 200)
+                            {
+                                ReportCopy(name, fileIndex, names.Count, total, size);
+                                progressClock.Restart();
+                            }
                         }
                         if (total != size) throw new InvalidDataException("Truncated archive entry.");
+                        ReportCopy(name, fileIndex, names.Count, total, size);
                         session.Files.Add(name, file);
                     }, token);
                     Sessions.Add(key, session);
@@ -265,19 +329,10 @@ public static class PackageZip
             }
             if (!(IsSupported(entry, true) || IsArchive(entry) || entry.EndsWith('/')) || !session.Files.TryGetValue(entry, out var path))
                 throw new InvalidDataException("Package entry not found.");
+            ActiveOperation.Value?.Retain(key, session);
             session.References++;
             var retained = session;
-            return new ExtractedPackage(retained.Directory, path, () =>
-            {
-                lock (SessionLock)
-                {
-                    if (--retained.References == 0)
-                    {
-                        Sessions.Remove(key);
-                        Directory.Delete(retained.Directory, recursive: true);
-                    }
-                }
-            });
+            return new ExtractedPackage(retained.Directory, path, () => ReleaseSession(key, retained));
         }
     }
 }
