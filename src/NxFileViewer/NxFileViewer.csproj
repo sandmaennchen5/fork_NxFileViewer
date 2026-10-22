@@ -12,7 +12,7 @@
     <Company>sandmaennchen5</Company>
     <Product>NxFileViewer Fork</Product>
     <Authors>sandmaennchen5</Authors>
-    <Version>4.1.0-beta2</Version>
+    <Version>4.1.0</Version>
     <!-- Increment when the packaged Explorer extension changes. -->
     <ExplorerPackageVersion>1.0.0.0</ExplorerPackageVersion>
     <PackageProjectUrl>https://github.com/sandmaennchen5/fork_NxFileViewer</PackageProjectUrl>
