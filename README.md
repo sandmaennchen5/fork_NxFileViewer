@@ -1,6 +1,6 @@
 # NxFileViewer Fork v4
 
-![Downloads](https://img.shields.io/endpoint?url=https://sandmaennchen5.github.io/fork_NxFileViewer/badge/downloads.json)
+![Downloads](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/sandmaennchen5/fork_NxFileViewer/master/badge/downloads.json)
 
 Browse and verify Nintendo Switch packages with a Windows desktop interface based on [LibHac](https://github.com/Thealexbarney/LibHac).
 
