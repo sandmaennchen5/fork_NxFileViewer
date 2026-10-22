@@ -54,7 +54,7 @@ internal sealed class TitleDbCatalog(string cacheDirectory, ILogger? logger)
             {
                 try
                 {
-                    var json = await client.GetStringAsync($"https://raw.githubusercontent.com/blawar/titledb/master/{region}.json");
+                    var json = await client.GetStringAsync(ExternalSources.Current.TitleDb.RawUrl(region + ".json"));
                     titles = Parse(json); // Never replace a good cache with invalid JSON.
                     refreshed = now;
                     try
@@ -92,7 +92,7 @@ internal sealed class TitleDbCatalog(string cacheDirectory, ILogger? logger)
         await _gate.WaitAsync(token);
         try
         {
-            var json = await client.GetStringAsync($"https://raw.githubusercontent.com/blawar/titledb/master/{region}.json", token);
+            var json = await client.GetStringAsync(ExternalSources.Current.TitleDb.RawUrl(region + ".json"), token);
             var titles = Parse(json);
             Directory.CreateDirectory(cacheDirectory);
             var path = Path.Combine(cacheDirectory, region + ".json");

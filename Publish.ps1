@@ -23,6 +23,7 @@ $ErrorActionPreference = "Stop"
 if ($LogViewerOnly -and $SkipLogViewer) { throw 'Choose either -LogViewerOnly or -SkipLogViewer.' }
 if ($UnsignedExplorerPackages -and $ExplorerCertificateThumbprint) { throw 'Choose either unsigned packages or a signing certificate.' }
 if ($PackageName -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$' -or $PackageName.EndsWith('.')) { throw 'Supply a plain release package name.' }
+& (Join-Path $PSScriptRoot 'update/Validate-ExternalSources.ps1')
 $AppName = $PackageName
 $ProjectPath = Join-Path $PSScriptRoot "src/NxFileViewer/NxFileViewer.csproj"
 $PublishedExecutableName = (Select-Xml -LiteralPath $ProjectPath -XPath "//Project/PropertyGroup/AssemblyName").Node.InnerText
@@ -54,6 +55,20 @@ foreach ($source in $PackageIdentity.UpdateSources) {
         if (![Uri]::TryCreate($value,[UriKind]::Absolute,[ref]$uri) -or $uri.Scheme -ne 'https' -or $uri.UserInfo -or $uri.Fragment) { throw 'Invalid HTTPS update source.' }
         if ($source -match '^(gitlab|forgejo):' -and ($uri.Query -or $uri.AbsolutePath.Trim('/').Split('/').Count -lt 2)) { throw 'Expected a forge repository or project API URL.' }
     } elseif ($value -notmatch '^[A-Za-z0-9_-][A-Za-z0-9_.-]*/[A-Za-z0-9_.-]+$' -or $value.Length -gt 201 -or @($value.Split('/') | Where-Object { $_ -in @('.','..') -or $_.EndsWith('.') }).Count) { throw 'Invalid GitHub repository in template.' }
+}
+if ($PackageIdentity.PSObject.Properties.Name -contains 'UpdateSourceOptions') {
+    if ($null -eq $PackageIdentity.UpdateSourceOptions -or $PackageIdentity.UpdateSourceOptions -isnot [pscustomobject]) { throw 'Expected UpdateSourceOptions object.' }
+    $properties = @($PackageIdentity.UpdateSourceOptions.PSObject.Properties)
+    if ($properties.Count -gt 16) { throw 'Too many source options.' }
+    foreach ($property in $properties) {
+        if ($property.Name -cnotin $PackageIdentity.UpdateSources -or $null -eq $property.Value) { throw 'Source options must reference a listed source.' }
+        $option = $property.Value
+        if ($option.PSObject.Properties.Name -contains 'Enabled' -and $option.Enabled -isnot [bool]) { throw 'Enabled must be a JSON boolean.' }
+        if ($option.PSObject.Properties.Name -contains 'TimeoutSeconds' -and
+            (($option.TimeoutSeconds -isnot [int] -and $option.TimeoutSeconds -isnot [long]) -or $option.TimeoutSeconds -lt 1 -or $option.TimeoutSeconds -gt 300)) {
+            throw 'TimeoutSeconds must be an integer between 1 and 300.'
+        }
+    }
 }
 function Assert-MigrationPath([string]$value) {
     $value=$value.Replace('\','/')
@@ -152,7 +167,7 @@ try {
     }
 
     $ReleaseDescriptor = [ordered]@{ SchemaVersion=1; ApplicationId='NxFileViewerFork'; Version=$AppVersion; Prerelease=$AppVersion.Contains('-'); Packages=$ReleasePackages }
-    [IO.File]::WriteAllText((Join-Path $OutDirRoot 'nxfileviewer-update.json'), ($ReleaseDescriptor | ConvertTo-Json -Depth 8), [Text.UTF8Encoding]::new($false))
+
     # The add-on extracts to Plugins/fwhashes next to either architecture's executable.
     $HashRoot = Join-Path $StagingRoot "firmware-hashes"
     $HashDirectory = Join-Path $HashRoot "Plugins/fwhashes"
@@ -231,6 +246,17 @@ Danach NxFileViewer Fork normal starten und unter Einstellungen > Programm das m
             }
         }
     }
+    $ExplorerReleasePackages = @()
+    if (!$SkipExplorerPackages) {
+        foreach ($architecture in @('x64','arm64')) {
+            $assetName = "NxFileViewerFork.Explorer_${ExplorerPackageVersion}_${architecture}_setup.zip"
+            $zip = Join-Path $OutDirRoot $assetName
+            if (!(Test-Path -LiteralPath $zip -PathType Leaf)) { throw 'Explorer ZIP missing after packaging.' }
+            $ExplorerReleasePackages += [ordered]@{ Architecture=$architecture; SelfContained=$false; AssetName=$assetName; Sha256=(Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash }
+        }
+    }
+    $ReleaseDescriptor.ExplorerPackages = $ExplorerReleasePackages
+    [IO.File]::WriteAllText((Join-Path $OutDirRoot 'nxfileviewer-update.json'), ($ReleaseDescriptor | ConvertTo-Json -Depth 8), [Text.UTF8Encoding]::new($false))
 }
 finally {
     $ResolvedStaging = [IO.Path]::GetFullPath($StagingRoot)

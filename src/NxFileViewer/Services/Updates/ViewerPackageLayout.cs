@@ -14,6 +14,7 @@ public sealed record ViewerPackageManifest(int SchemaVersion, string Application
 {
     public string? Version { get; init; }
     public string[] UpdateSources { get; init; } = Array.Empty<string>();
+    public Dictionary<string, ViewerUpdateSourceOptions> UpdateSourceOptions { get; init; } = new();
     public ViewerMigration[] Migrations { get; init; } = Array.Empty<ViewerMigration>();
 }
 public sealed record ViewerPackageFile(string Path, string Sha256, bool Remove = false)

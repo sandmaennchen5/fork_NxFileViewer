@@ -1,5 +1,7 @@
 # NxFileViewer Fork v4
 
+![Downloads](https://img.shields.io/endpoint?url=https://sandmaennchen5.github.io/fork_NxFileViewer/badge/downloads.json)
+
 Browse and verify Nintendo Switch packages with a Windows desktop interface based on [LibHac](https://github.com/Thealexbarney/LibHac).
 
 Download application ZIPs from [GitHub Releases](https://github.com/sandmaennchen5/fork_NxFileViewer/releases). Choose x64 or x86, either standard (requires .NET 8 Desktop Runtime) or self-contained (includes .NET, compressed). Application updates preserve the installed architecture and runtime variant; firmware hash references are a separate optional download. See the [changelog](CHANGELOG.md) for release history.

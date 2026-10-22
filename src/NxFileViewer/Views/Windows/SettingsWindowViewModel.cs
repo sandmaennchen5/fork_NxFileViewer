@@ -148,8 +148,8 @@ public class SettingsWindowViewModel : WindowViewModelBase
         };
     }
 
-    private const string TinfoilPage = "https://tinfoil.media/Title/{TitleId}";
-    private const string NxContentPage = "https://nx-content.ghostland.at/?game={TitleId}";
+    private static readonly string TinfoilPage = Emignatik.NxFileViewer.Services.ExternalSources.Current.TitlePageUrl;
+    private static readonly string NxContentPage = Emignatik.NxFileViewer.Services.ExternalSources.Current.NxContentPageUrl;
     private int _titlePageSource;
     private string _customTitlePageUrl = TinfoilPage;
     public IReadOnlyList<TitlePageOption> TitlePageOptions => new[]
@@ -339,8 +339,8 @@ public class SettingsWindowViewModel : WindowViewModelBase
         get => EditedSettings.TitleInfoProvider;
         set {
             EditedSettings.TitleInfoProvider = value;
-            if (value == TitleInfoProvider.Tinfoil) EditedSettings.TitleInfoApiUrl = "https://tinfoil.media/api/title/{TitleId}";
-            if (value == TitleInfoProvider.NLib) EditedSettings.NLibApiUrl = "https://api.nlib.cc/nx/{TitleId}?lang={Language}";
+            if (value == TitleInfoProvider.Tinfoil) EditedSettings.TitleInfoApiUrl = Emignatik.NxFileViewer.Services.ExternalSources.Current.TitleInfoApiUrl;
+            if (value == TitleInfoProvider.NLib) EditedSettings.NLibApiUrl = Emignatik.NxFileViewer.Services.ExternalSources.Current.NLibApiUrl;
             NotifyPropertyChanged();
         }
     }

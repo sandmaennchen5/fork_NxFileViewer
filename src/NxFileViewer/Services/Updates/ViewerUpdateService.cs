@@ -51,22 +51,28 @@ public sealed class ViewerUpdateService
     {
         if (architecture is not ("x64" or "x86")) throw new NotSupportedException("Unsupported update architecture.");
         LastCheckNotice = "";
-        var sources = ViewerUpdateMetadata.ReadState(_applicationDirectory).UpdateSources.Select(ViewerUpdateSource.Parse).DistinctBy(source => source.Key, StringComparer.Ordinal);
+        var state = ViewerUpdateMetadata.ReadState(_applicationDirectory);
+        var sources = state.UpdateSources.Select(ViewerUpdateSource.Parse).DistinctBy(source => source.Key, StringComparer.Ordinal);
         var candidates = new List<ViewerRelease>();
         Exception? failure = null;
         bool reachedSource = false;
         foreach (var source in sources)
         {
             token.ThrowIfCancellationRequested();
+            var options = ViewerUpdateMetadata.SourceOptions(state, source);
+            if (!options.Enabled) continue;
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
+            timeout.CancelAfter(TimeSpan.FromSeconds(options.TimeoutSeconds));
+            var sourceToken = timeout.Token;
             try
             {
                 var candidate = source.Kind == ViewerUpdateSourceKind.GitHub
-                    ? await CheckRepositoryAsync(source.Repository!, current, architecture, token, includePrereleases, currentTag, selfContained, automatic).ConfigureAwait(false)
-                    : await _remoteSources.CheckAsync(source, current, architecture, includePrereleases, currentTag, selfContained, token).ConfigureAwait(false);
+                    ? await CheckRepositoryAsync(source.Repository!, current, architecture, sourceToken, includePrereleases, currentTag, selfContained, automatic).ConfigureAwait(false)
+                    : await _remoteSources.CheckAsync(source, current, architecture, includePrereleases, currentTag, selfContained, sourceToken).ConfigureAwait(false);
                 reachedSource = true;
                 if (candidate != null) candidates.Add(candidate);
             }
-            catch (Exception ex) when (ex is HttpRequestException or IOException or JsonException || ex is OperationCanceledException && !token.IsCancellationRequested)
+            catch (Exception ex) when (ex is HttpRequestException or IOException or InvalidDataException or JsonException || ex is OperationCanceledException && !token.IsCancellationRequested)
             {
                 failure = ex;
                 LastCheckNotice = "Update source " + source.DisplayName + ": " + ex.Message;

@@ -1,0 +1,30 @@
+{
+  "SchemaVersion": 1,
+  "FirmwareHashes": {
+    "Repository": "sandmaennchen5/fork_NxFileViewer",
+    "Ref": "master",
+    "Path": "fw/hashes",
+    "Sources": [
+      "github:sandmaennchen5/fork_NxFileViewer",
+      "gitlab:https://gitlab.com/sandmaennchen5/fork_NxFileViewer",
+      "forgejo:https://git.sandmaennchen5.de/sandmaennchen5/fork_NxFileViewer"
+    ]
+  },
+  "TitleDb": {
+    "Repository": "blawar/titledb",
+    "Ref": "master",
+    "Path": ""
+  },
+  "NszRepository": "nicoboss/nsz",
+  "NandRepository": "THZoria/NxNandManager",
+  "ExplorerRepository": "sandmaennchen5/fork_NxFileViewer",
+  "TitlePageUrl": "https://tinfoil.media/Title/{TitleId}",
+  "TitleInfoApiUrl": "https://tinfoil.media/api/title/{TitleId}",
+  "NLibApiUrl": "https://api.nlib.cc/nx/{TitleId}?lang={Language}",
+  "NxContentPageUrl": "https://nx-content.ghostland.at/?game={TitleId}",
+  "ExplorerSources": [
+    "github:sandmaennchen5/fork_NxFileViewer",
+    "gitlab:https://gitlab.com/sandmaennchen5/fork_NxFileViewer",
+    "forgejo:https://git.sandmaennchen5.de/sandmaennchen5/fork_NxFileViewer"
+  ]
+}

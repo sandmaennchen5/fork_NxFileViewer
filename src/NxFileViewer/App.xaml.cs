@@ -190,9 +190,9 @@ public partial class App : Application, IAppEvents
         KeyDownloads.MigrateLegacyHost(ServiceProvider.GetRequiredService<IAppSettings>());
         var titleSettings = ServiceProvider.GetRequiredService<IAppSettings>();
         if (titleSettings.TitlePageUrl == "https://tinfoil.io/Title/{TitleId}")
-            titleSettings.TitlePageUrl = "https://tinfoil.media/Title/{TitleId}";
+            titleSettings.TitlePageUrl = Emignatik.NxFileViewer.Services.ExternalSources.Current.TitlePageUrl;
         if (titleSettings.TitleInfoProvider == TitleInfoProvider.Tinfoil && titleSettings.TitleInfoApiUrl == "https://tinfoil.io/api/title/{TitleId}")
-            titleSettings.TitleInfoApiUrl = "https://tinfoil.media/api/title/{TitleId}";
+            titleSettings.TitleInfoApiUrl = Emignatik.NxFileViewer.Services.ExternalSources.Current.TitleInfoApiUrl;
         ServiceProvider.GetRequiredService<AppLoggerProvider>().ConfigureRetention();
 
         // Initialize localization

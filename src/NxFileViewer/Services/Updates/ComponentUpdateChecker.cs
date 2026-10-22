@@ -53,16 +53,16 @@ public sealed class ComponentUpdateChecker(NszPluginManager nsz, NandPluginManag
         }
         var checks = new List<Task<ComponentUpdateResult>>();
         if (settings.NszPluginActive)
-            checks.Add(Check("NSZ", () => Plugin(nsz.ExecutablePath, nsz.InstalledVersion, "nicoboss/nsz", "NSZ")));
+            checks.Add(Check("NSZ", () => Plugin(nsz.ExecutablePath, nsz.InstalledVersion, ExternalSources.Current.NszRepository, "NSZ")));
         if (settings.NandPluginActive)
-            checks.Add(Check("NxNandManager", () => Plugin(nand.ExecutablePath, nand.InstalledVersion, "THZoria/NxNandManager", "NxNandManager")));
+            checks.Add(Check("NxNandManager", () => Plugin(nand.ExecutablePath, nand.InstalledVersion, ExternalSources.Current.NandRepository, "NxNandManager")));
         foreach (var region in new[] { settings.TitleDbRegion, "US.en" }.Distinct())
         {
             var captured = region;
             checks.Add(Check("Title DB " + region, async () =>
             {
                 if (!Regex.IsMatch(captured, @"^[A-Z]{2}\.[a-z]{2}\z")) throw new InvalidDataException();
-                using var entry = await Get("https://api.github.com/repos/blawar/titledb/contents/" + captured + ".json?ref=master", "Title DB " + captured);
+                using var entry = await Get(ExternalSources.Current.TitleDb.ApiUrl(captured + ".json"), "Title DB " + captured);
                 var path = Path.Combine(ApplicationDataPaths.TitleDb(directory), captured + ".json");
                 var available = !MatchesGitBlob(path, entry.RootElement.GetProperty("sha").GetString()!);
                 return (available ? keys.Component_UpdateAvailable : keys.Update_Current, available);
@@ -70,15 +70,13 @@ public sealed class ComponentUpdateChecker(NszPluginManager nsz, NandPluginManag
         }
         if (settings.FirmwareCheckActive) checks.Add(Check(keys.DataUpdate_Firmware, async () =>
         {
-            using var listing = await Get("https://api.github.com/repos/sandmaennchen5/fork_NxFileViewer/contents/fw/hashes?ref=master", keys.DataUpdate_Firmware);
-            var entries = listing.RootElement.EnumerateArray().Where(e => e.GetProperty("type").GetString() == "file" && e.GetProperty("name").GetString()!.EndsWith(".json", StringComparison.OrdinalIgnoreCase)).ToArray();
-            if (entries.Length == 0) throw new InvalidDataException();
+            var mirrors = new RepositoryMirrors(httpClient, requests, automatic);
+            var entries = await mirrors.FirmwareListingAsync(ExternalSources.Current.FirmwareHashes, token);
+            if (mirrors.LastNotice.Length > 0) notices[keys.DataUpdate_Firmware] = mirrors.LastNotice;
             foreach (var entry in entries)
             {
                 token.ThrowIfCancellationRequested();
-                var name = entry.GetProperty("name").GetString()!;
-                if (Path.GetFileName(name) != name) throw new InvalidDataException();
-                if (!MatchesGitBlob(Path.Combine(ApplicationDataPaths.FirmwareHashes(directory), name), entry.GetProperty("sha").GetString()!)) return (keys.Component_UpdateAvailable, true);
+                if (!MatchesGitBlob(Path.Combine(ApplicationDataPaths.FirmwareHashes(directory), entry.Name), entry.Sha)) return (keys.Component_UpdateAvailable, true);
             }
             return (keys.Update_Current, false);
         }));

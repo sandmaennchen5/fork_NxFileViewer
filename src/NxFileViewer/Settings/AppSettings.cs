@@ -1,4 +1,4 @@
-﻿using System.Text.Json.Serialization;
+using System.Text.Json.Serialization;
 using Emignatik.NxFileViewer.Utils.MVVM;
 using Emignatik.NxFileViewer.Utils.MVVM.Localization;
 using Microsoft.Extensions.Logging;
@@ -355,11 +355,11 @@ public class AppSettings : NotifyPropertyChangedBase, IAppSettings
     private string _titleKeysDownloadUrl = "ftp://{IP}:5000/sdmc:/switch/title.keys";
     private bool _alwaysReloadKeysBeforeOpen = false;
 
-    private string _titlePageUrl = "https://tinfoil.media/Title/{TitleId}";
-    private string _titleInfoApiUrl = "https://tinfoil.media/api/title/{TitleId}";
+    private string _titlePageUrl = Emignatik.NxFileViewer.Services.ExternalSources.Current.TitlePageUrl;
+    private string _titleInfoApiUrl = Emignatik.NxFileViewer.Services.ExternalSources.Current.TitleInfoApiUrl;
     private TitleInfoProvider _titleInfoProvider;
     private string _titleDbRegion = "DE.de";
-    private string _nLibApiUrl = "https://api.nlib.cc/nx/{TitleId}?lang={Language}";
+    private string _nLibApiUrl = Emignatik.NxFileViewer.Services.ExternalSources.Current.NLibApiUrl;
     private string _lastUsedDir = "";
     private bool _allowNczBlocklessCompressionOpening = true;
     private bool _acceptMissingDeltaFragments = true;

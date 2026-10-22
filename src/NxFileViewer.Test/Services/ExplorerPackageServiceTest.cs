@@ -152,7 +152,7 @@ public sealed class ExplorerPackageServiceTest : IDisposable
         using var certificate = Certificate();
         var handler = new Handler(Setup(Package(certificate), certificate)); using var client = new HttpClient(handler);
         var deployment = new Deployment { Version = new Version(4, 0, 1, 4), Trusted = alreadyTrusted };
-        Assert.Equal(ExplorerInstallStage.Installed, await new ExplorerPackageService(client).InstallAsync("x64", false, _root, deployment, null, CancellationToken.None));
+        Assert.Equal(ExplorerInstallStage.Installed, await new ExplorerPackageService(client, new[] { "github:sandmaennchen5/fork_NxFileViewer" }).InstallAsync("x64", false, _root, deployment, null, CancellationToken.None));
         Assert.Equal(alreadyTrusted ? new[] { "version", "install" } : new[] { "version", "trust", "install" }, deployment.Calls);
         Assert.Equal(1, handler.Downloads);
         Assert.Empty(Directory.GetFileSystemEntries(_root));
@@ -163,7 +163,7 @@ public sealed class ExplorerPackageServiceTest : IDisposable
     {
         var handler = new Handler(Array.Empty<byte>()); using var client = new HttpClient(handler);
         var deployment = new Deployment { Version = new Version(4, 0, 1, revision) };
-        Assert.Equal(ExplorerInstallStage.Current, await new ExplorerPackageService(client).InstallAsync("x64", false, _root, deployment, null, CancellationToken.None));
+        Assert.Equal(ExplorerInstallStage.Current, await new ExplorerPackageService(client, new[] { "github:sandmaennchen5/fork_NxFileViewer" }).InstallAsync("x64", false, _root, deployment, null, CancellationToken.None));
         Assert.Equal(new[] { "version", "refresh" }, deployment.Calls); Assert.Equal(0, handler.Downloads);
     }
     [Fact]
@@ -171,7 +171,7 @@ public sealed class ExplorerPackageServiceTest : IDisposable
     {
         using var certificate = Certificate(); var handler = new Handler(Setup(Package(certificate), certificate));
         using var client = new HttpClient(handler); var deployment = new Deployment { CancelTrust = true };
-        await Assert.ThrowsAsync<OperationCanceledException>(() => new ExplorerPackageService(client).InstallAsync("x64", false, _root, deployment, null, CancellationToken.None));
+        await Assert.ThrowsAsync<OperationCanceledException>(() => new ExplorerPackageService(client, new[] { "github:sandmaennchen5/fork_NxFileViewer" }).InstallAsync("x64", false, _root, deployment, null, CancellationToken.None));
         Assert.Equal(new[] { "version", "trust" }, deployment.Calls); Assert.Empty(Directory.GetFileSystemEntries(_root));
     }
     [Theory]
@@ -181,7 +181,7 @@ public sealed class ExplorerPackageServiceTest : IDisposable
         using var certificate = Certificate(); using var other = Certificate("CN=Mismatch");
         var handler = new Handler(Setup(Package(certificate), other), digest); using var client = new HttpClient(handler);
         var deployment = new Deployment();
-        await Assert.ThrowsAsync<InvalidDataException>(() => new ExplorerPackageService(client).InstallAsync("x64", false, _root, deployment, null, CancellationToken.None));
+        await Assert.ThrowsAsync<InvalidDataException>(() => new ExplorerPackageService(client, new[] { "github:sandmaennchen5/fork_NxFileViewer" }).InstallAsync("x64", false, _root, deployment, null, CancellationToken.None));
         Assert.Equal(new[] { "version" }, deployment.Calls); Assert.Empty(Directory.GetFileSystemEntries(_root));
     }
     [Fact]
@@ -189,7 +189,7 @@ public sealed class ExplorerPackageServiceTest : IDisposable
     {
         var handler = new Handler(Array.Empty<byte>()); using var client = new HttpClient(handler);
         var release = ExplorerPackageService.SelectRelease(Release(), "x64", false)! with { Digest = null };
-        await Assert.ThrowsAsync<InvalidDataException>(() => new ExplorerPackageService(client).PrepareAsync(release, _root, CancellationToken.None));
+        await Assert.ThrowsAsync<InvalidDataException>(() => new ExplorerPackageService(client, new[] { "github:sandmaennchen5/fork_NxFileViewer" }).PrepareAsync(release, _root, CancellationToken.None));
         Assert.Equal(0, handler.Downloads); Assert.Empty(Directory.GetFileSystemEntries(_root));
     }
     private sealed class ListingHandler : HttpMessageHandler
@@ -204,7 +204,7 @@ public sealed class ExplorerPackageServiceTest : IDisposable
     public async Task ChoosesHighestMsixVersionRatherThanReleaseListingOrder()
     {
         using var client = new HttpClient(new ListingHandler());
-        var release = await new ExplorerPackageService(client).CheckAsync("x64", false, CancellationToken.None);
+        var release = await new ExplorerPackageService(client, new[] { "github:sandmaennchen5/fork_NxFileViewer" }).CheckAsync("x64", false, CancellationToken.None);
         Assert.Equal(new Version(4, 0, 1, 9), release!.Version);
     }
     public void Dispose() { if (Directory.Exists(_root)) Directory.Delete(_root, true); }

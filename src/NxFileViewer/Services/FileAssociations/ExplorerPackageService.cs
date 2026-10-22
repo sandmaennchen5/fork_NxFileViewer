@@ -17,7 +17,10 @@ using Emignatik.NxFileViewer.Services.Updates;
 
 namespace Emignatik.NxFileViewer.Services.FileAssociations;
 
-public sealed record ExplorerPackageRelease(Version Version, string Architecture, string AssetName, Uri DownloadUrl, string? Digest);
+public sealed record ExplorerPackageRelease(Version Version, string Architecture, string AssetName, Uri DownloadUrl, string? Digest)
+{
+    public string? SourceSpec { get; init; }
+}
 public enum ExplorerInstallStage { Checking, Downloading, Trusting, Installing, Current, Installed }
 public interface IExplorerPackageDeployment
 {
@@ -48,15 +51,16 @@ public sealed class ExplorerPackageService
     private static readonly HttpClient DefaultClient = CreateClient();
     private readonly HttpClient _client;
     private readonly GitHubUpdateRequests _requests;
-    public ExplorerPackageService(HttpClient? client = null)
-    { _client = client ?? DefaultClient; _requests = GitHubUpdateRequests.For(client); }
+    private readonly string[] _sources;
+    public ExplorerPackageService(HttpClient? client = null, string[]? sources = null)
+    { _client = client ?? DefaultClient; _requests = GitHubUpdateRequests.For(client); _sources = sources ?? ExternalSources.Current.ExplorerSourceSpecs; ExternalSources.ValidateRepositories(_sources); }
     private static HttpClient CreateClient()
     {
         var client = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
         client.DefaultRequestHeaders.UserAgent.ParseAdd("NxFileViewer-Explorer/1.0");
         return client;
     }
-    public static ExplorerPackageRelease? SelectRelease(JsonElement release, string architecture, bool includePrereleases)
+    public static ExplorerPackageRelease? SelectRelease(JsonElement release, string architecture, bool includePrereleases, string? sourceSpec = null)
     {
         if (architecture is not ("x64" or "arm64")) throw new PlatformNotSupportedException("Windows 11 Explorer requires x64 or ARM64.");
         if (release.GetProperty("draft").GetBoolean() || (!includePrereleases &&
@@ -69,35 +73,29 @@ public sealed class ExplorerPackageService
             if (!match.Success || !Version.TryParse(match.Groups[1].Value, out var version) || version.Major == 0 ||
                 new[] { version.Major, version.Minor, version.Build, version.Revision }.Any(v => v > 65535)) continue;
             var url = new Uri(asset.GetProperty("browser_download_url").GetString()!);
-            ValidateUrl(url, name);
-            candidates.Add(new(version, architecture, name, url, asset.TryGetProperty("digest", out var digest) ? digest.GetString() : null));
+            ValidateUrl(url, name, sourceSpec);
+            candidates.Add(new(version, architecture, name, url, asset.TryGetProperty("digest", out var digest) ? digest.GetString() : null) { SourceSpec = sourceSpec });
         }
         return candidates.OrderByDescending(c => c.Version).FirstOrDefault();
     }
-    private static void ValidateUrl(Uri url, string asset)
+    private static void ValidateUrl(Uri url, string asset, string? sourceSpec = null)
     {
+        if (sourceSpec != null)
+        {
+            var source = ViewerUpdateSource.Parse(sourceSpec);
+            source.ValidateDownload(url);
+            if (source.Kind != ViewerUpdateSourceKind.GitHub) return;
+            if (url.Query.Length != 0 || Uri.UnescapeDataString(url.Segments.Last()) != asset) throw new InvalidDataException("Unexpected Explorer ZIP path.");
+            return;
+        }
         if (!url.IsAbsoluteUri || url.Scheme != "https" || url.Host != "github.com" || !url.IsDefaultPort || url.UserInfo.Length != 0 ||
             url.Query.Length != 0 || url.Fragment.Length != 0 ||
-            !url.AbsolutePath.StartsWith("/" + ViewerUpdateService.Repository + "/releases/download/", StringComparison.Ordinal) ||
+            !url.AbsolutePath.StartsWith("/" + ExternalSources.Current.ExplorerRepository + "/releases/download/", StringComparison.Ordinal) ||
             Uri.UnescapeDataString(url.Segments.Last()) != asset)
             throw new InvalidDataException("Unexpected Explorer release download URL.");
     }
-    public async Task<ExplorerPackageRelease?> CheckAsync(string architecture, bool includePrereleases, CancellationToken token)
-    {
-        var candidates = new List<ExplorerPackageRelease>();
-        for (var page = 1; page <= 10; page++)
-        {
-            var response = await _requests.GetAsync($"https://api.github.com/repos/{ViewerUpdateService.Repository}/releases?per_page=100&page={page}", false, token).ConfigureAwait(false);
-            using var json = JsonDocument.Parse(response.Body);
-            foreach (var release in json.RootElement.EnumerateArray())
-            {
-                var candidate = SelectRelease(release, architecture, includePrereleases);
-                if (candidate != null) candidates.Add(candidate);
-            }
-            if (json.RootElement.GetArrayLength() < 100) break;
-        }
-        return candidates.OrderByDescending(c => c.Version).FirstOrDefault();
-    }
+    public Task<ExplorerPackageRelease?> CheckAsync(string architecture, bool includePrereleases, CancellationToken token) =>
+        new RepositoryMirrors(_client, _requests).ExplorerAsync(_sources, architecture, includePrereleases, token);
     public async Task<ExplorerInstallStage> InstallAsync(string architecture, bool includePrereleases, string downloadRoot,
         IExplorerPackageDeployment deployment, IProgress<ExplorerInstallStage>? progress, CancellationToken token)
     {
@@ -126,10 +124,10 @@ public sealed class ExplorerPackageService
     }
     public async Task<PreparedExplorerPackage> PrepareAsync(ExplorerPackageRelease release, string downloadRoot, CancellationToken token)
     {
-        ValidateUrl(release.DownloadUrl, release.AssetName);
+        ValidateUrl(release.DownloadUrl, release.AssetName, release.SourceSpec);
         string expected;
         try { expected = ViewerUpdateService.ExpectedHash(release.Digest); }
-        catch (InvalidDataException ex) { throw new InvalidDataException("Explorer setup ZIP has no valid GitHub SHA-256 digest. Re-upload the Explorer setup ZIP to the release.", ex); }
+        catch (InvalidDataException ex) { throw new InvalidDataException("Explorer setup ZIP has no valid SHA-256 digest. Re-publish the package and release metadata.", ex); }
         var root = Path.GetFullPath(downloadRoot);
         System.IO.Directory.CreateDirectory(root);
         if ((File.GetAttributes(root) & FileAttributes.ReparsePoint) != 0) throw new IOException("Explorer downloads require a local directory.");

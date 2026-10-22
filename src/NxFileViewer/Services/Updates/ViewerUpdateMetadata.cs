@@ -18,10 +18,15 @@ public sealed record ViewerReleasePackage(string Architecture, bool SelfContaine
 }
 public sealed record ViewerReleaseManifest(int SchemaVersion, string ApplicationId, string Version, ViewerReleasePackage[] Packages)
 {
+    public ViewerReleasePackage[] ExplorerPackages { get; init; } = Array.Empty<ViewerReleasePackage>();
     public bool Draft { get; init; }
     public bool Prerelease { get; init; }
 }
-public sealed record ViewerUpdateState(int SchemaVersion, string ApplicationId, string[] UpdateSources, string[] CompletedMigrations);
+public sealed record ViewerUpdateSourceOptions(bool Enabled = true, int TimeoutSeconds = 30);
+public sealed record ViewerUpdateState(int SchemaVersion, string ApplicationId, string[] UpdateSources, string[] CompletedMigrations)
+{
+    public Dictionary<string, ViewerUpdateSourceOptions> UpdateSourceOptions { get; init; } = new();
+}
 
 public static class ViewerUpdateMetadata
 {
@@ -57,7 +62,7 @@ public static class ViewerUpdateMetadata
                 {
                     ViewerPackageLayout.NoLinks(packagePath);
                     var package = ViewerPackageLayout.ReadManifest(File.ReadAllBytes(packagePath));
-                    if (package.UpdateSources.Length > 0) return new(1, ViewerPackageLayout.ApplicationId, package.UpdateSources, Array.Empty<string>());
+                    if (package.UpdateSources.Length > 0) return new(1, ViewerPackageLayout.ApplicationId, package.UpdateSources, Array.Empty<string>()) { UpdateSourceOptions = package.UpdateSourceOptions };
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or ArgumentException) { }
             return new(1, ViewerPackageLayout.ApplicationId, new[] { ViewerUpdateService.Repository }, Array.Empty<string>());
@@ -71,6 +76,7 @@ public static class ViewerUpdateMetadata
             state.CompletedMigrations.Any(id => string.IsNullOrWhiteSpace(id) || id.Length > 128))
             throw new InvalidDataException("Invalid local update state.");
         foreach (var source in state.UpdateSources) _ = ViewerUpdateSource.Parse(source);
+        ValidateSourceOptions(state.UpdateSources, state.UpdateSourceOptions);
         return state;
     }
 
@@ -80,6 +86,7 @@ public static class ViewerUpdateMetadata
         if (manifest.UpdateSources == null || manifest.UpdateSources.Length > 8 || manifest.Migrations == null || manifest.Migrations.Length > 128)
             throw new InvalidDataException("Invalid package update metadata.");
         foreach (var source in manifest.UpdateSources) _ = ViewerUpdateSource.Parse(source);
+        ValidateSourceOptions(manifest.UpdateSources, manifest.UpdateSourceOptions);
         var ids = new HashSet<string>(StringComparer.Ordinal);
         foreach (var migration in manifest.Migrations)
         {
@@ -99,6 +106,22 @@ public static class ViewerUpdateMetadata
             }
         }
     }
+
+    public static void ValidateSourceOptions(string[] sources, Dictionary<string, ViewerUpdateSourceOptions> options)
+    {
+        if (options == null || options.Count > 16) throw new InvalidDataException("Invalid update source options.");
+        var known = sources.Select(source => ViewerUpdateSource.Parse(source).Key).ToHashSet(StringComparer.Ordinal);
+        var configured = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var (source, value) in options)
+        {
+            var key = ViewerUpdateSource.Parse(source).Key;
+            if (!known.Contains(key) || !configured.Add(key) || value == null || value.TimeoutSeconds is < 1 or > 300)
+                throw new InvalidDataException("Source options require a listed source and a timeout between 1 and 300 seconds.");
+        }
+    }
+
+    public static ViewerUpdateSourceOptions SourceOptions(ViewerUpdateState state, ViewerUpdateSource source) =>
+        state.UpdateSourceOptions.FirstOrDefault(pair => ViewerUpdateSource.Parse(pair.Key).Key == source.Key).Value ?? new();
 
     private static bool Reserved(string path) => path.Equals(StateName, StringComparison.OrdinalIgnoreCase) ||
         path.Equals(ViewerPackageLayout.ManifestName, StringComparison.OrdinalIgnoreCase);
@@ -122,6 +145,15 @@ public static class ViewerUpdateMetadata
                 package.Url.StartsWith("//", StringComparison.Ordinal) || !Uri.TryCreate(package.Url, UriKind.RelativeOrAbsolute, out var address)))
                 throw new InvalidDataException("Invalid package download address.");
             if (package.Url != null && Uri.TryCreate(package.Url, UriKind.Absolute, out var absolute)) _ = ViewerUpdateSource.Https(absolute.AbsoluteUri);
+        }
+        if (manifest.ExplorerPackages == null || manifest.ExplorerPackages.Length > 2) throw new InvalidDataException("Invalid Explorer package list.");
+        var explorerVariants = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var package in manifest.ExplorerPackages)
+        {
+            if (package == null || package.Architecture is not ("x64" or "arm64") || !explorerVariants.Add(package.Architecture) || package.SelfContained || package.Url != null)
+                throw new InvalidDataException("Invalid Explorer distribution.");
+            _ = Asset(package.AssetName);
+            _ = ViewerUpdateService.ExpectedHash(package.Sha256 == null ? null : "sha256:" + package.Sha256);
         }
         return manifest;
     }
@@ -238,7 +270,10 @@ public static class ViewerUpdateMetadata
             if (!paths.Add(StateName)) throw new InvalidDataException("Update state must not be supplied by an archive.");
             var sources = (manifest.UpdateSources.Length > 0 ? manifest.UpdateSources : state.UpdateSources)
                 .DistinctBy(source => ViewerUpdateSource.Parse(source).Key, StringComparer.Ordinal).ToArray();
-            var nextState = new ViewerUpdateState(1, ViewerPackageLayout.ApplicationId, sources, completed.OrderBy(id => id, StringComparer.Ordinal).ToArray());
+            var nextState = new ViewerUpdateState(1, ViewerPackageLayout.ApplicationId, sources, completed.OrderBy(id => id, StringComparer.Ordinal).ToArray())
+            {
+                UpdateSourceOptions = manifest.UpdateSources.Length > 0 ? manifest.UpdateSourceOptions : state.UpdateSourceOptions
+            };
             if (nextState.CompletedMigrations.Length > 1024) throw new InvalidDataException("Too many completed migrations.");
             var bytes = JsonSerializer.SerializeToUtf8Bytes(nextState);
             if (bytes.Length > MaximumManifestSize) throw new InvalidDataException("Update state exceeds size limit.");

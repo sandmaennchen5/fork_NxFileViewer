@@ -3,7 +3,23 @@
   "ApplicationId": "NxFileViewerFork",
   "Executable": "NxFileViewerFork.exe",
   "UpdateSources": [
-    "github:sandmaennchen5/fork_NxFileViewer"
+    "github:sandmaennchen5/fork_NxFileViewer",
+    "gitlab:https://gitlab.com/sandmaennchen5/fork_NxFileViewer",
+    "forgejo:https://git.sandmaennchen5.de/sandmaennchen5/fork_NxFileViewer"
   ],
-  "Migrations": []
+  "Migrations": [],
+  "UpdateSourceOptions": {
+    "github:sandmaennchen5/fork_NxFileViewer": {
+      "Enabled": true,
+      "TimeoutSeconds": 30
+    },
+    "gitlab:https://gitlab.com/sandmaennchen5/fork_NxFileViewer": {
+      "Enabled": true,
+      "TimeoutSeconds": 30
+    },
+    "forgejo:https://git.sandmaennchen5.de/sandmaennchen5/fork_NxFileViewer": {
+      "Enabled": true,
+      "TimeoutSeconds": 30
+    }
+  }
 }

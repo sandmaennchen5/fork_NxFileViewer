@@ -150,7 +150,7 @@ public sealed class NszPluginManager(IAppSettings settings, ILogger<NszPluginMan
         progress.SetMode(true);
         progress.SetText(LocalizationManager.Instance.Current.Keys.Nsz_Updating);
         var client = httpClient ?? Client;
-        var response = await Emignatik.NxFileViewer.Services.Updates.GitHubUpdateRequests.For(httpClient).GetAsync("https://api.github.com/repos/nicoboss/nsz/releases/latest", automatic, token).ConfigureAwait(false);
+        var response = await Emignatik.NxFileViewer.Services.Updates.GitHubUpdateRequests.For(httpClient).GetAsync(ExternalSources.ReleaseApi(ExternalSources.Current.NszRepository), automatic, token).ConfigureAwait(false);
         using var release = JsonDocument.Parse(response.Body);
         var root = release.RootElement;
         if (root.GetProperty("draft").GetBoolean() || root.GetProperty("prerelease").GetBoolean())
@@ -179,7 +179,7 @@ public sealed class NszPluginManager(IAppSettings settings, ILogger<NszPluginMan
             }
         }
         var url = new Uri(asset.GetProperty("browser_download_url").GetString()!);
-        if (url.Scheme != "https" || url.Host != "github.com" || !url.AbsolutePath.StartsWith("/nicoboss/nsz/releases/download/", StringComparison.Ordinal))
+        if (url.Scheme != "https" || url.Host != "github.com" || !url.AbsolutePath.StartsWith(ExternalSources.ReleaseDownloadPrefix(ExternalSources.Current.NszRepository), StringComparison.Ordinal))
             throw new InvalidDataException("Unexpected NSZ download URL.");
         Directory.CreateDirectory(RootDirectory);
         var versionDirectory = Path.Combine(RootDirectory, "version-" + Guid.NewGuid().ToString("N"));
@@ -235,7 +235,7 @@ public sealed class NszPluginManager(IAppSettings settings, ILogger<NszPluginMan
         if (digest == null || !digest.StartsWith("sha256:", StringComparison.Ordinal) || digest.Length != 71)
             throw new InvalidDataException("NSZ asset has no SHA-256 digest.");
         var url = new Uri(asset.GetProperty("browser_download_url").GetString()!);
-        if (url.Scheme != "https" || url.Host != "github.com" || !url.AbsolutePath.StartsWith("/nicoboss/nsz/releases/download/", StringComparison.Ordinal))
+        if (url.Scheme != "https" || url.Host != "github.com" || !url.AbsolutePath.StartsWith(ExternalSources.ReleaseDownloadPrefix(ExternalSources.Current.NszRepository), StringComparison.Ordinal))
             throw new InvalidDataException("Unexpected NSZ download URL.");
         var cacheDirectory = Path.Combine(RootDirectory, "Downloads");
         Directory.CreateDirectory(cacheDirectory);

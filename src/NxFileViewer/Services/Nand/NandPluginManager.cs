@@ -122,7 +122,7 @@ public sealed class NandPluginManager(IAppSettings settings, string? rootDirecto
         progress.SetMode(true);
         progress.SetText(LocalizationManager.Instance.Current.Keys.Nand_Updating);
         var client = httpClient ?? Client;
-        var response = await Emignatik.NxFileViewer.Services.Updates.GitHubUpdateRequests.For(httpClient).GetAsync("https://api.github.com/repos/THZoria/NxNandManager/releases/latest", false, token).ConfigureAwait(false);
+        var response = await Emignatik.NxFileViewer.Services.Updates.GitHubUpdateRequests.For(httpClient).GetAsync(ExternalSources.ReleaseApi(ExternalSources.Current.NandRepository), false, token).ConfigureAwait(false);
         using var release = JsonDocument.Parse(response.Body);
         var root = release.RootElement;
         if (root.GetProperty("draft").GetBoolean() || root.GetProperty("prerelease").GetBoolean()) throw new InvalidDataException("NAND release is not stable.");
@@ -134,7 +134,7 @@ public sealed class NandPluginManager(IAppSettings settings, string? rootDirecto
         if (digest == null || !digest.StartsWith("sha256:", StringComparison.Ordinal) || digest.Length != 71 || !digest[7..].All(Uri.IsHexDigit))
             throw new InvalidDataException("NAND package has no SHA-256 digest.");
         var url = new Uri(asset.GetProperty("browser_download_url").GetString()!);
-        if (url.Scheme != "https" || url.Host != "github.com" || !url.AbsolutePath.StartsWith("/THZoria/NxNandManager/releases/download/", StringComparison.Ordinal))
+        if (url.Scheme != "https" || url.Host != "github.com" || !url.AbsolutePath.StartsWith(ExternalSources.ReleaseDownloadPrefix(ExternalSources.Current.NandRepository), StringComparison.Ordinal))
             throw new InvalidDataException("Unexpected NAND download URL.");
         var state = ReadState();
         if (state?.Version == tag && state.Digest == digest && File.Exists(state.Executable))
