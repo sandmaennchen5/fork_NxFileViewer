@@ -29,6 +29,14 @@ public sealed record PackageEngineConfiguration(PackageEngine Engine, string Rus
 /// <summary>Both engines write to an isolated job. Only validated outputs are published.</summary>
 public sealed class PackageOperationService(IFileLoader loader, IConversionVerifier verifier)
 {
+    public static string[] OrderMergeSources(IEnumerable<(string Path, LibHac.Ncm.ContentMetaType[] Types)> sources) =>
+        sources.OrderBy(source => source.Types.Select(type => type switch {
+            LibHac.Ncm.ContentMetaType.Application => 0,
+            LibHac.Ncm.ContentMetaType.Patch => 1,
+            LibHac.Ncm.ContentMetaType.AddOnContent => 2,
+            _ => 3
+        }).DefaultIfEmpty(3).Min()).Select(source => source.Path).ToArray();
+
     public static IReadOnlyList<string> BuildArguments(PackageEngine engine, PackageOperation operation,
         IReadOnlyList<string> sources, string output, string type, string keys, string? inputList = null)
     {
@@ -69,6 +77,7 @@ public sealed class PackageOperationService(IFileLoader loader, IConversionVerif
         if (sources.Distinct(StringComparer.OrdinalIgnoreCase).Count() != sources.Length ||
             sources.Any(p => !File.Exists(p) || Path.GetExtension(p).ToLowerInvariant() is not (".nsp" or ".xci")))
             throw new ArgumentException(text.Package_Inputs);
+        var sourceTypes = new List<(string Path, LibHac.Ncm.ContentMetaType[] Types)>();
         var expected = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var titleIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var locks = new List<FileStream>();
@@ -86,12 +95,15 @@ public sealed class PackageOperationService(IFileLoader loader, IConversionVerif
                 locks.Add(new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.Read));
                 CheckIntegrity(source, progress, token);
                 using var file = loader.Load(source, token);
-                foreach (var cnmt in file.Overview.CnmtContainers.Select(c => c.CnmtItem))
+                var metadata = file.Overview.CnmtContainers.Select(c => c.CnmtItem).ToArray();
+                sourceTypes.Add((source, metadata.Select(c => c.ContentType).ToArray()));
+                foreach (var cnmt in metadata)
                 {
                     if (!titleIds.Add(cnmt.TitleId)) throw new InvalidDataException("Select only one version of title " + cnmt.TitleId);
                     expected.Add(cnmt.TitleId + ":" + cnmt.TitleVersion);
                 }
             }
+            if (operation == PackageOperation.Merge) sources = OrderMergeSources(sourceTypes);
             if (expected.Count == 0) throw new InvalidDataException(text.Package_Invalid);
             progress.SetMode(true);
             progress.SetText(configuration.Engine + " / " + operation);

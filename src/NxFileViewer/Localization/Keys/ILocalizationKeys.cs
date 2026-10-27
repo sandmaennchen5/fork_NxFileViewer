@@ -1,4 +1,4 @@
-﻿using Emignatik.NxFileViewer.Utils.MVVM.Localization;
+using Emignatik.NxFileViewer.Utils.MVVM.Localization;
 
 // ReSharper disable InconsistentNaming
 
@@ -45,6 +45,7 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string Package_ConvertNsp { get; }
     string Package_ConvertXci { get; }
     string Package_Split { get; }
+    string Package_SplitXci { get; }
     string Package_Destination { get; }
     string Package_Inputs { get; }
     string Package_Done { get; }
@@ -149,6 +150,7 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string Update_Downloading { get; }
     string Update_Installing { get; }
     string Update_Cancelled { get; }
+    string Nsz_Engine { get; }
     string Nsz_Mode { get; }
     string Nsz_ModeAuto { get; }
     string Nsz_ModeSolid { get; }
@@ -558,10 +560,18 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string RenamingTool_StatusSimulation { get; }
     string RenamingTool_StatusRenamed { get; }
     string RenamingTool_WindowTitle { get; }
+    string Naming_Manual { get; }
+    string Naming_Edit { get; }
+    string Naming_Variables { get; }
+    string Naming_AllowedVariables { get; }
     string RenamingTool_Patterns { get; }
     string RenamingTool_ApplicationPattern { get; }
     string RenamingTool_PatchPattern { get; }
     string RenamingTool_AddonPattern { get; }
+    string RenamingTool_SuperPattern { get; }
+    string RenamingTool_MultiPattern { get; }
+    string RenamingTool_ToolTip_MultiPattern { get; }
+    string RenamingTool_ToolTip_SuperPattern { get; }
     string RenamingTool_InputPath { get; }
     string RenamingTool_FileFilters { get; }
     string RenamingTool_ToolTip_Patterns { get; }

@@ -54,7 +54,11 @@ public sealed class NszActions : NotifyPropertyChangedBase
     public RelayCommand UpdateCommand { get; }
     public RelayCommand RollbackCommand { get; }
     public RelayCommand CleanupCommand { get; }
-    public string Status => _manager.Status;
+    private string EngineName => _settings.NszCompressionEngine == NszCompressionEngine.Rust ? "nscb_rust" : "nicoboss/nsz";
+    public string Status => _settings.NszCompressionEngine != NszCompressionEngine.Rust ? _manager.Status :
+        EngineName + " — " + (File.Exists(_settings.RustPackageExecutablePath)
+            ? LocalizationManager.Instance.Current.Keys.Package_Ready : LocalizationManager.Instance.Current.Keys.Nsz_NotInstalled) +
+        Environment.NewLine + _settings.RustPackageExecutablePath;
 
     private void Refresh()
     {
@@ -88,14 +92,15 @@ public sealed class NszActions : NotifyPropertyChangedBase
         var destination = _prompts.PromptSelectDir(LocalizationManager.Instance.Current.Keys.Nsz_SelectDestination);
         if (destination == null) return Array.Empty<ConversionAttempt>();
         destination = Path.GetFullPath(destination);
-        var deleteSource = Emignatik.NxFileViewer.Views.Windows.ThemedDialog.Confirm("NSZ", LocalizationManager.Instance.Current.Keys.Nsz_DeleteSourcePrompt);
+        var deleteSource = Emignatik.NxFileViewer.Views.Windows.ThemedDialog.Confirm(EngineName, LocalizationManager.Instance.Current.Keys.Nsz_DeleteSourcePrompt);
         if (deleteSource == MessageBoxResult.Cancel) return Array.Empty<ConversionAttempt>();
         if (deleteSource == MessageBoxResult.Yes && _opening.OpenedFile != null &&
             paths.Contains(_opening.OpenedFile.FilePath, StringComparer.OrdinalIgnoreCase)) _opening.SafeClose();
         var attempts = new List<ConversionAttempt>();
         var runnable = new RunnableRelay((progress, token) =>
         {
-            _manager.Prepare(progress, token); // One update/compatibility check per batch.
+            if (_settings.NszCompressionEngine != NszCompressionEngine.Rust)
+                _manager.Prepare(progress, token); // One update/compatibility check per batch.
             for (var index = 0; index < paths.Length; index++)
             {
                 token.ThrowIfCancellationRequested();
@@ -140,11 +145,11 @@ public sealed class NszActions : NotifyPropertyChangedBase
         if (deletionErrors.Length > 0)
             Emignatik.NxFileViewer.Views.Windows.ThemedDialog.Notice(LocalizationManager.Instance.Current.Keys.Nsz_SourceDeleteFailed + Environment.NewLine +
                 string.Join(Environment.NewLine, deletionErrors.Select(a => a.SourcePath + ": " + a.Result!.SourceDeletionError)),
-                "NSZ", MessageBoxImage.Warning);
+                EngineName, MessageBoxImage.Warning);
         if (attempts.Count > 0 || cancelled)
             Emignatik.NxFileViewer.Views.Windows.ThemedDialog.Notice(string.Format(LocalizationManager.Instance.Current.Keys.Nsz_Summary,
                 success, attempts.Count(a => a.Error != null), paths.Length - attempts.Count),
-                "NSZ", MessageBoxImage.Information);
+                EngineName, MessageBoxImage.Information);
         return attempts;
     }
 

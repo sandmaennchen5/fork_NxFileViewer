@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows7.0</TargetFramework>
+    <TargetFramework>net10.0-windows7.0</TargetFramework>
     <UseWPF>true</UseWPF>
     <RootNamespace>Emignatik.NxFileViewer</RootNamespace>
     <Nullable>enable</Nullable>
@@ -12,14 +12,15 @@
     <Company>sandmaennchen5</Company>
     <Product>NxFileViewer Fork</Product>
     <Authors>sandmaennchen5</Authors>
-    <Version>4.1.0</Version>
+    <Version>4.1.1-beta1</Version>
     <!-- Increment when the packaged Explorer extension changes. -->
-    <ExplorerPackageVersion>1.0.0.0</ExplorerPackageVersion>
+    <ExplorerPackageVersion>1.0.2.0</ExplorerPackageVersion>
     <PackageProjectUrl>https://github.com/sandmaennchen5/fork_NxFileViewer</PackageProjectUrl>
     <PackageIcon>Icon.ico</PackageIcon>
     <Description>Browse content of Nintendo Switch files</Description>
     <RepositoryUrl>https://github.com/sandmaennchen5/fork_NxFileViewer</RepositoryUrl>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Platforms>AnyCPU</Platforms>
   </PropertyGroup>
 
   <ItemGroup>
@@ -119,7 +120,9 @@
     <AssemblyMetadata Include="ViewerSelfContained" Value="$(SelfContained)" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="../../update/external-sources.json" LogicalName="Viewer.ExternalSources.json" />
+    <EmbeddedResource Include="../config/default-settings.json" LogicalName="Viewer.DefaultSettings.json" />
+    <EmbeddedResource Include="../config/naming-presets.json" LogicalName="Viewer.NamingPresets.json" />
+    <EmbeddedResource Include="../config/external-sources.json" LogicalName="Viewer.ExternalSources.json" />
     <EmbeddedResource Include="../../CREDITS.txt" LogicalName="Viewer.Credits" />
     <EmbeddedResource Include="../../LICENSE" LogicalName="Viewer.License" />
     <EmbeddedResource Include="../../docs/THIRD-PARTY-NOTICES.txt" LogicalName="Viewer.ThirdPartyNotices" />

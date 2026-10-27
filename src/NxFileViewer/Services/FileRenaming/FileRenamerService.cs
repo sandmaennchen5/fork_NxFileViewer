@@ -89,6 +89,10 @@ public class FileRenamerService : IFileRenamerService
     {
         ValidateInvalidWindowsFileNameChar(namingSettings.InvalidFileNameCharsReplacement);
         ValidateAllowedKeywords(namingSettings.ApplicationPattern, namingSettings.PatchPattern, namingSettings.AddonPattern);
+        if (HasNotAllowedKeyword(namingSettings.SuperPattern, PatternKeywordHelper.GetAllowedApplicationKeywords(), out var keyword))
+            throw new KeywordNotAllowedException(keyword.Value, PatternType.Super);
+        if (HasNotAllowedKeyword(namingSettings.MultiPattern, PatternKeywordHelper.GetAllowedMultiKeywords(), out var multiKeyword))
+            throw new KeywordNotAllowedException(multiKeyword.Value, PatternType.Multi);
     }
 
     private static void ValidateAllowedKeywords(IEnumerable<PatternPart> applicationPattern, IEnumerable<PatternPart> patchPattern, IEnumerable<PatternPart> addonPattern)
@@ -214,12 +218,23 @@ public class FileRenamerService : IFileRenamerService
                 ContentMetaType.AddOnContent => namingSettings.AddonPattern,
                 _ => throw new ContentTypeNotSupportedException(content.Type)
             };
-            newFileName = await ComputePackageFileName(content, packageInfo.AccuratePackageType, patternParts, cancellationToken);
+            newFileName = await ComputePackageFileName(content, packageInfo, patternParts, cancellationToken);
         }
         else
         {
-            //TODO: supporter les super NSP/XCI
-            throw new SuperPackageNotSupportedException();
+            if (packageInfo.Contents.Count == 0)
+                throw new InvalidDataException("The package contains no title metadata.");
+            if (packageInfo.Contents.Any(c => c.Type is not (ContentMetaType.Application or ContentMetaType.Patch or ContentMetaType.AddOnContent)))
+                throw new SuperPackageNotSupportedException();
+
+            var content = packageInfo.Contents.Where(c => c.Type == ContentMetaType.Application)
+                .OrderByDescending(c => c.Version.Version).FirstOrDefault()
+                ?? packageInfo.Contents.Where(c => c.Type == ContentMetaType.Patch)
+                    .OrderByDescending(c => c.Version.Version).FirstOrDefault();
+            var mixed = content == null ||
+                packageInfo.Contents.Select(c => c.ApplicationTitleId).Distinct(StringComparer.OrdinalIgnoreCase).Count() > 1;
+            var pattern = mixed ? namingSettings.MultiPattern : namingSettings.SuperPattern;
+            newFileName = await ComputePackageFileName(content ?? packageInfo.Contents[0], packageInfo, pattern, cancellationToken);
         }
 
         if (namingSettings.ReplaceWhiteSpaceChars)
@@ -246,7 +261,7 @@ public class FileRenamerService : IFileRenamerService
         return Path.Combine(segments);
     }
 
-    private async Task<string> ComputePackageFileName(Content content, AccuratePackageType accuratePackageType, IEnumerable<PatternPart> patternParts, CancellationToken cancellationToken)
+    private async Task<string> ComputePackageFileName(Content content, PackageInfo packageInfo, IEnumerable<PatternPart> patternParts, CancellationToken cancellationToken)
     {
         var newFileName = "";
 
@@ -264,6 +279,19 @@ public class FileRenamerService : IFileRenamerService
                     string partValue;
                     switch (dynamicText.Keyword)
                     {
+                        case PatternKeyword.GameCount:
+                            partValue = packageInfo.Contents.Count(c => c.Type == ContentMetaType.Application).ToString();
+                            break;
+                        case PatternKeyword.UpdateCount:
+                            partValue = packageInfo.Contents.Count(c => c.Type == ContentMetaType.Patch).ToString();
+                            break;
+                        case PatternKeyword.DlcCount:
+                            partValue = packageInfo.Contents.Count(c => c.Type == ContentMetaType.AddOnContent).ToString();
+                            break;
+                        case PatternKeyword.PackageVersionNumber:
+                            partValue = packageInfo.Contents.Where(c => c.Type is ContentMetaType.Application or ContentMetaType.Patch)
+                                .Select(c => c.Version.Version).DefaultIfEmpty(content.Version.Version).Max().ToString();
+                            break;
                         case PatternKeyword.TitleId:
                             partValue = content.TitleId;
                             break;
@@ -278,7 +306,7 @@ public class FileRenamerService : IFileRenamerService
                             partValue = firstTitle != null ? firstTitle.Name : "NO_TITLE";
                             break;
                         case PatternKeyword.PackageType:
-                            partValue = accuratePackageType.ToString();
+                            partValue = packageInfo.AccuratePackageType.ToString();
                             break;
                         case PatternKeyword.VersionNumber:
                             partValue = content.Version.Version.ToString();

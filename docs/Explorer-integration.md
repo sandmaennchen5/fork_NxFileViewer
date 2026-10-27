@@ -6,16 +6,24 @@ The `NxFileViewer Fork` submenu offers these actions. Titles follow the app lang
 
 | Selection | Action | Result |
 | --- | --- | --- |
-| One supported file | Im File öffnen | File page; no automatic hashing |
-| One supported file | Im File prüfen | File page; automatic NCA hashing where supported |
-| One or more supported files / folders | Im Batch öffnen | Scan the selection into Batch without hashing |
-| One or more supported files / folders | Im Batch prüfen | Scan and hash the selection in Batch |
+| One supported file | Open in File | File page; no automatic hashing |
+| One supported file | Verify in File | File page; automatic NCA hashing where supported |
+| One or more supported files / folders | Open in Batch | Scan the selection into Batch without hashing |
+| One or more supported files / folders | Verify in Batch | Scan and hash the selection in Batch |
 
 File actions appear before Batch actions for a single file. Further Explorer Batch actions append to the current Explorer batch table until the application is closed or a scan is started using a program button. Only the new selection is processed, with its requested hash mode; existing rows stay in the table and repeated paths update their existing row. A manual scan or a dropped selection starts a fresh batch, and the next Explorer batch starts a new Explorer collection.
 
 Explicit actions override automatic-verification preferences without changing those preferences. Files without NCA integrity data, such as NRO, have no NCA hashes to verify. Folders use the existing Batch recursion/archive settings. Unsupported and non-filesystem selections hide the menu; a mixed selection containing an unsupported file hides it too.
 
 The first process starts the receiver before loading the main window. Subsequent processes pass the entire selection and action to that receiver over a current-user-only named pipe and exit. Requests wait while another operation is running. Separate portable installations have separate receivers. A native UTF-16 response file avoids the Windows command-line length limit; the viewer validates and consumes only its own response files under `%LOCALAPPDATA%\NxFileViewerFork\ExplorerRequests`. A cancelled/failed request is reported, rather than silently falling back to another action. Ordinary file associations retain their automatic-hashing setting; independent Explorer open invocations are not inferred to be one batch selection.
+
+Compression actions are also available for matching local file selections: **Compress**
+for NSP/XCI and **Decompress** for NSZ/XCZ, including multiple files. Mixed compressed
+and uncompressed selections and folders hide these actions. The viewer prompts for
+the destination and source-file handling, uses the configured compression engine,
+and verifies results before publishing. Plugins must be enabled in the viewer.
+After updating the viewer, add/update the classic menu or install the new modern
+Explorer package (1.0.1.0) to receive the new commands.
 
 ## Classic menu
 
@@ -39,8 +47,8 @@ The **Remove file associations** button unregisters only this fork's ProgID, Ope
 
 Running `./Publish.ps1` creates signed Explorer packages alongside the viewer ZIPs in `Publish/`:
 
-- `NxFileViewerFork.Explorer_1.0.0.0_x64.msix` and `_x64_setup.zip`
-- `NxFileViewerFork.Explorer_1.0.0.0_arm64.msix` and `_arm64_setup.zip`
+- `NxFileViewerFork.Explorer_1.0.1.0_x64.msix` and `_x64_setup.zip`
+- `NxFileViewerFork.Explorer_1.0.1.0_arm64.msix` and `_arm64_setup.zip`
 
 Upload both `_x64_setup.zip` and `_arm64_setup.zip` as assets of the official GitHub release. Keep their generated names so the in-app installer can find them. The downloader requires the GitHub SHA-256 asset digest (available on current uploads); re-upload an older asset if GitHub does not supply one. App ZIPs and Explorer setup ZIPs remain separate downloads.
 
@@ -48,7 +56,7 @@ Each setup ZIP contains its MSIX, the public `NxFileViewerFork.Explorer.cer`, `T
 
 Publishing creates a five-year self-signed code-signing certificate in **Current User > Personal** on first use and reuses it on later runs. Publishing never adds it to a trust store. The private key stays on the publishing machine and is never included in release files. Keep this certificate and its private key; an encrypted PFX backup may be made separately using Windows certificate management. Do not commit or distribute private keys or PFX files. A new signing certificate requires a new trust confirmation. Certificate expiry alone does not stop an installed extension. Previously timestamped packages can still be accepted after expiry while trust remains in place; Windows validates the timestamp. A valid signing certificate is needed to sign new packages. With the same valid certificate, later releases require no further certificate import. This is individual user trust, not globally recognized publisher trust.
 
-The numeric version is set by `ExplorerPackageVersion` in `NxFileViewer.csproj` (currently `1.0.0.0`). Increment this property when packaged Explorer contents change, independently of the viewer version. If absent, it is derived from the viewer version (`4.0.1-beta4` becomes `4.0.1.4`; the final release uses revision 65535). Use `-ExplorerPackageVersion` to override it. Increment it when updating an installed package with different contents. Signatures receive an RFC 3161 timestamp using DigiCert by default; use `-ExplorerTimestampServer` to override the endpoint.
+The numeric version is set by `ExplorerPackageVersion` in `NxFileViewer.csproj` (currently `1.0.1.0`). Increment this property when packaged Explorer contents change, independently of the viewer version. If absent, it is derived from the viewer version (`4.0.1-beta4` becomes `4.0.1.4`; the final release uses revision 65535). Use `-ExplorerPackageVersion` to override it. Increment it when updating an installed package with different contents. Signatures receive an RFC 3161 timestamp using DigiCert by default; use `-ExplorerTimestampServer` to override the endpoint.
 
 To use an existing signing identity instead:
 
@@ -64,7 +72,8 @@ Rebuild all native architectures with Zig 0.13.0 (the same toolchain used for th
 
 ```powershell
 ./src/NxFileViewer.Explorer/build.ps1 -ZigExe C:/tools/zig/zig.exe
-dotnet build ./src/NxFileViewer/NxFileViewer.csproj
+cd src
+dotnet build ./NxFileViewer/NxFileViewer.csproj
 ```
 
 The checked-in native DLLs are embedded in the viewer, so standard builds and single-file updates do not require a C++ toolchain. The x64/ARM64 package hosts are also checked in, so publishing MSIX does not need Zig either. Update these binaries together with the C++ source. Build a modern package separately using an existing code-signing certificate whose subject matches Publisher:
@@ -81,4 +90,20 @@ Test one file, several files, folders, a mixed file/folder selection, spaces/Uni
 
 Publish keeps Explorer packaging files in temporary staging and emits only the setup ZIPs into Publish. The MSIX, public certificate and trust helpers are included inside those ZIPs.
 
-The independent Explorer package version starts at 1.0.0.0. A previously installed test package numbered 4.0.1.6 must be removed once before installing 1.0.0.0, because Windows treats it as a downgrade. The signing certificate and package identity remain unchanged.
+The independent Explorer package version starts at 1.0.1.0. A previously installed test package numbered 4.0.1.6 must be removed once before installing 1.0.1.0, because Windows treats it as a downgrade. The signing certificate and package identity remain unchanged.
+
+
+## Package actions in the context menu
+
+For NSP/XCI selections, the classic and modern Explorer menus offer Convert,
+Merge and Split to NSP or XCI. Merge appears for at least two files. Folders and
+compressed NSZ/XCZ files are excluded. Convert and Split process multiple files
+individually. Engine selection (Rust or Kronos), destination selection and
+verification match the Batch actions. Merge orders input files by their actual
+contents: game, update, DLC.
+
+Explorer does not read package metadata or keys to construct its menu. Split is
+therefore offered for NSP/XCI regardless of whether the file contains multiple
+contents; actual contents are checked in the application. After updating, add the
+Explorer integration again in Settings or update the modern package so Windows
+uses the new native DLL.

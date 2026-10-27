@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.Collections.Generic;
@@ -724,6 +724,33 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         !file.IsFirmware && !file.IsNand && !file.HasMissingKeys &&
         !Services.Mtp.MtpDirectSource.IsDirect(file.FilePath) && File.Exists(file.FilePath) && Path.GetExtension(file.FilePath).ToLowerInvariant() is ".nsp" or ".nsz" or ".xci" or ".xcz";
     private bool CanProcessNaming() => Results.Any(CanCheckNaming);
+    public bool PackageOperationsActive => _appSettings.PackageOperationsActive;
+    public bool CanPackageFile(BatchIntegrityResult file) => !BackgroundTask.IsRunning &&
+        !file.IsFirmware && !file.IsNand && !file.HasMissingKeys &&
+        !Services.Mtp.MtpDirectSource.IsDirect(file.FilePath) && File.Exists(file.FilePath) &&
+        Path.GetExtension(file.FilePath).ToLowerInvariant() is ".nsp" or ".xci";
+    public bool CanRunPackageActions => PackageOperationsActive &&
+        _serviceProvider.GetRequiredService<Services.PackageOperations.PackageActions>().CanRun;
+    public void RunPackageSelection(IEnumerable<BatchIntegrityResult> files, Services.PackageOperations.PackageOperation operation, string type)
+    {
+        if (!CanRunPackageActions) return;
+        var selected = DistinctFiles(files).Where(CanPackageFile)
+            .Where(file => operation != Services.PackageOperations.PackageOperation.Split || file.HasMultiplePackages).ToArray();
+        if (selected.Length == 0 || operation == Services.PackageOperations.PackageOperation.Merge && selected.Length < 2) return;
+        _serviceProvider.GetRequiredService<Services.PackageOperations.PackageActions>()
+            .RunSelection(operation, type, selected.Select(file => file.FilePath).ToArray());
+    }
+    public static BatchIntegrityResult[] DistinctFiles(IEnumerable<BatchIntegrityResult> files) =>
+        files.GroupBy(file => file.FilePath, StringComparer.OrdinalIgnoreCase).Select(group => group.First()).ToArray();
+    public bool CanVerifySelected(BatchIntegrityResult file) => !file.IsNand && !BackgroundTask.IsRunning &&
+        (Directory.Exists(file.FilePath) || File.Exists(PackageZip.ArchivePath(file.FilePath)));
+    public void VerifySelection(IEnumerable<BatchIntegrityResult> files) => VerifyFiles(DistinctFiles(files).Where(CanVerifySelected).ToArray());
+    public void ConvertSelection(IEnumerable<BatchIntegrityResult> files, NszOperation operation) =>
+        ConvertValid(operation, selectedFiles: DistinctFiles(files).Where(file => CanActOnFile(file, operation)).ToArray());
+    public void CheckSelectionNaming(IEnumerable<BatchIntegrityResult> files, bool rename) =>
+        ProcessNaming(rename, selectedFiles: DistinctFiles(files).Where(CanCheckNaming).ToArray());
+    public void MoveSelection(IEnumerable<BatchIntegrityResult> files) =>
+        MoveFiles(null, DistinctFiles(files).Where(file => CanActOnFile(file)).ToArray());
     public void CheckSelectedNaming(BatchIntegrityResult file) => ProcessNaming(false, file);
     public void RenameSelected(BatchIntegrityResult file) => ProcessNaming(true, file);
 
@@ -734,11 +761,11 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
                 Results[Results.IndexOf(result)] = result with { NamingMatches = null, ProposedPath = null, NamingError = null };
     }
 
-    private async void ProcessNaming(bool rename, BatchIntegrityResult? selected = null)
+    private async void ProcessNaming(bool rename, BatchIntegrityResult? selected = null, BatchIntegrityResult[]? selectedFiles = null)
     {
         if (BackgroundTask.IsRunning) return;
         if (selected != null) selected = Results.FirstOrDefault(result => result.FilePath.Equals(selected.FilePath, StringComparison.OrdinalIgnoreCase)) ?? selected;
-        var files = (selected == null ? Results.AsEnumerable() : new[] { selected }).Where(CanCheckNaming).ToArray();
+        var files = (selectedFiles ?? (selected == null ? Results.AsEnumerable() : new[] { selected })).Where(CanCheckNaming).ToArray();
         if (files.Length == 0) return;
         RenamingResult? selectedOutcome = null;
         try
@@ -750,6 +777,8 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
                 ApplicationPattern = parser.ParseApplicationPattern(options.ApplicationPattern),
                 PatchPattern = parser.ParsePatchPattern(options.PatchPattern),
                 AddonPattern = parser.ParseAddonPattern(options.AddonPattern),
+                SuperPattern = parser.ParseSuperPattern(options.SuperPattern),
+                MultiPattern = parser.ParseMultiPattern(options.MultiPattern),
                 TargetDirectory = options.TargetDirectory,
                 InvalidFileNameCharsReplacement = options.InvalidFileNameCharsReplacement,
                 ReplaceWhiteSpaceChars = options.ReplaceWhiteSpaceChars,
@@ -768,7 +797,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
                     token.ThrowIfCancellationRequested();
                     if (rename && outcome.Exception == null && outcome.IsRenamed)
                     {
-                        if (selected != null)
+                        if (selected != null || selectedFiles != null)
                         {
                             var confirmed = Application.Current.Dispatcher.Invoke(() =>
                                 ThemedDialog.Confirm(LocalizationManager.Instance.Current.Keys.RenamingTool_Button_Rename,
@@ -868,13 +897,14 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
             .OpenTitlePage(file.TitleId.Split('/')[0].Trim()); }
         catch (Exception ex) { _logger.LogError(ex, "Failed to open title website."); }
     }
-    public async void VerifySelected(BatchIntegrityResult file)
+    public void VerifySelected(BatchIntegrityResult file) => VerifySelection(new[] { file });
+    private async void VerifyFiles(BatchIntegrityResult[] files)
     {
-        if (file.IsNand || BackgroundTask.IsRunning || (!Directory.Exists(file.FilePath) && !File.Exists(PackageZip.ArchivePath(file.FilePath)))) return;
+        if (BackgroundTask.IsRunning || files.Length == 0) return;
         try
         {
             var runnable = _serviceProvider.GetRequiredService<IVerifyDirectoryIntegrityRunnable>()
-                .Setup(InputDirectory, IncludeSubdirectories, ShowPreview, ShowCompletedResult, true, true, new[] { file.FilePath });
+                .Setup(InputDirectory, IncludeSubdirectories, ShowPreview, ShowCompletedResult, true, true, files.Select(file => file.FilePath).ToArray());
             await BackgroundTask.RunAsync(runnable);
         }
         catch (OperationCanceledException) { }
@@ -894,14 +924,14 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         !result.IsFirmware && !result.IsNand && result.Integrity == NcasIntegrity.Original && !Services.Mtp.MtpDirectSource.IsDirect(result.FilePath) && File.Exists(result.FilePath) &&
         PackageConversionService.Supports(result.FilePath, operation));
 
-    private async void ConvertValid(NszOperation operation, BatchIntegrityResult? selected = null)
+    private async void ConvertValid(NszOperation operation, BatchIntegrityResult? selected = null, BatchIntegrityResult[]? selectedFiles = null)
     {
-        if (selected == null ? !CanConvertValid(operation) : !CanActOnFile(selected, operation)) return;
-        var paths = (selected == null ? Results.AsEnumerable() : new[] { selected }).Where(result => !result.IsFirmware && !result.IsNand && (selected != null || result.Integrity == NcasIntegrity.Original) &&
+        if (BackgroundTask.IsRunning || (selectedFiles != null ? selectedFiles.Length == 0 : selected == null ? !CanConvertValid(operation) : !CanActOnFile(selected, operation))) return;
+        var paths = (selectedFiles ?? (selected == null ? Results.AsEnumerable() : new[] { selected })).Where(result => !result.IsFirmware && !result.IsNand && (selected != null || selectedFiles != null || result.Integrity == NcasIntegrity.Original) &&
             !Services.Mtp.MtpDirectSource.IsDirect(result.FilePath) && File.Exists(result.FilePath) && PackageConversionService.Supports(result.FilePath, operation))
             .Select(result => result.FilePath).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         ClearPreview();
-        var attempts = await _serviceProvider.GetRequiredService<NszActions>().ConvertFilesAsync(paths, operation, selected == null ? SourceRoot : null);
+        var attempts = await _serviceProvider.GetRequiredService<NszActions>().ConvertFilesAsync(paths, operation, selected == null && selectedFiles == null ? SourceRoot : null);
         foreach (var attempt in attempts)
         {
             var existing = Results.FirstOrDefault(result => result.FilePath == attempt.SourcePath);
@@ -923,22 +953,23 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
     }
 
     private void MoveValid() => MoveFiles(null);
-    private async void MoveFiles(BatchIntegrityResult? selected)
+    private async void MoveFiles(BatchIntegrityResult? selected, BatchIntegrityResult[]? selectedFiles = null)
     {
-        if (BackgroundTask.IsRunning || (selected != null && !CanActOnFile(selected))) return;
+        if (BackgroundTask.IsRunning || selectedFiles is { Length: 0 } || (selected != null && !CanActOnFile(selected))) return;
         var destinationRoot = _promptService.PromptSelectDir(
             LocalizationManager.Instance.Current.Keys.BatchIntegrity_SelectMoveDestination);
         if (destinationRoot == null) return;
 
-        var sourceRoot = selected == null ? SourceRoot : Path.GetDirectoryName(Path.GetFullPath(selected.FilePath));
+        var sourceRoot = selectedFiles != null ? null : selected == null ? SourceRoot : Path.GetDirectoryName(Path.GetFullPath(selected.FilePath));
         var destinationRootFull = Path.GetFullPath(destinationRoot);
         var opening = _serviceProvider.GetRequiredService<Emignatik.NxFileViewer.Services.FileOpening.IFileOpeningService>();
         if (opening.OpenedFile != null && (selected == null
-            ? Results.Any(file => file.FilePath.Equals(opening.OpenedFile.FilePath, StringComparison.OrdinalIgnoreCase))
+            ? (selectedFiles ?? Results.AsEnumerable()).Any(file => file.FilePath.Equals(opening.OpenedFile.FilePath, StringComparison.OrdinalIgnoreCase))
             : selected.FilePath.Equals(opening.OpenedFile.FilePath, StringComparison.OrdinalIgnoreCase))) opening.SafeClose();
         ClearPreview();
-        var validFiles = (selected == null ? Results.AsEnumerable() : new[] { selected }).Where(result =>
-            !result.IsFirmware && !result.IsNand && result.FileType != "NAX0" && (selected != null || result.Integrity == NcasIntegrity.Original) && !Services.Mtp.MtpDirectSource.IsDirect(result.FilePath) && File.Exists(result.FilePath)).ToArray();
+        var validFiles = (selectedFiles ?? (selected == null ? Results.AsEnumerable() : new[] { selected })).Where(result =>
+            !result.IsFirmware && !result.IsNand && result.FileType != "NAX0" && (selected != null || selectedFiles != null || result.Integrity == NcasIntegrity.Original) && !Services.Mtp.MtpDirectSource.IsDirect(result.FilePath) && File.Exists(result.FilePath)).GroupBy(result => result.FilePath, StringComparer.OrdinalIgnoreCase).Select(group => group.First()).ToArray();
+        var movedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var runnable = new RunnableRelay<int>((reporter, cancellationToken) =>
         {
             var moved = 0;
@@ -955,6 +986,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
                 if (!File.Exists(destination))
                 {
                     File.Move(source, destination);
+                    movedPaths.Add(source);
                     moved++;
                 }
                 reporter.SetPercentage((double)(index + 1) / validFiles.Length);
@@ -965,7 +997,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         try
         {
             await BackgroundTask.RunAsync(runnable);
-            foreach (var movedResult in Results.Where(result => !result.IsFirmware && !result.IsNand && !!Services.Mtp.MtpDirectSource.IsDirect(result.FilePath) && File.Exists(result.FilePath)).ToArray())
+            foreach (var movedResult in Results.Where(result => movedPaths.Contains(result.FilePath)).ToArray())
                 Results.Remove(movedResult);
         }
         catch (OperationCanceledException) { }

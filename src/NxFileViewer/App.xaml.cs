@@ -260,6 +260,21 @@ public partial class App : Application, IAppEvents
             if (request.Paths.Length == 0) return;
             if (request.Paths.Any(p => !System.IO.File.Exists(p) && !System.IO.Directory.Exists(p)))
                 throw new System.IO.FileNotFoundException("An Explorer selection no longer exists.");
+            if (request.Mode is ExplorerLaunchMode.Compress or ExplorerLaunchMode.Decompress)
+            {
+                if (!Features.NszPluginActive) throw new InvalidOperationException(LocalizationManager.Instance.Current.Keys.Features_PluginsDisabled);
+                await ServiceProvider.GetRequiredService<Services.Nsz.NszActions>().ConvertFilesAsync(request.Paths,
+                    request.Mode == ExplorerLaunchMode.Compress ? Services.Nsz.NszOperation.Compress : Services.Nsz.NszOperation.Decompress);
+                return;
+            }
+            if (ExplorerLaunchRequest.TryGetPackageOperation(request.Mode, out var operation, out var targetType))
+            {
+                var actions = ServiceProvider.GetRequiredService<Services.PackageOperations.PackageActions>();
+                if (!actions.IsEnabled) throw new InvalidOperationException(LocalizationManager.Instance.Current.Keys.Features_PackageOperationsDisabled);
+                if (!actions.CanRun) throw new InvalidOperationException(LocalizationManager.Instance.Current.Keys.Package_Missing);
+                await actions.RunSelectionAsync(operation, targetType, request.Paths);
+                return;
+            }
             var batch = request.Mode is ExplorerLaunchMode.BatchOpen or ExplorerLaunchMode.BatchVerify ||
                 (request.Mode == ExplorerLaunchMode.Automatic && Views.Windows.MainWindow.ShouldUseBatchDrop(request.Paths, false));
             if (batch)

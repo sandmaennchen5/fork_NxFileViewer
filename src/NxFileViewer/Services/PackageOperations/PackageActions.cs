@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Microsoft.Extensions.Logging;
 using System.IO;
 using System.Windows;
@@ -54,7 +55,10 @@ public sealed class PackageActions : NotifyPropertyChangedBase
                 " — " + (config.IsAvailable ? text.Package_Ready : text.Package_Missing);
         }
     }
-    private RelayCommand Create(PackageOperation operation, string type) => new(() => Run(operation, type),
+    public bool CanRun => IsEnabled && !_background.IsRunning && PackageEngineConfiguration.Capture(_settings).IsAvailable;
+    public void RunSelection(PackageOperation operation, string type, string[] sources) => _ = Run(operation, type, sources);
+    public System.Threading.Tasks.Task RunSelectionAsync(PackageOperation operation, string type, string[] sources) => Run(operation, type, sources);
+    private RelayCommand Create(PackageOperation operation, string type) => new(() => _ = Run(operation, type),
         () => IsEnabled && !_background.IsRunning && PackageEngineConfiguration.Capture(_settings).IsAvailable);
     private void Refresh()
     {
@@ -63,7 +67,7 @@ public sealed class PackageActions : NotifyPropertyChangedBase
         NotifyPropertyChanged(nameof(Status));
         NotifyPropertyChanged(nameof(IsEnabled));
     }
-    private async void Run(PackageOperation operation, string type)
+    private async System.Threading.Tasks.Task Run(PackageOperation operation, string type, string[]? selectedSources = null)
     {
         if (!IsEnabled || _background.IsRunning) return;
         var text = LocalizationManager.Instance.Current.Keys;
@@ -72,22 +76,35 @@ public sealed class PackageActions : NotifyPropertyChangedBase
             var config = PackageEngineConfiguration.Capture(_settings);
             var keyPath = _keys.ActualProdKeysFilePath;
             if (keyPath == null || !File.Exists(keyPath)) throw new FileNotFoundException(text.Nsz_KeysMissing);
-            var dialog = new OpenFileDialog
+            var sources = selectedSources?.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+            if (sources == null)
             {
-                Title = text.Package_Inputs, Multiselect = operation == PackageOperation.Merge,
-                Filter = "NSP / XCI (*.nsp;*.xci)|*.nsp;*.xci"
-            };
-            if (dialog.ShowDialog() != true) return;
+                var dialog = new OpenFileDialog
+                {
+                    Title = text.Package_Inputs, Multiselect = operation == PackageOperation.Merge,
+                    Filter = "NSP / XCI (*.nsp;*.xci)|*.nsp;*.xci"
+                };
+                if (dialog.ShowDialog() != true) return;
+                sources = dialog.FileNames;
+            }
+            if (sources.Length == 0) return;
             var destination = _prompts.PromptSelectDir(text.Package_Destination);
             if (destination == null) return;
             string? output = null;
             var runnable = new RunnableRelay((progress, token) =>
-                output = _service.Run(config, operation, dialog.FileNames, destination, type, keyPath, progress, token))
+            {
+                var jobs = operation == PackageOperation.Merge ? new[] { sources } : sources.Select(source => new[] { source }).ToArray();
+                foreach (var job in jobs)
+                {
+                    token.ThrowIfCancellationRequested();
+                    output = _service.Run(config, operation, job, destination, type, keyPath, progress, token);
+                }
+            })
                 { SupportsCancellation = true, SupportProgress = true };
-            _logger?.LogInformation("Package operation {Operation} started with {Engine} for {Count} input files.", operation, config.Engine, dialog.FileNames.Length);
+            _logger?.LogInformation("Package operation {Operation} started with {Engine} for {Count} input files.", operation, config.Engine, sources.Length);
             await _background.RunAsync(runnable);
             _logger?.LogInformation("Package operation {Operation} completed: {Output}", operation, output);
-            if (output != null) ThemedDialog.Notice(text.Package_Done + output, text.Package_Title, MessageBoxImage.Information);
+            if (output != null) ThemedDialog.Notice(text.Package_Done + (sources.Length > 1 && operation != PackageOperation.Merge ? destination : output), text.Package_Title, MessageBoxImage.Information);
         }
         catch (OperationCanceledException) { _logger?.LogInformation("Package operation canceled."); }
         catch (Exception ex) { _logger?.LogError(ex, "Package operation failed."); ThemedDialog.Notice(ex.Message, text.Package_Title, MessageBoxImage.Error); }

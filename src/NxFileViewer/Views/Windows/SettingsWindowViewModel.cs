@@ -58,6 +58,11 @@ public class SettingsWindowViewModel : WindowViewModelBase
             var dialog = new OpenFileDialog { Filter = "BIS keys (*.*)|*.*" };
             if (dialog.ShowDialog() == true) EditedSettings.NandBisKeysPath = dialog.FileName;
         });
+        DownloadRustPackageCommand = new RelayCommand(() => DownloadPackageEngine(PackageEngine.Rust),
+            () => !_backgroundTaskRunnerService.IsRunning && (_serviceProvider.GetRequiredService<IAppSettings>().NszPluginActive ||
+                _serviceProvider.GetRequiredService<IAppSettings>().PackageOperationsActive));
+        DownloadKronosPackageCommand = new RelayCommand(() => DownloadPackageEngine(PackageEngine.Kronos),
+            () => !_backgroundTaskRunnerService.IsRunning && _serviceProvider.GetRequiredService<IAppSettings>().PackageOperationsActive);
         BrowseRustPackageCommand = new RelayCommand(() =>
         {
             var dialog = new OpenFileDialog { Filter = "nscb_rust (*.exe)|*.exe" };
@@ -119,6 +124,8 @@ public class SettingsWindowViewModel : WindowViewModelBase
         {
             if (args.PropertyName == nameof(IMainBackgroundTaskRunnerService.IsRunning))
             {
+                DownloadRustPackageCommand.TriggerCanExecuteChanged();
+                DownloadKronosPackageCommand.TriggerCanExecuteChanged();
                 CopyKeysToSwitchCommand.TriggerCanExecuteChanged();
                 DownloadProdKeysCommand.TriggerCanExecuteChanged();
                 DownloadTitleKeysCommand.TriggerCanExecuteChanged();
@@ -217,6 +224,11 @@ public class SettingsWindowViewModel : WindowViewModelBase
     public ICommand BrowseProdKeysCommand { get; }
 
     public ICommand BrowseTitleKeysCommand { get; }
+    public NszEngineOption[] NszEngines { get; } =
+    {
+        new(NszCompressionEngine.Nsz, "nicoboss/nsz"),
+        new(NszCompressionEngine.Rust, "cxfcxf / nscb_rust")
+    };
     public IReadOnlyList<NszModeOption> NszModeOptions => new[]
     {
         new NszModeOption(NszCompressionMode.Auto, LocalizationManager.Instance.Current.Keys.Nsz_ModeAuto),
@@ -238,6 +250,8 @@ public class SettingsWindowViewModel : WindowViewModelBase
 
     public Emignatik.NxFileViewer.Services.Updates.ViewerUpdateActions ViewerUpdates => _serviceProvider.GetRequiredService<Emignatik.NxFileViewer.Services.Updates.ViewerUpdateActions>();
 
+    public RelayCommand DownloadRustPackageCommand { get; }
+    public RelayCommand DownloadKronosPackageCommand { get; }
     public ICommand BrowseRustPackageCommand { get; }
     public ICommand BrowseKronosPackageCommand { get; }
     public PackageEngineOption[] PackageEngines { get; } =
@@ -577,6 +591,39 @@ public class SettingsWindowViewModel : WindowViewModelBase
     public bool PluginSettingsOnly { get; set; }
     public Emignatik.NxFileViewer.Services.Nsz.NszActions Nsz => _serviceProvider.GetRequiredService<Emignatik.NxFileViewer.Services.Nsz.NszActions>();
 
+    private async void DownloadPackageEngine(PackageEngine engine)
+    {
+        var command = engine == PackageEngine.Rust ? DownloadRustPackageCommand : DownloadKronosPackageCommand;
+        if (!command.CanExecute(null)) return;
+        try
+        {
+            string? installed = null;
+            await _backgroundTaskRunnerService.RunAsync(new RunnableRelay((progress, token) =>
+                installed = new Services.PackageOperations.PackageEngineInstaller().InstallAsync(engine, progress, token).GetAwaiter().GetResult())
+                { SupportsCancellation = true, SupportProgress = true });
+            if (installed == null) return;
+            var actual = _serviceProvider.GetRequiredService<IAppSettings>();
+            if (engine == PackageEngine.Rust)
+            {
+                EditedSettings.RustPackageExecutablePath = installed;
+                actual.RustPackageExecutablePath = installed;
+            }
+            else
+            {
+                EditedSettings.KronosPackageDirectory = installed;
+                actual.KronosPackageDirectory = installed;
+            }
+            _appSettingsManager.SaveSafe();
+            ThemedDialog.Notice(installed, LocalizationManager.Instance.Current.Keys.Package_Title, MessageBoxImage.Information);
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            _serviceProvider.GetRequiredService<ILogger<SettingsWindowViewModel>>().LogError(ex, "Package engine installation failed: {Engine}", engine);
+            ThemedDialog.Notice(ex.Message, LocalizationManager.Instance.Current.Keys.Package_Title, MessageBoxImage.Error);
+        }
+    }
+
     private static void CopyPluginSettings(IAppSettings source, IAppSettings destination)
     {
         destination.NszLogLevel = source.NszLogLevel;
@@ -590,6 +637,7 @@ public class SettingsWindowViewModel : WindowViewModelBase
         destination.NandBisKeysPath = source.NandBisKeysPath;
         destination.NszExecutablePath = source.NszExecutablePath;
         destination.NszCheckUpdates = source.NszCheckUpdates;
+        destination.NszCompressionEngine = source.NszCompressionEngine;
         destination.NszCompressionLevel = source.NszCompressionLevel;
         destination.NszCompressionMode = source.NszCompressionMode;
         destination.NszBlockSizeExponent = source.NszBlockSizeExponent;
@@ -627,6 +675,7 @@ public class SettingsWindowViewModel : WindowViewModelBase
 public sealed record ThemeOption(AppTheme Value, string DisplayName);
 public sealed record TitleProviderOption(TitleInfoProvider Value, string DisplayName);
 
+public sealed record NszEngineOption(NszCompressionEngine Value, string DisplayName);
 public sealed record NszModeOption(NszCompressionMode Value, string DisplayName);
 public sealed record NszBlockSizeOption(int Value, string DisplayName);
 

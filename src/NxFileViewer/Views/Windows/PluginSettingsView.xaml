@@ -27,9 +27,9 @@
                             <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Package_Engine}"/>
                             <ComboBox x:Name="PackageEngineSelector" ItemsSource="{Binding PackageEngines}" DisplayMemberPath="DisplayName" SelectedValuePath="Value" SelectedValue="{Binding EditedSettings.PackageEngine}"/>
                             <TextBlock Margin="0,8,0,0" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Package_RustPath}"/>
-                            <DockPanel><Button DockPanel.Dock="Right" Content="…" Command="{Binding BrowseRustPackageCommand}" Padding="8,2"/><TextBox Text="{Binding EditedSettings.RustPackageExecutablePath, UpdateSourceTrigger=PropertyChanged}"/></DockPanel>
+                            <DockPanel><Button DockPanel.Dock="Right" Content="…" Command="{Binding BrowseRustPackageCommand}" Padding="8,2"/><Button DockPanel.Dock="Right" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nsz_Update}" Command="{Binding DownloadRustPackageCommand}" Padding="8,2" Margin="4,0"/><TextBox Text="{Binding EditedSettings.RustPackageExecutablePath, UpdateSourceTrigger=PropertyChanged}"/></DockPanel>
                             <TextBlock Margin="0,8,0,0" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Package_KronosPath}"/>
-                            <DockPanel><Button DockPanel.Dock="Right" Content="…" Command="{Binding BrowseKronosPackageCommand}" Padding="8,2"/><TextBox Text="{Binding EditedSettings.KronosPackageDirectory, UpdateSourceTrigger=PropertyChanged}"/></DockPanel>
+                            <DockPanel><Button DockPanel.Dock="Right" Content="…" Command="{Binding BrowseKronosPackageCommand}" Padding="8,2"/><Button DockPanel.Dock="Right" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nsz_Update}" Command="{Binding DownloadKronosPackageCommand}" Padding="8,2" Margin="4,0"/><TextBox Text="{Binding EditedSettings.KronosPackageDirectory, UpdateSourceTrigger=PropertyChanged}"/></DockPanel>
                             <TextBlock Margin="0,8,0,0" TextWrapping="Wrap" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Package_Tip}"/>
                             <TextBlock Margin="0,8,0,0" TextWrapping="Wrap" Text="{Binding Packages.Status}"/>
                             <WrapPanel Margin="0,8,0,0">
@@ -56,13 +56,28 @@
                             </DockPanel>
                         </StackPanel>
                     </GroupBox>
-                    <GroupBox Header="nicoboss/nsz">
+                    <GroupBox Header="NSZ / nscb_rust">
                         <StackPanel Margin="6">
                             <TextBlock TextWrapping="Wrap" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nsz_SettingsTip}"/>
                             <DockPanel Margin="0,6,0,0">
                                 <Button DockPanel.Dock="Right" Content="…" Command="{Binding BrowseNszCommand}" Padding="8,2"/>
                                 <TextBox Text="{Binding EditedSettings.NszExecutablePath, UpdateSourceTrigger=PropertyChanged}"/>
                             </DockPanel>
+                            <TextBlock Margin="0,10,0,0" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nsz_Engine}"/>
+                            <ComboBox x:Name="NszEngineSelector" ItemsSource="{Binding NszEngines}" DisplayMemberPath="DisplayName" SelectedValuePath="Value"
+                                      SelectedValue="{Binding EditedSettings.NszCompressionEngine, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                            <TextBlock Margin="0,8,0,0" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Package_RustPath}"/>
+                            <DockPanel><Button DockPanel.Dock="Right" Content="…" Command="{Binding BrowseRustPackageCommand}" Padding="8,2"/><Button DockPanel.Dock="Right" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nsz_Update}" Command="{Binding DownloadRustPackageCommand}" Padding="8,2" Margin="4,0"/><TextBox Text="{Binding EditedSettings.RustPackageExecutablePath, UpdateSourceTrigger=PropertyChanged}"/></DockPanel>
+                            <StackPanel>
+                                <StackPanel.Style>
+                                    <Style TargetType="StackPanel">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding EditedSettings.NszCompressionEngine}" Value="{x:Static settings:NszCompressionEngine.Rust}">
+                                                <Setter Property="IsEnabled" Value="False"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </StackPanel.Style>
                             <TextBlock Margin="0,10,0,0" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nsz_Mode}"/>
                             <ComboBox ItemsSource="{Binding NszModeOptions}" SelectedValuePath="Value" DisplayMemberPath="DisplayName"
                                       SelectedValue="{Binding EditedSettings.NszCompressionMode}"/>
@@ -82,6 +97,7 @@
                                           SelectedValue="{Binding EditedSettings.NszBlockSizeExponent}"/>
                             </StackPanel>
                             <TextBlock Margin="0,6,0,0" TextWrapping="Wrap" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nsz_ModeTip}"/>
+                            </StackPanel>
                             <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Update_Cleanup}" Command="{Binding Nsz.CleanupCommand}" HorizontalAlignment="Left" Padding="8,4" Margin="0,8,0,0"/>
                             <TextBlock Margin="0,6,0,0" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nsz_Level}"/>
                             <TextBox Text="{Binding EditedSettings.NszCompressionLevel, UpdateSourceTrigger=PropertyChanged}"/>

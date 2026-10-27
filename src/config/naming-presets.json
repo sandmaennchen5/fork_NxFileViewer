@@ -1,0 +1,47 @@
+{
+  "SchemaVersion": 2,
+  "Defaults": {
+    "InvalidFileNameCharsReplacement": "꞉",
+    "ReplaceWhiteSpaceChars": false,
+    "WhiteSpaceCharsReplacement": "_"
+  },
+  "Application": {
+    "DefaultPreset": "default",
+    "Presets": [
+      {"Id":"default","Names":{"en":"Default","de":"Standard","fr":"Par défaut","es":"Predeterminado"},"Pattern":"{WAppTitle} [{TitleId:U}][v{VerNum}].{Ext:L}"},
+      {"Id":"offline","Names":{"en":"Offline title / ID","de":"Offline-Titel / ID","fr":"Titre hors ligne / ID","es":"Título sin conexión / ID"},"Pattern":"{Title} [{TitleId:U}][v{VerNum}].{Ext:L}"},
+      {"Id":"folders","Names":{"en":"Folders by content type","de":"Ordner nach Inhaltstyp","fr":"Dossiers par type","es":"Carpetas por tipo"},"Pattern":"Games/{WAppTitle} [{TitleId:U}][v{VerNum}].{Ext:L}"}
+    ]
+  },
+  "Patch": {
+    "DefaultPreset": "default",
+    "Presets": [
+      {"Id":"default","Names":{"en":"Default","de":"Standard","fr":"Par défaut","es":"Predeterminado"},"Pattern":"{WAppTitle} [{TitleId:U}][v{VerNum}].{Ext:L}"},
+      {"Id":"offline","Names":{"en":"Offline title / ID","de":"Offline-Titel / ID","fr":"Titre hors ligne / ID","es":"Título sin conexión / ID"},"Pattern":"{Title} [{TitleId:U}][v{VerNum}].{Ext:L}"},
+      {"Id":"folders","Names":{"en":"Folders by content type","de":"Ordner nach Inhaltstyp","fr":"Dossiers par type","es":"Carpetas por tipo"},"Pattern":"Updates/{WAppTitle} [{TitleId:U}][v{VerNum}].{Ext:L}"}
+    ]
+  },
+  "Addon": {
+    "DefaultPreset": "default",
+    "Presets": [
+      {"Id":"default","Names":{"en":"Default","de":"Standard","fr":"Par défaut","es":"Predeterminado"},"Pattern":"{WAppTitle} - {WTitle} [{TitleId:U}][v{VerNum}].{Ext:L}"},
+      {"Id":"offline","Names":{"en":"Offline title / ID","de":"Offline-Titel / ID","fr":"Titre hors ligne / ID","es":"Título sin conexión / ID"},"Pattern":"DLC [{TitleId:U}][v{VerNum}].{Ext:L}"},
+      {"Id":"folders","Names":{"en":"Folders by content type","de":"Ordner nach Inhaltstyp","fr":"Dossiers par type","es":"Carpetas por tipo"},"Pattern":"DLC/{WAppTitle} - {WTitle} [{TitleId:U}][v{VerNum}].{Ext:L}"}
+    ]
+  },
+  "Combined": {
+    "DefaultPreset": "default",
+    "Presets": [
+      {"Id":"default","Names":{"en":"Default","de":"Standard","fr":"Par défaut","es":"Predeterminado"},"Pattern":"{WAppTitle} [{AppId:U}] [v{PackageVerNum}] ({GameCount}G+{UpdateCount}U+{DlcCount}D).{Ext:L}"},
+      {"Id":"offline","Names":{"en":"Offline title / ID","de":"Offline-Titel / ID","fr":"Titre hors ligne / ID","es":"Título sin conexión / ID"},"Pattern":"{Title} [{AppId:U}] [v{PackageVerNum}] ({GameCount}G+{UpdateCount}U+{DlcCount}D).{Ext:L}"},
+      {"Id":"folders","Names":{"en":"Folders by content type","de":"Ordner nach Inhaltstyp","fr":"Dossiers par type","es":"Carpetas por tipo"},"Pattern":"SuperNSP/{WAppTitle} [{AppId:U}] [v{PackageVerNum}] ({GameCount}G+{UpdateCount}U+{DlcCount}D).{Ext:L}"}
+    ]
+  },
+  "MultiPackage": {
+    "DefaultPreset": "default",
+    "Presets": [
+      {"Id":"default","Names":{"en":"Default","de":"Standard","fr":"Par défaut","es":"Predeterminado"},"Pattern":"MultiPaket ({GameCount}G+{UpdateCount}U+{DlcCount}D).{Ext:L}"},
+      {"Id":"folders","Names":{"en":"Folders by content type","de":"Ordner nach Inhaltstyp","fr":"Dossiers par type","es":"Carpetas por tipo"},"Pattern":"MultiPaket/MultiPaket ({GameCount}G+{UpdateCount}U+{DlcCount}D).{Ext:L}"}
+    ]
+  }
+}

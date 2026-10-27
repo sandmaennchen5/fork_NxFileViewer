@@ -293,6 +293,19 @@ public sealed class PackageConversionTest : IDisposable
         Assert.Equal(14, settings.NszBlockSizeExponent);
     }
 
+    [Theory]
+    [InlineData(NszOperation.Compress, "--compress")]
+    [InlineData(NszOperation.Decompress, "--decompress")]
+    public void RustUsesSelectedOperationAndOnlyCompressionGetsLevel(NszOperation operation, string expectedFlag)
+    {
+        var args = NszCliPlugin.BuildRustArguments("input.nsz", "output", "prod.keys", 18, operation);
+        Assert.Equal(expectedFlag, args[0]);
+        Assert.DoesNotContain("-C", args);
+        Assert.DoesNotContain("-D", args);
+        if (operation == NszOperation.Decompress) Assert.DoesNotContain("--level", args);
+        else Assert.Contains("--level", args);
+    }
+
     public void Dispose() => Directory.Delete(_root, recursive: true);
 
     private sealed class FakePlugin : INszPlugin

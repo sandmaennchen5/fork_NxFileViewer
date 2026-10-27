@@ -5,6 +5,27 @@ All notable changes to NxFileViewer Fork will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.1-beta1] - 2026-10-24
+
+### Changed
+
+- Target .NET 10 across the application, log viewer, transition, packaging tools and tests. Standard ZIPs require .NET 10 Desktop Runtime; self-contained ZIPs include it.
+
+### Fixed
+
+- Avoid recursive NCA ID formatting with newer Span overload resolution by converting byte spans directly to hexadecimal.
+- Honor the selected NSZ/nscb_rust engine for decompression as well as compression, including Explorer actions. Show the actual engine in conversion logs and clarify the settings label.
+
+### Added
+- Explorer context menu: convert, merge and split NSP/XCI using the selected Rust/Kronos package engine, including multi-selection and game/update/DLC merge ordering.
+
+- Name packages with mixed game IDs and DLC-only collections using an independent MultiPattern, such as MultiPaket (2G+3U+5D). Restrict its variables to counts and extension to avoid misleading single-game metadata.
+- Add an independent combined-package naming selector with presets/manual editing and saved SuperPattern, separate from standalone application/update/DLC patterns.
+- Add a configurable SuperNSP / SuperXCI naming preset with actual game/update/DLC counts and the highest included game/update version. Support combined packages for one application and route mixed game IDs to the dedicated MultiPattern.
+- Add Compress and Decompress to the classic and modern Windows Explorer submenu for matching NSP/XCI and NSZ/XCZ selections, including multiple files. Use the configured conversion engine and existing verified conversion workflow.
+- Download and install nscb_rust and Kronos from the plugin settings. Verify the Rust release and portable Python hashes, build a private Kronos runtime, and activate paths only after a successful CLI startup check.
+- Select nscb_rust as the compression engine for NSP/NSZ and XCI/XCZ, reusing the configured Rust executable and compression level. Output verification and safe publication remain enabled; the selected engine also handles decompression.
+
 ## [4.1.0] - 2026-10-22
 
 ### Added

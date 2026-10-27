@@ -8,7 +8,7 @@ namespace Emignatik.NxFileViewer.Settings;
 
 public class AppSettings : NotifyPropertyChangedBase, IAppSettings
 {
-    private PackageEngine _packageEngine;
+    private PackageEngine _packageEngine = DefaultSettings.Get<PackageEngine>("Settings", "PackageEngine");
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public PackageEngine PackageEngine
     {
@@ -28,15 +28,15 @@ public class AppSettings : NotifyPropertyChangedBase, IAppSettings
         set { _kronosPackageDirectory = value ?? ""; NotifyPropertyChanged(); }
     }
     // Legacy fallback preserves the previous combined plugin setting when loading old JSON.
-    private bool _enablePlugins = true;
+    private bool _enablePlugins = DefaultSettings.Get<bool>("Settings", "EnablePlugins");
     private bool? _enableNszPlugin;
     private bool? _enableNandPlugin;
-    private bool _enableMtp = true;
-    private bool _enableNand = true;
+    private bool _enableMtp = DefaultSettings.Get<bool>("Settings", "EnableMtp");
+    private bool _enableNand = DefaultSettings.Get<bool>("Settings", "EnableNand");
     private bool? _nandActive;
-    private bool _enablePackageOperations;
+    private bool _enablePackageOperations = DefaultSettings.Get<bool>("Settings", "EnablePackageOperations");
     private bool? _packageOperationsActive;
-    private bool _enableFirmwareCheck = true;
+    private bool _enableFirmwareCheck = DefaultSettings.Get<bool>("Settings", "EnableFirmwareCheck");
     private bool? _nszPluginActive, _nandPluginActive, _mtpActive, _firmwareCheckActive;
     public bool EnablePlugins
     {
@@ -45,12 +45,12 @@ public class AppSettings : NotifyPropertyChangedBase, IAppSettings
     }
     public bool EnableNszPlugin
     {
-        get => _enableNszPlugin ?? EnablePlugins;
+        get => _enableNszPlugin ?? (EnablePlugins && DefaultSettings.Get<bool>("Settings", "EnableNszPlugin"));
         set { _enableNszPlugin = value; NotifyPropertyChanged(); }
     }
     public bool EnableNandPlugin
     {
-        get => _enableNandPlugin ?? EnablePlugins;
+        get => _enableNandPlugin ?? (EnablePlugins && DefaultSettings.Get<bool>("Settings", "EnableNandPlugin"));
         set { _enableNandPlugin = value; NotifyPropertyChanged(); }
     }
     public bool EnableNand
@@ -98,56 +98,56 @@ public class AppSettings : NotifyPropertyChangedBase, IAppSettings
         _firmwareCheckActive ??= EnableFirmwareCheck;
         _packageOperationsActive ??= EnablePackageOperations;
     }
-    private int _batchHistoryLimit = 5;
+    private int _batchHistoryLimit = DefaultSettings.Get<int>("Settings", "BatchHistoryLimit");
     public int BatchHistoryLimit
     {
         get => _batchHistoryLimit;
         set { _batchHistoryLimit = System.Math.Clamp(value, 1, 100); NotifyPropertyChanged(); }
     }
-    private bool _verifyBatchDrops;
+    private bool _verifyBatchDrops = DefaultSettings.Get<bool>("Settings", "VerifyBatchDrops");
     public bool VerifyBatchDrops
     {
         get => _verifyBatchDrops;
         set { _verifyBatchDrops = value; NotifyPropertyChanged(); }
     }
-    private bool _verifyFilesOpenedInProgram;
+    private bool _verifyFilesOpenedInProgram = DefaultSettings.Get<bool>("Settings", "VerifyFilesOpenedInProgram");
     public bool VerifyFilesOpenedInProgram
     {
         get => _verifyFilesOpenedInProgram;
         set { _verifyFilesOpenedInProgram = value; NotifyPropertyChanged(); }
     }
-    private bool _verifyFilesOpenedFromWindows;
+    private bool _verifyFilesOpenedFromWindows = DefaultSettings.Get<bool>("Settings", "VerifyFilesOpenedFromWindows");
     public bool VerifyFilesOpenedFromWindows
     {
         get => _verifyFilesOpenedFromWindows;
         set { _verifyFilesOpenedFromWindows = value; NotifyPropertyChanged(); }
     }
     private string _batchTableLayout = "";
-    private bool _batchSummaryPreservePackageOrder;
+    private bool _batchSummaryPreservePackageOrder = DefaultSettings.Get<bool>("Settings", "BatchSummaryPreservePackageOrder");
     public bool BatchSummaryPreservePackageOrder
     {
         get => _batchSummaryPreservePackageOrder;
         set { _batchSummaryPreservePackageOrder = value; NotifyPropertyChanged(); }
     }
-    private bool _batchSeparatePackages;
+    private bool _batchSeparatePackages = DefaultSettings.Get<bool>("Settings", "BatchSeparatePackages");
     public bool BatchSeparatePackages
     {
         get => _batchSeparatePackages;
         set { _batchSeparatePackages = value; NotifyPropertyChanged(); }
     }
-    private bool _batchExportSeparatePackages;
+    private bool _batchExportSeparatePackages = DefaultSettings.Get<bool>("Settings", "BatchExportSeparatePackages");
     public bool BatchExportSeparatePackages
     {
         get => _batchExportSeparatePackages;
         set { _batchExportSeparatePackages = value; NotifyPropertyChanged(); }
     }
-    private bool _batchExportVisibleColumnsOnly;
+    private bool _batchExportVisibleColumnsOnly = DefaultSettings.Get<bool>("Settings", "BatchExportVisibleColumnsOnly");
     public bool BatchExportVisibleColumnsOnly
     {
         get => _batchExportVisibleColumnsOnly;
         set { _batchExportVisibleColumnsOnly = value; NotifyPropertyChanged(); }
     }
-    private bool _batchExportExcel;
+    private bool _batchExportExcel = DefaultSettings.Get<bool>("Settings", "BatchExportExcel");
     public bool BatchExportExcel
     {
         get => _batchExportExcel;
@@ -170,13 +170,13 @@ public class AppSettings : NotifyPropertyChangedBase, IAppSettings
         get => _nandBisKeysPath;
         set { _nandBisKeysPath = value; NotifyPropertyChanged(); }
     }
-    private int _logFileRetentionCount = 5;
+    private int _logFileRetentionCount = DefaultSettings.Get<int>("Settings", "LogFileRetentionCount");
     public int LogFileRetentionCount
     {
         get => _logFileRetentionCount;
         set { _logFileRetentionCount = System.Math.Clamp(value, 1, 100); NotifyPropertyChanged(); }
     }
-    private SdBatchSourceMode _sdBatchSourceMode;
+    private SdBatchSourceMode _sdBatchSourceMode = DefaultSettings.Get<SdBatchSourceMode>("Settings", "SdBatchSourceMode");
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public SdBatchSourceMode SdBatchSourceMode
     {
@@ -189,87 +189,93 @@ public class AppSettings : NotifyPropertyChangedBase, IAppSettings
         get => _sdBatchCustomPaths;
         set { _sdBatchCustomPaths = value ?? ""; NotifyPropertyChanged(); }
     }
-    private bool _sdBatchSelectedAreasOnly = false;
+    private bool _sdBatchSelectedAreasOnly = DefaultSettings.Get<bool>("Settings", "SdBatchSelectedAreasOnly");
     public bool SdBatchSelectedAreasOnly
     {
         get => _sdBatchSelectedAreasOnly;
         set { _sdBatchSelectedAreasOnly = value; NotifyPropertyChanged(); }
     }
-    private bool _sdBatchSwitch = true;
+    private bool _sdBatchSwitch = DefaultSettings.Get<bool>("Settings", "SdBatchSwitch");
     public bool SdBatchSwitch
     {
         get => _sdBatchSwitch;
         set { _sdBatchSwitch = value; NotifyPropertyChanged(); }
     }
-    private bool _sdBatchNintendo = true;
+    private bool _sdBatchNintendo = DefaultSettings.Get<bool>("Settings", "SdBatchNintendo");
     public bool SdBatchNintendo
     {
         get => _sdBatchNintendo;
         set { _sdBatchNintendo = value; NotifyPropertyChanged(); }
     }
-    private bool _sdBatchEmuMmc = true;
+    private bool _sdBatchEmuMmc = DefaultSettings.Get<bool>("Settings", "SdBatchEmuMmc");
     public bool SdBatchEmuMmc
     {
         get => _sdBatchEmuMmc;
         set { _sdBatchEmuMmc = value; NotifyPropertyChanged(); }
     }
-    private bool _sdBatchHbmenu = true;
+    private bool _sdBatchHbmenu = DefaultSettings.Get<bool>("Settings", "SdBatchHbmenu");
     public bool SdBatchHbmenu
     {
         get => _sdBatchHbmenu;
         set { _sdBatchHbmenu = value; NotifyPropertyChanged(); }
     }
-    private bool _sdBatchTools = true;
+    private bool _sdBatchTools = DefaultSettings.Get<bool>("Settings", "SdBatchTools");
     public bool SdBatchTools
     {
         get => _sdBatchTools;
         set { _sdBatchTools = value; NotifyPropertyChanged(); }
     }
-    private bool _sdBatchDumps;
+    private bool _sdBatchDumps = DefaultSettings.Get<bool>("Settings", "SdBatchDumps");
     public bool SdBatchDumps
     {
         get => _sdBatchDumps;
         set { _sdBatchDumps = value; NotifyPropertyChanged(); }
     }
-    private bool _sdBatchNxdtRwPoc;
+    private bool _sdBatchNxdtRwPoc = DefaultSettings.Get<bool>("Settings", "SdBatchNxdtRwPoc");
     public bool SdBatchNxdtRwPoc
     {
         get => _sdBatchNxdtRwPoc;
         set { _sdBatchNxdtRwPoc = value; NotifyPropertyChanged(); }
     }
-    private bool _sdBatchDbiRootSaves;
+    private bool _sdBatchDbiRootSaves = DefaultSettings.Get<bool>("Settings", "SdBatchDbiRootSaves");
     public bool SdBatchDbiRootSaves
     {
         get => _sdBatchDbiRootSaves;
         set { _sdBatchDbiRootSaves = value; NotifyPropertyChanged(); }
     }
-    private bool _saveBatchHistoryLogos;
+    private bool _saveBatchHistoryLogos = DefaultSettings.Get<bool>("Settings", "SaveBatchHistoryLogos");
     public bool SaveBatchHistoryLogos
     {
         get => _saveBatchHistoryLogos;
         set { _saveBatchHistoryLogos = value; NotifyPropertyChanged(); }
     }
-    private bool _enableBatchHistory = true;
+    private bool _enableBatchHistory = DefaultSettings.Get<bool>("Settings", "EnableBatchHistory");
     public bool EnableBatchHistory
     {
         get => _enableBatchHistory;
         set { _enableBatchHistory = value; NotifyPropertyChanged(); }
     }
-    private bool _includeViewerPrereleases;
+    private bool _includeViewerPrereleases = DefaultSettings.Get<bool>("Settings", "IncludeViewerPrereleases");
     public bool IncludeViewerPrereleases
     {
         get => _includeViewerPrereleases;
         set { _includeViewerPrereleases = value; NotifyPropertyChanged(); }
     }
-    private bool _checkViewerUpdatesOnStartup = true;
+    private bool _checkViewerUpdatesOnStartup = DefaultSettings.Get<bool>("Settings", "CheckViewerUpdatesOnStartup");
     public bool CheckViewerUpdatesOnStartup
     {
         get => _checkViewerUpdatesOnStartup;
         set { _checkViewerUpdatesOnStartup = value; NotifyPropertyChanged(); }
     }
     private string _nszExecutablePath = "";
-    private bool _nszCheckUpdates = true;
-    private int _nszCompressionLevel = 18;
+    private bool _nszCheckUpdates = DefaultSettings.Get<bool>("Settings", "NszCheckUpdates");
+    private int _nszCompressionLevel = DefaultSettings.Get<int>("Settings", "NszCompressionLevel");
+    private NszCompressionEngine _nszCompressionEngine = DefaultSettings.Get<NszCompressionEngine>("Settings", "NszCompressionEngine");
+    public NszCompressionEngine NszCompressionEngine
+    {
+        get => _nszCompressionEngine;
+        set { _nszCompressionEngine = System.Enum.IsDefined(value) ? value : NszCompressionEngine.Nsz; NotifyPropertyChanged(); }
+    }
     public string NszExecutablePath
     {
         get => _nszExecutablePath;
@@ -285,8 +291,8 @@ public class AppSettings : NotifyPropertyChangedBase, IAppSettings
         get => _nszCompressionLevel;
         set { _nszCompressionLevel = System.Math.Clamp(value, 1, 22); NotifyPropertyChanged(); }
     }
-    private NszCompressionMode _nszCompressionMode = NszCompressionMode.Auto;
-    private int _nszBlockSizeExponent = 20;
+    private NszCompressionMode _nszCompressionMode = DefaultSettings.Get<NszCompressionMode>("Settings", "NszCompressionMode");
+    private int _nszBlockSizeExponent = DefaultSettings.Get<int>("Settings", "NszBlockSizeExponent");
     public NszCompressionMode NszCompressionMode
     {
         get => _nszCompressionMode;
@@ -297,7 +303,7 @@ public class AppSettings : NotifyPropertyChangedBase, IAppSettings
         get => _nszBlockSizeExponent;
         set { _nszBlockSizeExponent = System.Math.Clamp(value, 14, 32); NotifyPropertyChanged(); }
     }
-    private string _appLanguage = IAutoLocalization<ILocalizationKeysBase>.CULTURE_NAME;
+    private string _appLanguage = DefaultSettings.Get<string>("Settings", "AppLanguage");
     private string _lastRenamePath = "";
     private string _targetDirectory = "";
     public string TargetDirectory
@@ -308,7 +314,7 @@ public class AppSettings : NotifyPropertyChangedBase, IAppSettings
     private string _lastOpenedFile = "";
     private string _prodKeysFilePath = "";
     private string _titleKeysFilePath = "";
-    private PluginLogLevel _nszLogLevel = PluginLogLevel.Inherit;
+    private PluginLogLevel _nszLogLevel = DefaultSettings.Get<PluginLogLevel>("Settings", "NszLogLevel");
 
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public PluginLogLevel NszLogLevel
@@ -317,7 +323,7 @@ public class AppSettings : NotifyPropertyChangedBase, IAppSettings
         set { _nszLogLevel = value; NotifyPropertyChanged(); }
     }
 
-    private PluginLogLevel _nandLogLevel = PluginLogLevel.Inherit;
+    private PluginLogLevel _nandLogLevel = DefaultSettings.Get<PluginLogLevel>("Settings", "NandLogLevel");
 
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public PluginLogLevel NandLogLevel
@@ -326,7 +332,7 @@ public class AppSettings : NotifyPropertyChangedBase, IAppSettings
         set { _nandLogLevel = value; NotifyPropertyChanged(); }
     }
 
-    private PluginLogLevel _mtpLogLevel = PluginLogLevel.Inherit;
+    private PluginLogLevel _mtpLogLevel = DefaultSettings.Get<PluginLogLevel>("Settings", "MtpLogLevel");
 
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public PluginLogLevel MtpLogLevel
@@ -335,7 +341,7 @@ public class AppSettings : NotifyPropertyChangedBase, IAppSettings
         set { _mtpLogLevel = value; NotifyPropertyChanged(); }
     }
 
-    private PluginLogLevel _packageLogLevel = PluginLogLevel.Inherit;
+    private PluginLogLevel _packageLogLevel = DefaultSettings.Get<PluginLogLevel>("Settings", "PackageLogLevel");
 
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public PluginLogLevel PackageLogLevel
@@ -344,30 +350,30 @@ public class AppSettings : NotifyPropertyChangedBase, IAppSettings
         set { _packageLogLevel = value; NotifyPropertyChanged(); }
     }
 
-    private LogLevel _logLevel = LogLevel.Information;
-    private string _keysDownloadHost = "192.168.178.100";
+    private LogLevel _logLevel = DefaultSettings.Get<LogLevel>("Settings", "LogLevel");
+    private string _keysDownloadHost = DefaultSettings.Get<string>("Settings", "KeysDownloadHost");
     public string KeysDownloadHost
     {
         get => _keysDownloadHost;
         set { _keysDownloadHost = value; NotifyPropertyChanged(); }
     }
-    private string _prodKeysDownloadUrl = "ftp://{IP}:5000/sdmc:/switch/prod.keys";
-    private string _titleKeysDownloadUrl = "ftp://{IP}:5000/sdmc:/switch/title.keys";
-    private bool _alwaysReloadKeysBeforeOpen = false;
+    private string _prodKeysDownloadUrl = DefaultSettings.Get<string>("Settings", "ProdKeysDownloadUrl");
+    private string _titleKeysDownloadUrl = DefaultSettings.Get<string>("Settings", "TitleKeysDownloadUrl");
+    private bool _alwaysReloadKeysBeforeOpen = DefaultSettings.Get<bool>("Settings", "AlwaysReloadKeysBeforeOpen");
 
     private string _titlePageUrl = Emignatik.NxFileViewer.Services.ExternalSources.Current.TitlePageUrl;
     private string _titleInfoApiUrl = Emignatik.NxFileViewer.Services.ExternalSources.Current.TitleInfoApiUrl;
-    private TitleInfoProvider _titleInfoProvider;
-    private string _titleDbRegion = "DE.de";
+    private TitleInfoProvider _titleInfoProvider = DefaultSettings.Get<TitleInfoProvider>("Settings", "TitleInfoProvider");
+    private string _titleDbRegion = DefaultSettings.Get<string>("Settings", "TitleDbRegion");
     private string _nLibApiUrl = Emignatik.NxFileViewer.Services.ExternalSources.Current.NLibApiUrl;
     private string _lastUsedDir = "";
-    private bool _allowNczBlocklessCompressionOpening = true;
-    private bool _acceptMissingDeltaFragments = true;
-    private bool _injectTicketKeys = true;
-    private bool _saveTicketKeys;
+    private bool _allowNczBlocklessCompressionOpening = DefaultSettings.Get<bool>("Settings", "OpenBlocklessCompressionNCZ");
+    private bool _acceptMissingDeltaFragments = DefaultSettings.Get<bool>("Settings", "IgnoreMissingDeltaFragments");
+    private bool _injectTicketKeys = DefaultSettings.Get<bool>("Settings", "InjectTicketKeys");
+    private bool _saveTicketKeys = DefaultSettings.Get<bool>("Settings", "SaveTicketKeys");
     public bool SaveTicketKeys { get => _saveTicketKeys; set { _saveTicketKeys = value; NotifyPropertyChanged(); } }
-    private AppTheme _theme = AppTheme.System;
-    private bool _rememberWindowPlacement = true;
+    private AppTheme _theme = DefaultSettings.Get<AppTheme>("Settings", "Theme");
+    private bool _rememberWindowPlacement = DefaultSettings.Get<bool>("Settings", "RememberWindowPlacement");
 
     public string AppLanguage
     {
@@ -586,15 +592,17 @@ public class WindowPlacementSettings : NotifyPropertyChangedBase, IWindowPlaceme
 
 public class RenamingOptions : NotifyPropertyChangedBase, IRenamingOptions
 {
-    private string? _fileFilters = "*.nsp;*.nsz;*.xci;*.xcz";
-    private bool _includeSubdirectories = true;
-    private string _applicationPattern = "{WAppTitle} [{TitleId:U}][v{PatchNum}].{Ext:L}";
-    private string _patchPattern = "{WAppTitle} [{TitleId:U}][v{PatchNum}].{Ext:L}";
-    private string _addonPattern = "{WAppTitle} - {WTitle} [{TitleId:U}][v{PatchNum}].{Ext:L}";
-    private bool _isSimulation = true;
-    private string _invalidFileNameCharsReplacement = "꞉";
-    private bool _replaceWhiteSpaceChars = false;
-    private string _whiteSpaceCharsReplacement = "_";
+    private string? _fileFilters = DefaultSettings.Get<string?>("RenamingOptions", "FileFilters");
+    private bool _includeSubdirectories = DefaultSettings.Get<bool>("RenamingOptions", "IncludeSubdirectories");
+    private string _applicationPattern = Emignatik.NxFileViewer.Services.FileRenaming.NamingPresets.Current.Application.Default.Pattern;
+    private string _patchPattern = Emignatik.NxFileViewer.Services.FileRenaming.NamingPresets.Current.Patch.Default.Pattern;
+    private string _addonPattern = Emignatik.NxFileViewer.Services.FileRenaming.NamingPresets.Current.Addon.Default.Pattern;
+    private string _multiPattern = Emignatik.NxFileViewer.Services.FileRenaming.NamingPresets.Current.MultiPackage.Default.Pattern;
+    private string _superPattern = Emignatik.NxFileViewer.Services.FileRenaming.NamingPresets.Current.Combined.Default.Pattern;
+    private bool _isSimulation = DefaultSettings.Get<bool>("RenamingOptions", "IsSimulation");
+    private string _invalidFileNameCharsReplacement = Emignatik.NxFileViewer.Services.FileRenaming.NamingPresets.Current.Defaults.InvalidFileNameCharsReplacement;
+    private bool _replaceWhiteSpaceChars = Emignatik.NxFileViewer.Services.FileRenaming.NamingPresets.Current.Defaults.ReplaceWhiteSpaceChars;
+    private string _whiteSpaceCharsReplacement = Emignatik.NxFileViewer.Services.FileRenaming.NamingPresets.Current.Defaults.WhiteSpaceCharsReplacement;
     private string _lastRenamePath = "";
     private string _targetDirectory = "";
     public string TargetDirectory
@@ -602,7 +610,7 @@ public class RenamingOptions : NotifyPropertyChangedBase, IRenamingOptions
         get => _targetDirectory;
         set { _targetDirectory = value; NotifyPropertyChanged(); }
     }
-    private bool _autoCloseOpenedFile = true;
+    private bool _autoCloseOpenedFile = DefaultSettings.Get<bool>("RenamingOptions", "AutoCloseOpenedFile");
 
     public bool AutoCloseOpenedFile
     {
@@ -672,6 +680,17 @@ public class RenamingOptions : NotifyPropertyChangedBase, IRenamingOptions
             _addonPattern = value;
             NotifyPropertyChanged();
         }
+    }
+
+    public string MultiPattern
+    {
+        get => _multiPattern;
+        set { _multiPattern = value; NotifyPropertyChanged(); }
+    }
+    public string SuperPattern
+    {
+        get => _superPattern;
+        set { _superPattern = value; NotifyPropertyChanged(); }
     }
 
     public bool IsSimulation

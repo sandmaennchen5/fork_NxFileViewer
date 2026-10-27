@@ -84,3 +84,12 @@ After correcting recognized NCZ metadata, the viewer normalizes the private stag
 NSZ 5.0.0 copies only the first 0x200 bytes of the original XCI prefix. The viewer also preserves available bytes between 0x200 and the root directory during both compression and decompression, including certificate/extended header areas. Missing bytes already lost in an older XCZ cannot be recovered. Source and output root locations must agree; unknown layouts are rejected rather than overwriting possible partition data.
 
 A repacked XCI is not a byte-identical archival dump. Changing signed Gamecard header fields cannot preserve or recreate Nintendo's RSA signature. NCA payloads/signatures remain unchanged, and normal conversion verification still checks their hashes. Layout consistency is not a promise of physical Gamecard authentication or hardware compatibility. Keep original dumps when archival fidelity is required.
+
+## nscb_rust (4.1.1-beta1)
+
+Under **Plugins → NSZ / nscb_rust**, select **cxfcxf / nscb_rust** as an alternative
+compression engine. Set its executable path and compression level; the executable
+path is shared with package operations. The Rust CLI does not expose Solid/Block
+mode or block-size selection, so those options are disabled for Rust. The selected
+engine handles both compression and decompression. Output is still verified
+before publication.

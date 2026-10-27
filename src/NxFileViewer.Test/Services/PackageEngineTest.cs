@@ -96,6 +96,30 @@ public sealed class PackageEngineTest
             PackageOperation.Merge, Array.Empty<string>(), "missing-output", "nsp", "missing.keys", new Reporter(), cancellation.Token));
     }
 
+    [Fact]
+    public void MergeOrdersActualContentTypesGameThenPatchThenDlcAndKeepsTiesStable()
+    {
+        var ordered = PackageOperationService.OrderMergeSources(new[] {
+            ("dlc.nsp", new[] { LibHac.Ncm.ContentMetaType.AddOnContent }),
+            ("update.nsp", new[] { LibHac.Ncm.ContentMetaType.Patch }),
+            ("game.xci", new[] { LibHac.Ncm.ContentMetaType.Application }),
+            ("second-game.nsp", new[] { LibHac.Ncm.ContentMetaType.Application }),
+            ("super.nsp", new[] { LibHac.Ncm.ContentMetaType.AddOnContent, LibHac.Ncm.ContentMetaType.Application }),
+            ("unknown.nsp", Array.Empty<LibHac.Ncm.ContentMetaType>())
+        });
+        Assert.Equal(new[] { "game.xci", "second-game.nsp", "super.nsp", "update.nsp", "dlc.nsp", "unknown.nsp" }, ordered);
+        var args = PackageOperationService.BuildArguments(PackageEngine.Rust, PackageOperation.Merge, ordered, "out", "nsp", "keys");
+        Assert.Equal(ordered, System.Linq.Enumerable.Take(System.Linq.Enumerable.Skip(args, 1), ordered.Length));
+    }
+
+    [Theory]
+    [InlineData("nsp")]
+    [InlineData("xci")]
+    public void RustSplitPassesRequestedOutputFormat(string format)
+    {
+        var args = PackageOperationService.BuildArguments(PackageEngine.Rust, PackageOperation.Split, new[] { "super.nsp" }, "out", format, "keys");
+        Assert.Equal(new[] { "--dspl", "super.nsp", "-o", "out", "-t", format, "--keys", "keys" }, args);
+    }
     private sealed class UnexpectedLoader : IFileLoader
     {
         public NxFile Load(string path) => throw new InvalidOperationException("Loader must not run for invalid input.");

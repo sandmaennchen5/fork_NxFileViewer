@@ -75,6 +75,19 @@ public enum PatternKeyword
     /// </summary>
     [SerializedValue("WAppTitle")]
     OnlineAppTitleName,
+
+    [SerializedValue("GameCount")]
+    GameCount,
+
+    [SerializedValue("UpdateCount")]
+    UpdateCount,
+
+    [SerializedValue("DlcCount")]
+    DlcCount,
+
+    /// <summary>Highest application/update version in the physical package; DLC versions do not override it.</summary>
+    [SerializedValue("PackageVerNum")]
+    PackageVersionNumber,
 }
 
 public static class PatternKeywordHelper
@@ -100,6 +113,9 @@ public static class PatternKeywordHelper
     {
         return _allowedAddonKeywords ??= Enum.GetValues<PatternKeyword>().Where(keyword => keyword != PatternKeyword.TitleName).ToArray();
     }
+
+    public static IReadOnlyList<PatternKeyword> GetAllowedMultiKeywords() =>
+        new[] { PatternKeyword.GameCount, PatternKeyword.UpdateCount, PatternKeyword.DlcCount, PatternKeyword.PackageType };
 
     public static bool TryParse(string serializedValue, [NotNullWhen(true)] out PatternKeyword? keyword)
     {

@@ -4,89 +4,56 @@ on:
   schedule:
     - cron: "0 */6 * * *"
   workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - .github/workflows/update-download-badge.yml
+      - .github/scripts/update_download_badge.py
+      - .github/scripts/test_update_download_badge.py
 
 permissions:
   contents: write
 
+concurrency:
+  group: download-badge
+  cancel-in-progress: false
+
 jobs:
   update-downloads:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
-      - name: Checkout
+      - name: Checkout default branch
         uses: actions/checkout@v4
+        with:
+          ref: master
 
-      - name: Generate download count
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Test viewer filtering and failure handling
+        run: python -B -m unittest discover -s .github/scripts -p 'test_update_download_badge.py'
+
+      - name: Generate viewer download count
         env:
-          GITHUB_REPO: sandmaennchen5/fork_NxFileViewer
-          GITLAB_PROJECT_ID: "87924127"
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPO: ${{ github.repository }}
           FORGEJO_URL: "https://git.sandmaennchen5.de/"
           FORGEJO_OWNER: "sandmaennchen5"
           FORGEJO_REPO: "fork_NxFileViewer"
-
-        run: |
-          python << 'EOF'
-          import json
-          import os
-          import requests
-
-          total = 0
-
-          # GitHub
-          github_repo = os.environ["GITHUB_REPO"]
-          releases = requests.get(
-              f"https://api.github.com/repos/{github_repo}/releases"
-          ).json()
-
-          for release in releases:
-              for asset in release.get("assets", []):
-                  total += asset.get("download_count", 0)
-
-          # GitLab
-          project_id = os.environ["GITLAB_PROJECT_ID"]
-
-          releases = requests.get(
-              f"https://gitlab.com/api/v4/projects/{project_id}/releases"
-          ).json()
-
-          for release in releases:
-              assets = release.get("assets", {})
-              links = assets.get("links", [])
-              for link in links:
-                  total += link.get("direct_asset_download_count", 0)
-
-          # Forgejo/Gitea
-          forgejo_url = os.environ["FORGEJO_URL"]
-          owner = os.environ["FORGEJO_OWNER"]
-          repo = os.environ["FORGEJO_REPO"]
-
-          releases = requests.get(
-              f"{forgejo_url}/api/v1/repos/{owner}/{repo}/releases"
-          ).json()
-
-          for release in releases:
-              for asset in release.get("assets", []):
-                  total += asset.get("download_count", 0)
-
-          os.makedirs("badge", exist_ok=True)
-
-          with open("badge/downloads.json", "w") as f:
-              json.dump({
-                  "schemaVersion": 1,
-                  "label": "downloads",
-                  "message": str(total),
-                  "color": "blue"
-              }, f)
-          EOF
+        run: python -B .github/scripts/update_download_badge.py
 
       - name: Commit badge
         run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
-
-          git add badge/downloads.json
-
-          git diff --cached --quiet || (
-            git commit -m "Update download badge"
-            git push
-          )
+          git add .github/downloads.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Update viewer download badge"
+            # Retain unrelated pushes made while counting; never force-push.
+            git pull --rebase origin master
+            git push origin HEAD:master
+          fi

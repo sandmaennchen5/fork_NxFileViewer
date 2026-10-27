@@ -64,13 +64,17 @@ public sealed class NszProgressUpdateTest
         Assert.Equal(expected, WindowPlacementService.ShouldStartMaximized(roundTrip));
     }
 
-    [Fact]
-    public void ProcessReportsCarriageReturnProgressUpdates()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ProcessReportsCarriageReturnProgressUpdates(bool standardError)
     {
         var updates = new List<NszProgressUpdate>();
+        var writer = standardError ? "[Console]::Error" : "[Console]::Out";
         NszProcess.Run(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "WindowsPowerShell", "v1.0", "powershell.exe"),
             new[] { "-NoProfile", "-NonInteractive", "-Command",
-                "[Console]::Write('25%'); [Console]::Write([char]13); Start-Sleep -Milliseconds 250; [Console]::Error.Write('100%'); [Console]::Error.Write([char]13)" },
+                // Keep each stream ordered; stdout and stderr have no ordering guarantee between them.
+                $"{writer}.Write('25%'); {writer}.Write([char]13); Start-Sleep -Milliseconds 250; {writer}.Write('100%'); {writer}.Write([char]13)" },
             Path.GetTempPath(), TestContext.Current.CancellationToken, update => updates.Add(update));
         Assert.Contains(updates, update => update.Fraction == 0.25);
         Assert.Contains(updates, update => update.Fraction == 1);

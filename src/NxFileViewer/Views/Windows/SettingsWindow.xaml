@@ -383,7 +383,7 @@
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBox Grid.Column="0" Text="{Binding Path=EditedSettings.RenamingOptions.ApplicationPattern}" bindingExtensions:TextBoxExtension.FlushOnEnterKeyPressed ="True" />
+                                    <customControls:NamingPatternSelector Grid.Column="0" Kind="Application" Pattern="{Binding EditedSettings.RenamingOptions.ApplicationPattern, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                     <StackPanel Grid.Column="1" Orientation="Horizontal">
                                         
                                         <customControls:TipLabel ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RenamingTool_ToolTip_BasePattern}"/>
@@ -395,7 +395,7 @@
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBox Grid.Column="0" Text="{Binding Path=EditedSettings.RenamingOptions.PatchPattern}" bindingExtensions:TextBoxExtension.FlushOnEnterKeyPressed ="True" />
+                                    <customControls:NamingPatternSelector Grid.Column="0" Kind="Patch" Pattern="{Binding EditedSettings.RenamingOptions.PatchPattern, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                     <StackPanel Grid.Column="1" Orientation="Horizontal">
                                         
                                         <customControls:TipLabel ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RenamingTool_ToolTip_PatchPattern}"/>
@@ -407,13 +407,21 @@
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBox Grid.Column="0" Text="{Binding Path=EditedSettings.RenamingOptions.AddonPattern}" bindingExtensions:TextBoxExtension.FlushOnEnterKeyPressed ="True" />
+                                    <customControls:NamingPatternSelector Grid.Column="0" Kind="Addon" Pattern="{Binding EditedSettings.RenamingOptions.AddonPattern, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                     <StackPanel Grid.Column="1" Orientation="Horizontal">
                                         
                                         <customControls:TipLabel ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RenamingTool_ToolTip_AddonPattern}"/>
                                     </StackPanel>
 
                                 </Grid>
+                                <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RenamingTool_SuperPattern}" Style="{StaticResource Title2}" />
+                                <customControls:NamingPatternSelector Kind="Super" Pattern="{Binding EditedSettings.RenamingOptions.SuperPattern, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RenamingTool_ToolTip_SuperPattern}"
+                                           TextWrapping="Wrap" Margin="0,4,0,8" />
+                                <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RenamingTool_MultiPattern}" Style="{StaticResource Title2}" />
+                                <customControls:NamingPatternSelector Kind="Multi" Pattern="{Binding EditedSettings.RenamingOptions.MultiPattern, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RenamingTool_ToolTip_MultiPattern}"
+                                           TextWrapping="Wrap" Margin="0,4,0,8" />
                             </StackPanel>
                         </GroupBox>
 

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading;
 using System.Linq;
 using System.Windows;
@@ -147,6 +147,16 @@ public sealed class WorkspaceNavigationTest
                 var engineSelector = Assert.IsType<ComboBox>(pluginPage.FindName("PackageEngineSelector"));
                 Assert.Equal("EditedSettings.PackageEngine", engineSelector.GetBindingExpression(ComboBox.SelectedValueProperty)!.ParentBinding.Path.Path);
                 plugins.EditedSettings.PackageEngine = PackageEngine.Kronos;
+                var nszEngineSelector = Assert.IsType<ComboBox>(pluginPage.FindName("NszEngineSelector"));
+                nszEngineSelector.DataContext = plugins;
+                nszEngineSelector.GetBindingExpression(ItemsControl.ItemsSourceProperty)!.UpdateTarget();
+                nszEngineSelector.GetBindingExpression(ComboBox.SelectedValueProperty)!.UpdateTarget();
+                System.Windows.Threading.Dispatcher.CurrentDispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ContextIdle);
+                Assert.Equal(2, nszEngineSelector.Items.Count);
+                nszEngineSelector.SelectedIndex = 1;
+                Assert.Equal(NszCompressionEngine.Rust, nszEngineSelector.SelectedValue);
+                nszEngineSelector.GetBindingExpression(ComboBox.SelectedValueProperty)!.UpdateSource();
+                Assert.Equal(NszCompressionEngine.Rust, plugins.EditedSettings.NszCompressionEngine);
                 plugins.EditedSettings.RustPackageExecutablePath = @"C:\Plugins\nscb_rust.exe";
                 plugins.EditedSettings.KronosPackageDirectory = @"C:\Plugins\Kronos";
                 plugins.EditedSettings.NandExecutablePath = "C:\\Plugins\\NxNandManager.exe";
@@ -156,6 +166,7 @@ public sealed class WorkspaceNavigationTest
                 Assert.Equal("C:\\Keys\\bis.keys", actual.NandBisKeysPath);
                 Assert.Equal(9, actual.NszCompressionLevel);
                 Assert.Equal(PackageEngine.Kronos, actual.PackageEngine);
+                Assert.Equal(NszCompressionEngine.Rust, actual.NszCompressionEngine);
                 Assert.Equal(@"C:\Plugins\nscb_rust.exe", actual.RustPackageExecutablePath);
                 Assert.Equal(@"C:\Plugins\Kronos", actual.KronosPackageDirectory);
                 Assert.Equal(originalTitleUrl, actual.TitlePageUrl);
@@ -163,6 +174,7 @@ public sealed class WorkspaceNavigationTest
                 main.Navigate(WorkspaceSection.Settings);
                 settings.ApplySettingsCommand.Execute(null);
                 Assert.Equal(PackageEngine.Kronos, actual.PackageEngine);
+                Assert.Equal(NszCompressionEngine.Rust, actual.NszCompressionEngine);
                 Assert.Equal(@"C:\Plugins\Kronos", actual.KronosPackageDirectory);
                 Assert.Equal("C:\\Plugins\\NxNandManager.exe", actual.NandExecutablePath);
                 Assert.Equal(PluginLogLevel.Debug, actual.NszLogLevel);
@@ -196,6 +208,7 @@ public sealed class WorkspaceNavigationTest
                 Assert.IsType<NandView>(((TabItem)nandDetails.Items[3]).Content);
                 Assert.Equal(9, actual.NszCompressionLevel);
                 Assert.Equal(PackageEngine.Kronos, actual.PackageEngine);
+                Assert.Equal(NszCompressionEngine.Rust, actual.NszCompressionEngine);
                 Assert.Equal(@"C:\Plugins\nscb_rust.exe", actual.RustPackageExecutablePath);
                 Assert.Equal(@"C:\Plugins\Kronos", actual.KronosPackageDirectory);
                 Assert.Equal("https://example.com/general-draft", actual.TitlePageUrl);
@@ -205,6 +218,7 @@ public sealed class WorkspaceNavigationTest
                 plugins.CancelSettingsCommand.Execute(null);
                 Assert.Equal(9, actual.NszCompressionLevel);
                 Assert.Equal(PackageEngine.Kronos, actual.PackageEngine);
+                Assert.Equal(NszCompressionEngine.Rust, actual.NszCompressionEngine);
                 Assert.Equal(@"C:\Plugins\nscb_rust.exe", actual.RustPackageExecutablePath);
                 Assert.Equal(@"C:\Plugins\Kronos", actual.KronosPackageDirectory);
                 Assert.Equal(9, plugins.EditedSettings.NszCompressionLevel);
@@ -645,6 +659,53 @@ public sealed class WorkspaceNavigationTest
                     var enabledPluginMenu = Assert.IsType<ContextMenu>(createFileActions.Invoke(batchPage, new object[] { batch, nszResult }));
                     Assert.Contains(System.Linq.Enumerable.OfType<MenuItem>(enabledPluginMenu.Items), item => Equals(item.Header, featureKeys.Nsz_Compress));
                     Assert.Contains(System.Linq.Enumerable.OfType<MenuItem>(enabledPluginMenu.Items), item => Equals(item.Header, featureKeys.Nsz_Decompress));
+                    System.IO.File.WriteAllBytes(nszPath, Array.Empty<byte>());
+                    System.IO.File.WriteAllBytes(nspPath, Array.Empty<byte>());
+                    try {
+                    var createSelectionActions = typeof(BatchIntegrityWindow).GetMethod("CreateSelectionActionsMenu", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+                    var multiMenu = Assert.IsType<ContextMenu>(createSelectionActions.Invoke(batchPage, new object[] { batch, new[] { nszResult, nspResult } }));
+                    var bulkItems = multiMenu.Items.OfType<MenuItem>().ToArray();
+                    Assert.Contains(bulkItems, item => Equals(item.Header, $"{featureKeys.Nsz_Compress} (1/2)"));
+                    Assert.Contains(bulkItems, item => Equals(item.Header, $"{featureKeys.Nsz_Decompress} (1/2)"));
+                    Assert.Contains(bulkItems, item => Equals(item.Header, $"{featureKeys.MenuItem_CheckIntegrity} (2/2)"));
+                    Assert.DoesNotContain(bulkItems, item => Equals(item.Header, featureKeys.BatchIntegrity_OpenSelected));
+                    Assert.Single(BatchIntegrityWindowViewModel.DistinctFiles(new[] { nszResult, nszResult with { PackageIndex = 1 } }));
+                    var packageWasEnabled = actual.EnablePackageOperations;
+                    actual.EnablePackageOperations = true;
+                    try
+                    {
+                        var xci = nspResult with { FilePath = System.IO.Path.ChangeExtension(nspPath, ".xci"), FileType = "XCI" };
+                        System.IO.File.WriteAllBytes(xci.FilePath, Array.Empty<byte>());
+                        try
+                        {
+                            var super = nspResult with { Packages = new[] {
+                                new Emignatik.NxFileViewer.Services.Integrity.BatchPackageSummary("Game","0100000000000000","Application","0"),
+                                new Emignatik.NxFileViewer.Services.Integrity.BatchPackageSummary("Update","0100000000000800","Patch","65536") } };
+                            var packageMenu = Assert.IsType<ContextMenu>(createSelectionActions.Invoke(batchPage, new object[] { batch, new[] { super, xci } }));
+                            var labels = packageMenu.Items.OfType<MenuItem>().Select(item => item.Header).ToArray();
+                            Assert.Contains($"{featureKeys.Package_ConvertNsp} (2/2)", labels);
+                            Assert.Contains($"{featureKeys.Package_ConvertXci} (2/2)", labels);
+                            Assert.Contains($"{featureKeys.Package_MergeNsp} (2/2)", labels);
+                            Assert.Contains($"{featureKeys.Package_MergeXci} (2/2)", labels);
+                            Assert.Contains($"{featureKeys.Package_Split} (1/2)", labels);
+                            Assert.Contains($"{featureKeys.Package_SplitXci} (1/2)", labels);
+                            var singlePackageMenu = Assert.IsType<ContextMenu>(createFileActions.Invoke(batchPage, new object[] { batch, super }));
+                            Assert.Contains(singlePackageMenu.Items.OfType<MenuItem>(), item => Equals(item.Header, featureKeys.Package_SplitXci));
+                            Assert.DoesNotContain(singlePackageMenu.Items.OfType<MenuItem>(), item => Equals(item.Header, featureKeys.Package_MergeNsp));
+                            var ordinaryMenu = Assert.IsType<ContextMenu>(createFileActions.Invoke(batchPage, new object[] { batch, xci }));
+                            Assert.DoesNotContain(ordinaryMenu.Items.OfType<MenuItem>(), item => Equals(item.Header, featureKeys.Package_Split));
+                        }
+                        finally { System.IO.File.Delete(xci.FilePath); }
+                    }
+                    finally { actual.EnablePackageOperations = packageWasEnabled; }
+                    Assert.Equal(DataGridSelectionMode.Extended, grid.SelectionMode);
+                    Assert.Equal(DataGridSelectionUnit.FullRow, grid.SelectionUnit);
+                    actual.EnableNszPlugin = false;
+                    var bulkDisabled = Assert.IsType<ContextMenu>(createSelectionActions.Invoke(batchPage, new object[] { batch, new[] { nszResult, nspResult } }));
+                    Assert.DoesNotContain(bulkDisabled.Items.OfType<MenuItem>(), item => item.Header.ToString()!.StartsWith(featureKeys.Nsz_Compress) || item.Header.ToString()!.StartsWith(featureKeys.Nsz_Decompress));
+                    actual.EnableNszPlugin = true;
+                    }
+                    finally { System.IO.File.Delete(nszPath); System.IO.File.Delete(nspPath); }
                     actual.EnableNand = false;
                     var nandNavigationTab = Assert.IsType<TabItem>(main.FindName("NandTab"));
                     nandNavigationTab.GetBindingExpression(UIElement.VisibilityProperty)!.UpdateTarget();

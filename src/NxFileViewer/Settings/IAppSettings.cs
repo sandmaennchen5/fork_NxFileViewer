@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using Microsoft.Extensions.Logging;
 using Emignatik.NxFileViewer.Styling.Theme;
 
@@ -41,6 +41,7 @@ public interface IAppSettings : INotifyPropertyChanged
     bool IncludeViewerPrereleases { get; set; }
     string NszExecutablePath { get; set; }
     bool NszCheckUpdates { get; set; }
+    NszCompressionEngine NszCompressionEngine { get; set; }
     int NszCompressionLevel { get; set; }
     NszCompressionMode NszCompressionMode { get; set; }
     int NszBlockSizeExponent { get; set; }
@@ -130,6 +131,10 @@ public interface IRenamingOptions : INotifyPropertyChanged
     string PatchPattern { get; set; }
 
     string AddonPattern { get; set; }
+
+    string SuperPattern { get; set; }
+
+    string MultiPattern { get; set; }
 
     bool IsSimulation { get; set; }
 

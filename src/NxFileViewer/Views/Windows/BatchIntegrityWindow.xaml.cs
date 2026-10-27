@@ -1,4 +1,5 @@
 using System;
+using Emignatik.NxFileViewer.Services.PackageOperations;
 using System.Linq;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -204,14 +205,67 @@ public partial class BatchIntegrityWindow : UserControl
     {
         if (sender is not DataGridRow { Item: BatchIntegrityResult file } row ||
             DataContext is not BatchIntegrityWindowViewModel model) return;
-        ResultsGrid.SelectedItem = file;
-        var menu = CreateFileActionsMenu(model, file);
+        if (!ResultsGrid.SelectedItems.Contains(file)) ResultsGrid.SelectedItem = file;
+        var selected = BatchIntegrityWindowViewModel.DistinctFiles(ResultsGrid.SelectedItems.Cast<BatchIntegrityResult>());
+        var menu = selected.Length > 1 ? CreateSelectionActionsMenu(model, selected) : CreateFileActionsMenu(model, file);
         menu.PlacementTarget = row;
         row.ContextMenu = menu;
         menu.IsOpen = true;
         e.Handled = true;
     }
 
+    private ContextMenu CreateSelectionActionsMenu(BatchIntegrityWindowViewModel model, BatchIntegrityResult[] files)
+    {
+        var keys = LocalizationManager.Instance.Current.Keys;
+        var menu = new ContextMenu();
+        void Add(string title, Func<BatchIntegrityResult, bool> canAct, Action<BatchIntegrityResult[]> action)
+        {
+            var eligible = files.Where(canAct).ToArray();
+            if (eligible.Length == 0) return;
+            var item = new MenuItem { Header = $"{title} ({eligible.Length}/{files.Length})" };
+            item.Click += (_, _) => action(eligible);
+            menu.Items.Add(item);
+        }
+        Add(keys.MenuItem_CheckIntegrity, model.CanVerifySelected, model.VerifySelection);
+        if (model.NszPluginActive)
+        {
+            Add(keys.Nsz_Compress, file => model.CanActOnFile(file, NszOperation.Compress), selected => model.ConvertSelection(selected, NszOperation.Compress));
+            Add(keys.Nsz_Decompress, file => model.CanActOnFile(file, NszOperation.Decompress), selected => model.ConvertSelection(selected, NszOperation.Decompress));
+        }
+        Add(keys.BatchNaming_Check, model.CanCheckNaming, selected => model.CheckSelectionNaming(selected, false));
+        Add(keys.RenamingTool_Button_Rename, model.CanCheckNaming, selected => model.CheckSelectionNaming(selected, true));
+        Add(keys.BatchIntegrity_MoveSelected, file => model.CanActOnFile(file), model.MoveSelection);
+        AddPackageActions(menu, model, files, true);
+        return menu;
+    }
+    private void AddPackageActions(ContextMenu menu, BatchIntegrityWindowViewModel model, BatchIntegrityResult[] files, bool multiple)
+    {
+        if (!model.PackageOperationsActive) return;
+        var eligible = files.Where(model.CanPackageFile).ToArray();
+        if (eligible.Length == 0) return;
+        var keys = LocalizationManager.Instance.Current.Keys;
+        menu.Items.Add(new Separator());
+        void Add(string label, PackageOperation operation, string type, BatchIntegrityResult[] inputs)
+        {
+            if (inputs.Length == 0 || operation == PackageOperation.Merge && inputs.Length < 2) return;
+            var item = new MenuItem {
+                Header = multiple ? $"{label} ({inputs.Length}/{files.Length})" : label,
+                IsEnabled = model.CanRunPackageActions
+            };
+            item.Click += (_, _) => model.RunPackageSelection(inputs, operation, type);
+            menu.Items.Add(item);
+        }
+        Add(keys.Package_ConvertNsp, PackageOperation.Convert, "nsp", eligible);
+        Add(keys.Package_ConvertXci, PackageOperation.Convert, "xci", eligible);
+        if (multiple)
+        {
+            Add(keys.Package_MergeNsp, PackageOperation.Merge, "nsp", eligible);
+            Add(keys.Package_MergeXci, PackageOperation.Merge, "xci", eligible);
+        }
+        var combined = eligible.Where(file => file.HasMultiplePackages).ToArray();
+        Add(keys.Package_Split, PackageOperation.Split, "nsp", combined);
+        Add(keys.Package_SplitXci, PackageOperation.Split, "xci", combined);
+    }
     private ContextMenu CreateFileActionsMenu(BatchIntegrityWindowViewModel model, BatchIntegrityResult file)
     {
         var keys = LocalizationManager.Instance.Current.Keys;
@@ -235,6 +289,7 @@ public partial class BatchIntegrityWindow : UserControl
         Add(keys.BatchNaming_Check, model.CanCheckNaming(file), () => model.CheckSelectedNaming(file));
         Add(keys.RenamingTool_Button_Rename, model.CanCheckNaming(file), () => model.RenameSelected(file));
         Add(keys.BatchIntegrity_MoveSelected, model.CanActOnFile(file), () => model.MoveSelected(file));
+        AddPackageActions(menu, model, new[] { file }, false);
         return menu;
     }
 

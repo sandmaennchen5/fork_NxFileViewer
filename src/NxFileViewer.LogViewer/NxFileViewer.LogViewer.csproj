@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows7.0</TargetFramework>
+    <TargetFramework>net10.0-windows7.0</TargetFramework>
     <UseWPF>true</UseWPF>
     <Nullable>enable</Nullable>
     <AssemblyName>NxFileViewerFork.LogViewer</AssemblyName>
@@ -10,6 +10,7 @@
     <Product>NxFileViewer Fork LogViewer</Product>
     <Authors>sandmaennchen5</Authors>
     <ApplicationIcon>../NxFileViewer/Styling/Icons/Icon.ico</ApplicationIcon>
+    <Platforms>AnyCPU</Platforms>
   </PropertyGroup>
   <ItemGroup>
     <Resource Include="../NxFileViewer/Styling/Icons/Icon.ico" Link="Icon.ico" />

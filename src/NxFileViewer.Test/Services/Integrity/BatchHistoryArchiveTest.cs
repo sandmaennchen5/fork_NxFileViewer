@@ -275,5 +275,72 @@ public sealed class BatchHistoryArchiveTest : IDisposable
         settings.SaveBatchHistoryLogos = true;
         Assert.True(JsonSerializer.Deserialize<Emignatik.NxFileViewer.Settings.AppSettings>(JsonSerializer.Serialize(settings))!.SaveBatchHistoryLogos);
     }
+    [Fact]
+    public void CompletedScanRemovesMigratedJsonBackupAndKeepsBothScanArchives()
+    {
+        var old = Entry();
+        var completed = Entry() with { UpdatedUtc = old.UpdatedUtc.AddSeconds(1) };
+        File.WriteAllText(LegacyPath, JsonSerializer.Serialize(new[] { old }));
+        var store = new BatchHistoryStore(LegacyPath);
+        store.Save(completed);
+        Assert.False(File.Exists(LegacyPath));
+        Assert.Empty(Directory.GetFiles(_root, "*.legacy"));
+        var restored = new BatchHistoryStore(LegacyPath).Load();
+        Assert.Equal(2, restored.Count);
+        Assert.Contains(restored, item => item.Id == old.Id);
+        Assert.Contains(restored, item => item.Id == completed.Id);
+    }
+
+    [Theory]
+    [InlineData("Running")]
+    [InlineData("Interrupted")]
+    [InlineData("Failed")]
+    public void IncompleteScansKeepExistingLegacyBackups(string state)
+    {
+        var backup = LegacyPath + "." + Guid.NewGuid().ToString("N") + ".legacy";
+        File.WriteAllText(backup, "backup");
+        new BatchHistoryStore(LegacyPath).Save(Entry() with { State = state });
+        Assert.True(File.Exists(backup));
+    }
+
+    [Fact]
+    public void FailedSaveKeepsBackupAndSuccessfulRetryRemovesOnlyManagedBackups()
+    {
+        var store = new BatchHistoryStore(LegacyPath);
+        var entry = Entry() with { State = "Interrupted" };
+        store.Save(entry);
+        var backup = LegacyPath + "." + Guid.NewGuid().ToString("N") + ".legacy";
+        var otherHistory = Path.Combine(_root, "another.json." + Guid.NewGuid().ToString("N") + ".legacy");
+        var unrecognized = LegacyPath + ".manual.legacy";
+        File.WriteAllText(backup, "backup");
+        File.WriteAllText(otherHistory, "other history");
+        File.WriteAllText(unrecognized, "manual backup");
+        using (var locked = new FileStream(store.EntryPath(entry.Id), FileMode.Open, FileAccess.Read, FileShare.None))
+            Assert.ThrowsAny<IOException>(() => store.Save(entry with { State = "Completed" }));
+        Assert.True(File.Exists(backup));
+        Assert.Equal("Interrupted", Assert.Single(new BatchHistoryStore(LegacyPath).Load()).State);
+        new BatchHistoryStore(LegacyPath).Save(entry with { State = "Completed" });
+        Assert.False(File.Exists(backup));
+        Assert.True(File.Exists(otherHistory));
+        Assert.True(File.Exists(unrecognized));
+        Assert.Equal("Completed", Assert.Single(store.Load()).State);
+    }
+
+    [Fact]
+    public void LockedBackupDoesNotFailCompletedSaveAndIsRemovedOnLaterSave()
+    {
+        var backup = LegacyPath + "." + Guid.NewGuid().ToString("N") + ".legacy";
+        File.WriteAllText(backup, "backup");
+        var entry = Entry();
+        var store = new BatchHistoryStore(LegacyPath);
+        using (var locked = new FileStream(backup, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            store.Save(entry);
+            Assert.True(File.Exists(backup));
+            Assert.Equal("Completed", Assert.Single(store.Load()).State);
+        }
+        new BatchHistoryStore(LegacyPath).Save(entry);
+        Assert.False(File.Exists(backup));
+    }
     public void Dispose() => Directory.Delete(_root, true);
 }

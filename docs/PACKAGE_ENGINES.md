@@ -1,54 +1,91 @@
-# Paket-Engines
+# Package engines
 
-Unter **Plugins → Zusammenführen / Inhalte aufteilen / NSP ↔ XCI** können zwei
-Backends parallel eingerichtet werden:
+Under **Plugins → Merge / Split contents / NSP ↔ XCI**, configure either backend:
 
-- **cxfcxf / nscb_rust:** Pfad zu `nscb_rust.exe`.
-- **Kronos / NSC_BUILDER:** portabler Ordner mit `runtime/python.exe` und
-  `ztools/squirrel.py`, beispielsweise das lokal erstellte Kronos-Testpaket.
+- **cxfcxf / nscb_rust:** path to `nscb_rust.exe`.
+- **Kronos / NSC_BUILDER:** portable directory containing `runtime/python.exe` and
+  `ztools/squirrel.py`, such as a locally assembled Kronos test package.
 
-Nach Auswahl der Engine und ihrer Pfade **Übernehmen** drücken. Der angezeigte
-Status und die Aktionsbuttons verwenden die gespeicherten Einstellungen.
-Download und automatische Updates dieser Engines sind noch nicht integriert.
-Die bestehende NSZ-Anbindung bleibt für Kompression und Dekompression zuständig.
+Choose the engine and paths, then click **Apply**. Status and action buttons use
+the saved settings.
 
-## Aktionen
+## Installation
 
-- Zusammenführen nach NSP oder XCI: mehrere lokale NSP/XCI-Dateien auswählen.
-- Konvertieren nach NSP oder XCI: eine lokale NSP/XCI-Datei auswählen.
-- Inhalte aufteilen: eine Multi-Content-Datei in einzelne NSP-Dateien aufteilen.
-  Dies ist kein FAT32-Dateisplit.
+**Install / update plugin** beside each path downloads the engine and saves the new
+path after validation. Other pending settings are not applied. Cancellation or
+failure preserves the previous path. Each installation uses a new directory under
+`Plugins/PackageEngines` without overwriting previous versions. Engine updates are
+not automatic.
 
-Pro Title-ID darf nur eine Version ausgewählt werden. Die Quelldateien bleiben
-unverändert. Der Hintergrundauftrag kann abgebrochen werden und behält die zu
-Beginn gewählte Engine, auch wenn später andere Einstellungen gespeichert werden.
+nscb_rust is downloaded as a Windows executable from the latest stable
+[cxfcxf/nscb_rust release](https://github.com/cxfcxf/nscb_rust/releases), verified
+against the release asset's SHA-256 digest.
 
-Die Engines schreiben zuerst in einen eigenen temporären Arbeitsordner im
-gewählten Ausgabeordner. Der Viewer prüft die NCA-Integrität sowie die Menge der
-Titel-IDs und Versionen vor und nach der Verarbeitung. Geänderte Signaturen bei
-weiterhin gültigen Hashes sind für Repacking zulässig. Fehlende oder beschädigte
-Inhalte verhindern die Veröffentlichung. Nur die Paketdateien werden in einem
-neuen `NXFV-<Aktion>-<ID>`-Ordner veröffentlicht. Vorhandene Ergebnisse werden
-nicht überschrieben. Eine automatische Firmware-/Schlüsselgeneration-Absenkung
-ist nicht eingeschaltet.
+Kronos has no ready-made release package. The installer records the current
+`master` commit of [Kronos2308/NSC_BUILDER](https://github.com/Kronos2308/NSC_BUILDER)
+before downloading it, then adds SHA-256-verified portable Python 3.12.10 (x64)
+from python.org and Python dependencies from PyPI. This requires an internet
+connection and can take several minutes. System Python is unchanged. The
+installation is activated only after a successful CLI startup test. PyPI resolves
+dependency versions, so the resulting installation is not fully reproducible.
 
-Kronos erhält eine eigene Kopie seiner Arbeitsdateien und der benötigten
-Schlüsseldatei im temporären Auftrag; die Installation selbst wird nicht
-umkonfiguriert. Der Arbeitsordner wird nach Abschluss oder Abbruch bereinigt.
-Zusätzlicher Platz für die Arbeitskopie und das Ergebnis ist erforderlich.
+The nscb_rust selection for compression/decompression is independent of the engine
+selected for merge, split and NSP/XCI conversion.
 
-## Prüfung
+## Actions
 
-Automatisiert geprüft sind Einstellungen/JSON, Erhalt separat gespeicherter
-Plugin-Einstellungen, CLI-Parameter, Abbruch vor Start sowie Ablehnung ungültiger
-Quellen ohne Änderung der Originaldateien. Der Anwendungsbuild wird geprüft.
-Die tatsächlichen Merge-/Split-/Convert-Ergebnisse beider Engines müssen noch
-mit repräsentativen NSP/XCI-Dateien und den dazugehörigen Schlüsseln praktisch
-verglichen werden.
+- **Merge to NSP / XCI:** combine multiple local NSP/XCI files.
+- **Convert to NSP / XCI:** convert one file, or process selected files individually.
+- **Split to NSP / XCI:** repack the contents of a multi-content file as individual
+  packages. This is not FAT32 file splitting.
 
-Bei der Veröffentlichung werden ausschließlich die geprüften Paketdateien einzeln
-verschoben; ein Umbenennen des Arbeitsordners ist nicht erforderlich. Vorübergehende
-Dateisperren werden kurz wiederholt. Bei einem dauerhaften Fehler bleiben die
-geprüften Daten erhalten; die Fehlermeldung nennt die betroffenen Ordner. Eine
-teilweise veröffentlichte Ausgabe enthält `NXFV-INCOMPLETE.txt`. Private
-Engine-Arbeitsdateien werden weiterhin bereinigt.
+Only one version per title ID may be selected. Sources remain unchanged. Background
+jobs support cancellation and retain the engine captured at their start, even if
+settings change later.
+
+## Verification and output handling
+
+Engines write to an isolated temporary job directory under the selected destination.
+The viewer checks NCA integrity and compares the complete set of title IDs and
+versions before and after processing. Changed signatures with valid hashes are
+allowed for repacking. Missing or corrupted contents prevent publication.
+
+Only verified package files are published into a new `NXFV-<Operation>-<ID>`
+directory. Existing results are never overwritten. Automatic firmware/key-generation
+downgrading is not enabled.
+
+Kronos receives job-local copies of its working files and the required key file.
+Its installed configuration is unchanged. The job directory is cleaned after
+completion or cancellation; allow space for both the working copy and output.
+
+Verified files are moved individually; publication does not require renaming the
+working directory. Temporary file locks are retried briefly. On a persistent
+failure, verified outputs are retained and the error identifies the affected
+directories. Partially published output contains `NXFV-INCOMPLETE.txt`. Private
+engine working files are still cleaned up.
+
+## Batch selection
+
+Right-clicking a selected row preserves multiple selection. For local NSP/XCI
+files, the menu offers Convert to NSP/XCI and, with multiple files, Merge to NSP/XCI.
+Files with multiple detected CNMT contents also offer Split to NSP/XCI.
+
+Convert and Split process each source separately. Merge passes all eligible
+selected files to one engine invocation, sorted using the CNMT metadata reread
+at job start: **Application (game) → Patch (update) → AddOnContent (DLC)**.
+For a Super file, its earliest content type in that ranking determines its
+position. Ties retain input order. Filenames and table sorting do not determine
+content types.
+
+The active engine from Settings is used. Matching actions are disabled when the
+tool is unavailable. NSZ/XCZ must be decompressed before these package operations.
+Results are saved under the selected destination, with the same verification and
+no-overwrite rules.
+
+## Validation
+
+Automated checks cover settings/JSON, retention of independently saved plugin
+settings, CLI arguments, cancellation before startup and rejection of invalid
+sources without changing originals. The application build is checked. Actual
+merge/split/convert outputs from both engines still require practical comparison
+using representative NSP/XCI files and their matching keys.

@@ -48,10 +48,10 @@ jobs:
         env:
           RELEASE_VERSION: ${{ steps.tag.outputs.version }}
         run: ./.github/scripts/Prepare-Release.ps1 -Version $env:RELEASE_VERSION -NotesPath (Join-Path $env:RUNNER_TEMP 'release-notes.md')
-      - name: Setup .NET 8
+      - name: Setup .NET 10
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          global-json-file: src/global.json
 
       - name: Build release packages
         shell: pwsh

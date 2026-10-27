@@ -1,0 +1,27 @@
+<Window x:Class="Emignatik.NxFileViewer.Views.Windows.NamingPatternDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="clr-namespace:Emignatik.NxFileViewer.Localization"
+        Width="820" Height="650" MinWidth="360" MinHeight="300"
+        WindowStartupLocation="CenterOwner" Style="{DynamicResource WindowStyle}">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <TextBlock x:Name="PatternLabel" FontWeight="Bold" Margin="0,0,0,8"/>
+        <TextBox x:Name="PatternInput" Grid.Row="1" MinHeight="60" MaxLength="2048" TextWrapping="Wrap"
+                 VerticalContentAlignment="Center" FontFamily="Consolas" VerticalScrollBarVisibility="Auto"/>
+        <TextBlock x:Name="AllowedVariables" Grid.Row="2" TextWrapping="Wrap" Margin="0,12,0,12"/>
+        <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto">
+            <TextBlock x:Name="PatternHelp" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RenamingTool_ToolTip_Patterns}"
+                       TextWrapping="Wrap"/>
+        </ScrollViewer>
+        <TextBlock x:Name="ValidationError" Grid.Row="4" TextWrapping="Wrap" Foreground="{DynamicResource FontBrush.Error}" Margin="0,8,0,0"/>
+        <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button Content="OK" MinWidth="90" IsDefault="True" Padding="12,5" Click="Accept"/>
+            <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nsz_Cancel}"
+                    MinWidth="90" Margin="8,0,0,0" Padding="12,5" IsCancel="True"/>
+        </StackPanel>
+    </Grid>
+</Window>

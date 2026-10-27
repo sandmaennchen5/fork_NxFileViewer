@@ -16,6 +16,7 @@ public sealed class ExplorerLaunchRequestTest
     [InlineData("--file-verify", ExplorerLaunchMode.FileVerify)]
     [InlineData("--batch-open", ExplorerLaunchMode.BatchOpen)]
     [InlineData("--batch-verify", ExplorerLaunchMode.BatchVerify)]
+    [InlineData("--compress", ExplorerLaunchMode.Compress)]
     public void ExplicitActionsPreserveTheRequestedMode(string option, ExplorerLaunchMode mode)
     {
         var request = ExplorerLaunchRequest.Parse(new[] { option, "--", @"C:\Games with spaces\Übung.nsp" });
@@ -33,6 +34,63 @@ public sealed class ExplorerLaunchRequestTest
         Assert.Equal(2, batch.Paths.Length);
     }
 
+    [Theory]
+    [InlineData("--compress", "a.NSP", "b.xci", ExplorerLaunchMode.Compress)]
+    [InlineData("--decompress", "a.NSZ", "b.xcz", ExplorerLaunchMode.Decompress)]
+    public void ConversionAcceptsMatchingSelectionsAndNativeRequests(string option, string first, string second, ExplorerLaunchMode mode)
+    {
+        var paths = new[] { Path.GetFullPath(first), Path.GetFullPath(second) };
+        Assert.Equal(paths, ExplorerLaunchRequest.Parse(new[] { option, paths[0], paths[1] }).Paths);
+        Directory.CreateDirectory(ExplorerLaunchRequest.RequestDirectory);
+        var selection = Path.Combine(ExplorerLaunchRequest.RequestDirectory, Guid.NewGuid().ToString("N") + ".selection");
+        File.WriteAllText(selection, "NXFV1\0" + option[2..] + "\0" + string.Join('\0', paths) + '\0', new UnicodeEncoding(false, false));
+        var request = ExplorerLaunchRequest.Parse(new[] { "--explorer-request", selection });
+        Assert.Equal(mode, request.Mode);
+        Assert.Equal(paths, request.Paths);
+        Assert.False(File.Exists(selection));
+    }
+
+    [Theory]
+    [InlineData("--compress", "a.nsz")]
+    [InlineData("--decompress", "a.nsp")]
+    [InlineData("--compress", "a.zip")]
+    [InlineData("--decompress", "a.nro")]
+    public void ConversionRejectsUnsupportedOrMixedSelections(string option, string invalid)
+    {
+        Assert.Throws<ArgumentException>(() => ExplorerLaunchRequest.Parse(new[] { option, invalid }));
+        Assert.Throws<ArgumentException>(() => ExplorerLaunchRequest.Parse(new[] { option, Path.GetTempPath() }));
+        Assert.Throws<ArgumentException>(() => ExplorerLaunchRequest.Parse(new[] { option }));
+        Assert.Throws<ArgumentException>(() => ExplorerLaunchRequest.Parse(new[] { option, "a.nsp", "b.nsz" }));
+    }
+
+    [Theory]
+    [InlineData("convert-nsp", ExplorerLaunchMode.ConvertNsp, "Convert", "nsp")]
+    [InlineData("convert-xci", ExplorerLaunchMode.ConvertXci, "Convert", "xci")]
+    [InlineData("merge-nsp", ExplorerLaunchMode.MergeNsp, "Merge", "nsp")]
+    [InlineData("merge-xci", ExplorerLaunchMode.MergeXci, "Merge", "xci")]
+    [InlineData("split-nsp", ExplorerLaunchMode.SplitNsp, "Split", "nsp")]
+    [InlineData("split-xci", ExplorerLaunchMode.SplitXci, "Split", "xci")]
+    public void PackageActionsSupportDirectAndNativeSelection(string action, ExplorerLaunchMode mode, string expectedOperation, string expectedType)
+    {
+        var paths = new[] { Path.GetFullPath("game.nsp"), Path.GetFullPath("patch.xci") };
+        var request = ExplorerLaunchRequest.Parse(new[] { "--" + action, "--" }.Concat(paths).ToArray());
+        Assert.Equal(mode, request.Mode);
+        Assert.True(ExplorerLaunchRequest.TryGetPackageOperation(mode, out var operation, out var type));
+        Assert.Equal(expectedOperation, operation.ToString()); Assert.Equal(expectedType, type);
+        Assert.Equal(paths, request.Paths);
+        Assert.Throws<ArgumentException>(() => ExplorerLaunchRequest.Create(mode, new[] { "compressed.nsz", "patch.xci" }));
+        Assert.Throws<ArgumentException>(() => ExplorerLaunchRequest.Create(mode, new[] { Path.GetTempPath(), "patch.xci" }));
+        Assert.Throws<ArgumentException>(() => ExplorerLaunchRequest.Create(mode, Array.Empty<string>()));
+        if (expectedOperation == "Merge")
+            Assert.Throws<ArgumentException>(() => ExplorerLaunchRequest.Create(mode, new[] { paths[0], paths[0] }));
+        else Assert.Single(ExplorerLaunchRequest.Create(mode, new[] { paths[0] }).Paths);
+        Directory.CreateDirectory(ExplorerLaunchRequest.RequestDirectory);
+        var selection = Path.Combine(ExplorerLaunchRequest.RequestDirectory, Guid.NewGuid().ToString("N") + ".selection");
+        File.WriteAllText(selection, "NXFV1\0" + action + "\0" + string.Join('\0', paths) + '\0', new UnicodeEncoding(false, false));
+        var native = ExplorerLaunchRequest.Parse(new[] { "--explorer-request", selection });
+        Assert.Equal(mode, native.Mode); Assert.Equal(paths, native.Paths);
+        Assert.False(File.Exists(selection));
+    }
     [Fact]
     public void DefaultArgumentsRetainAllFiles()
     {

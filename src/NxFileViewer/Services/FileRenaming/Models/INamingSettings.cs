@@ -21,6 +21,11 @@ public interface INamingSettings
     /// </summary>
     public IPattern AddonPattern { get; }
 
+    /// <summary>Independent pattern for a physical package with multiple contents.</summary>
+    public IPattern SuperPattern { get; }
+
+    public IPattern MultiPattern { get; }
+
     /// <summary>
     /// Get the string to use for replacing invalid Windows chars
     /// </summary>

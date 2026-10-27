@@ -3,15 +3,15 @@
 
 int main() {
     const wchar_t* cultures[] = { L"en-US", L"de-DE", L"fr-FR", L"es-ES" };
-    const wchar_t* expected[4][4] = {
-        { L"Open in Batch", L"Verify in Batch", L"Open in File", L"Verify in File" },
-        { L"Im Batch \u00f6ffnen", L"Im Batch pr\u00fcfen", L"Im File \u00f6ffnen", L"Im File pr\u00fcfen" },
-        { L"Ouvrir dans Batch", L"V\u00e9rifier dans Batch", L"Ouvrir dans File", L"V\u00e9rifier dans File" },
-        { L"Abrir en Batch", L"Verificar en Batch", L"Abrir en File", L"Verificar en File" }
+    const wchar_t* expected[4][6] = {
+        { L"Open in Batch", L"Verify in Batch", L"Open in File", L"Verify in File", L"Compress", L"Decompress" },
+        { L"Im Batch \u00f6ffnen", L"Im Batch pr\u00fcfen", L"Im File \u00f6ffnen", L"Im File pr\u00fcfen", L"Komprimieren", L"Dekomprimieren" },
+        { L"Ouvrir dans Batch", L"V\u00e9rifier dans Batch", L"Ouvrir dans File", L"V\u00e9rifier dans File", L"Compresser", L"D\u00e9compresser" },
+        { L"Abrir en Batch", L"Verificar en Batch", L"Abrir en File", L"Verificar en File", L"Comprimir", L"Descomprimir" }
     };
     for (unsigned language = 0; language < 4; ++language) {
         if (std::wcscmp(ExplorerTitle(0, cultures[language]), L"NxFileViewer Fork")) return 1;
-        for (unsigned action = 1; action <= 4; ++action)
+        for (unsigned action = 1; action <= 6; ++action)
             if (std::wcscmp(ExplorerTitle(action, cultures[language]), expected[language][action - 1])) return 2;
     }
     if (std::wcscmp(ExplorerTitle(1, L"DE-at"), expected[1][0])) return 3;

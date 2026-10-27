@@ -49,13 +49,16 @@ public sealed class ExplorerNativeMenuTest
             Assert.Equal(1u, flags); // ECF_HASSUBCOMMANDS
             Assert.Equal(0, Method<EnumCommands>(command, 10)(command, out enumeration));
             var first = Path.Combine(root, "A game ü.nsp"); var second = Path.Combine(root, "B game.xci");
+            var compressed = Path.Combine(root, "compressed.NSZ");
+            var compressedXci = Path.Combine(root, "compressed.xcz");
+            File.WriteAllBytes(compressed, Array.Empty<byte>()); File.WriteAllBytes(compressedXci, Array.Empty<byte>());
             var unsupported = Path.Combine(root, "notes.txt");
             File.WriteAllBytes(first, Array.Empty<byte>()); File.WriteAllBytes(second, Array.Empty<byte>()); File.WriteAllText(unsupported, "");
             var titles = ExpectedTitles();
             Assert.Equal(0, Method<GetTitle>(command, 3)(command, IntPtr.Zero, out var rootTitle));
             try { Assert.Equal("NxFileViewer Fork", Marshal.PtrToStringUni(rootTitle)); }
             finally { Marshal.FreeCoTaskMem(rootTitle); }
-            for (var index = 0; index < 4; index++)
+            for (var index = 0; index < 12; index++)
             {
                 Assert.Equal(0, Method<NextCommand>(enumeration, 3)(enumeration, 1, out var child, out var fetched));
                 Assert.Equal(1u, fetched);
@@ -64,10 +67,13 @@ public sealed class ExplorerNativeMenuTest
                     Assert.Equal(0, Method<GetTitle>(child, 3)(child, IntPtr.Zero, out var title));
                     try { Assert.Equal(titles[index], Marshal.PtrToStringUni(title)); }
                     finally { Marshal.FreeCoTaskMem(title); }
-                    AssertState(child, new[] { first }, 0); // ECS_ENABLED
-                    AssertState(child, new[] { first, second }, index < 2 ? 2u : 0u); // ECS_HIDDEN
-                    AssertState(child, new[] { root }, index < 2 ? 2u : 0u);
-                    AssertState(child, new[] { first, root }, index < 2 ? 2u : 0u);
+                    AssertState(child, new[] { first }, index == 5 || index is 8 or 9 ? 2u : 0u);
+                    AssertState(child, new[] { first, second }, index < 2 || index == 5 ? 2u : 0u);
+                    AssertState(child, new[] { root }, index < 2 || index >= 4 ? 2u : 0u);
+                    AssertState(child, new[] { first, root }, index < 2 || index >= 4 ? 2u : 0u);
+                    AssertState(child, new[] { compressed }, index == 4 || index >= 6 ? 2u : 0u);
+                    AssertState(child, new[] { compressed, compressedXci }, index < 2 || index == 4 || index >= 6 ? 2u : 0u);
+                    AssertState(child, new[] { first, compressed }, index < 2 || index >= 4 ? 2u : 0u);
                     AssertState(child, new[] { unsupported }, 2);
                 }
                 finally { Release(child); }
@@ -110,12 +116,20 @@ public sealed class ExplorerNativeMenuTest
         var culture = config?.GetValue("Language") as string;
         if (string.IsNullOrEmpty(culture) || culture.Equals("Auto", StringComparison.OrdinalIgnoreCase))
             culture = CultureInfo.GetCultureInfo(GetUserDefaultUILanguage()).Name;
-        return culture.Split('-')[0].ToLowerInvariant() switch {
-            "de" => new[] { "Im File öffnen", "Im File prüfen", "Im Batch öffnen", "Im Batch prüfen" },
-            "fr" => new[] { "Ouvrir dans File", "Vérifier dans File", "Ouvrir dans Batch", "Vérifier dans Batch" },
-            "es" => new[] { "Abrir en File", "Verificar en File", "Abrir en Batch", "Verificar en Batch" },
-            _ => new[] { "Open in File", "Verify in File", "Open in Batch", "Verify in Batch" }
+        var language = culture.Split('-')[0].ToLowerInvariant();
+        var original = language switch {
+            "de" => new[] { "Im File öffnen", "Im File prüfen", "Im Batch öffnen", "Im Batch prüfen", "Komprimieren", "Dekomprimieren" },
+            "fr" => new[] { "Ouvrir dans File", "Vérifier dans File", "Ouvrir dans Batch", "Vérifier dans Batch", "Compresser", "Décompresser" },
+            "es" => new[] { "Abrir en File", "Verificar en File", "Abrir en Batch", "Verificar en Batch", "Comprimir", "Descomprimir" },
+            _ => new[] { "Open in File", "Verify in File", "Open in Batch", "Verify in Batch", "Compress", "Decompress" }
         };
+        var packageTitles = language switch {
+            "de" => new[] { "Konvertieren zu NSP", "Konvertieren zu XCI", "Zusammenführen zu NSP", "Zusammenführen zu XCI", "Aufteilen zu NSP", "Aufteilen zu XCI" },
+            "fr" => new[] { "Convertir en NSP", "Convertir en XCI", "Fusionner en NSP", "Fusionner en XCI", "Diviser en NSP", "Diviser en XCI" },
+            "es" => new[] { "Convertir a NSP", "Convertir a XCI", "Combinar en NSP", "Combinar en XCI", "Dividir en NSP", "Dividir en XCI" },
+            _ => new[] { "Convert to NSP", "Convert to XCI", "Merge to NSP", "Merge to XCI", "Split to NSP", "Split to XCI" }
+        };
+        return System.Linq.Enumerable.ToArray(System.Linq.Enumerable.Concat(original, packageTitles));
     }
     [DllImport("kernel32.dll")] private static extern ushort GetUserDefaultUILanguage();
     private static T Method<T>(IntPtr instance, int slot) where T : Delegate =>
