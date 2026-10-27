@@ -25,6 +25,12 @@ and verifies results before publishing. Plugins must be enabled in the viewer.
 After updating the viewer, add/update the classic menu or install the new modern
 Explorer package (1.0.1.0) to receive the new commands.
 
+## Optional feature visibility
+
+Extension version **1.0.4.0** and later reads the saved feature switches whenever Explorer queries a command. Disabling **Compress / Decompress** hides both compression actions. Disabling experimental package operations hides Convert, Merge and Split. Package operations on NSZ/XCZ also require compression because those inputs need decompression first. Open and Verify remain available.
+
+Update the classic registration or install the new modern MSIX once to enable this behavior. Subsequent feature changes require only saving the viewer settings, without rebuilding or reinstalling the MSIX. The native extension reads DWORD values `CompressionEnabled` and `PackageOperationsEnabled` under `HKCU\Software\NxFileViewerFork\ExplorerIntegration`; it never loads the managed viewer or parses its settings file. The viewer synchronizes these values on settings load/save and menu installation, only for the executable owning the registration. Older configurations without these values retain their previous menu visibility until synchronized. An already running viewer still applies its optional features after the restart indicated in Settings.
+
 ## Classic menu
 
 Click **Add / update classic menu**. This extracts an immutable, architecture-matched native DLL to `%LOCALAPPDATA%\NxFileViewerFork\ExplorerIntegration` and registers only HKCU keys. No administrator rights or default-app change are needed. On Windows 11 this is the **Show more options** menu. **Remove classic menu** deletes the fork menu and COM registration. After menu installation, update and removal, and on subsequent application starts, unregistered DLL versions are cleaned up. Active registrations in either registry view, locked or loaded DLLs, links, changed payloads and folders containing unrelated files are preserved. Locked versions are retried on the next application start after Explorer releases them; Explorer is never forcibly restarted.
@@ -95,15 +101,22 @@ The independent Explorer package version starts at 1.0.1.0. A previously install
 
 ## Package actions in the context menu
 
-For NSP/XCI selections, the classic and modern Explorer menus offer Convert,
-Merge and Split to NSP or XCI. Merge appears for at least two files. Folders and
-compressed NSZ/XCZ files are excluded. Convert and Split process multiple files
-individually. Engine selection (Rust or Kronos), destination selection and
-verification match the Batch actions. Merge orders input files by their actual
-contents: game, update, DLC.
+For NSP/XCI/NSZ/XCZ selections, the classic and modern Explorer menus offer Convert,
+Merge and Split to NSP or XCI. Merge appears for at least two files, including
+mixed compressed and uncompressed selections. Folders are excluded. Convert and
+Split process multiple files individually. Engine selection (Rust or Kronos),
+destination selection and verification match the Batch actions. Merge orders
+input files by their actual contents: game, update, DLC.
 
 Explorer does not read package metadata or keys to construct its menu. Split is
-therefore offered for NSP/XCI regardless of whether the file contains multiple
-contents; actual contents are checked in the application. After updating, add the
-Explorer integration again in Settings or update the modern package so Windows
-uses the new native DLL.
+therefore offered for NSP/XCI/NSZ/XCZ regardless of whether the file contains
+multiple contents. Before asking for a destination or decompressing, the
+application opens each selected source and checks its CNMT contents. Single-content
+files are skipped with an informational message; eligible files continue.
+Compressed multipackages are temporarily decompressed and verified before
+splitting or merging.
+
+After updating, add the classic Explorer integration again in Settings or
+install the modern Explorer package 1.0.3.0 so Windows uses the new native DLL.
+
+The general update check includes the modern Explorer MSIX only when it is installed for the current user. It compares the installed package version with the newest compatible package from the configured Explorer sources, respecting the preview-release setting. New versions appear in the Start update summary; installation remains available through Install / update modern menu. An absent package causes no Explorer release request or update entry. The Windows package query has a 15-second limit and honors cancellation.

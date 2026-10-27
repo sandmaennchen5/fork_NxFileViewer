@@ -11,3 +11,10 @@ public interface INszPlugin
     void Convert(string source, string outputDirectory, NszOperation operation,
         IProgressReporter progress, CancellationToken cancellationToken);
 }
+
+
+public interface INszEnginePlugin : INszPlugin
+{
+    void ConvertUsingEngine(bool useRust, string source, string outputDirectory, NszOperation operation,
+        Emignatik.NxFileViewer.Services.BackgroundTask.IProgressReporter progress, System.Threading.CancellationToken cancellationToken);
+}

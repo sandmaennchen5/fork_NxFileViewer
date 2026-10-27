@@ -46,6 +46,10 @@ public class SettingsWindowViewModel : WindowViewModelBase
 
         CopyKeysToSwitchCommand = new RelayCommand(CopyKeysToSwitch, () => !_backgroundTaskRunnerService.IsRunning &&
             (File.Exists(ActualProdKeysFilePath) || File.Exists(ActualTitleKeysFilePath)));
+        BrowseOutputDirectoryCommand = new RelayCommand(() => {
+            var dialog = new OpenFolderDialog { Title = LocalizationManager.Instance.Current.Keys.Output_Title };
+            if (dialog.ShowDialog() == true) EditedSettings.CustomOutputDirectory = dialog.FolderName;
+        });
         BrowseProdKeysCommand = new RelayCommand(BrowseProdKeys);
         BrowseTitleKeysCommand = new RelayCommand(BrowseTitleKeys);
         BrowseNandCommand = new RelayCommand(() =>
@@ -58,11 +62,17 @@ public class SettingsWindowViewModel : WindowViewModelBase
             var dialog = new OpenFileDialog { Filter = "BIS keys (*.*)|*.*" };
             if (dialog.ShowDialog() == true) EditedSettings.NandBisKeysPath = dialog.FileName;
         });
+        System.ComponentModel.PropertyChangedEventManager.AddHandler(
+            _serviceProvider.GetRequiredService<IAppSettings>(), OnActualPluginPathChanged, string.Empty);
         DownloadRustPackageCommand = new RelayCommand(() => DownloadPackageEngine(PackageEngine.Rust),
             () => !_backgroundTaskRunnerService.IsRunning && (_serviceProvider.GetRequiredService<IAppSettings>().NszPluginActive ||
                 _serviceProvider.GetRequiredService<IAppSettings>().PackageOperationsActive));
         DownloadKronosPackageCommand = new RelayCommand(() => DownloadPackageEngine(PackageEngine.Kronos),
             () => !_backgroundTaskRunnerService.IsRunning && _serviceProvider.GetRequiredService<IAppSettings>().PackageOperationsActive);
+        BrowseDesktopCommand = new RelayCommand(() => {
+            var dialog = new OpenFileDialog { Filter = "NSCB Desktop (*.exe)|*.exe" };
+            if (dialog.ShowDialog() == true) EditedSettings.RustDesktopExecutablePath = dialog.FileName;
+        });
         BrowseRustPackageCommand = new RelayCommand(() =>
         {
             var dialog = new OpenFileDialog { Filter = "nscb_rust (*.exe)|*.exe" };
@@ -226,8 +236,10 @@ public class SettingsWindowViewModel : WindowViewModelBase
     public ICommand BrowseTitleKeysCommand { get; }
     public NszEngineOption[] NszEngines { get; } =
     {
+        new(NszCompressionEngine.Rust, "cxfcxf / nscb_rust"),
         new(NszCompressionEngine.Nsz, "nicoboss/nsz"),
-        new(NszCompressionEngine.Rust, "cxfcxf / nscb_rust")
+        new(NszCompressionEngine.RustWithNszBackup, "cxfcxf / nscb_rust (Backup nicoboss/nsz)"),
+        new(NszCompressionEngine.NszWithRustBackup, "nicoboss/nsz (Backup cxfcxf / nscb_rust)")
     };
     public IReadOnlyList<NszModeOption> NszModeOptions => new[]
     {
@@ -250,6 +262,7 @@ public class SettingsWindowViewModel : WindowViewModelBase
 
     public Emignatik.NxFileViewer.Services.Updates.ViewerUpdateActions ViewerUpdates => _serviceProvider.GetRequiredService<Emignatik.NxFileViewer.Services.Updates.ViewerUpdateActions>();
 
+    public RelayCommand BrowseDesktopCommand { get; }
     public RelayCommand DownloadRustPackageCommand { get; }
     public RelayCommand DownloadKronosPackageCommand { get; }
     public ICommand BrowseRustPackageCommand { get; }
@@ -257,7 +270,9 @@ public class SettingsWindowViewModel : WindowViewModelBase
     public PackageEngineOption[] PackageEngines { get; } =
     {
         new(PackageEngine.Rust, "cxfcxf / nscb_rust"),
-        new(PackageEngine.Kronos, "Kronos / NSC_BUILDER")
+        new(PackageEngine.Kronos, "Kronos / NSC_BUILDER"),
+        new(PackageEngine.RustWithKronosBackup, "cxfcxf / nscb_rust (Backup: Kronos / NSC_BUILDER)"),
+        new(PackageEngine.KronosWithRustBackup, "Kronos / NSC_BUILDER (Backup: cxfcxf / nscb_rust)")
     };
     public Services.PackageOperations.PackageActions Packages => _serviceProvider.GetRequiredService<Services.PackageOperations.PackageActions>();
     public ICommand BrowseNszCommand { get; }
@@ -300,6 +315,7 @@ public class SettingsWindowViewModel : WindowViewModelBase
         var keys = LocalizationManager.Instance.Current.Keys;
         try {
             await action();
+            Services.FileAssociations.ExplorerIntegration.SynchronizeFeatures(_serviceProvider.GetRequiredService<IAppSettings>());
             ThemedDialog.Notice(ExplorerStatus.Length > 0 ? ExplorerStatus : keys.Explorer_Done, keys.Explorer_Title, MessageBoxImage.Information);
         } catch (Exception ex) { ExplorerStatus = ex.Message; ThemedDialog.Notice(ex.Message, keys.Explorer_Title, MessageBoxImage.Error); }
         finally { _explorerSetupBusy = false; RefreshExplorerCommands(); }
@@ -386,6 +402,7 @@ public class SettingsWindowViewModel : WindowViewModelBase
 
     private void OnEditedKeyPathChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
+        RefreshPluginInstallVisibility();
         if (e.PropertyName is nameof(IAppSettings.ProdKeysFilePath) or nameof(IAppSettings.TitleKeysFilePath)) RefreshKeyLocations();
     }
 
@@ -587,10 +604,46 @@ public class SettingsWindowViewModel : WindowViewModelBase
         }
     }
 
+    public ICommand BrowseOutputDirectoryCommand { get; }
+    public OutputLocationOption[] OutputLocations => OperationOutputDialog.Locations;
     public Action? EditingCompleted { get; set; }
     public bool PluginSettingsOnly { get; set; }
+    public bool ShowRustInstall => string.IsNullOrWhiteSpace(EditedSettings.RustPackageExecutablePath) && !File.Exists(_serviceProvider.GetRequiredService<IAppSettings>().RustPackageExecutablePath);
+    public bool ShowKronosInstall => string.IsNullOrWhiteSpace(EditedSettings.KronosPackageDirectory) && !File.Exists(Path.Combine(_serviceProvider.GetRequiredService<IAppSettings>().KronosPackageDirectory, "runtime", "python.exe"));
+    public bool ShowNszInstall => string.IsNullOrWhiteSpace(EditedSettings.NszExecutablePath) && !File.Exists(Nsz.ExecutablePath);
+    public bool ShowNandInstall => string.IsNullOrWhiteSpace(EditedSettings.NandExecutablePath) && !File.Exists(Nand.ExecutablePath);
+    public bool ShowDesktopInstall => string.IsNullOrWhiteSpace(EditedSettings.RustDesktopExecutablePath) && !File.Exists(Desktop.ExecutablePath);
+    private void RefreshPluginInstallVisibility()
+    {
+        foreach (var name in new[] { nameof(ShowRustInstall), nameof(ShowKronosInstall), nameof(ShowNszInstall), nameof(ShowNandInstall), nameof(ShowDesktopInstall) })
+            NotifyPropertyChanged(name);
+    }
+    public Services.PackageOperations.PackageVersionActions Versions => _serviceProvider.GetRequiredService<Services.PackageOperations.PackageVersionActions>();
+    public Services.PackageOperations.KronosGuiActions KronosGui => _serviceProvider.GetRequiredService<Services.PackageOperations.KronosGuiActions>();
+    public Services.PackageOperations.RustDesktopActions Desktop => _serviceProvider.GetRequiredService<Services.PackageOperations.RustDesktopActions>();
     public Emignatik.NxFileViewer.Services.Nsz.NszActions Nsz => _serviceProvider.GetRequiredService<Emignatik.NxFileViewer.Services.Nsz.NszActions>();
 
+    private void OnActualPluginPathChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
+    {
+        // Keep changes made directly in Batch or Updates when this draft is applied later.
+        if (args.PropertyName is nameof(IAppSettings.BatchSeparatePackages) or nameof(IAppSettings.BatchGameSortAlphabetical)
+            or nameof(IAppSettings.BatchIncludeArchives) or nameof(IAppSettings.BatchIncludeSubdirectories)
+            or nameof(IAppSettings.BatchGroupFiles) or nameof(IAppSettings.BatchShowOnlyErrors) or nameof(IAppSettings.BatchSortLayout))
+        {
+            var property = typeof(IAppSettings).GetProperty(args.PropertyName)!;
+            if (sender is IAppSettings current && _editedSettings != null) property.SetValue(_editedSettings, property.GetValue(current));
+        }
+        if (sender is not IAppSettings actual || _editedSettings == null) return;
+        if (args.PropertyName == nameof(IAppSettings.RustPackageExecutablePath))
+            EditedSettings.RustPackageExecutablePath = actual.RustPackageExecutablePath;
+        if (args.PropertyName == nameof(IAppSettings.RustDesktopExecutablePath))
+            EditedSettings.RustDesktopExecutablePath = actual.RustDesktopExecutablePath;
+        if (args.PropertyName == nameof(IAppSettings.NszExecutablePath)) EditedSettings.NszExecutablePath = actual.NszExecutablePath;
+        if (args.PropertyName == nameof(IAppSettings.NandExecutablePath)) EditedSettings.NandExecutablePath = actual.NandExecutablePath;
+        RefreshPluginInstallVisibility();
+        if (args.PropertyName == nameof(IAppSettings.KronosPackageDirectory))
+            EditedSettings.KronosPackageDirectory = actual.KronosPackageDirectory;
+    }
     private async void DownloadPackageEngine(PackageEngine engine)
     {
         var command = engine == PackageEngine.Rust ? DownloadRustPackageCommand : DownloadKronosPackageCommand;
@@ -631,7 +684,13 @@ public class SettingsWindowViewModel : WindowViewModelBase
         destination.MtpLogLevel = source.MtpLogLevel;
         destination.PackageLogLevel = source.PackageLogLevel;
         destination.PackageEngine = source.PackageEngine;
+        destination.MergeOutputLocation = source.MergeOutputLocation;
+        destination.SplitOutputLocation = source.SplitOutputLocation;
+        destination.CompressionOutputLocation = source.CompressionOutputLocation;
+        destination.DecompressionOutputLocation = source.DecompressionOutputLocation;
+        destination.CustomOutputDirectory = source.CustomOutputDirectory;
         destination.RustPackageExecutablePath = source.RustPackageExecutablePath;
+        destination.RustDesktopExecutablePath = source.RustDesktopExecutablePath;
         destination.KronosPackageDirectory = source.KronosPackageDirectory;
         destination.NandExecutablePath = source.NandExecutablePath;
         destination.NandBisKeysPath = source.NandBisKeysPath;

@@ -49,14 +49,33 @@ static bool Supported(const std::wstring& path) {
     return false;
 }
 
+static bool FeatureEnabled(const wchar_t* name) {
+    DWORD value = 1, bytes = sizeof(value);
+    auto result = RegGetValueW(HKEY_CURRENT_USER, L"Software\\NxFileViewerFork\\ExplorerIntegration",
+        name, RRF_RT_REG_DWORD, nullptr, &value, &bytes);
+    // Existing installations have no flags until the updated viewer saves its configuration.
+    return result != ERROR_SUCCESS || value != 0;
+}
+
 static bool SupportsAction(Action action, const std::vector<std::wstring>& paths, bool folder) {
+    if ((action == Action::Compress || action == Action::Decompress) && !FeatureEnabled(L"CompressionEnabled")) return false;
+    if (action >= Action::ConvertNsp && action <= Action::SplitXci) {
+        if (!FeatureEnabled(L"PackageOperationsEnabled")) return false;
+        if (!FeatureEnabled(L"CompressionEnabled")) {
+            for (const auto& path : paths) {
+                auto ext = PathFindExtensionW(path.c_str());
+                if (_wcsicmp(ext, L".nsz") == 0 || _wcsicmp(ext, L".xcz") == 0) return false;
+            }
+        }
+    }
     if (action == Action::FileOpen || action == Action::FileVerify) return paths.size() == 1 && !folder;
     if (action >= Action::ConvertNsp && action <= Action::SplitXci) {
         if (folder || paths.empty()) return false;
         if ((action == Action::MergeNsp || action == Action::MergeXci) && paths.size() < 2) return false;
         for (const auto& path : paths) {
             auto ext = PathFindExtensionW(path.c_str());
-            if (_wcsicmp(ext, L".nsp") != 0 && _wcsicmp(ext, L".xci") != 0) return false;
+            if (_wcsicmp(ext, L".nsp") != 0 && _wcsicmp(ext, L".xci") != 0 &&
+                _wcsicmp(ext, L".nsz") != 0 && _wcsicmp(ext, L".xcz") != 0) return false;
         }
         return true;
     }

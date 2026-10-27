@@ -5,26 +5,39 @@ All notable changes to NxFileViewer Fork will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [4.1.1-beta1] - 2026-10-24
+## [4.1.1-beta1] - 2026-10-28
+
+### Added
+
+- Include an installed modern Explorer MSIX in general update checks and the Start update summary, comparing its independent package version and skipping Explorer release requests when the package is absent.
+
+- Add batch-wide Split and Merge actions for mixed NSP/NSZ/XCI/XCZ inputs. Preserve the source container family or choose NSP/XCI; merge by base game ID or across games. Offer temporary splitting of mixed-game containers when matching additional content is available.
+- Add primary/backup engine selections for compression/decompression (nscb_rust and nicoboss/nsz) and package operations (nscb_rust and Kronos). Retry a failed process or invalid output once with the selected backup in an isolated workspace.
+- Add output choices beside the source, in an action subdirectory, or in a custom typed/browsed directory. Configure defaults per action under Plugins → General. Successful package and compression summaries can open the generated files in Batch.
+- Add independent alphabetical sorting by base game title, keeping base content, updates and DLC together. Temporarily lock column sorting and restore the previous user sorting when disabled.
+- Add configurable direct launches for NSZ, NxNandManager, NSCB Desktop and Kronos, with the selected keys. Install NSCB Desktop alongside nscb_rust; launch Kronos through its interactive NSCB.bat/NSCB.exe starter and private Python runtime.
+- Centralize master-key CRC32 fingerprints and firmware mappings in src/config/master-keys.json, embedded at build time and validated before publishing.
+- Add the Folders by game naming preset for applications, patches, DLC and same-game combined packages, using the base game title and application ID as their shared directory.
+- Add an optional German GitHub Wiki alongside the English documentation and append a generated ZIP/runtime explanation to release notes.
 
 ### Changed
 
 - Target .NET 10 across the application, log viewer, transition, packaging tools and tests. Standard ZIPs require .NET 10 Desktop Runtime; self-contained ZIPs include it.
+- Unify managed plugin storage: active.json contains current/previous paths; each version retains its metadata in installation.json. Automatically migrate legacy states, preserve migration backups and support rollback and old-version cleanup for NSZ, NxNandManager, nscb_rust, Kronos and NSCB Desktop.
+- Display installed release versions or a short Kronos commit in Updates. Preserve full commits and available executable/source digests in installation metadata.
+- Group plugin settings into General, Compress / Decompress, experimental Merge / Split / Convert, and NxNandManager. Apply the compression feature switch to both engines; offer initial installation beside paths and keep update/rollback/cleanup actions under Updates.
+- Keep Show multipackages separately (:1, :2, …) independent of game-family sorting. Persist normal column sorting and document checkbox defaults and UI locations in default-settings.json.
+- Extend classic and modern Explorer package actions to compressed and mixed selections. Explorer extension 1.0.4.0 dynamically hides disabled optional actions; subsequent saved feature changes require no new MSIX.
+- Publish validated Merge/Split results directly into the selected directory instead of GUID-named result folders, while retaining private staging and recovery data when publication fails.
 
 ### Fixed
 
 - Avoid recursive NCA ID formatting with newer Span overload resolution by converting byte spans directly to hexadecimal.
-- Honor the selected NSZ/nscb_rust engine for decompression as well as compression, including Explorer actions. Show the actual engine in conversion logs and clarify the settings label.
-
-### Added
-- Explorer context menu: convert, merge and split NSP/XCI using the selected Rust/Kronos package engine, including multi-selection and game/update/DLC merge ordering.
-
-- Name packages with mixed game IDs and DLC-only collections using an independent MultiPattern, such as MultiPaket (2G+3U+5D). Restrict its variables to counts and extension to avoid misleading single-game metadata.
-- Add an independent combined-package naming selector with presets/manual editing and saved SuperPattern, separate from standalone application/update/DLC patterns.
-- Add a configurable SuperNSP / SuperXCI naming preset with actual game/update/DLC counts and the highest included game/update version. Support combined packages for one application and route mixed game IDs to the dedicated MultiPattern.
-- Add Compress and Decompress to the classic and modern Windows Explorer submenu for matching NSP/XCI and NSZ/XCZ selections, including multiple files. Use the configured conversion engine and existing verified conversion workflow.
-- Download and install nscb_rust and Kronos from the plugin settings. Verify the Rust release and portable Python hashes, build a private Kronos runtime, and activate paths only after a successful CLI startup check.
-- Select nscb_rust as the compression engine for NSP/NSZ and XCI/XCZ, reusing the configured Rust executable and compression level. Output verification and safe publication remain enabled; the selected engine also handles decompression.
+- Honor the selected compression engine for decompression and Explorer actions, including backup selection. Keep source and output integrity checks enabled; remove the automatic stable-plugin-update checkbox before conversion and retain manual updates and on-demand initial installation.
+- Restore managed plugin paths after moving the application directory without replacing explicitly selected manual executables.
+- Recognize split-capable source containers when Batch displays their contents as separate rows. Decompress compressed Merge/Split inputs when required and report single-content sources before splitting.
+- Correct Kronos direct launch to open the interactive console rather than automatically opening its web interface. Allow cleanup of old Kronos versions containing the bundled empty title.keys placeholder while protecting nonempty key files.
+- Prevent repeated recursive plugin-directory scans during UI command-state checks and page navigation. Search for cleanup candidates only when requested and perform that search in the background.
 
 ## [4.1.0] - 2026-10-22
 

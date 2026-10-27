@@ -92,3 +92,43 @@ The `Defaults` section of `naming-presets.json` defines:
 Empty replacement strings remove those characters. Invalid Windows filename
 characters are obtained from the operating system. Slashes in a naming pattern
 act as directory separators. Existing saved renaming settings retain precedence.
+
+The optional NSCB Desktop GUI release source is configured with `RustDesktopRepository` in external-sources.json; its default is cxfcxf/nscb-desktop.
+
+
+The default-settings.json Hints object documents the UI location of every default.
+It is metadata and does not change the setting values. Standard JSON does not
+accept # comments. Checkbox defaults for filename whitespace replacement remain
+in naming-presets.json, alongside the invalid filename character rules; read-only
+metadata checkboxes are not user settings.
+
+BatchSeparatePackages controls only separate content rows (:1, :2, ...). BatchGameSortAlphabetical independently sorts base-game families and temporarily locks column sorting. Archives, subdirectories, folder grouping,
+error filtering and the normal column sort also have central defaults.
+MergeOutputLocation, SplitOutputLocation, CompressionOutputLocation and
+DecompressionOutputLocation accept NextToSource, ActionSubdirectory or Custom.
+CustomOutputDirectory supplies the editable custom path. These defaults appear
+under Settings > Plugins > General > Default output directories; each action can
+override them for its current run. PackageEngine also accepts RustWithKronosBackup
+and KronosWithRustBackup.
+## Master key validation and firmware mapping
+
+`master-keys.json` is the single source for master-key CRC32 fingerprints and firmware labels.
+The hexadecimal property name is the zero-based revision: `"0f"` means `master_key_0f`
+(decimal revision 15, the 16th master key). NCA key-generation interpretation remains
+in the reader; it is not an independently editable value in this catalog.
+
+```json
+"0f": { "Firmware": "16.0.0", "Crc32": 4082108335 }
+```
+
+These are fingerprints, not actual key values. To maintain a revision, update its
+firmware label and unsigned 32-bit CRC32 in this one entry. Revisions use exactly
+two lowercase hexadecimal characters. Duplicate revisions, empty firmware labels
+and invalid checksums are rejected. Unknown revisions keep the existing unsupported-key
+warning until a catalog entry is added and the application is rebuilt.
+
+The file is embedded at build time as Viewer.MasterKeys.json. No additional file is
+required next to the published executable, and editing the repository file affects the
+next build. Publish.ps1 runs Validate-MasterKeys.ps1 before publishing. It can also
+be run independently with `pwsh -File src/config/Validate-MasterKeys.ps1`.
+The optional game-folders preset (Folders by game) groups Application, Patch, Addon and Combined files under {WAppTitle} [{AppId:U}]/ while retaining their default filenames. The base application ID keeps games, updates and DLC in the same game folder. Mixed-game MultiPackage files retain their separate presets because they do not have one unambiguous base game.

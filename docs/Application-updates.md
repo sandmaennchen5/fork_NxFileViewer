@@ -17,6 +17,8 @@ All generated ZIPs, including the legacy transition packages, are uploaded to a 
 
 The package manifest is generated from the tagged source by `Publish.ps1` and is included in each application ZIP. Merely committing changes to `master` continues to build Actions artifacts; it does not publish a release or affect installed applications. Git tags must be pushed to trigger publication. The release descriptor and package migration instructions described below are generated from this same tagged source.
 
+After building the release packages, the workflow appends a **Which ZIP file do I need?** guide to the changelog notes. It uses the generated release descriptor and actual ZIP filenames, including the independently versioned Explorer assets. Runtime requirements are read from the project target frameworks: self-contained ZIPs include .NET; standard ZIPs require the corresponding Desktop Runtime. Optional LogViewer, firmware hashes, transition updaters and update metadata are explained separately. Re-running the guide step replaces its own footer instead of duplicating it.
+
 ## Manifest-driven updates and repository moves
 
 Edit `src/config/package-manifest.json` in the repository. `Publish.ps1` validates this template, fills in `Version` and `Executable`, and embeds it as `nxfileviewer-package.json` in every application ZIP. `-ExecutableName NewName.exe -PackageName NewName` changes the executable and ZIP prefix while keeping the internal `ApplicationId` stable.
@@ -85,7 +87,7 @@ These features require this new updater. Already distributed older versions do n
 
 ## Request cache and GitHub limits
 
-Viewer, managed-plugin, TitleDB and firmware-hash update checks share GitHub metadata requests. Automatic startup checks and NSZ checks before conversion reuse successful responses for six hours. Metadata is stored under `Plugins/CacheUpdates` beside the executable and survives restarts. Manual checks request fresh metadata; simultaneous requests for the same endpoint reuse a completed in-flight response.
+Viewer, managed-plugin, TitleDB and firmware-hash update checks share GitHub metadata requests. Automatic startup checks reuse successful responses for six hours. NSZ no longer checks installed plugin versions before conversion; plugin updates are requested manually under Updates. Missing plugins can still be installed on demand. Metadata is stored under `Plugins/CacheUpdates` beside the executable and survives restarts. Manual checks request fresh metadata; simultaneous requests for the same endpoint reuse a completed in-flight response.
 
 GitHub API limits are detected from 403/429 responses and rate-limit headers. The viewer respects `Retry-After` and `X-RateLimit-Reset` and persists the cooldown across restarts. During that time it shows the next permitted check time. If a response was saved, its result remains visible with its original check date; otherwise the component is shown as unavailable for checking, not as up to date. An ordinary access-denied response is still treated as an error. No GitHub account or token is required.
 

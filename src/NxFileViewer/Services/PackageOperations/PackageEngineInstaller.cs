@@ -54,6 +54,44 @@ public sealed class PackageEngineInstaller(HttpClient? httpClient = null, string
         finally { progress.SetMode(false); }
     }
 
+    public async Task<string> InstallDesktopAsync(IProgressReporter progress, CancellationToken token)
+    {
+        if (!Environment.Is64BitOperatingSystem) throw new PlatformNotSupportedException("NSCB Desktop requires 64-bit Windows.");
+        var root = Path.GetFullPath(rootDirectory ?? Path.Combine(AppContext.BaseDirectory, "Plugins", "PackageEngines"));
+        var directory = Path.Combine(root, "Desktop-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var repository = ExternalSources.Current.RustDesktopRepository;
+            var response = await GitHubUpdateRequests.For(httpClient).GetAsync(ExternalSources.ReleaseApi(repository), false, token).ConfigureAwait(false);
+            using var json = JsonDocument.Parse(response.Body);
+            var release = json.RootElement;
+            if (release.GetProperty("draft").GetBoolean() || release.GetProperty("prerelease").GetBoolean())
+                throw new InvalidDataException("Expected a stable NSCB Desktop release.");
+            var assets = release.GetProperty("assets").EnumerateArray()
+                .Where(a => a.GetProperty("name").GetString() == "nscb-desktop-windows-amd64.exe").ToArray();
+            if (assets.Length != 1) throw new InvalidDataException("No unambiguous portable Windows NSCB Desktop asset.");
+            var asset = assets[0];
+            var url = new Uri(asset.GetProperty("browser_download_url").GetString()!);
+            if (url.Scheme != "https" || url.Host != "github.com" ||
+                !url.AbsolutePath.StartsWith(ExternalSources.ReleaseDownloadPrefix(repository), StringComparison.Ordinal))
+                throw new InvalidDataException("Unexpected NSCB Desktop download URL.");
+            var digest = asset.GetProperty("digest").GetString();
+            if (digest == null || !digest.StartsWith("sha256:", StringComparison.Ordinal) || digest.Length != 71 ||
+                digest[7..].Any(c => !Uri.IsHexDigit(c)))
+                throw new InvalidDataException("NSCB Desktop asset has no valid SHA-256 digest.");
+            var path = Path.Combine(directory, "nscb-desktop.exe");
+            await Download(url.AbsoluteUri, path, digest[7..], progress, token).ConfigureAwait(false);
+            PluginVersionStorage.AtomicWrite(Path.Combine(directory, "installation.json"),
+                new PluginInstallation(repository, release.GetProperty("tag_name").GetString(), Sha256: digest));
+            return path;
+        }
+        catch
+        {
+            try { Directory.Delete(directory, true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+            throw;
+        }
+    }
     private async Task<string> InstallRust(string directory, IProgressReporter progress, CancellationToken token)
     {
         var repository = ExternalSources.Current.RustPackageRepository;
@@ -76,8 +114,8 @@ public sealed class PackageEngineInstaller(HttpClient? httpClient = null, string
         var path = Path.Combine(directory, "nscb_rust.exe");
         await Download(url.AbsoluteUri, path, digest[7..], progress, token).ConfigureAwait(false);
         Run(path, new[] { "--help" }, directory, token);
-        await File.WriteAllTextAsync(Path.Combine(directory, "installation.json"),
-            JsonSerializer.Serialize(new { Repository = repository, Version = release.GetProperty("tag_name").GetString(), Sha256 = digest }), token).ConfigureAwait(false);
+        PluginVersionStorage.AtomicWrite(Path.Combine(directory, "installation.json"),
+                new PluginInstallation(repository, release.GetProperty("tag_name").GetString(), Sha256: digest));
         return path;
     }
 
@@ -122,11 +160,11 @@ public sealed class PackageEngineInstaller(HttpClient? httpClient = null, string
         Run(python, new[] { "-m", "pip", "--isolated", "install", "--no-build-isolation", "--disable-pip-version-check", "--no-warn-script-location",
             "--no-cache-dir", "--index-url", "https://pypi.org/simple",
             "urllib3", "unidecode", "tqdm", "beautifulsoup4", "requests", "pillow", "pywin32", "pycryptodome",
-            "pykakasi", "googletrans==4.0.0rc1", "chardet", "eel", "bottle", "zstandard", "colorama",
+            "pykakasi", "googletrans==4.0.0rc1", "chardet", "eel", "whichcraft", "bottle-websocket", "bottle", "zstandard", "colorama",
             "google-auth-httplib2", "google-auth-oauthlib", "windows-curses", "oauth2client", "comtypes", "google-api-python-client" }, directory, token);
         Run(python, new[] { Path.Combine(directory, "ztools", "squirrel.py"), "--help" }, directory, token);
-        await File.WriteAllTextAsync(Path.Combine(directory, "installation.json"),
-            JsonSerializer.Serialize(new { Repository = repository, Commit = commit, Python = PythonVersion }), token).ConfigureAwait(false);
+        PluginVersionStorage.AtomicWrite(Path.Combine(directory, "installation.json"),
+            new PluginInstallation(repository, Commit: commit, Python: PythonVersion));
         return directory;
     }
 

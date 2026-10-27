@@ -88,6 +88,32 @@ public sealed class PackageEngineInstallerTest : IDisposable
         Assert.Equal(0, _starts);
     }
 
+    [Fact]
+    public async Task DesktopInstallsVerifiedPortableAssetWithoutLaunchingGui()
+    {
+        var installer = new PackageEngineInstaller(_client, _root, (_, _, _, _) => _starts++);
+        var path = await installer.InstallDesktopAsync(new Reporter(), TestContext.Current.CancellationToken);
+        Assert.Equal(Handler.Payload, await File.ReadAllBytesAsync(path, TestContext.Current.CancellationToken));
+        Assert.Equal("nscb-desktop.exe", Path.GetFileName(path));
+        Assert.True(File.Exists(Path.Combine(Path.GetDirectoryName(path)!, "installation.json")));
+        Assert.Equal(0, _starts);
+    }
+
+    [Theory]
+    [InlineData("digest")]
+    [InlineData("url")]
+    [InlineData("missing")]
+    [InlineData("prerelease")]
+    [InlineData("download")]
+    public async Task DesktopRejectsInvalidDownloadsAndPreservesPreviousInstallation(string failure)
+    {
+        var installer = new PackageEngineInstaller(_client, _root);
+        var previous = await installer.InstallDesktopAsync(new Reporter(), TestContext.Current.CancellationToken);
+        _handler.Failure = failure;
+        await Assert.ThrowsAnyAsync<Exception>(() => installer.InstallDesktopAsync(new Reporter(), TestContext.Current.CancellationToken));
+        Assert.True(File.Exists(previous));
+        Assert.Single(Directory.GetDirectories(_root));
+    }
     public void Dispose()
     {
         _client.Dispose();
@@ -123,8 +149,9 @@ public sealed class PackageEngineInstallerTest : IDisposable
             }
             if (request.RequestUri.Host == "api.github.com")
             {
-                var asset = new { name = "nscb_rust.exe", digest = "sha256:" + (Failure == "digest" ? new string('0', 64) : Convert.ToHexString(SHA256.HashData(Payload))),
-                    browser_download_url = Failure == "url" ? "https://example.com/nscb_rust.exe" : "https://github.com/cxfcxf/nscb_rust/releases/download/v1/nscb_rust.exe" };
+                var desktop = request.RequestUri.AbsolutePath.Contains("nscb-desktop");
+                var asset = new { name = desktop ? "nscb-desktop-windows-amd64.exe" : "nscb_rust.exe", digest = "sha256:" + (Failure == "digest" ? new string('0', 64) : Convert.ToHexString(SHA256.HashData(Payload))),
+                    browser_download_url = Failure == "url" ? "https://example.com/nscb_rust.exe" : desktop ? "https://github.com/cxfcxf/nscb-desktop/releases/download/v1/nscb-desktop-windows-amd64.exe" : "https://github.com/cxfcxf/nscb_rust/releases/download/v1/nscb_rust.exe" };
                 return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new
                 { tag_name = "v1", draft = false, prerelease = Failure == "prerelease", assets = Failure == "missing" ? Array.Empty<object>() : new object[] { asset } })) });
             }

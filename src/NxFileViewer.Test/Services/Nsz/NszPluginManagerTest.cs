@@ -106,13 +106,17 @@ public sealed class NszPluginManagerTest : IDisposable
     }
 
     [Fact]
-    public async Task OfflineUpdateUsesPreviouslyCheckedVersion()
+    public async Task InstalledPluginIsNotCheckedForUpdatesEvenWithLegacyFlagEnabled()
     {
         await Update();
         var first = _manager.ExecutablePath;
+        _reporter.Texts.Clear();
         _handler.Offline = true;
+        _settings.NszCheckUpdates = true;
         _manager.Prepare(_reporter, TestContext.Current.CancellationToken);
         Assert.Equal(first, _manager.ExecutablePath);
+        Assert.Empty(_reporter.Texts);
+        Assert.Equal(1, _handler.MetadataRequests);
         Assert.Equal(2, _checks);
         Assert.False(_reporter.Indeterminate);
     }
@@ -123,6 +127,7 @@ public sealed class NszPluginManagerTest : IDisposable
         await Update();
         _settings.NszExecutablePath = _manager.ExecutablePath;
         _handler.Offline = true;
+        _settings.NszCheckUpdates = true;
         _manager.Prepare(_reporter, TestContext.Current.CancellationToken);
         Assert.Equal(1, _handler.MetadataRequests);
         Assert.Equal(2, _checks);
@@ -185,6 +190,8 @@ public sealed class NszPluginManagerTest : IDisposable
             var moved = new NszPluginManager(_settings, NullLogger<NszPluginManager>.Instance, movedRoot);
             Assert.True(File.Exists(moved.ExecutablePath));
             Assert.StartsWith(movedRoot, moved.ExecutablePath);
+            moved.AdoptManagedPath();
+            Assert.Equal(moved.ExecutablePath, _settings.NszExecutablePath);
         }
         finally { Directory.Move(movedRoot, _root); }
     }
@@ -259,7 +266,8 @@ public sealed class NszPluginManagerTest : IDisposable
     {
         public bool Indeterminate;
         public void SetMode(bool isIndeterminate) => Indeterminate = isIndeterminate;
-        public void SetText(string text) { }
+        public readonly System.Collections.Generic.List<string> Texts = new();
+        public void SetText(string text) => Texts.Add(text);
         public void SetPercentage(double value) { }
     }
 }

@@ -1,11 +1,13 @@
 """Export repository documentation to a separate GitHub-wiki working folder."""
 import argparse
+import hashlib
 import json
 import re
 from pathlib import Path
 from urllib.parse import quote, unquote, urlsplit
 
 MARKER = ".nxfileviewer-wiki-export.json"
+GERMAN_SOURCE = ".nxfileviewer-wiki-de.json"
 
 
 def collect(root):
@@ -66,7 +68,7 @@ def convert(text, source, root, pages, repository, ref):
     return "".join(result)
 
 
-def export(root, output, repository, ref="master", overwrite=False):
+def export(root, output, repository, ref="master", overwrite=False, german_source=None):
     root, output = Path(root).resolve(), Path(output).resolve()
     if ".git" in output.parts:
         raise ValueError("Wiki output cannot be inside .git")
@@ -75,24 +77,62 @@ def export(root, output, repository, ref="master", overwrite=False):
     if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repository):
         raise ValueError("Expected owner/repository")
     pages = collect(root)
-    generated = {}
-    titles = {}
+    translation_path = Path(german_source).resolve() if german_source else output / GERMAN_SOURCE
+    translations = {}
+    if translation_path.exists():
+        data = json.loads(translation_path.read_text(encoding="utf-8-sig"))
+        if not isinstance(data, dict) or data.get("schemaVersion") != 1 or not isinstance(data.get("pages"), dict):
+            raise ValueError("Invalid German wiki translation source")
+        translations = data["pages"]
+        for page, entry in translations.items():
+            if page not in pages.values() or not isinstance(entry, dict) or any(
+                not isinstance(entry.get(key), str) or not entry[key].strip() for key in ("title", "content")
+            ):
+                raise ValueError(f"Invalid German wiki page: {page}")
+    elif (output / MARKER).exists():
+        previous = json.loads((output / MARKER).read_text(encoding="utf-8"))
+        if isinstance(previous, list) and any(isinstance(name, str) and name.startswith("DE-") for name in previous):
+            raise ValueError("German translation source is missing; preserving existing German pages")
+    conflicts = set(pages.values()) & {"DE-" + page for page in translations}
+    if conflicts:
+        raise ValueError(f"German page-name collision: {sorted(conflicts)}")
+    generated, titles, german_titles = {}, {}, {}
+    wiki = f"https://github.com/{repository}/wiki/"
+    german_pages = {source: "DE-" + page if page in translations else page for source, page in pages.items()}
     for source, page in pages.items():
         original = source.read_text(encoding="utf-8-sig")
         heading = re.search(r"(?m)^# (.+)$", original)
         titles[page] = heading[1] if heading else page.replace("-", " ")
         origin = source.relative_to(root).as_posix()
+        switch = f"[English]({wiki}{quote(page, safe='-_')}) | [Deutsch]({wiki}DE-{quote(page, safe='-_')})\n\n" if page in translations else ""
         generated[page + ".md"] = (
             f"<!-- Generated from {origin}; edit the source repository and export again. -->\n\n"
-            + convert(original, source, root, pages, repository, ref).rstrip() + "\n"
+            + switch + convert(original, source, root, pages, repository, ref).rstrip() + "\n"
         )
-    wiki = f"https://github.com/{repository}/wiki/"
+        if page in translations:
+            entry = translations[page]
+            german_titles[page] = entry["title"]
+            content = convert(entry["content"], source, root, german_pages, repository, ref)
+            if entry.get("sourceSha256") and entry["sourceSha256"] != hashlib.sha256(original.encode("utf-8")).hexdigest():
+                content = "> Hinweis: Die englische Quelle wurde seit der letzten deutschen Überarbeitung geändert. Bitte auch die englische Fassung prüfen.\n\n" + content
+            generated["DE-" + page + ".md"] = (
+                f"<!-- German wiki text: edit {GERMAN_SOURCE} in the wiki repository and export again. -->\n\n"
+                + switch + content.rstrip() + "\n"
+            )
     order = ["Home", "Documentation"] + sorted(set(titles) - {"Home", "Documentation"}, key=str.casefold)
-    generated["_Sidebar.md"] = "# Documentation\n\n" + "\n".join(
+    generated["_Sidebar.md"] = "# Documentation\n\n"
+    if translations:
+        german_start = "Home" if "Home" in translations else next(iter(translations))
+        generated["_Sidebar.md"] += f"[English]({wiki}Home) | [Deutsch]({wiki}DE-{quote(german_start, safe='-_')})\n\n## English\n\n"
+    generated["_Sidebar.md"] += "\n".join(
         f"- [{titles[page]}]({wiki}{quote(page, safe='-_')})" for page in order) + "\n"
+    if translations:
+        generated["_Sidebar.md"] += "\n## Deutsch\n\n" + "\n".join(
+            f"- [{german_titles[page]}]({wiki}DE-{quote(page, safe='-_')})"
+            for page in order if page in german_titles) + "\n"
     generated["_Footer.md"] = (
         f"Generated from the [NxFileViewer documentation](https://github.com/{repository}/tree/{quote(ref, safe='')}/docs). "
-        "Edit the source files and export again to update these pages.\n"
+        "English sources are maintained in the application repository; German translations are maintained only in the wiki repository.\n"
     )
     marker = output / MARKER
     if marker.is_symlink():
@@ -131,7 +171,8 @@ if __name__ == "__main__":
     parser.add_argument("--repository", default="sandmaennchen5/fork_NxFileViewer")
     parser.add_argument("--ref", default="master")
     parser.add_argument("--overwrite", action="store_true", help="Replace colliding generated page names, preserving other wiki pages")
+    parser.add_argument("--german-source", type=Path, help="Optional German wiki JSON; defaults to the output folder")
     args = parser.parse_args()
-    count = export(root, args.output, args.repository, args.ref, args.overwrite)
+    count = export(root, args.output, args.repository, args.ref, args.overwrite, args.german_source)
     print(f"Exported {count} wiki pages to {args.output.resolve()}")
     print("No git commands or pushes were performed. Existing .git and custom pages are preserved.")

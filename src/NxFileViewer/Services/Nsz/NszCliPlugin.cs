@@ -11,20 +11,24 @@ using Emignatik.NxFileViewer.Localization;
 using Emignatik.NxFileViewer.Services.BackgroundTask;
 using Emignatik.NxFileViewer.Services.KeysManagement;
 using Emignatik.NxFileViewer.Settings;
+using Emignatik.NxFileViewer.Services.PackageOperations;
 
 namespace Emignatik.NxFileViewer.Services.Nsz;
 
-public sealed class NszCliPlugin(NszPluginManager manager, IKeySetProviderService keys, IAppSettings settings, ILogger<NszCliPlugin>? logger = null) : INszPlugin
+public sealed class NszCliPlugin(NszPluginManager manager, IKeySetProviderService keys, IAppSettings settings, ILogger<NszCliPlugin>? logger = null) : INszEnginePlugin
 {
     public void Convert(string source, string outputDirectory, NszOperation operation,
+        IProgressReporter progress, CancellationToken cancellationToken) =>
+        ConvertUsingEngine(settings.NszCompressionEngine.PrimaryRust(), source, outputDirectory, operation, progress, cancellationToken);
+
+    public void ConvertUsingEngine(bool useRust, string source, string outputDirectory, NszOperation operation,
         IProgressReporter progress, CancellationToken cancellationToken)
     {
         if (!settings.NszPluginActive) throw new InvalidOperationException(LocalizationManager.Instance.Current.Keys.Features_PluginsDisabled);
-        var useRust = settings.NszCompressionEngine == NszCompressionEngine.Rust;
         var engineName = useRust ? "nscb_rust" : "nicoboss/nsz";
-        var executable = useRust ? settings.RustPackageExecutablePath : manager.ExecutablePath;
+        var executable = useRust ? PackageEnginePaths.ResolveRust(settings.RustPackageExecutablePath) : manager.ExecutablePath;
         if (!File.Exists(executable))
-            throw new FileNotFoundException(LocalizationManager.Instance.Current.Keys.Nsz_NotInstalled);
+            throw new FileNotFoundException(useRust ? $"{engineName}: {LocalizationManager.Instance.Current.Keys.Package_Missing} ({executable})" : LocalizationManager.Instance.Current.Keys.Nsz_NotInstalled, executable);
         executable = Path.GetFullPath(executable);
         var keyPath = keys.ActualProdKeysFilePath;
         if (keyPath == null) throw new InvalidOperationException(LocalizationManager.Instance.Current.Keys.Nsz_KeysMissing);

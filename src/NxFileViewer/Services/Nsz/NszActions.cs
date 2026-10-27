@@ -1,4 +1,5 @@
 using System;
+using Emignatik.NxFileViewer.Views.Windows;
 using Emignatik.NxFileViewer.Services.KeysManagement;
 using System.Collections.Generic;
 using System.IO;
@@ -11,6 +12,7 @@ using Emignatik.NxFileViewer.Services.BackgroundTask.RunnableImpl;
 using Emignatik.NxFileViewer.Services.FileOpening;
 using Emignatik.NxFileViewer.Services.Prompting;
 using Emignatik.NxFileViewer.Settings;
+using Emignatik.NxFileViewer.Services.PackageOperations;
 using Emignatik.NxFileViewer.Utils.MVVM;
 using Emignatik.NxFileViewer.Utils.MVVM.Commands;
 using Microsoft.Extensions.Logging;
@@ -30,17 +32,19 @@ public sealed class NszActions : NotifyPropertyChangedBase
     private readonly IFileOpeningService _opening;
     private readonly ILogger<NszActions> _logger;
     private readonly IAppSettings _settings;
+    private readonly IAppSettingsManager? _settingsManager;
 
     public NszActions(NszPluginManager manager, PackageConversionService converter,
         IMainBackgroundTaskRunnerService background, IPromptService prompts, IFileOpeningService opening,
-        ILogger<NszActions> logger, IAppSettings settings, IKeySetProviderService keys)
+        ILogger<NszActions> logger, IAppSettings settings, IKeySetProviderService keys, IAppSettingsManager? settingsManager = null)
     {
         _manager = manager; _converter = converter; _background = background; _prompts = prompts;
         _opening = opening; _logger = logger; _settings = settings;
-        OpenGuiCommand = new RelayCommand(() => { try { PluginGuiLauncher.Open(_manager.GuiExecutablePath, false, keys.ActualProdKeysFilePath); } catch (Exception ex) { ShowError(ex); } }, () => _settings.NszPluginActive && !_background.IsRunning && File.Exists(_manager.GuiExecutablePath));
+        _settingsManager = settingsManager;
+        OpenGuiCommand = new RelayCommand(() => { try { PluginGuiLauncher.Open(_manager.GuiExecutablePath, false, keys.ActualProdKeysFilePath); } catch (Exception ex) { ShowError(ex); } }, () => IsGuiEnabled && !_background.IsRunning && File.Exists(_manager.GuiExecutablePath));
         CompressCommand = new RelayCommand(() => ConvertOpened(NszOperation.Compress), () => CanConvertOpened(NszOperation.Compress));
         DecompressCommand = new RelayCommand(() => ConvertOpened(NszOperation.Decompress), () => CanConvertOpened(NszOperation.Decompress));
-        UpdateCommand = new RelayCommand(Update, () => _settings.NszPluginActive && !_background.IsRunning && string.IsNullOrWhiteSpace(settings.NszExecutablePath));
+        UpdateCommand = new RelayCommand(Update, () => _settings.NszPluginActive && !_background.IsRunning && manager.UsesManagedInstallation);
         CleanupCommand = Services.Updates.OldVersionCleanupCommand.Create("NSZ", background, () => settings.NszPluginActive, manager.OldVersionDirectories, manager.RemoveOldVersions, Refresh);
         RollbackCommand = new RelayCommand(Rollback, () => _settings.NszPluginActive && !_background.IsRunning && _manager.CanRollback);
         _background.PropertyChanged += (_, args) => { if (args.PropertyName == nameof(IBackgroundTaskRunner.IsRunning)) Refresh(); };
@@ -48,17 +52,19 @@ public sealed class NszActions : NotifyPropertyChangedBase
         settings.PropertyChanged += (_, _) => Refresh();
     }
 
+    public string ExecutablePath => _manager.ExecutablePath;
+    public bool IsGuiEnabled => _settings.NszPluginActive && _settings.EnableNszGui;
     public RelayCommand OpenGuiCommand { get; }
     public RelayCommand CompressCommand { get; }
     public RelayCommand DecompressCommand { get; }
     public RelayCommand UpdateCommand { get; }
     public RelayCommand RollbackCommand { get; }
     public RelayCommand CleanupCommand { get; }
-    private string EngineName => _settings.NszCompressionEngine == NszCompressionEngine.Rust ? "nscb_rust" : "nicoboss/nsz";
-    public string Status => _settings.NszCompressionEngine != NszCompressionEngine.Rust ? _manager.Status :
-        EngineName + " — " + (File.Exists(_settings.RustPackageExecutablePath)
-            ? LocalizationManager.Instance.Current.Keys.Package_Ready : LocalizationManager.Instance.Current.Keys.Nsz_NotInstalled) +
-        Environment.NewLine + _settings.RustPackageExecutablePath;
+    private string EngineName => _settings.NszCompressionEngine.PrimaryRust() ? "nscb_rust" : "nicoboss/nsz";
+    public string Status => !_settings.NszCompressionEngine.PrimaryRust() ? _manager.Status :
+        EngineName + " — " + (File.Exists(PackageEnginePaths.ResolveRust(_settings.RustPackageExecutablePath))
+            ? LocalizationManager.Instance.Current.Keys.Package_Ready : LocalizationManager.Instance.Current.Keys.Package_Missing) +
+        " — " + PackageVersionStore.VersionLabel(PackageComponent.Rust, _settings.RustPackageExecutablePath) + Environment.NewLine + _settings.RustPackageExecutablePath;
 
     private void Refresh()
     {
@@ -67,6 +73,7 @@ public sealed class NszActions : NotifyPropertyChangedBase
         OpenGuiCommand.TriggerCanExecuteChanged(true);
         CleanupCommand.TriggerCanExecuteChanged(true);
         NotifyPropertyChanged(nameof(Status));
+        NotifyPropertyChanged(nameof(IsGuiEnabled));
     }
 
     private bool CanConvertOpened(NszOperation operation) => _settings.NszPluginActive && !_background.IsRunning && _opening.OpenedFile != null &&
@@ -89,7 +96,8 @@ public sealed class NszActions : NotifyPropertyChangedBase
     public async Task<IReadOnlyList<ConversionAttempt>> ConvertFilesAsync(string[] paths, NszOperation operation, string? sourceRoot = null)
     {
         if (!_settings.NszPluginActive || _background.IsRunning || paths.Length == 0) return Array.Empty<ConversionAttempt>();
-        var destination = _prompts.PromptSelectDir(LocalizationManager.Instance.Current.Keys.Nsz_SelectDestination);
+        var outputSelection = OperationOutputDialog.Select(_settings, operation == NszOperation.Compress ? "Compression" : "Decompression", paths[0], _prompts);
+        var destination = outputSelection?.Directory;
         if (destination == null) return Array.Empty<ConversionAttempt>();
         destination = Path.GetFullPath(destination);
         var deleteSource = Emignatik.NxFileViewer.Views.Windows.ThemedDialog.Confirm(EngineName, LocalizationManager.Instance.Current.Keys.Nsz_DeleteSourcePrompt);
@@ -99,16 +107,24 @@ public sealed class NszActions : NotifyPropertyChangedBase
         var attempts = new List<ConversionAttempt>();
         var runnable = new RunnableRelay((progress, token) =>
         {
-            if (_settings.NszCompressionEngine != NszCompressionEngine.Rust)
-                _manager.Prepare(progress, token); // One update/compatibility check per batch.
+            if (_settings.NszCompressionEngine.PrimaryRust() && !_settings.NszCompressionEngine.HasBackup() &&
+                !File.Exists(PackageEnginePaths.ResolveRust(_settings.RustPackageExecutablePath)))
+                throw new FileNotFoundException("nscb_rust: " + LocalizationManager.Instance.Current.Keys.Package_Missing,
+                    _settings.RustPackageExecutablePath);
+            if (!_settings.NszCompressionEngine.PrimaryRust())
+            {
+                try { _manager.Prepare(progress, token); }
+                catch (Exception ex) when (_settings.NszCompressionEngine.HasBackup() && !token.IsCancellationRequested)
+                { _logger.LogWarning(ex, "Primary NSZ preparation failed; backup engine remains available."); }
+            }
             for (var index = 0; index < paths.Length; index++)
             {
                 token.ThrowIfCancellationRequested();
                 var source = paths[index];
                 try
                 {
-                    var outputDirectory = destination;
-                    if (sourceRoot != null)
+                    var outputDirectory = outputSelection!.ForSource(source);
+                    if (sourceRoot != null && outputSelection.Location == OutputLocation.Custom)
                     {
                         var relative = Path.GetRelativePath(Path.GetFullPath(sourceRoot), Path.GetDirectoryName(Path.GetFullPath(source))!);
                         outputDirectory = Path.GetFullPath(Path.Combine(destination, relative));
@@ -149,7 +165,8 @@ public sealed class NszActions : NotifyPropertyChangedBase
         if (attempts.Count > 0 || cancelled)
             Emignatik.NxFileViewer.Views.Windows.ThemedDialog.Notice(string.Format(LocalizationManager.Instance.Current.Keys.Nsz_Summary,
                 success, attempts.Count(a => a.Error != null), paths.Length - attempts.Count),
-                EngineName, MessageBoxImage.Information);
+                EngineName, MessageBoxImage.Information, LocalizationManager.Instance.Current.Keys.Output_OpenBatch,
+                success == 0 ? null : () => OperationOutputDialog.OpenInBatch(attempts.Where(a => a.Result != null).Select(a => a.Result!.OutputPath)));
         return attempts;
     }
 
@@ -188,6 +205,7 @@ public sealed class NszActions : NotifyPropertyChangedBase
         {
             await _background.RunAsync(new RunnableRelay((progress, token) =>
                 _manager.UpdateAsync(progress, token).GetAwaiter().GetResult()) { SupportsCancellation = true });
+            _settingsManager?.SaveSafe();
             Emignatik.NxFileViewer.Views.Windows.ThemedDialog.Notice(Status, "NSZ", MessageBoxImage.Information);
         }
         catch (OperationCanceledException) { }
@@ -200,9 +218,10 @@ public sealed class NszActions : NotifyPropertyChangedBase
         if (!RollbackCommand.CanExecute(null)) return;
         try
         {
-            _manager.Rollback();
+            _manager.Rollback(); _settingsManager?.SaveSafe();
             // Keep the chosen previous version until updates are explicitly requested again.
             _settings.NszCheckUpdates = false;
+            _settingsManager?.SaveSafe();
             Emignatik.NxFileViewer.Views.Windows.ThemedDialog.Notice(Status, "NSZ", MessageBoxImage.Information);
         }
         catch (Exception ex) { ShowError(ex); }

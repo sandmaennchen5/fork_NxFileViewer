@@ -219,11 +219,21 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         PropertyChangedEventManager.AddHandler(appSettings.RenamingOptions, OnNamingSettingsChanged, string.Empty);
         ExportCommand = new RelayCommand(Export, () => Results.Count > 0 && !BackgroundTask.IsRunning);
         MoveValidCommand = new RelayCommand(MoveValid, CanMoveValid);
+        SplitAllPackagesCommand = new RelayCommand(() => RunPackageBatch(false),
+            () => CanRunPackageActions && Results.Any(r => CanPackageFile(r) && r.HasMultiplePackagesInSource));
+        MergeAllPackagesCommand = new RelayCommand(() => RunPackageBatch(true),
+            () => CanRunPackageActions && Results.Any(CanPackageFile));
         CompressValidCommand = new RelayCommand(() => ConvertValid(NszOperation.Compress), () => CanConvertValid(NszOperation.Compress));
         DecompressValidCommand = new RelayCommand(() => ConvertValid(NszOperation.Decompress), () => CanConvertValid(NszOperation.Decompress));
+        PropertyChangedEventManager.AddHandler(appSettings, OnPackageBatchSettingsChanged, string.Empty);
         _inputDirectory = Directory.Exists(appSettings.LastUsedDir) ? appSettings.LastUsedDir : "";
         BackgroundTask.PropertyChanged += BackgroundTaskOnPropertyChanged;
         PropertyChangedEventManager.AddHandler(appSettings, OnPackageDisplaySettingChanged, nameof(IAppSettings.BatchSeparatePackages));
+        PropertyChangedEventManager.AddHandler(appSettings, OnPackageDisplaySettingChanged, nameof(IAppSettings.BatchGameSortAlphabetical));
+        RestoreStandardSorting();
+        GroupFiles = appSettings.BatchGroupFiles;
+        _showOnlyErrors = appSettings.BatchShowOnlyErrors;
+        ApplyGameSorting();
         PropertyChangedEventManager.AddHandler(appSettings, OnPackageDisplaySettingChanged, nameof(IAppSettings.BatchSummaryPreservePackageOrder));
         PropertyChangedEventManager.AddHandler(appSettings, OnHistorySettingChanged, nameof(IAppSettings.EnableBatchHistory));
         PropertyChangedEventManager.AddHandler(appSettings, OnHistorySettingChanged, nameof(IAppSettings.BatchHistoryLimit));
@@ -253,11 +263,14 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         }
         // Rebuild in one notification; WPF cannot process row changes during DeferRefresh.
         _displayResults.ReplaceAll(displayRows);
+        ApplyGameSorting();
         if (selected != null) SelectedResult = FindPresentationResult(selected.FilePath, selected.PackageIndex);
     }
 
     private void OnResultsChanged(object? sender, NotifyCollectionChangedEventArgs args)
     {
+        SplitAllPackagesCommand?.TriggerCanExecuteChanged(true);
+        MergeAllPackagesCommand?.TriggerCanExecuteChanged(true);
         if (args.Action is NotifyCollectionChangedAction.Reset or NotifyCollectionChangedAction.Move)
         {
             OnPackageDisplaySettingChanged(sender, new PropertyChangedEventArgs(null));
@@ -284,6 +297,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
             }
         }
         if (restoreSelection && selected != null) SelectedResult = FindPresentationResult(selected.FilePath, selected.PackageIndex);
+        ApplyGameSorting();
     }
 
     public IReadOnlyList<BatchIntegrityResult> GetExportRows()
@@ -302,6 +316,54 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         return view.Cast<BatchIntegrityResult>().ToArray();
     }
     public ICollectionView ResultsView { get; }
+    private SortDescription[]? _sortBeforeGames;
+    private sealed record SavedSort(string Property, ListSortDirection Direction);
+    public bool GameSorting { get => _appSettings.BatchSeparatePackages; set => _appSettings.BatchSeparatePackages = value; }
+    public bool GameSortAlphabetical { get => _appSettings.BatchGameSortAlphabetical; set => _appSettings.BatchGameSortAlphabetical = value; }
+    public bool CanChangeSort => !GameSortAlphabetical;
+    public void SaveStandardSorting()
+    {
+        if (GameSortAlphabetical) return;
+        _appSettings.BatchSortLayout = System.Text.Json.JsonSerializer.Serialize(ResultsView.SortDescriptions.Select(s => new SavedSort(s.PropertyName, s.Direction)));
+        _serviceProvider.GetRequiredService<IAppSettingsManager>().SaveSafe();
+    }
+    private void ApplyGameSorting()
+    {
+        if (ResultsView is not ListCollectionView view) return;
+        using (view.DeferRefresh())
+        {
+            if (GameSortAlphabetical)
+            {
+                _sortBeforeGames ??= view.SortDescriptions.ToArray();
+                view.CustomSort = new BatchGameSortComparer(Results, true);
+                view.GroupDescriptions.Clear();
+            }
+            else if (_sortBeforeGames != null)
+            {
+                view.CustomSort = null;
+                view.SortDescriptions.Clear();
+                foreach (var sort in _sortBeforeGames) view.SortDescriptions.Add(sort);
+                _sortBeforeGames = null;
+                view.GroupDescriptions.Clear();
+                if (GroupFiles) view.GroupDescriptions.Add(new PropertyGroupDescription(nameof(BatchIntegrityResult.SourceGroupKey)) { StringComparison = StringComparison.OrdinalIgnoreCase });
+            }
+        }
+        NotifyPropertyChanged(nameof(GameSorting));
+        NotifyPropertyChanged(nameof(GameSortAlphabetical));
+        NotifyPropertyChanged(nameof(CanChangeSort));
+    }
+    private void RestoreStandardSorting()
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(_appSettings.BatchSortLayout) || _appSettings.BatchSortLayout.Length > 65536) return;
+            var saved = System.Text.Json.JsonSerializer.Deserialize<SavedSort[]>(_appSettings.BatchSortLayout);
+            foreach (var sort in saved ?? Array.Empty<SavedSort>())
+                if (sort != null && !string.IsNullOrWhiteSpace(sort.Property) && typeof(BatchIntegrityResult).GetProperty(sort.Property) != null && Enum.IsDefined(sort.Direction))
+                    ResultsView.SortDescriptions.Add(new SortDescription(sort.Property, sort.Direction));
+        }
+        catch (System.Text.Json.JsonException) { }
+    }
     public bool GroupFiles
     {
         get => _groupFiles;
@@ -309,10 +371,11 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         {
             if (_groupFiles == value) return;
             _groupFiles = value;
+            _appSettings.BatchGroupFiles = value;
             using (ResultsView.DeferRefresh())
             {
                 ResultsView.GroupDescriptions.Clear();
-                if (value) ResultsView.GroupDescriptions.Add(new PropertyGroupDescription(nameof(BatchIntegrityResult.SourceGroupKey)) { StringComparison = StringComparison.OrdinalIgnoreCase });
+                if (value && !GameSortAlphabetical) ResultsView.GroupDescriptions.Add(new PropertyGroupDescription(nameof(BatchIntegrityResult.SourceGroupKey)) { StringComparison = StringComparison.OrdinalIgnoreCase });
             }
             NotifyPropertyChanged();
         }
@@ -353,7 +416,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
     public RelayCommand StartCommand { get; }
     public RelayCommand ScanAndVerifyCommand { get; }
     public RelayCommand VerifyAllCommand { get; }
-    public bool IncludeArchives { get; set; } = true;
+    public bool IncludeArchives { get => _appSettings.BatchIncludeArchives; set { _appSettings.BatchIncludeArchives = value; NotifyPropertyChanged(); } }
     public SdBatchSourceMode SdSourceMode
     {
         get => _appSettings.SdBatchSourceMode;
@@ -363,9 +426,11 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
     public RelayCommand RenameAllCommand { get; }
     public RelayCommand ExportCommand { get; }
     public RelayCommand MoveValidCommand { get; }
+    public RelayCommand SplitAllPackagesCommand { get; }
+    public RelayCommand MergeAllPackagesCommand { get; }
     public RelayCommand CompressValidCommand { get; }
     public RelayCommand DecompressValidCommand { get; }
-    public bool IncludeSubdirectories { get; set; } = true;
+    public bool IncludeSubdirectories { get => _appSettings.BatchIncludeSubdirectories; set { _appSettings.BatchIncludeSubdirectories = value; NotifyPropertyChanged(); } }
     public StoredFileOverviewViewModel? StoredOverview { get; private set; }
     public bool ShowStoredOverview => !_closed && PreviewOverview == null && SelectedResult is { IsFirmware: false, IsNand: false };
     public IReadOnlyList<KeyValuePair<string, string>> StoredOverviewFields => ShowStoredOverview
@@ -405,6 +470,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         set
         {
             _showOnlyErrors = value;
+            _appSettings.BatchShowOnlyErrors = value;
             NotifyPropertyChanged();
             ResultsView.Refresh();
         }
@@ -728,14 +794,87 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
     public bool CanPackageFile(BatchIntegrityResult file) => !BackgroundTask.IsRunning &&
         !file.IsFirmware && !file.IsNand && !file.HasMissingKeys &&
         !Services.Mtp.MtpDirectSource.IsDirect(file.FilePath) && File.Exists(file.FilePath) &&
-        Path.GetExtension(file.FilePath).ToLowerInvariant() is ".nsp" or ".xci";
+        Path.GetExtension(file.FilePath).ToLowerInvariant() is ".nsp" or ".xci" or ".nsz" or ".xcz";
     public bool CanRunPackageActions => PackageOperationsActive &&
         _serviceProvider.GetRequiredService<Services.PackageOperations.PackageActions>().CanRun;
+    private void OnPackageBatchSettingsChanged(object? sender, PropertyChangedEventArgs args)
+    {
+        if (args.PropertyName is nameof(IAppSettings.RustPackageExecutablePath) or nameof(IAppSettings.KronosPackageDirectory)
+            or nameof(IAppSettings.PackageEngine) or nameof(IAppSettings.EnablePackageOperations))
+        {
+            SplitAllPackagesCommand.TriggerCanExecuteChanged(true);
+            MergeAllPackagesCommand.TriggerCanExecuteChanged(true);
+        }
+    }
+    private async void RunPackageBatch(bool merge)
+    {
+        if (!CanRunPackageActions) return;
+        var text = LocalizationManager.Instance.Current.Keys;
+        Services.PackageOperations.PackageMergePreparation? preparation = null;
+        try
+        {
+            var inputs = Results.Where(CanPackageFile).ToArray();
+            var dialog = new PackageBatchOptionsWindow(merge) { Owner = Application.Current.MainWindow };
+            _serviceProvider.GetRequiredService<Emignatik.NxFileViewer.Styling.Theme.IThemeService>().RegisterWindow(dialog);
+            if (dialog.ShowDialog() != true) return;
+            var plan = merge ? Services.PackageOperations.PackageBatchPlanner.Merge(inputs, dialog.Grouping, dialog.Format)
+                : Services.PackageOperations.PackageBatchPlanner.Split(inputs, dialog.Format);
+            if (inputs.Length == 0) return;
+            var outputSelection = OperationOutputDialog.Select(_appSettings, merge ? "Merge" : "Split", inputs[0].FilePath, _promptService, true);
+            if (outputSelection == null) return;
+            string? destination = null;
+            if (merge && dialog.Grouping == Services.PackageOperations.PackageMergeGrouping.ByGame)
+            {
+                var candidates = Services.PackageOperations.PackageBatchPlanner.FindMultiGameMergeCandidates(inputs);
+                if (candidates.Length > 0)
+                {
+                    var response = ThemedDialog.Confirm(text.Package_Title, text.Batch_MergeAutoSplitPrompt +
+                        Environment.NewLine + Environment.NewLine + string.Join(Environment.NewLine, candidates.Select(c => Path.GetFileName(c.FilePath))));
+                    if (response == MessageBoxResult.Cancel) return;
+                    if (response == MessageBoxResult.Yes)
+                    {
+                        destination = outputSelection.Directory;
+                        if (destination == null) return;
+                        var keyPath = _serviceProvider.GetRequiredService<Services.KeysManagement.IKeySetProviderService>().ActualProdKeysFilePath;
+                        if (keyPath == null) throw new FileNotFoundException(text.Nsz_KeysMissing);
+                        preparation = new Services.PackageOperations.PackageMergePreparation(
+                            _serviceProvider.GetRequiredService<Services.PackageOperations.PackageOperationService>(), destination);
+                        var configuration = Services.PackageOperations.PackageEngineConfiguration.Capture(_appSettings) with { Engine = outputSelection.Engine };
+                        plan = await BackgroundTask.RunAsync(new Services.BackgroundTask.RunnableImpl.RunnableRelay<Services.PackageOperations.PackageBatchPlan>(
+                            (progress, token) => preparation.Prepare(configuration, inputs, candidates, dialog.Format, keyPath, progress, token))
+                            { SupportsCancellation = true, SupportProgress = true });
+                        if (preparation.Errors.Count > 0)
+                            ThemedDialog.Notice(string.Join(Environment.NewLine, preparation.Errors), text.Package_Title, MessageBoxImage.Warning);
+                    }
+                }
+            }
+            if (plan.Skipped.Length > 0)
+            {
+                var messages = plan.Skipped.Select(item => Path.GetFileName(item.Source) + ": " + (item.Reason switch
+                {
+                    Services.PackageOperations.PackageBatchSkipReason.MultipleGames => text.Batch_MergeNeedsSplit,
+                    Services.PackageOperations.PackageBatchSkipReason.UnknownGame => text.Batch_MergeUnknownGame,
+                    _ => text.Batch_MergeSingleFile
+                }));
+                ThemedDialog.Notice(text.Batch_PackageSkipped + Environment.NewLine + string.Join(Environment.NewLine, messages),
+                    text.Package_Title, MessageBoxImage.Information);
+            }
+            if (plan.Jobs.Length > 0)
+                await _serviceProvider.GetRequiredService<Services.PackageOperations.PackageActions>().RunJobsAsync(plan.Jobs, null, outputSelection);
+        }
+        catch (OperationCanceledException) { _logger.LogInformation("Batch package preparation cancelled."); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Batch package planning failed.");
+            ThemedDialog.Notice(ex.Message, text.Package_Title, MessageBoxImage.Error);
+        }
+        finally { preparation?.Dispose(); }
+    }
     public void RunPackageSelection(IEnumerable<BatchIntegrityResult> files, Services.PackageOperations.PackageOperation operation, string type)
     {
         if (!CanRunPackageActions) return;
         var selected = DistinctFiles(files).Where(CanPackageFile)
-            .Where(file => operation != Services.PackageOperations.PackageOperation.Split || file.HasMultiplePackages).ToArray();
+            .Where(file => operation != Services.PackageOperations.PackageOperation.Split || file.HasMultiplePackagesInSource).ToArray();
         if (selected.Length == 0 || operation == Services.PackageOperations.PackageOperation.Merge && selected.Length < 2) return;
         _serviceProvider.GetRequiredService<Services.PackageOperations.PackageActions>()
             .RunSelection(operation, type, selected.Select(file => file.FilePath).ToArray());
@@ -1075,6 +1214,9 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
         RenameAllCommand.TriggerCanExecuteChanged(true);
         ExportCommand.TriggerCanExecuteChanged(true);
         MoveValidCommand.TriggerCanExecuteChanged(true);
+        SplitAllPackagesCommand.TriggerCanExecuteChanged(true);
+        MergeAllPackagesCommand.TriggerCanExecuteChanged(true);
+        NotifyPropertyChanged(nameof(CanRunPackageActions));
         CompressValidCommand.TriggerCanExecuteChanged(true);
         DecompressValidCommand.TriggerCanExecuteChanged(true);
     }

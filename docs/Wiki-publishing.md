@@ -59,3 +59,34 @@ published branch or repository, use --ref and --repository. The exporter does no
 copy private local settings, keys or runtime data.
 
 See [GitHub's wiki editing documentation](https://docs.github.com/en/communities/documenting-your-project-with-wikis/adding-or-editing-wiki-pages).
+
+## German pages: wiki only
+
+The application repository keeps its documentation in English. Additional German
+topic guides are maintained exclusively in the wiki repository in
+`.nxfileviewer-wiki-de.json`. The German guides are condensed instructions; the
+full English technical reference remains available through each language switch.
+
+The exporter reads that file from the output folder and adds DE-prefixed pages,
+English/Deutsch switches and bilingual navigation. Translation entries contain
+the English page key, a German title and Markdown content. Relative links are
+resolved as if the text came from the corresponding English source file; links
+to translated topics automatically select the German page. Topics without a
+translation keep their English destination.
+
+The JSON source is not itself a wiki page. Commit it together with the generated
+Markdown and ownership manifest so another clone can reproduce both languages.
+When exporting into a different first-time clone, pass the existing translation file:
+
+```powershell
+python -B .github/scripts/export_wiki.py --output ../fork_NxFileViewer.wiki-publish --german-source ../fork_NxFileViewer.wiki/.nxfileviewer-wiki-de.json --overwrite
+```
+
+Also copy the translation JSON into that checkout before committing it. Subsequent
+exports find it automatically. A missing German source never silently deletes
+previously generated German pages.
+
+German entries may record the normalized English source SHA-256 as sourceSha256.
+When that source changes, the German page displays an outdated-translation notice.
+Update the German content and source hash after review. This is not automatic
+machine translation and requires no translation API or key.

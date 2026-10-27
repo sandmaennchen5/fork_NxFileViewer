@@ -29,6 +29,7 @@ public sealed class NandPluginManager(IAppSettings settings, string? rootDirecto
         return client;
     }
     public string RootDirectory => Path.GetFullPath(rootDirectory ?? Path.Combine(AppContext.BaseDirectory, "Plugins", "NxNandManager"));
+    private Updates.PluginVersionStorage VersionStorage => new(RootDirectory, StatePath);
     private string StatePath => Path.Combine(RootDirectory, "active.json");
     private sealed record State(string Executable, string Version, string Digest, string ExecutableDigest,
         string? PreviousExecutable = null, string? PreviousVersion = null);
@@ -43,14 +44,41 @@ public sealed class NandPluginManager(IAppSettings settings, string? rootDirecto
     {
         if (!settings.NandPluginActive) return null;
         if (!File.Exists(StatePath)) return null;
+        using (var document = JsonDocument.Parse(File.ReadAllText(StatePath)))
+        {
+            if (document.RootElement.TryGetProperty("SchemaVersion", out _))
+                return ReadUnifiedState();
+        }
         var state = JsonSerializer.Deserialize<State>(File.ReadAllText(StatePath)) ?? throw new InvalidDataException("Invalid NAND installation state.");
-        return state with { Executable = Resolve(state.Executable), PreviousExecutable = state.PreviousExecutable == null ? null : Resolve(state.PreviousExecutable) };
+        var resolved = state with { Executable = Resolve(state.Executable), PreviousExecutable = state.PreviousExecutable == null ? null : Resolve(state.PreviousExecutable) };
+        if (!File.Exists(StatePath + ".legacy")) File.Copy(StatePath, StatePath + ".legacy");
+        WriteState(resolved, activate: false);
+        return ReadUnifiedState();
     }
-    public string? InstalledVersion => string.IsNullOrWhiteSpace(settings.NandExecutablePath) ? ReadState()?.Version : null;
-    public string ExecutablePath => !settings.NandPluginActive ? "" : string.IsNullOrWhiteSpace(settings.NandExecutablePath) ? ReadState()?.Executable ?? "" : Path.GetFullPath(settings.NandExecutablePath);
+    public bool UsesManagedInstallation
+    {
+        get
+        {
+            var selected = settings.NandExecutablePath;
+            if (string.IsNullOrWhiteSpace(selected)) return true;
+            var state = ReadState();
+            if (state == null) return false;
+            if (string.Equals(Path.GetFullPath(selected), state.Executable, StringComparison.OrdinalIgnoreCase)) return true;
+            var relative = Path.GetRelativePath(RootDirectory, state.Executable).Replace('\\', '/');
+            return relative.StartsWith("version-", StringComparison.OrdinalIgnoreCase) &&
+                relative.Split('/').Length == 2 && Guid.TryParseExact(relative.Split('/')[0][8..], "N", out _) &&
+                !File.Exists(selected) && selected.Replace('\\', '/').EndsWith("/" + relative, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+    public void AdoptManagedPath()
+    {
+        if (UsesManagedInstallation && ReadState() is { } state) settings.NandExecutablePath = state.Executable;
+    }
+    public string? InstalledVersion => UsesManagedInstallation ? ReadState()?.Version : null;
+    public string ExecutablePath => !settings.NandPluginActive ? "" : UsesManagedInstallation ? ReadState()?.Executable ?? "" : Path.GetFullPath(settings.NandExecutablePath);
     public bool CanRollback
     {
-        get { try { return string.IsNullOrWhiteSpace(settings.NandExecutablePath) && File.Exists(ReadState()?.PreviousExecutable); } catch { return false; } }
+        get { try { return UsesManagedInstallation && File.Exists(ReadState()?.PreviousExecutable); } catch { return false; } }
     }
     public string Status
     {
@@ -59,7 +87,7 @@ public sealed class NandPluginManager(IAppSettings settings, string? rootDirecto
             if (!settings.NandPluginActive) return LocalizationManager.Instance.Current.Keys.Features_PluginsDisabled;
             try
             {
-                var state = string.IsNullOrWhiteSpace(settings.NandExecutablePath) ? ReadState() : null;
+                var state = UsesManagedInstallation ? ReadState() : null;
                 return File.Exists(ExecutablePath) ? LocalizationManager.Instance.Current.Keys.Nand_Installed + " — " +
                     (state?.Version ?? LocalizationManager.Instance.Current.Keys.Nsz_CustomExecutable) + Environment.NewLine + ExecutablePath
                     : LocalizationManager.Instance.Current.Keys.Nand_NotInstalled;
@@ -67,14 +95,31 @@ public sealed class NandPluginManager(IAppSettings settings, string? rootDirecto
             catch { return LocalizationManager.Instance.Current.Keys.Nand_NotInstalled; }
         }
     }
-    private void WriteState(State state)
+    private State ReadUnifiedState()
     {
-        Directory.CreateDirectory(RootDirectory);
-        state = state with { Executable = Path.GetRelativePath(RootDirectory, state.Executable),
-            PreviousExecutable = state.PreviousExecutable == null ? null : Path.GetRelativePath(RootDirectory, state.PreviousExecutable) };
-        var temporary = StatePath + "." + Guid.NewGuid().ToString("N") + ".tmp";
-        try { File.WriteAllText(temporary, JsonSerializer.Serialize(state)); File.Move(temporary, StatePath, true); }
-        finally { if (File.Exists(temporary)) File.Delete(temporary); }
+        var pointers = VersionStorage.Read()!;
+        var current = Updates.PluginVersionStorage.Metadata(Path.GetDirectoryName(pointers.Current)!)
+            ?? throw new InvalidDataException("NAND installation metadata missing.");
+        var previous = pointers.Previous == null ? null : Updates.PluginVersionStorage.Metadata(Path.GetDirectoryName(pointers.Previous)!);
+        return new(pointers.Current, current.Version ?? "", current.SourceDigest ?? "", current.ExecutableDigest ?? "",
+            pointers.Previous, previous?.Version);
+    }
+    private void WriteState(State state, bool activate = true)
+    {
+        VersionStorage.EnsureMetadata(state.Executable, new(ExternalSources.Current.NandRepository, state.Version,
+            Sha256: state.ExecutableDigest, SourceDigest: state.Digest, ExecutableDigest: state.ExecutableDigest));
+        if (state.PreviousExecutable != null)
+        {
+            string? digest = null;
+            if (File.Exists(state.PreviousExecutable)) {
+                using var file = File.OpenRead(state.PreviousExecutable);
+                digest = Convert.ToHexString(SHA256.HashData(file));
+            }
+            VersionStorage.EnsureMetadata(state.PreviousExecutable, new(ExternalSources.Current.NandRepository,
+                state.PreviousVersion, ExecutableDigest: digest));
+        }
+        VersionStorage.Write(state.Executable, state.PreviousExecutable);
+        if (activate) settings.NandExecutablePath = state.Executable;
     }
     public System.Collections.Generic.IReadOnlyList<string> OldVersionDirectories()
     {
@@ -105,6 +150,7 @@ public sealed class NandPluginManager(IAppSettings settings, string? rootDirecto
         EnsureEnabled();
         var state = ReadState();
         if (!CanRollback || state == null) throw new InvalidOperationException("No previous NAND version.");
+        VersionStorage.VerifyExecutable(state.PreviousExecutable!);
         using var file = File.OpenRead(state.PreviousExecutable!);
         var hash = Convert.ToHexString(SHA256.HashData(file));
         WriteState(new(state.PreviousExecutable!, state.PreviousVersion!, "", hash, state.Executable, state.Version));
@@ -112,13 +158,13 @@ public sealed class NandPluginManager(IAppSettings settings, string? rootDirecto
     public void Prepare(IProgressReporter progress, CancellationToken token)
     {
         EnsureEnabled();
-        if (string.IsNullOrWhiteSpace(settings.NandExecutablePath) && !File.Exists(ExecutablePath))
+        if (UsesManagedInstallation && !File.Exists(ExecutablePath))
             UpdateAsync(progress, token).GetAwaiter().GetResult();
     }
     public async Task UpdateAsync(IProgressReporter progress, CancellationToken token)
     {
         EnsureEnabled();
-        if (!string.IsNullOrWhiteSpace(settings.NandExecutablePath)) throw new InvalidOperationException(LocalizationManager.Instance.Current.Keys.Nand_CustomUpdate);
+        if (!UsesManagedInstallation) throw new InvalidOperationException(LocalizationManager.Instance.Current.Keys.Nand_CustomUpdate);
         progress.SetMode(true);
         progress.SetText(LocalizationManager.Instance.Current.Keys.Nand_Updating);
         var client = httpClient ?? Client;

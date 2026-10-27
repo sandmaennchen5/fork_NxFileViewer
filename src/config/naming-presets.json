@@ -10,7 +10,8 @@
     "Presets": [
       {"Id":"default","Names":{"en":"Default","de":"Standard","fr":"Par défaut","es":"Predeterminado"},"Pattern":"{WAppTitle} [{TitleId:U}][v{VerNum}].{Ext:L}"},
       {"Id":"offline","Names":{"en":"Offline title / ID","de":"Offline-Titel / ID","fr":"Titre hors ligne / ID","es":"Título sin conexión / ID"},"Pattern":"{Title} [{TitleId:U}][v{VerNum}].{Ext:L}"},
-      {"Id":"folders","Names":{"en":"Folders by content type","de":"Ordner nach Inhaltstyp","fr":"Dossiers par type","es":"Carpetas por tipo"},"Pattern":"Games/{WAppTitle} [{TitleId:U}][v{VerNum}].{Ext:L}"}
+      {"Id":"folders","Names":{"en":"Folders by content type","de":"Ordner nach Inhaltstyp","fr":"Dossiers par type","es":"Carpetas por tipo"},"Pattern":"Games/{WAppTitle} [{TitleId:U}][v{VerNum}].{Ext:L}"},
+      {"Id":"game-folders","Names":{"en":"Folders by game","de":"Ordner nach Spiel","fr":"Dossiers par jeu","es":"Carpetas por juego"},"Pattern":"{WAppTitle}/{WAppTitle} [{TitleId:U}][v{VerNum}].{Ext:L}"}
     ]
   },
   "Patch": {
@@ -18,7 +19,8 @@
     "Presets": [
       {"Id":"default","Names":{"en":"Default","de":"Standard","fr":"Par défaut","es":"Predeterminado"},"Pattern":"{WAppTitle} [{TitleId:U}][v{VerNum}].{Ext:L}"},
       {"Id":"offline","Names":{"en":"Offline title / ID","de":"Offline-Titel / ID","fr":"Titre hors ligne / ID","es":"Título sin conexión / ID"},"Pattern":"{Title} [{TitleId:U}][v{VerNum}].{Ext:L}"},
-      {"Id":"folders","Names":{"en":"Folders by content type","de":"Ordner nach Inhaltstyp","fr":"Dossiers par type","es":"Carpetas por tipo"},"Pattern":"Updates/{WAppTitle} [{TitleId:U}][v{VerNum}].{Ext:L}"}
+      {"Id":"folders","Names":{"en":"Folders by content type","de":"Ordner nach Inhaltstyp","fr":"Dossiers par type","es":"Carpetas por tipo"},"Pattern":"Updates/{WAppTitle} [{TitleId:U}][v{VerNum}].{Ext:L}"},
+      {"Id":"game-folders","Names":{"en":"Folders by game","de":"Ordner nach Spiel","fr":"Dossiers par jeu","es":"Carpetas por juego"},"Pattern":"{WAppTitle}/{WAppTitle} [{TitleId:U}][v{VerNum}].{Ext:L}"}
     ]
   },
   "Addon": {
@@ -26,7 +28,8 @@
     "Presets": [
       {"Id":"default","Names":{"en":"Default","de":"Standard","fr":"Par défaut","es":"Predeterminado"},"Pattern":"{WAppTitle} - {WTitle} [{TitleId:U}][v{VerNum}].{Ext:L}"},
       {"Id":"offline","Names":{"en":"Offline title / ID","de":"Offline-Titel / ID","fr":"Titre hors ligne / ID","es":"Título sin conexión / ID"},"Pattern":"DLC [{TitleId:U}][v{VerNum}].{Ext:L}"},
-      {"Id":"folders","Names":{"en":"Folders by content type","de":"Ordner nach Inhaltstyp","fr":"Dossiers par type","es":"Carpetas por tipo"},"Pattern":"DLC/{WAppTitle} - {WTitle} [{TitleId:U}][v{VerNum}].{Ext:L}"}
+      {"Id":"folders","Names":{"en":"Folders by content type","de":"Ordner nach Inhaltstyp","fr":"Dossiers par type","es":"Carpetas por tipo"},"Pattern":"DLC/{WAppTitle} - {WTitle} [{TitleId:U}][v{VerNum}].{Ext:L}"},
+      {"Id":"game-folders","Names":{"en":"Folders by game","de":"Ordner nach Spiel","fr":"Dossiers par jeu","es":"Carpetas por juego"},"Pattern":"{WAppTitle}/{WAppTitle} - {WTitle} [{TitleId:U}][v{VerNum}].{Ext:L}"}
     ]
   },
   "Combined": {

@@ -48,6 +48,8 @@ public partial class BatchIntegrityWindow : UserControl
             {
                 System.ComponentModel.PropertyChangedEventManager.AddHandler(model, OnGroupingChanged, nameof(model.GroupFiles));
                 UpdateGrouping(model.GroupFiles);
+                PropertyChangedEventManager.AddHandler(model, OnGameSortingChanged, nameof(model.GameSortAlphabetical));
+                OnGameSortingChanged(model, new PropertyChangedEventArgs(nameof(model.GameSortAlphabetical)));
                 if (!ReferenceEquals(_layoutModel, model))
                 {
                     if (_layoutTimer.IsEnabled) FlushColumnLayout();
@@ -262,7 +264,7 @@ public partial class BatchIntegrityWindow : UserControl
             Add(keys.Package_MergeNsp, PackageOperation.Merge, "nsp", eligible);
             Add(keys.Package_MergeXci, PackageOperation.Merge, "xci", eligible);
         }
-        var combined = eligible.Where(file => file.HasMultiplePackages).ToArray();
+        var combined = eligible.Where(file => file.HasMultiplePackagesInSource).ToArray();
         Add(keys.Package_Split, PackageOperation.Split, "nsp", combined);
         Add(keys.Package_SplitXci, PackageOperation.Split, "xci", combined);
     }
@@ -328,8 +330,22 @@ public partial class BatchIntegrityWindow : UserControl
             if (FindScrollViewer(VisualTreeHelper.GetChild(root, i)) is { } found) return found;
         return null;
     }
+    private void OnGameSortingChanged(object? sender, PropertyChangedEventArgs args)
+    {
+        if (DataContext is not BatchIntegrityWindowViewModel model) return;
+        foreach (var column in ResultsGrid.Columns)
+            column.SortDirection = model.GameSortAlphabetical ? null :
+                model.ResultsView.SortDescriptions.Where(s => s.PropertyName == column.SortMemberPath || s.PropertyName == column.SortMemberPath + "SortKey")
+                    .Select(s => (ListSortDirection?)s.Direction).FirstOrDefault();
+    }
     private void SortVersionColumn(object sender, DataGridSortingEventArgs e)
     {
+        if (DataContext is BatchIntegrityWindowViewModel { GameSortAlphabetical: true }) { e.Handled = true; return; }
+        Dispatcher.BeginInvoke(DispatcherPriority.ContextIdle, new Action(() =>
+        {
+            if (ReferenceEquals(sender, ResultsGrid) && DataContext is BatchIntegrityWindowViewModel model && !model.GameSortAlphabetical)
+                model.SaveStandardSorting();
+        }));
         if (e.Column.SortMemberPath is not ("SystemVersion" or "SystemUpdateVersion" or "DisplayVersion")) return;
         if (sender is not DataGrid grid || grid.ItemsSource == null) return;
         var view = CollectionViewSource.GetDefaultView(grid.ItemsSource);
@@ -357,7 +373,9 @@ public partial class BatchIntegrityWindow : UserControl
         var keys = LocalizationManager.Instance.Current.Keys;
         if (ThemedDialog.Confirm(keys.BatchTable_ResetFiltersAndSort, keys.BatchTable_ConfirmResetFiltersAndSort, false) != MessageBoxResult.Yes) return;
         if (DataContext is BatchIntegrityWindowViewModel model) model.ResetFiltersCommand.Execute(null);
+        if (DataContext is BatchIntegrityWindowViewModel { GameSortAlphabetical: true }) return;
         ResultsGrid.Items.SortDescriptions.Clear();
+        if (DataContext is BatchIntegrityWindowViewModel resetModel) resetModel.SaveStandardSorting();
         foreach (var column in ResultsGrid.Columns) column.SortDirection = null;
     }
 }

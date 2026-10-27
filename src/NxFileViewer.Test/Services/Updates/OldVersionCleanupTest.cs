@@ -90,9 +90,10 @@ public sealed class OldVersionCleanupTest : IDisposable
         Assert.True(File.Exists(current));
         Assert.False(File.Exists(previous));
         using var state = JsonDocument.Parse(File.ReadAllText(Path.Combine(_root, "active.json")));
-        Assert.Equal("2", state.RootElement.GetProperty("Version").GetString());
-        Assert.Equal("exe-hash", state.RootElement.GetProperty("ExecutableDigest").GetString());
-        Assert.Equal(JsonValueKind.Null, state.RootElement.GetProperty("PreviousExecutable").ValueKind);
+        var metadata = PluginVersionStorage.Metadata(Path.GetDirectoryName(current)!)!;
+        Assert.Equal("2", metadata.Version);
+        Assert.Equal("exe-hash", metadata.ExecutableDigest);
+        Assert.False(state.RootElement.TryGetProperty("Previous", out _));
     }
 
     [Theory]

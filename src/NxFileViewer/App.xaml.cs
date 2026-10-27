@@ -1,4 +1,4 @@
-using Emignatik.NxFileViewer.Services.Updates;
+﻿using Emignatik.NxFileViewer.Services.Updates;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -65,6 +65,9 @@ public partial class App : Application, IAppEvents
             .AddSingleton<IXciRepairService, XciRepairService>()
             .AddSingleton<IXciRepairPrompt, XciRepairPrompt>()
             .AddSingleton<PackageConversionService>()
+            .AddSingleton<Emignatik.NxFileViewer.Services.PackageOperations.RustDesktopActions>()
+            .AddSingleton<Emignatik.NxFileViewer.Services.PackageOperations.KronosGuiActions>()
+            .AddSingleton<Emignatik.NxFileViewer.Services.PackageOperations.PackageVersionActions>()
             .AddSingleton<UpdateCenterViewModel>()
             .AddSingleton<ComponentUpdateChecker>()
             .AddSingleton<ViewerUpdateService>()
@@ -199,7 +202,7 @@ public partial class App : Application, IAppEvents
         ServiceProvider.GetRequiredService<ILocalizationFromSettingsSynchronizerService>().Initialize();
         void UpdateExplorerLanguage()
         {
-            try { ExplorerIntegration.UpdateLanguage(LocalizationManager.Instance.Current.Keys.CultureName); }
+            try { ExplorerIntegration.UpdateLanguage(LocalizationManager.Instance.Current.Keys.CultureName); ExplorerIntegration.SynchronizeFeatures(ServiceProvider.GetRequiredService<IAppSettings>()); }
             catch (Exception ex) { _logger.LogWarning(ex, "Could not update Explorer menu language."); }
         }
         UpdateExplorerLanguage();

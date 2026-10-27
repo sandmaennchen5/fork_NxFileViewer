@@ -4,6 +4,7 @@ using System.Text.Json;
 using Emignatik.NxFileViewer.Localization;
 using Emignatik.NxFileViewer.Services.GlobalEvents;
 using Emignatik.NxFileViewer.Tools;
+using Emignatik.NxFileViewer.Services.PackageOperations;
 using Emignatik.NxFileViewer.Utils;
 using Microsoft.Extensions.Logging;
 
@@ -47,6 +48,11 @@ public class AppSettingsManager : IAppSettingsManager
             throw new ArgumentNullException(nameof(appSettings));
 
         _shallowCopier.Copy(appSettings, _appSettings);
+        _appSettings.RustPackageExecutablePath = PackageEnginePaths.ResolveRust(_appSettings.RustPackageExecutablePath);
+        _appSettings.RustDesktopExecutablePath = PackageEnginePaths.ResolveDesktop(_appSettings.RustDesktopExecutablePath);
+        _appSettings.KronosPackageDirectory = PackageEnginePaths.ResolveKronos(_appSettings.KronosPackageDirectory);
+        AdoptManagedPluginPaths();
+        SynchronizePackageVersions();
     }
 
     public bool LoadSafe()
@@ -62,7 +68,13 @@ public class AppSettingsManager : IAppSettingsManager
                 return false;
 
             _shallowCopier.Copy(settingsModel, _appSettings);
+            _appSettings.RustPackageExecutablePath = PackageEnginePaths.ResolveRust(_appSettings.RustPackageExecutablePath);
+            _appSettings.RustDesktopExecutablePath = PackageEnginePaths.ResolveDesktop(_appSettings.RustDesktopExecutablePath);
+            _appSettings.KronosPackageDirectory = PackageEnginePaths.ResolveKronos(_appSettings.KronosPackageDirectory);
+        AdoptManagedPluginPaths();
 
+            SynchronizePackageVersions();
+            SynchronizeExplorerFeatures();
             return true;
         }
         catch (Exception ex)
@@ -80,11 +92,34 @@ public class AppSettingsManager : IAppSettingsManager
             using var stream = File.Create(_settingsFilePath);
 
             JsonSerializer.Serialize(new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true }), _appSettings);
+            SynchronizePackageVersions();
+            SynchronizeExplorerFeatures();
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, LocalizationManager.Instance.Current.Keys.SettingsSavingError.SafeFormat(ex.Message));
         }
+    }
+
+    private void SynchronizeExplorerFeatures()
+    {
+        try { Services.FileAssociations.ExplorerIntegration.SynchronizeFeatures(_appSettings); }
+        catch (Exception ex) { _logger.LogWarning(ex, "Explorer feature flags could not be updated."); }
+    }
+
+    private void AdoptManagedPluginPaths()
+    {
+        try
+        {
+            new Services.Nsz.NszPluginManager(_appSettings, Microsoft.Extensions.Logging.Abstractions.NullLogger<Services.Nsz.NszPluginManager>.Instance).AdoptManagedPath();
+            new Services.Nand.NandPluginManager(_appSettings).AdoptManagedPath();
+        }
+        catch (Exception ex) { _logger.LogWarning(ex, "Managed plugin paths could not be restored."); }
+    }
+    private void SynchronizePackageVersions()
+    {
+        try { new PackageVersionStore(_appSettings).Synchronize(); }
+        catch (Exception ex) { _logger.LogWarning(ex, "Package version tracking is unavailable."); }
     }
 
     public IAppSettings GetDefault()

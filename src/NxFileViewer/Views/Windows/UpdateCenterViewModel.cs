@@ -1,4 +1,6 @@
 using System;
+using System.IO;
+using Emignatik.NxFileViewer.Services.PackageOperations;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -24,15 +26,25 @@ public sealed class UpdateCenterViewModel : ViewModelBase
     private readonly IAppSettings _settings;
     private readonly IAppSettingsManager? _settingsManager;
     private readonly ILogger<UpdateCenterViewModel> _logger;
+    private readonly NszPluginManager _nszManager;
+    private string _rustStatus = "";
+    private string _kronosStatus = "";
     private string _titleStatus = "";
     private string _firmwareStatus = "";
     public UpdateCenterViewModel(IMainBackgroundTaskRunnerService background, ITitleDbUpdater titles,
         ICachedOnlineTitleInfoService cache, IAppSettings settings, NszActions nsz,
         ViewerUpdateActions viewer, ILogger<UpdateCenterViewModel> logger, Emignatik.NxFileViewer.Services.Nand.NandPluginActions nand,
-        IAppSettingsManager? settingsManager = null)
+        NszPluginManager nszManager, RustDesktopActions desktop, PackageVersionActions versions, IAppSettingsManager? settingsManager = null)
     {
         _background = background; _titles = titles; _cache = cache; _settings = settings; _logger = logger;
         _settingsManager = settingsManager;
+        _nszManager = nszManager;
+        Desktop = desktop;
+        Versions = versions;
+        UpdateRustCommand = new RelayCommand(() => UpdatePackage(PackageEngine.Rust),
+            () => !background.IsRunning && (settings.NszPluginActive || settings.PackageOperationsActive));
+        UpdateKronosCommand = new RelayCommand(() => UpdatePackage(PackageEngine.Kronos),
+            () => !background.IsRunning && settings.PackageOperationsActive);
         Nsz = nsz; Viewer = viewer;
         Nand = nand;
         RefreshTitlesCommand = new RelayCommand(RefreshTitles, () => !background.IsRunning);
@@ -40,13 +52,16 @@ public sealed class UpdateCenterViewModel : ViewModelBase
         SaveFirmwareCommand = new RelayCommand(() => RefreshFirmware(true), () => settings.FirmwareCheckActive && !background.IsRunning);
         background.PropertyChanged += (_, _) =>
         {
+            UpdateRustCommand.TriggerCanExecuteChanged(true);
+            UpdateKronosCommand.TriggerCanExecuteChanged(true);
+            if (!background.IsRunning) RefreshInstalledData();
             RefreshTitlesCommand.TriggerCanExecuteChanged(true);
             CheckFirmwareCommand.TriggerCanExecuteChanged(true);
             SaveFirmwareCommand.TriggerCanExecuteChanged(true);
         };
         settings.PropertyChanged += (_, args) =>
         {
-            if (args.PropertyName == nameof(IAppSettings.TitleDbRegion)) RefreshInstalledData();
+            if (args.PropertyName is nameof(IAppSettings.TitleDbRegion) or nameof(IAppSettings.RustPackageExecutablePath) or nameof(IAppSettings.KronosPackageDirectory)) RefreshInstalledData();
             if (args.PropertyName == nameof(IAppSettings.NszCheckUpdates)) NotifyPropertyChanged(nameof(NszCheckUpdates));
         };
         RefreshInstalledData();
@@ -62,6 +77,37 @@ public sealed class UpdateCenterViewModel : ViewModelBase
             _settingsManager?.SaveSafe();
         }
     }
+    public PackageVersionActions Versions { get; }
+    public RustDesktopActions Desktop { get; }
+    public RelayCommand UpdateRustCommand { get; }
+    public RelayCommand UpdateKronosCommand { get; }
+    public string NszPluginStatus => _nszManager.Status;
+    public bool RustUpdatesVisible => _settings.NszPluginActive || _settings.PackageOperationsActive;
+    public string RustStatus { get => _rustStatus; private set { _rustStatus = value; NotifyPropertyChanged(); } }
+    public string KronosStatus { get => _kronosStatus; private set { _kronosStatus = value; NotifyPropertyChanged(); } }
+    private async void UpdatePackage(PackageEngine engine)
+    {
+        var command = engine == PackageEngine.Rust ? UpdateRustCommand : UpdateKronosCommand;
+        if (!command.CanExecute(null)) return;
+        try
+        {
+            string? installed = null;
+            await _background.RunAsync(new RunnableRelay((progress, token) =>
+                installed = new PackageEngineInstaller().InstallAsync(engine, progress, token).GetAwaiter().GetResult())
+                { SupportsCancellation = true, SupportProgress = true });
+            if (installed == null) return;
+            if (engine == PackageEngine.Rust) _settings.RustPackageExecutablePath = installed;
+            else _settings.KronosPackageDirectory = installed;
+            _settingsManager?.SaveSafe();
+        }
+        catch (OperationCanceledException) { SetStatus(LocalizationManager.Instance.Current.Keys.Update_Cancelled); }
+        catch (Exception ex)
+        {
+            SetStatus(LocalizationManager.Instance.Current.Keys.Update_Failed + " " + ex.Message);
+            _logger.LogWarning(ex, "Package engine update failed: {Engine}", engine);
+        }
+        void SetStatus(string text) { if (engine == PackageEngine.Rust) RustStatus = text; else KronosStatus = text; }
+    }
     public NszActions Nsz { get; }
     public Emignatik.NxFileViewer.Services.Nand.NandPluginActions Nand { get; }
     public ViewerUpdateActions Viewer { get; }
@@ -75,6 +121,13 @@ public sealed class UpdateCenterViewModel : ViewModelBase
     public void RefreshInstalledData()
     {
         var keys = LocalizationManager.Instance.Current.Keys;
+        var rust = PackageEnginePaths.ResolveRust(_settings.RustPackageExecutablePath);
+        RustStatus = File.Exists(rust) ? keys.Package_Ready + " — " + PackageVersionStore.VersionLabel(PackageComponent.Rust, rust) + Environment.NewLine + rust : keys.Component_NotInstalled;
+        var kronos = _settings.KronosPackageDirectory;
+        KronosStatus = File.Exists(Path.Combine(kronos, "runtime", "python.exe")) &&
+            File.Exists(Path.Combine(kronos, "ztools", "squirrel.py"))
+            ? keys.Package_Ready + " — " + PackageVersionStore.VersionLabel(PackageComponent.Kronos, kronos) + Environment.NewLine + kronos : keys.Component_NotInstalled;
+        NotifyPropertyChanged(nameof(NszPluginStatus));
         string Catalog(string region)
         {
             var date = InstalledDataStatus.TitleDbDate(AppContext.BaseDirectory, region);

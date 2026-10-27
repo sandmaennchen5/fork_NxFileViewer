@@ -8,12 +8,69 @@ namespace Emignatik.NxFileViewer.Settings;
 
 public class AppSettings : NotifyPropertyChangedBase, IAppSettings
 {
+    private bool _nszGui = DefaultSettings.Get<bool>("Settings", "EnableNszGui");
+    public bool EnableNszGui
+    {
+        get => _nszGui;
+        set { _nszGui = value; NotifyPropertyChanged(); }
+    }
+    private bool _nandGui = DefaultSettings.Get<bool>("Settings", "EnableNandGui");
+    public bool EnableNandGui
+    {
+        get => _nandGui;
+        set { _nandGui = value; NotifyPropertyChanged(); }
+    }
+    private bool _rustDesktopGui = DefaultSettings.Get<bool>("Settings", "EnableRustDesktopGui");
+    public bool EnableRustDesktopGui
+    {
+        get => _rustDesktopGui;
+        set { _rustDesktopGui = value; NotifyPropertyChanged(); }
+    }
+    private bool _kronosGui = DefaultSettings.Get<bool>("Settings", "EnableKronosGui");
+    public bool EnableKronosGui
+    {
+        get => _kronosGui;
+        set { _kronosGui = value; NotifyPropertyChanged(); }
+    }
+    private bool _batchGameSortAlphabetical = DefaultSettings.Get<bool>("Settings", "BatchGameSortAlphabetical");
+    public bool BatchGameSortAlphabetical { get => _batchGameSortAlphabetical; set { _batchGameSortAlphabetical = value; NotifyPropertyChanged(); } }
+    private bool _batchIncludeSubdirectories = DefaultSettings.Get<bool>("Settings", "BatchIncludeSubdirectories");
+    public bool BatchIncludeSubdirectories { get => _batchIncludeSubdirectories; set { _batchIncludeSubdirectories = value; NotifyPropertyChanged(); } }
+    private bool _batchShowOnlyErrors = DefaultSettings.Get<bool>("Settings", "BatchShowOnlyErrors");
+    public bool BatchShowOnlyErrors { get => _batchShowOnlyErrors; set { _batchShowOnlyErrors = value; NotifyPropertyChanged(); } }
+    private bool _batchIncludeArchives = DefaultSettings.Get<bool>("Settings", "BatchIncludeArchives");
+    public bool BatchIncludeArchives { get => _batchIncludeArchives; set { _batchIncludeArchives = value; NotifyPropertyChanged(); } }
+    private bool _batchGroupFiles = DefaultSettings.Get<bool>("Settings", "BatchGroupFiles");
+    public bool BatchGroupFiles { get => _batchGroupFiles; set { _batchGroupFiles = value; NotifyPropertyChanged(); } }
+    private string _batchSortLayout = DefaultSettings.Get<string>("Settings", "BatchSortLayout");
+    public string BatchSortLayout { get => _batchSortLayout; set { _batchSortLayout = value ?? ""; NotifyPropertyChanged(); } }
+
+    private OutputLocation _mergeOutputLocation = DefaultSettings.Get<OutputLocation>("Settings", "MergeOutputLocation");
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public OutputLocation MergeOutputLocation { get => _mergeOutputLocation; set { _mergeOutputLocation = System.Enum.IsDefined(value) ? value : OutputLocation.ActionSubdirectory; NotifyPropertyChanged(); } }
+    private OutputLocation _splitOutputLocation = DefaultSettings.Get<OutputLocation>("Settings", "SplitOutputLocation");
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public OutputLocation SplitOutputLocation { get => _splitOutputLocation; set { _splitOutputLocation = System.Enum.IsDefined(value) ? value : OutputLocation.ActionSubdirectory; NotifyPropertyChanged(); } }
+    private OutputLocation _compressionOutputLocation = DefaultSettings.Get<OutputLocation>("Settings", "CompressionOutputLocation");
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public OutputLocation CompressionOutputLocation { get => _compressionOutputLocation; set { _compressionOutputLocation = System.Enum.IsDefined(value) ? value : OutputLocation.ActionSubdirectory; NotifyPropertyChanged(); } }
+    private OutputLocation _decompressionOutputLocation = DefaultSettings.Get<OutputLocation>("Settings", "DecompressionOutputLocation");
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public OutputLocation DecompressionOutputLocation { get => _decompressionOutputLocation; set { _decompressionOutputLocation = System.Enum.IsDefined(value) ? value : OutputLocation.ActionSubdirectory; NotifyPropertyChanged(); } }
+    private string _customOutputDirectory = DefaultSettings.Get<string>("Settings", "CustomOutputDirectory");
+    public string CustomOutputDirectory { get => _customOutputDirectory; set { _customOutputDirectory = value ?? ""; NotifyPropertyChanged(); } }
     private PackageEngine _packageEngine = DefaultSettings.Get<PackageEngine>("Settings", "PackageEngine");
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public PackageEngine PackageEngine
     {
         get => _packageEngine;
         set { _packageEngine = System.Enum.IsDefined(value) ? value : default; NotifyPropertyChanged(); }
+    }
+    private string _rustDesktopExecutablePath = "";
+    public string RustDesktopExecutablePath
+    {
+        get => _rustDesktopExecutablePath;
+        set { _rustDesktopExecutablePath = value ?? ""; NotifyPropertyChanged(); }
     }
     private string _rustPackageExecutablePath = "";
     public string RustPackageExecutablePath

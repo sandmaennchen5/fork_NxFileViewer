@@ -16,6 +16,7 @@
     "Path": ""
   },
   "RustPackageRepository": "cxfcxf/nscb_rust",
+  "RustDesktopRepository": "cxfcxf/nscb-desktop",
   "KronosPackageRepository": "Kronos2308/NSC_BUILDER",
   "NszRepository": "nicoboss/nsz",
   "NandRepository": "THZoria/NxNandManager",

@@ -1,4 +1,5 @@
 using System;
+using Emignatik.NxFileViewer.Settings;
 using System.IO;
 using System.Threading;
 using Microsoft.Extensions.Logging;
@@ -19,7 +20,7 @@ public sealed record PackageConversionResult(string SourcePath, string OutputPat
 
 public enum OutputConflictResolution { Cancel, Replace, Number }
 
-public sealed class PackageConversionService(INszPlugin plugin, IConversionVerifier verifier, ILogger<PackageConversionService>? logger = null)
+public sealed class PackageConversionService(INszPlugin plugin, IConversionVerifier verifier, ILogger<PackageConversionService>? logger = null, IAppSettings? settings = null)
 {
     public static string OutputExtension(string source, NszOperation operation) =>
         (Path.GetExtension(source).ToLowerInvariant(), operation) switch
@@ -70,7 +71,7 @@ public sealed class PackageConversionService(INszPlugin plugin, IConversionVerif
         }
         if (File.Exists(output) || Directory.Exists(output)) ResolveConflict();
         cancellationToken.ThrowIfCancellationRequested();
-        // Keep a read lock until publication so the verified source cannot be replaced or edited.
+        // Keep a read lock until publication so the source cannot be replaced or edited.
         using var sourceLock = new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.Read);
         var sourceProgress = new NszProgressScope(progress, "1/3 " + LocalizationManager.Instance.Current.Keys.Nsz_PhaseSource + " " + Path.GetFileName(source), 0, 1.0 / 3);
         sourceProgress.SetMode(false);
@@ -86,18 +87,44 @@ public sealed class PackageConversionService(INszPlugin plugin, IConversionVerif
         try
         {
             logger?.LogInformation("NSZ 2/3: {Operation}; source={Source}; staging={Staging}", operation, source, staging);
-            plugin.Convert(source, staging, operation, new NszProgressScope(progress, "2/3", 1.0 / 3, 1.0 / 3), cancellationToken);
-            cancellationToken.ThrowIfCancellationRequested();
-            var stagedOutput = Path.Combine(staging, Path.GetFileName(originalOutput));
-            if (!File.Exists(stagedOutput) || new FileInfo(stagedOutput).Length == 0)
-                throw new InvalidDataException(LocalizationManager.Instance.Current.Keys.Nsz_OutputMissing + " Expected: " + stagedOutput + "; produced files: " + string.Join(", ", Directory.GetFiles(staging)));
-            var outputProgress = new NszProgressScope(progress, "3/3 " + LocalizationManager.Instance.Current.Keys.Nsz_PhaseOutput, 2.0 / 3, 1.0 / 3);
-            outputProgress.SetMode(false);
-            outputProgress.SetPercentage(0);
-            logger?.LogInformation("NSZ 3/3: verifying output {Output}", stagedOutput);
-            var after = verifier.Verify(stagedOutput, outputProgress, cancellationToken);
-            if (after.Integrity != NcasIntegrity.Original)
-                throw new InvalidDataException(LocalizationManager.Instance.Current.Keys.Nsz_OutputInvalid + " " + after.Integrity);
+            var mode = settings?.NszCompressionEngine ?? NszCompressionEngine.Nsz;
+            var retry = plugin is INszEnginePlugin && mode.HasBackup();
+            string stagedOutput = "";
+            BatchIntegrityResult? after = null;
+            Exception? primaryFailure = null;
+            for (var attempt = 0; attempt < (retry ? 2 : 1); attempt++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var attemptDirectory = retry ? Path.Combine(staging, "engine-" + attempt) : staging;
+                Directory.CreateDirectory(attemptDirectory);
+                try
+                {
+                    if (plugin is INszEnginePlugin enginePlugin && settings != null)
+                        enginePlugin.ConvertUsingEngine(attempt == 0 ? mode.PrimaryRust() : !mode.PrimaryRust(),
+                            source, attemptDirectory, operation, new NszProgressScope(progress, "2/3", 1.0 / 3, 1.0 / 3), cancellationToken);
+                    else plugin.Convert(source, attemptDirectory, operation, new NszProgressScope(progress, "2/3", 1.0 / 3, 1.0 / 3), cancellationToken);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    stagedOutput = Path.Combine(attemptDirectory, Path.GetFileName(originalOutput));
+                    if (!File.Exists(stagedOutput) || new FileInfo(stagedOutput).Length == 0)
+                        throw new InvalidDataException(LocalizationManager.Instance.Current.Keys.Nsz_OutputMissing + " Expected: " + stagedOutput);
+                    var outputProgress = new NszProgressScope(progress, "3/3 " + LocalizationManager.Instance.Current.Keys.Nsz_PhaseOutput, 2.0 / 3, 1.0 / 3);
+                    outputProgress.SetMode(false);
+                    outputProgress.SetPercentage(0);
+                    after = verifier.Verify(stagedOutput, outputProgress, cancellationToken);
+                    if (after.Integrity != NcasIntegrity.Original)
+                        throw new InvalidDataException(LocalizationManager.Instance.Current.Keys.Nsz_OutputInvalid + " " + after.Integrity);
+                    break;
+                }
+                catch (Exception ex) when (retry && !cancellationToken.IsCancellationRequested &&
+                    ex is IOException or InvalidDataException or System.ComponentModel.Win32Exception)
+                {
+                    if (attempt == 1) throw new AggregateException("Both compression/decompression engines failed.", primaryFailure!, ex);
+                    primaryFailure = ex;
+                    try { Directory.Delete(attemptDirectory, true); }
+                    catch (Exception cleanup) when (cleanup is IOException or UnauthorizedAccessException) { logger?.LogWarning(cleanup, "Failed engine workspace could not be removed before backup."); }
+                    logger?.LogWarning(ex, "Primary compression engine failed; retrying with the selected backup engine.");
+                }
+            }
             cancellationToken.ThrowIfCancellationRequested();
             var outputSize = new FileInfo(stagedOutput).Length;
             progress.SetText(LocalizationManager.Instance.Current.Keys.Nsz_PhasePublish);
@@ -120,7 +147,7 @@ public sealed class PackageConversionService(INszPlugin plugin, IConversionVerif
                 { deletionError = ex.Message; }
             }
             progress.SetPercentage(1);
-            return new(source, output, sourceSize, outputSize, after with { FilePath = output }, deleted, deletionError);
+            return new(source, output, sourceSize, outputSize, after! with { FilePath = output }, deleted, deletionError);
         }
         finally
         {

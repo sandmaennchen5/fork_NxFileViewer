@@ -43,6 +43,9 @@ jobs:
           "version=$version" >> $env:GITHUB_OUTPUT
           "prerelease=$prerelease" >> $env:GITHUB_OUTPUT
 
+      - name: Test release ZIP guide
+        shell: pwsh
+        run: ./.github/scripts/Test-ReleaseAssetGuide.ps1
       - name: Prepare application version and changelog notes
         shell: pwsh
         env:
@@ -58,6 +61,12 @@ jobs:
         env:
           RELEASE_VERSION: ${{ steps.tag.outputs.version }}
         run: ./Publish.ps1 -Version $env:RELEASE_VERSION -OutputDirectory Publish-Release
+
+      - name: Append ZIP download guide
+        shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ steps.tag.outputs.version }}
+        run: ./.github/scripts/Add-ReleaseAssetGuide.ps1 -Version $env:RELEASE_VERSION -PackageDirectory Publish-Release -NotesPath (Join-Path $env:RUNNER_TEMP 'release-notes.md')
 
       - name: Create release with packages
         shell: pwsh

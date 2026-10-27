@@ -44,6 +44,18 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string Package_MergeXci { get; }
     string Package_ConvertNsp { get; }
     string Package_ConvertXci { get; }
+    string Batch_SplitAllPackages { get; }
+    string Batch_MergeAllPackages { get; }
+    string Batch_KeepSourceFormat { get; }
+    string Batch_MergeByGame { get; }
+    string Batch_MergeAcrossGames { get; }
+    string Batch_StartPackageJob { get; }
+    string Batch_PackageSkipped { get; }
+    string Batch_MergeAutoSplitPrompt { get; }
+    string Batch_MergeNeedsSplit { get; }
+    string Batch_MergeUnknownGame { get; }
+    string Batch_MergeSingleFile { get; }
+    string Package_SplitNotRequired { get; }
     string Package_Split { get; }
     string Package_SplitXci { get; }
     string Package_Destination { get; }
@@ -68,6 +80,28 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string XciRepair_Failed { get; }
     string Features_Nand { get; }
     string Features_NandDisabled { get; }
+    string Features_DirectStarts { get; }
+    string Features_NszGui { get; }
+    string Features_NandGui { get; }
+    string Features_RustDesktopGui { get; }
+    string Features_KronosGui { get; }
+    string Plugin_General { get; }
+    string Plugin_Compression { get; }
+    string Plugin_Install { get; }
+    string Output_Title { get; }
+    string Output_NextToSource { get; }
+    string Output_ActionSubdirectory { get; }
+    string Output_Custom { get; }
+    string Output_Browse { get; }
+    string Output_Merge { get; }
+    string Output_Split { get; }
+    string Output_Compression { get; }
+    string Output_Decompression { get; }
+    string Output_OpenBatch { get; }
+    string Output_Defaults { get; }
+    string Output_Engine { get; }
+    string Batch_GameSorting { get; }
+    string Batch_GameSortAlphabetical { get; }
     string Features_NszPlugin { get; }
     string Features_NandPlugin { get; }
     string Features_Firmware { get; }

@@ -20,7 +20,7 @@ SaveFS reads directly from the read-only NAND file stream, without extracting th
 
 Under **Settings → Updates → Plugins → NxNandManager**, choose **Install / update…**. The latest stable release is downloaded from THZoria/NxNandManager, checked against GitHub's SHA-256 digest, extracted with its bundled DLLs and checked for CLI compatibility before activation. Installations live in `Plugins/NxNandManager` beside NxFileViewer. The application directory must be writable. The previous version remains available through **Use previous version**; failed updates preserve the active version. Updates are requested manually; opening a dump also installs a missing managed plugin.
 
-Leave the EXE path empty under **Settings → Plugins** to use managed installations. A custom EXE path overrides them and disables managed update/rollback buttons; custom executables are never replaced. Clear the path and apply settings to return to managed installations.
+Managed installations show and save their active EXE path under **Settings → Plugins → NxNandManager**. That path remains managed and supports updates and rollback. A different custom EXE path disables managed update/rollback buttons and is never replaced. Browse is always available; Install plugin appears only without an installation or manual path.
 
 The upstream EXE requests elevation and can fail with a host-dependent C++ locale error. File-only CLI processes receive `RunAsInvoker` and `LC_ALL/LANG=C` in their own environment, leaving Windows settings unchanged. The CLI usage probe accepts upstream's documented usage exit `-1001` and checks required options. Unsupported architectures or startup failures prevent activation. No Dokan driver is installed.
 
@@ -48,3 +48,6 @@ The second row of buttons on Start opens installed plugin GUIs in separate
 windows. NxNandManager starts with `--gui`. NSZ requires an installed nsz-gui
 variant; CLI-only versions remain disabled. Starting a GUI does not download a
 plugin. Windows applies the permissions requested by that plugin.
+
+
+Managed version pointers, per-version metadata and automatic migration use the [shared plugin version storage](Plugin-version-storage.md).

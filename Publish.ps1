@@ -46,6 +46,7 @@ if ($PackageName -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$' -or $PackageName.
 & (Join-Path $PSScriptRoot 'src/config/Validate-ExternalSources.ps1')
 & (Join-Path $PSScriptRoot 'src/config/Validate-NamingPresets.ps1')
 & (Join-Path $PSScriptRoot 'src/config/Validate-DefaultSettings.ps1')
+& (Join-Path $PSScriptRoot 'src/config/Validate-MasterKeys.ps1')
 $AppName = $PackageName
 $ProjectPath = Join-Path $PSScriptRoot "src/NxFileViewer/NxFileViewer.csproj"
 $PublishedExecutableName = (Select-Xml -LiteralPath $ProjectPath -XPath "//Project/PropertyGroup/AssemblyName").Node.InnerText

@@ -9,6 +9,10 @@ using Xunit;
 
 namespace Emignatik.NxFileViewer.Test.Services;
 
+[CollectionDefinition("Explorer registry isolation", DisableParallelization = true)]
+public sealed class ExplorerRegistryCollection { }
+
+[Collection("Explorer registry isolation")]
 public sealed class ExplorerNativeMenuTest
 {
     [Theory]
@@ -25,7 +29,8 @@ public sealed class ExplorerNativeMenuTest
     [Fact]
     public void RealNativeCommandsHideFileActionsForMultiSelectionAndFolders()
     {
-        // Load the DLL directly: no registration, Explorer restart, or user registry changes.
+        // Override HKCU only in this process; never touch the real Explorer configuration.
+        using var registry = new IsolatedRegistry();
         var root = Path.Combine(Path.GetTempPath(), "NxExplorerTest-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
         var dll = Path.Combine(root, "NxFileViewer.Explorer.dll");
@@ -71,10 +76,24 @@ public sealed class ExplorerNativeMenuTest
                     AssertState(child, new[] { first, second }, index < 2 || index == 5 ? 2u : 0u);
                     AssertState(child, new[] { root }, index < 2 || index >= 4 ? 2u : 0u);
                     AssertState(child, new[] { first, root }, index < 2 || index >= 4 ? 2u : 0u);
-                    AssertState(child, new[] { compressed }, index == 4 || index >= 6 ? 2u : 0u);
-                    AssertState(child, new[] { compressed, compressedXci }, index < 2 || index == 4 || index >= 6 ? 2u : 0u);
-                    AssertState(child, new[] { first, compressed }, index < 2 || index >= 4 ? 2u : 0u);
+                    AssertState(child, new[] { compressed }, index == 4 || index is 8 or 9 ? 2u : 0u);
+                    AssertState(child, new[] { compressed, compressedXci }, index < 2 || index == 4 ? 2u : 0u);
+                    AssertState(child, new[] { first, compressed }, index < 2 || index is 4 or 5 ? 2u : 0u);
                     AssertState(child, new[] { unsupported }, 2);
+                    using var config = Registry.CurrentUser.CreateSubKey(ExplorerIntegration.ConfigurationKey);
+                    config.SetValue("CompressionEnabled", 0, RegistryValueKind.DWord);
+                    config.SetValue("PackageOperationsEnabled", 1, RegistryValueKind.DWord);
+                    AssertState(child, new[] { first }, index is 4 or 5 or 8 or 9 ? 2u : 0u);
+                    AssertState(child, new[] { compressed, compressedXci }, index < 2 || index >= 4 ? 2u : 0u);
+                    config.SetValue("CompressionEnabled", 1, RegistryValueKind.DWord);
+                    config.SetValue("PackageOperationsEnabled", 0, RegistryValueKind.DWord);
+                    AssertState(child, new[] { first }, index == 5 || index >= 6 ? 2u : 0u);
+                    config.SetValue("CompressionEnabled", 0, RegistryValueKind.DWord);
+                    AssertState(child, new[] { first }, index >= 4 ? 2u : 0u);
+                    config.DeleteValue("CompressionEnabled");
+                    config.DeleteValue("PackageOperationsEnabled");
+                    // The same loaded COM object sees re-enabled features without a DLL reload.
+                    AssertState(child, new[] { first }, index == 5 || index is 8 or 9 ? 2u : 0u);
                 }
                 finally { Release(child); }
             }
@@ -95,6 +114,50 @@ public sealed class ExplorerNativeMenuTest
             NativeLibrary.Free(module);
             Directory.Delete(root, true);
         }
+    }
+
+    [Fact]
+    public void SavedFeatureFlagsOnlyUpdateTheOwningPortableInstallation()
+    {
+        using var registry = new IsolatedRegistry();
+        using var config = Registry.CurrentUser.CreateSubKey(ExplorerIntegration.ConfigurationKey);
+        config.SetValue("Executable", Environment.ProcessPath!);
+        var settings = new Emignatik.NxFileViewer.Settings.AppSettings {
+            EnableNszPlugin = false, EnablePackageOperations = true
+        };
+        ExplorerIntegration.SynchronizeFeatures(settings);
+        Assert.Equal(0, config.GetValue("CompressionEnabled"));
+        Assert.Equal(1, config.GetValue("PackageOperationsEnabled"));
+        settings.EnableNszPlugin = true;
+        settings.EnablePackageOperations = false;
+        ExplorerIntegration.SynchronizeFeatures(settings);
+        Assert.Equal(1, config.GetValue("CompressionEnabled"));
+        Assert.Equal(0, config.GetValue("PackageOperationsEnabled"));
+        config.SetValue("Executable", Path.Combine(Path.GetTempPath(), "another-copy", "Viewer.exe"));
+        settings.EnableNszPlugin = false;
+        settings.EnablePackageOperations = true;
+        ExplorerIntegration.SynchronizeFeatures(settings);
+        Assert.Equal(1, config.GetValue("CompressionEnabled"));
+        Assert.Equal(0, config.GetValue("PackageOperationsEnabled"));
+    }
+
+    private sealed class IsolatedRegistry : IDisposable
+    {
+        private readonly string _path = @"Software\NxExplorerTest-" + Guid.NewGuid().ToString("N");
+        private readonly RegistryKey _key;
+        public IsolatedRegistry()
+        {
+            _key = Registry.CurrentUser.CreateSubKey(_path);
+            var error = RegOverridePredefKey(new IntPtr(unchecked((int)0x80000001)), _key.Handle.DangerousGetHandle());
+            if (error != 0) { _key.Dispose(); Registry.CurrentUser.DeleteSubKeyTree(_path, false); throw new System.ComponentModel.Win32Exception(error); }
+        }
+        public void Dispose()
+        {
+            RegOverridePredefKey(new IntPtr(unchecked((int)0x80000001)), IntPtr.Zero);
+            _key.Dispose();
+            Registry.CurrentUser.DeleteSubKeyTree(_path, false);
+        }
+        [DllImport("advapi32.dll")] private static extern int RegOverridePredefKey(IntPtr key, IntPtr replacement);
     }
 
     private static void AssertState(IntPtr command, string[] paths, uint expected)
