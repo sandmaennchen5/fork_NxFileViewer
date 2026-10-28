@@ -28,7 +28,10 @@ public static class OldVersionCleanup
             if ((attributes & FileAttributes.Directory) != 0) { if (!SafeTree(entry)) return false; }
             else
             {
-                if (Path.GetExtension(entry).Equals(".keys", StringComparison.OrdinalIgnoreCase)) return false;
+                if (new FileInfo(entry).Length > 0 && (Path.GetExtension(entry).Equals(".keys", StringComparison.OrdinalIgnoreCase) ||
+                    Path.GetFileName(entry).Equals("keys.txt", StringComparison.OrdinalIgnoreCase) ||
+                    Path.GetFileName(entry).Equals("dev_keys.txt", StringComparison.OrdinalIgnoreCase) ||
+                    Path.GetFileName(entry).Equals("keys.dat", StringComparison.OrdinalIgnoreCase))) return false;
                 try { using var probe = File.Open(entry, FileMode.Open, FileAccess.ReadWrite, FileShare.None); }
                 catch (IOException) { return false; }
                 catch (UnauthorizedAccessException) { return false; }
@@ -59,6 +62,27 @@ public static class OldVersionCleanup
         Directory.Delete(directory, recursive: true);
     }
 
+    public static IReadOnlyList<string> PackageEngineVersions(string root, string prefix, params string?[] protectedExecutables)
+    {
+        if (prefix is not ("Rust-" or "Kronos-" or "Desktop-")) throw new ArgumentException("Unknown package component.");
+        root = Full(root);
+        if (!Directory.Exists(root) || !NoLinks(root)) return Array.Empty<string>();
+        return Directory.EnumerateDirectories(root).Where(path =>
+        {
+            var name = Path.GetFileName(path);
+            return name.StartsWith(prefix, StringComparison.Ordinal) && Guid.TryParseExact(name[prefix.Length..], "N", out _) &&
+                File.Exists(Path.Combine(path, "installation.json")) &&
+                !protectedExecutables.Where(value => !string.IsNullOrWhiteSpace(value)).Any(value => Inside(value!, path)) && SafeTree(path);
+        }).ToArray();
+    }
+    public static void DeletePackageEngineVersion(string root, string prefix, string path, params string?[] protectedExecutables)
+    {
+        root = Full(root); path = Full(path);
+        if (!string.Equals(Path.GetDirectoryName(path), root, StringComparison.OrdinalIgnoreCase) ||
+            !PackageEngineVersions(root, prefix, protectedExecutables).Contains(path, StringComparer.OrdinalIgnoreCase))
+            throw new IOException("Package engine directory is active, in use or unsafe to remove.");
+        Directory.Delete(path, true);
+    }
     public static IReadOnlyList<string> ViewerUpdateDirectories(string applicationDirectory)
     {
         var root = Full(Path.Combine(applicationDirectory, "Updates"));

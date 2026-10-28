@@ -192,7 +192,7 @@ public sealed class ExplorerPackageService
     {
         var bytes = File.ReadAllBytes(publicCertificate);
         if (bytes.Length > 65536 || X509Certificate2.GetCertContentType(bytes) != X509ContentType.Cert) throw new InvalidDataException("Expected a public certificate.");
-        var certificate = new X509Certificate2(bytes);
+        var certificate = X509CertificateLoader.LoadCertificate(bytes);
         try
         {
             using var zip = ZipFile.OpenRead(package);

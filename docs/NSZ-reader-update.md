@@ -37,8 +37,9 @@ ZstdSharp.Port remains 0.8.8. Compressed NACP titles remain supported. NSZ's Pyt
 ## Reproduction
 
 ```powershell
-dotnet build src/NxFileViewer.sln --no-restore
-dotnet test src/NxFileViewer.sln --no-restore
+cd src
+dotnet build NxFileViewer.sln --no-restore
+dotnet test NxFileViewer.sln --no-restore
 ```
 
 Synthetic fixtures require no game files or keys. Block tests cover mixed raw/compressed blocks, exact and partial final blocks, reads crossing block boundaries, backwards reads, cache disabled, short reads, truncated raw data, invalid block count and invalid stored size. The source position assertion proves that compressed reads stay inside their block. Existing solid-reader tests check forward reads, backwards reads without further compressed-source reads, shared-source repositioning, EOF and disposal.

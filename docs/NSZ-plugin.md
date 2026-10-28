@@ -8,26 +8,26 @@ Open **File check → Compress and verify…** for NSP/XCI, or **Decompress and 
 
 ## Batch
 
-Run a folder integrity check, then choose **Compress valid files…** or **Decompress valid files…**. These actions process all matching files reported as Original, including rows hidden by the error filter. Firmware is excluded. Relative subdirectories are preserved. Source files are rechecked immediately before conversion, so stale batch results cannot authorize an invalid source.
+Run a folder integrity check, then choose **Compress valid files…** or **Decompress valid files…**. These actions process all matching files reported as Original, including rows hidden by the error filter. Firmware is excluded. Relative subdirectories are preserved. Source files are rechecked immediately before conversion. The produced file is verified before publication.
 
 Completed outputs are added to the results. Source rows show conversion status and original/output byte sizes. Conversion failures also appear under the errors-only filter, without changing the original file's integrity result. CSV exports include conversion status, target path and sizes. Cancellation stops the process tree; completed outputs remain, while the current temporary output is discarded.
 
-Right-click a batch row to open it in single-file mode, convert it, open its title website, verify its integrity or move it. Actions apply only to the clicked row. Individual conversions verify the source even when it has not yet been checked in the batch. Conversion and moving require a physical file, rather than an archive member.
+Right-click a batch row to open it in single-file mode, convert it, open its title website, verify its integrity or move it. Actions apply only to the clicked row. Individual conversions verify both the source and the produced file. Conversion and moving require a physical file, rather than an archive member.
 
 ## Installation and updates
 
 - **Settings → Updates → Plugins → nicoboss/nsz → Install / update…** fetches the latest stable GitHub release, excluding drafts and prereleases. Initial conversion also installs the plugin when needed.
 - Files are stored in `Plugins/NSZ` next to `NxFileViewer.exe`. The application directory must be writable for installation and updates. Managed paths in `active.json` are relative so the application can be moved with its plugin. AppData installations are not read, imported or used as a fallback. Install the plugin in the program directory. Custom executable paths remain unchanged.
 - The updater selects the official Windows x64 or ARM64 CLI asset, validates the SHA-256 digest published by GitHub, and runs `--help` with a timeout to check the required options. Only then is the active-version pointer replaced. This is a CLI compatibility check, not a conversion test against every game.
-- Automatic checks before conversion reuse the shared six-hour GitHub metadata cache; explicit update actions request fresh metadata when API limits permit. Cooldowns survive restarts. See [update checks](Application-updates.md#request-cache-and-github-limits).
+- Installed plugins are not checked for stable updates before conversion. Use the manual update action under Updates. A missing plugin is still installed on demand. Existing saved NszCheckUpdates values are ignored. See [update checks](Application-updates.md#request-cache-and-github-limits) for caching and API limits.
 - The previous installed version remains available through **Use previous version**. Rolling back turns off automatic update checks so the next conversion keeps that version.
-- **Settings → Plugins → nicoboss/nsz** controls checks before conversion, compression level (1–22, default 18) and an optional custom executable. Leave the path empty for managed releases. A custom executable is checked for compatibility but is never automatically replaced.
+- **Settings → Plugins → Compress / Decompress** controls compression level (1–22, default 18) and an optional custom executable. Managed installations display and save their active executable path. An external custom executable is checked for compatibility and is never automatically replaced. Installation is offered next to an empty path only when no installation exists; updates, rollback and cleanup are under Updates.
 - If an update check fails and a compatible version is already installed, the viewer logs a warning and continues with that version. A failed initial installation prevents conversion.
 - Automatic installation requires 64-bit Windows and network access. New upstream releases with renamed assets or incompatible CLI options are rejected rather than activated.
 
 ## Verification and file handling
 
-The source is kept under a read lock while its NCA hashes/signatures are verified, converted, and the result is checked. Only `Original` is accepted; the existing setting for missing delta fragments applies. This checks NCA integrity, not a whole-container byte-for-byte comparison.
+The source is kept under a read lock throughout conversion. Its NCA hashes/signatures are checked before conversion. Both source and output must verify as `Original`; the existing setting for missing delta fragments applies. This checks NCA integrity, not a whole-container byte-for-byte comparison.
 
 The plugin receives the viewer's detected `prod.keys` path via `--keys`. Compression uses `-K -V` to preserve additional files/partitions and request NSZ's own verification. No deletion or overwrite flags are passed. See the upstream [CLI documentation](https://github.com/nicoboss/nsz/blob/master/docs/usage.md).
 
@@ -57,11 +57,11 @@ Settings → Plugins → nicoboss/nsz provides Automatic, Solid / Blockless, and
 
 The file selected for `--keys` is `ActualProdKeysFilePath`, the same detected/selected `prod.keys` used by NxFileViewer and displayed in Settings. During conversion its temporary copy is passed using a relative ASCII path. No separate plugin keys setting is needed.
 
-NSZ settings are in **Settings → Plugins → nicoboss/nsz**, alongside Program, Naming settings and Updates. Each settings page applies, cancels and resets its own options; saving a general draft does not overwrite separately saved plugin options.
+NSZ settings are in **Settings → Plugins → Compress / Decompress**, alongside Program, Naming settings and Updates. Each settings page applies, cancels and resets its own options; saving a general draft does not overwrite separately saved plugin options.
 
 ## Operation progress
 
-Conversion displays the file index and three phases: source verification, conversion, and output verification. Overall batch progress includes all three phases. When the NSZ CLI prints percentages, the viewer displays them with speed and estimated remaining time when available. Carriage-return progress output is processed immediately; updates are throttled to keep the interface responsive. Only recognized numeric progress fields are displayed, never raw CLI output or key values. Publishing the verified output has its own status message.
+Conversion displays the file index and three phases: source verification, conversion and output verification. Overall batch progress includes all three phases. When the NSZ CLI prints percentages, the viewer displays them with speed and estimated remaining time when available. Carriage-return progress output is processed immediately; updates are throttled to keep the interface responsive. Only recognized numeric progress fields are displayed, never raw CLI output or key values. Publishing the verified output has its own status message.
 If the standalone CLI fails while loading its bundled Python DLL, the installer tries the official GUI package with CLI arguments. First startup can exceed 30 seconds; compatibility checks allow 120 seconds and log sanitized startup output. An unchanged executable successfully checked in the current application session is not checked again. Verified downloads survive a failed startup and can be reused.
 
 ### Errors and Unicode filenames
@@ -75,7 +75,7 @@ Some firmware NCZ sections begin at 0xC00, within the original 0x4000-byte prefi
 
 After XCZ decompression, NxFileViewer checks the staged directory against the source's NCZ section extents. It corrects only this recognized size/offset mismatch and only when all affected NCA content-ID hashes match at the corrected locations. Extra files must remain byte-identical; affected HFS0/root hashes are refreshed. Unknown corruption stops the operation before publication. Managed NSZ executables and source files are not patched.
 
-Conversion verification now checks NCA hashes in every uncompressed XCI partition. Compressed XCZ source verification also checks non-game NCAs, including the embedded firmware. A successful game-only overview check is not a full-container conversion check. Older already-produced files are not automatically repaired; decompress the original XCZ again with the updated viewer. Failed conversion outputs stay unpublished and optional source deletion requires successful verification.
+Conversion verification now checks NCA hashes in every uncompressed XCI partition. Separate integrity checks of compressed XCZ files also cover non-game NCAs, including the embedded firmware; conversion itself verifies the produced file. A successful game-only overview check is not a full-container conversion check. Older already-produced files are not automatically repaired; decompress the original XCZ again with the updated viewer. Failed conversion outputs stay unpublished and optional source deletion requires successful verification.
 
 ### Rebuilt Gamecard layout
 
@@ -84,3 +84,34 @@ After correcting recognized NCZ metadata, the viewer normalizes the private stag
 NSZ 5.0.0 copies only the first 0x200 bytes of the original XCI prefix. The viewer also preserves available bytes between 0x200 and the root directory during both compression and decompression, including certificate/extended header areas. Missing bytes already lost in an older XCZ cannot be recovered. Source and output root locations must agree; unknown layouts are rejected rather than overwriting possible partition data.
 
 A repacked XCI is not a byte-identical archival dump. Changing signed Gamecard header fields cannot preserve or recreate Nintendo's RSA signature. NCA payloads/signatures remain unchanged, and normal conversion verification still checks their hashes. Layout consistency is not a promise of physical Gamecard authentication or hardware compatibility. Keep original dumps when archival fidelity is required.
+
+## nscb_rust (4.1.1-beta1)
+
+Under **Plugins → NSZ / nscb_rust**, select **cxfcxf / nscb_rust** as an alternative
+compression engine. Set its executable path and compression level; the executable
+path is shared with package operations. The Rust CLI does not expose Solid/Block
+mode or block-size selection, so those options are disabled for Rust. The selected
+engine handles both compression and decompression. Output is still verified
+before publication.
+
+
+## Engine selection and backup
+
+The compression/decompression feature controls both cxfcxf/nscb_rust and
+nicoboss/nsz. Choose either engine alone, nscb_rust with NSZ backup, or NSZ with
+nscb_rust backup. If the primary process fails, produces no output, or fails
+output verification, the selected backup is tried once in a fresh workspace.
+Failed attempt data is removed before retrying. Cancellation and final publication failures do not trigger backup conversion. Existing
+destination files and originals are only changed after successful verification.
+
+NSZ-specific compression modes and block size also apply when NSZ is the backup;
+nscb_rust uses its supported compression level. Select and install both engines
+before relying on backup mode. Turning off compression/decompression hides its
+plugin settings area and disables both engines' conversion actions.
+## Output locations
+
+Each action offers **Next to source**, **Subdirectory for each action** and **Custom directory**. Custom paths can be typed or selected with Browse. Defaults are configured separately for Merge, Split, Compression and Decompression under **Settings → Plugins → General → Default output directories**, and in `src/config/default-settings.json`. Action subdirectories are `Merge`, `Split` and the localized Compression/Decompression labels (`Kompression`/`Dekompression` in German). For multiple compression/decompression sources, source-relative modes resolve independently for each file; a custom batch destination preserves relative source folders where available.
+
+A successful summary includes **Open in Batch** for the generated files. Source verification, output verification and source read locking remain active. The removed option concerned automatic plugin-update checks, not file verification.
+
+Managed version pointers, per-version metadata and automatic migration use the [shared plugin version storage](Plugin-version-storage.md).

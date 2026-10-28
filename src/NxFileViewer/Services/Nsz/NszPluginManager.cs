@@ -32,6 +32,7 @@ public sealed class NszPluginManager(IAppSettings settings, ILogger<NszPluginMan
         return client;
     }
     public string RootDirectory => rootDirectory ?? Path.Combine(AppContext.BaseDirectory, "Plugins", "NSZ");
+    private Updates.PluginVersionStorage VersionStorage => new(RootDirectory, StatePath);
     private string StatePath => Path.Combine(RootDirectory, "active.json");
     private sealed record State(string Executable, string Version, string? PreviousExecutable = null, string? PreviousVersion = null,
         string? SourceAssetName = null, string? SourceDigest = null, string? ExecutableDigest = null);
@@ -39,6 +40,11 @@ public sealed class NszPluginManager(IAppSettings settings, ILogger<NszPluginMan
     {
         if (!settings.NszPluginActive) return null;
         if (!File.Exists(StatePath)) return null;
+        using (var document = JsonDocument.Parse(File.ReadAllText(StatePath)))
+        {
+            if (document.RootElement.TryGetProperty("SchemaVersion", out _))
+                return ReadUnifiedState();
+        }
         var state = JsonSerializer.Deserialize<State>(File.ReadAllText(StatePath))!;
         string Resolve(string path)
         {
@@ -48,11 +54,33 @@ public sealed class NszPluginManager(IAppSettings settings, ILogger<NszPluginMan
                 throw new InvalidDataException("Managed NSZ executable must be inside the application plugin directory.");
             return resolved;
         }
-        return state with { Executable = Resolve(state.Executable),
+        var resolved = state with { Executable = Resolve(state.Executable),
             PreviousExecutable = state.PreviousExecutable == null ? null : Resolve(state.PreviousExecutable) };
+        if (!File.Exists(StatePath + ".legacy")) File.Copy(StatePath, StatePath + ".legacy");
+        WriteState(resolved, activate: false);
+        return ReadUnifiedState();
     }
-    public string? InstalledVersion => string.IsNullOrWhiteSpace(settings.NszExecutablePath) ? ReadState()?.Version : null;
-    public string ExecutablePath => !settings.NszPluginActive ? "" : string.IsNullOrWhiteSpace(settings.NszExecutablePath)
+    public bool UsesManagedInstallation
+    {
+        get
+        {
+            var selected = settings.NszExecutablePath;
+            if (string.IsNullOrWhiteSpace(selected)) return true;
+            var state = ReadState();
+            if (state == null) return false;
+            if (string.Equals(Path.GetFullPath(selected), state.Executable, StringComparison.OrdinalIgnoreCase)) return true;
+            var relative = Path.GetRelativePath(RootDirectory, state.Executable).Replace('\\', '/');
+            return relative.StartsWith("version-", StringComparison.OrdinalIgnoreCase) &&
+                relative.Split('/').Length == 2 && Guid.TryParseExact(relative.Split('/')[0][8..], "N", out _) &&
+                !File.Exists(selected) && selected.Replace('\\', '/').EndsWith("/" + relative, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+    public void AdoptManagedPath()
+    {
+        if (UsesManagedInstallation && ReadState() is { } state) settings.NszExecutablePath = state.Executable;
+    }
+    public string? InstalledVersion => UsesManagedInstallation ? ReadState()?.Version : null;
+    public string ExecutablePath => !settings.NszPluginActive ? "" : UsesManagedInstallation
         ? ReadState()?.Executable ?? "" : Path.GetFullPath(settings.NszExecutablePath);
     public string GuiExecutablePath
     {
@@ -66,7 +94,7 @@ public sealed class NszPluginManager(IAppSettings settings, ILogger<NszPluginMan
             if (!settings.NszPluginActive) return keys.Features_PluginsDisabled;
             try
             {
-                var state = string.IsNullOrWhiteSpace(settings.NszExecutablePath) ? ReadState() : null;
+                var state = UsesManagedInstallation ? ReadState() : null;
                 var executable = ExecutablePath;
                 if (!File.Exists(executable)) return keys.Nsz_NotInstalled;
                 return keys.Nsz_Installed + " — " + (state?.Version ?? keys.Nsz_CustomExecutable) +
@@ -76,7 +104,7 @@ public sealed class NszPluginManager(IAppSettings settings, ILogger<NszPluginMan
             { return keys.Nsz_NotInstalled; }
         }
     }
-    public bool CanRollback => string.IsNullOrWhiteSpace(settings.NszExecutablePath) && File.Exists(ReadState()?.PreviousExecutable);
+    public bool CanRollback => UsesManagedInstallation && File.Exists(ReadState()?.PreviousExecutable);
 
     public System.Collections.Generic.IReadOnlyList<string> OldVersionDirectories()
     {
@@ -107,29 +135,45 @@ public sealed class NszPluginManager(IAppSettings settings, ILogger<NszPluginMan
         EnsureEnabled();
         var state = ReadState();
         if (!CanRollback || state == null) throw new InvalidOperationException("No previous NSZ version.");
+        VersionStorage.VerifyExecutable(state.PreviousExecutable!);
         WriteState(new(state.PreviousExecutable!, state.PreviousVersion!, state.Executable, state.Version));
     }
 
-    private void WriteState(State state)
+    private State ReadUnifiedState()
     {
-        Directory.CreateDirectory(RootDirectory);
-        var temporary = StatePath + "." + Guid.NewGuid().ToString("N") + ".tmp";
-        // Relative paths allow the whole application directory to be moved.
-        state = state with { Executable = Path.GetRelativePath(Path.GetFullPath(RootDirectory), Path.GetFullPath(state.Executable)),
-            PreviousExecutable = state.PreviousExecutable == null ? null : Path.GetRelativePath(Path.GetFullPath(RootDirectory), Path.GetFullPath(state.PreviousExecutable)) };
-        File.WriteAllText(temporary, JsonSerializer.Serialize(state));
-        File.Move(temporary, StatePath, overwrite: true);
+        var pointers = VersionStorage.Read()!;
+        var current = Updates.PluginVersionStorage.Metadata(Path.GetDirectoryName(pointers.Current)!)
+            ?? throw new InvalidDataException("NSZ installation metadata missing.");
+        var previous = pointers.Previous == null ? null : Updates.PluginVersionStorage.Metadata(Path.GetDirectoryName(pointers.Previous)!);
+        return new(pointers.Current, current.Version ?? "", pointers.Previous, previous?.Version,
+            current.SourceAssetName, current.SourceDigest, current.ExecutableDigest);
     }
-
+    private void WriteState(State state, bool activate = true)
+    {
+        string? Digest(string executable) {
+            if (!File.Exists(executable)) return null;
+            using var file = File.OpenRead(executable);
+            return Convert.ToHexString(SHA256.HashData(file));
+        }
+        VersionStorage.EnsureMetadata(state.Executable, new(ExternalSources.Current.NszRepository, state.Version,
+            Sha256: state.ExecutableDigest, SourceAssetName: state.SourceAssetName,
+            SourceDigest: state.SourceDigest, ExecutableDigest: state.ExecutableDigest));
+        if (state.PreviousExecutable != null)
+            VersionStorage.EnsureMetadata(state.PreviousExecutable, new(ExternalSources.Current.NszRepository,
+                state.PreviousVersion, ExecutableDigest: Digest(state.PreviousExecutable)));
+        VersionStorage.Write(state.Executable, state.PreviousExecutable);
+        if (activate) settings.NszExecutablePath = state.Executable;
+    }
     public void Prepare(IProgressReporter progress, CancellationToken token)
     {
         EnsureEnabled();
-        if (!string.IsNullOrWhiteSpace(settings.NszExecutablePath))
+        if (!UsesManagedInstallation)
         {
             (compatibilityCheck ?? CheckManagedCompatibility)(ExecutablePath, token);
             return;
         }
-        if (settings.NszCheckUpdates || !File.Exists(ExecutablePath))
+        // Install a missing plugin; installed versions are updated only through the Updates page.
+        if (!File.Exists(ExecutablePath))
         {
             try { UpdateAsync(progress, token, automatic: true).GetAwaiter().GetResult(); }
             catch (Exception ex) when (!token.IsCancellationRequested && File.Exists(ExecutablePath) &&

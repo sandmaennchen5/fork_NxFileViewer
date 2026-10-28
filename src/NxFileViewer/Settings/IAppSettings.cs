@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using Microsoft.Extensions.Logging;
 using Emignatik.NxFileViewer.Styling.Theme;
 
@@ -9,7 +9,23 @@ namespace Emignatik.NxFileViewer.Settings;
 /// </summary>
 public interface IAppSettings : INotifyPropertyChanged
 {
+    bool EnableNszGui { get; set; }
+    bool EnableNandGui { get; set; }
+    bool EnableRustDesktopGui { get; set; }
+    bool EnableKronosGui { get; set; }
+    bool BatchGameSortAlphabetical { get; set; }
+    bool BatchIncludeSubdirectories { get; set; }
+    bool BatchShowOnlyErrors { get; set; }
+    bool BatchIncludeArchives { get; set; }
+    bool BatchGroupFiles { get; set; }
+    string BatchSortLayout { get; set; }
     PackageEngine PackageEngine { get; set; }
+    OutputLocation MergeOutputLocation { get; set; }
+    OutputLocation SplitOutputLocation { get; set; }
+    OutputLocation CompressionOutputLocation { get; set; }
+    OutputLocation DecompressionOutputLocation { get; set; }
+    string CustomOutputDirectory { get; set; }
+    string RustDesktopExecutablePath { get; set; }
     string RustPackageExecutablePath { get; set; }
     string KronosPackageDirectory { get; set; }
     bool EnablePlugins { get; set; }
@@ -41,6 +57,7 @@ public interface IAppSettings : INotifyPropertyChanged
     bool IncludeViewerPrereleases { get; set; }
     string NszExecutablePath { get; set; }
     bool NszCheckUpdates { get; set; }
+    NszCompressionEngine NszCompressionEngine { get; set; }
     int NszCompressionLevel { get; set; }
     NszCompressionMode NszCompressionMode { get; set; }
     int NszBlockSizeExponent { get; set; }
@@ -130,6 +147,10 @@ public interface IRenamingOptions : INotifyPropertyChanged
     string PatchPattern { get; set; }
 
     string AddonPattern { get; set; }
+
+    string SuperPattern { get; set; }
+
+    string MultiPattern { get; set; }
 
     bool IsSimulation { get; set; }
 

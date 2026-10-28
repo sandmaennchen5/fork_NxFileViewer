@@ -23,6 +23,8 @@ public class RenameToolWindowViewModel : WindowViewModelBase, IFilesDropped
     private string? _applicationPatternError;
     private string? _patchPatternError;
     private string? _addonPatternError;
+    private string? _superPatternError;
+    private string? _multiPatternError;
     private readonly IAppSettings _appSettings;
 
     public RenameToolWindowViewModel(INamingPatternsParser namingPatternsParser, IAppSettings appSettings, IPromptService promptService, IRenameFilesCommand renameFilesCommand, IBackgroundTaskRunner backgroundTaskRunner)
@@ -49,6 +51,8 @@ public class RenameToolWindowViewModel : WindowViewModelBase, IFilesDropped
         UpdateApplicationPatternParts();
         UpdatePatchPatternParts();
         UpdateAddonPatternParts();
+        UpdateSuperPatternParts();
+        UpdateMultiPatternParts();
     }
 
     public ObservableCollection<RenamingResult> Results { get; } = new();
@@ -128,6 +132,28 @@ public class RenameToolWindowViewModel : WindowViewModelBase, IFilesDropped
         }
     }
 
+    public string MultiPattern
+    {
+        get => _appSettings.RenamingOptions.MultiPattern;
+        set { _appSettings.RenamingOptions.MultiPattern = value; NotifyPropertyChanged(); }
+    }
+
+    public string? MultiPatternError
+    {
+        get => _multiPatternError;
+        set { _multiPatternError = value; NotifyPropertyChanged(); }
+    }
+    public string SuperPattern
+    {
+        get => _appSettings.RenamingOptions.SuperPattern;
+        set { _appSettings.RenamingOptions.SuperPattern = value; NotifyPropertyChanged(); }
+    }
+
+    public string? SuperPatternError
+    {
+        get => _superPatternError;
+        set { _superPatternError = value; NotifyPropertyChanged(); }
+    }
     private void OnRenamingOptionsPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(IRenamingOptions.TargetDirectory))
@@ -141,6 +167,16 @@ public class RenameToolWindowViewModel : WindowViewModelBase, IFilesDropped
         {
             UpdatePatchPatternParts();
             NotifyPropertyChanged(nameof(PatchPattern));
+        }
+        else if (e.PropertyName == nameof(IRenamingOptions.MultiPattern))
+        {
+            UpdateMultiPatternParts();
+            NotifyPropertyChanged(nameof(MultiPattern));
+        }
+        else if (e.PropertyName == nameof(IRenamingOptions.SuperPattern))
+        {
+            UpdateSuperPatternParts();
+            NotifyPropertyChanged(nameof(SuperPattern));
         }
         else if (e.PropertyName == nameof(IRenamingOptions.AddonPattern))
         {
@@ -191,6 +227,32 @@ public class RenameToolWindowViewModel : WindowViewModelBase, IFilesDropped
         }
     }
 
+    private void UpdateMultiPatternParts()
+    {
+        try
+        {
+            RenameCommand.MultiPatternParts = _namingPatternsParser.ParseMultiPattern(MultiPattern);
+            MultiPatternError = null;
+        }
+        catch (Exception ex)
+        {
+            RenameCommand.MultiPatternParts = null;
+            MultiPatternError = ex.Message;
+        }
+    }
+    private void UpdateSuperPatternParts()
+    {
+        try
+        {
+            RenameCommand.SuperPatternParts = _namingPatternsParser.ParseSuperPattern(SuperPattern);
+            SuperPatternError = null;
+        }
+        catch (Exception ex)
+        {
+            RenameCommand.SuperPatternParts = null;
+            SuperPatternError = ex.Message;
+        }
+    }
     private void BrowseInputDirectory()
     {
         var selectedDir = _promptService.PromptSelectDir(LocalizationManager.Instance.Current.Keys.RenamingTool_BrowseDirTitle);

@@ -1,4 +1,5 @@
 using System;
+using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -12,12 +13,14 @@ using Emignatik.NxFileViewer.Settings;
 
 namespace Emignatik.NxFileViewer.Services.PackageOperations;
 
+public sealed class PackageSplitNotRequiredException(string message) : Exception(message);
 public enum PackageOperation { Merge, Convert, Split }
 public sealed record PackageEngineConfiguration(PackageEngine Engine, string RustExecutable, string KronosDirectory)
 {
     public static PackageEngineConfiguration Capture(IAppSettings settings) =>
-        new(settings.PackageEngine, settings.RustPackageExecutablePath, settings.KronosPackageDirectory);
-    public bool IsAvailable => Engine switch
+        new(settings.PackageEngine, PackageEnginePaths.ResolveRust(settings.RustPackageExecutablePath), PackageEnginePaths.ResolveKronos(settings.KronosPackageDirectory));
+    public bool IsAvailable => IsEngineAvailable(Engine.Primary()) || Engine.HasBackup() && IsEngineAvailable(Engine.Primary() == PackageEngine.Rust ? PackageEngine.Kronos : PackageEngine.Rust);
+    public bool IsEngineAvailable(PackageEngine engine) => engine switch
     {
         PackageEngine.Rust => File.Exists(RustExecutable),
         PackageEngine.Kronos => File.Exists(Path.Combine(KronosDirectory, "runtime", "python.exe")) &&
@@ -27,8 +30,16 @@ public sealed record PackageEngineConfiguration(PackageEngine Engine, string Rus
 }
 
 /// <summary>Both engines write to an isolated job. Only validated outputs are published.</summary>
-public sealed class PackageOperationService(IFileLoader loader, IConversionVerifier verifier)
+public sealed class PackageOperationService(IFileLoader loader, IConversionVerifier verifier, PackageConversionService? decompressor = null, Microsoft.Extensions.Logging.ILogger<PackageOperationService>? logger = null)
 {
+    public static string[] OrderMergeSources(IEnumerable<(string Path, LibHac.Ncm.ContentMetaType[] Types)> sources) =>
+        sources.OrderBy(source => source.Types.Select(type => type switch {
+            LibHac.Ncm.ContentMetaType.Application => 0,
+            LibHac.Ncm.ContentMetaType.Patch => 1,
+            LibHac.Ncm.ContentMetaType.AddOnContent => 2,
+            _ => 3
+        }).DefaultIfEmpty(3).Min()).Select(source => source.Path).ToArray();
+
     public static IReadOnlyList<string> BuildArguments(PackageEngine engine, PackageOperation operation,
         IReadOnlyList<string> sources, string output, string type, string keys, string? inputList = null)
     {
@@ -57,7 +68,7 @@ public sealed class PackageOperationService(IFileLoader loader, IConversionVerif
     }
 
     public string Run(PackageEngineConfiguration configuration, PackageOperation operation, string[] sources,
-        string destination, string type, string keyPath, IProgressReporter progress, CancellationToken token)
+        string destination, string type, string keyPath, IProgressReporter progress, CancellationToken token, string? expectedGameId = null, Action<IReadOnlyList<string>>? publishedFiles = null)
     {
         token.ThrowIfCancellationRequested();
         var text = LocalizationManager.Instance.Current.Keys;
@@ -67,8 +78,12 @@ public sealed class PackageOperationService(IFileLoader loader, IConversionVerif
             throw new ArgumentException("Select one source for convert/split, or multiple sources for merge.");
         sources = sources.Select(Path.GetFullPath).ToArray();
         if (sources.Distinct(StringComparer.OrdinalIgnoreCase).Count() != sources.Length ||
-            sources.Any(p => !File.Exists(p) || Path.GetExtension(p).ToLowerInvariant() is not (".nsp" or ".xci")))
+            sources.Any(p => !File.Exists(p) || Path.GetExtension(p).ToLowerInvariant() is not (".nsp" or ".xci" or ".nsz" or ".xcz")))
             throw new ArgumentException(text.Package_Inputs);
+        using var splitSourceLock = operation == PackageOperation.Split
+            ? new FileStream(sources[0], FileMode.Open, FileAccess.Read, FileShare.Read) : null;
+        if (operation == PackageOperation.Split) EnsureSplitSource(sources[0], progress, token);
+        var sourceTypes = new List<(string Path, LibHac.Ncm.ContentMetaType[] Types)>();
         var expected = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var titleIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var locks = new List<FileStream>();
@@ -80,69 +95,92 @@ public sealed class PackageOperationService(IFileLoader loader, IConversionVerif
         string? publicationDirectory = null;
         try
         {
-            foreach (var source in sources)
+            var preparedSources = new List<string>();
+            foreach (var originalSource in sources)
             {
                 token.ThrowIfCancellationRequested();
-                locks.Add(new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.Read));
-                CheckIntegrity(source, progress, token);
+                locks.Add(new FileStream(originalSource, FileMode.Open, FileAccess.Read, FileShare.Read));
+                var source = PrepareSource(originalSource, Path.Combine(job, "inputs", preparedSources.Count.ToString()),
+                    progress, token);
+                preparedSources.Add(source);
+                if (source == originalSource) CheckIntegrity(source, progress, token); // Decompression already verifies both files.
                 using var file = loader.Load(source, token);
-                foreach (var cnmt in file.Overview.CnmtContainers.Select(c => c.CnmtItem))
+                var metadata = file.Overview.CnmtContainers.Select(c => c.CnmtItem).ToArray();
+                if (expectedGameId != null) EnsureGameId(expectedGameId, metadata.Select(c => (c.ApplicationTitleId, c.TitleId, c.ContentType)));
+                sourceTypes.Add((source, metadata.Select(c => c.ContentType).ToArray()));
+                foreach (var cnmt in metadata)
                 {
                     if (!titleIds.Add(cnmt.TitleId)) throw new InvalidDataException("Select only one version of title " + cnmt.TitleId);
                     expected.Add(cnmt.TitleId + ":" + cnmt.TitleVersion);
                 }
             }
+            sources = operation == PackageOperation.Merge ? OrderMergeSources(sourceTypes) : preparedSources.ToArray();
             if (expected.Count == 0) throw new InvalidDataException(text.Package_Invalid);
-            progress.SetMode(true);
-            progress.SetText(configuration.Engine + " / " + operation);
-            var executable = Path.GetFullPath(configuration.RustExecutable.Length == 0 ? "." : configuration.RustExecutable);
-            var inputList = Path.Combine(job, "inputs.txt");
-            File.WriteAllLines(inputList, sources, new System.Text.UTF8Encoding(false));
-            var args = BuildArguments(configuration.Engine, operation, sources, output, type, Path.GetFullPath(keyPath), inputList).ToList();
-            if (configuration.Engine == PackageEngine.Kronos)
+            string[] Execute(PackageEngine engine, int attempt)
             {
-                var root = Path.GetFullPath(configuration.KronosDirectory);
-                executable = Path.Combine(root, "runtime", "python.exe");
-                // Python NSCB changes cwd and uses fixed key/config paths. Keep these job-local.
-                CopyTree(Path.Combine(root, "ztools"), Path.Combine(job, "ztools"), token);
-                if (Directory.Exists(Path.Combine(root, "zconfig")))
-                    CopyTree(Path.Combine(root, "zconfig"), Path.Combine(job, "zconfig"), token);
-                File.Copy(keyPath, Path.Combine(job, "ztools", "keys.txt"), true);
-                const string bootstrap = "import sys,runpy,os; script=sys.argv.pop(1); " +
-                    "sys.path=[p for p in sys.path if 'ztools' not in p.lower()]; " +
-                    "sys.path.insert(0,os.path.dirname(script)); runpy.run_path(script,run_name='__main__')";
-                args.InsertRange(0, new[] { "-c", bootstrap, Path.Combine(job, "ztools", "squirrel.py") });
-            }
-            var reportedError = false;
-            NszProcess.Run(executable, args, job, token, onDiagnostic: line =>
-            {
-                if (line.Contains("Exception:", StringComparison.OrdinalIgnoreCase) ||
-                    line.Contains("Traceback (", StringComparison.OrdinalIgnoreCase)) reportedError = true;
-            });
-            token.ThrowIfCancellationRequested();
-            if (reportedError) throw new InvalidDataException(text.Package_Invalid);
-            var outputs = Directory.GetFiles(output, "*", SearchOption.AllDirectories)
-                .Where(p => Path.GetExtension(p).Equals("." + type, StringComparison.OrdinalIgnoreCase)).ToArray();
-            if (outputs.Length == 0 || (operation != PackageOperation.Split && outputs.Length != 1))
-                throw new InvalidDataException(text.Package_Invalid);
-            var actual = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var path in outputs)
-            {
-                CheckIntegrity(path, progress, token);
-                using var file = loader.Load(path, token);
-                var titles = file.Overview.CnmtContainers.Select(c => c.CnmtItem).ToArray();
-                if (titles.Length == 0 || (operation == PackageOperation.Split && titles.Length != 1))
+                if (attempt > 0)
+                {
+                    logger?.LogWarning("Primary package engine failed; retrying {Operation} with backup {Engine}.", operation, engine);
+                    CleanupDirectory(output);
+                }
+                logger?.LogInformation("Package engine {Engine}, attempt {Attempt}: {Operation}.", engine, attempt + 1, operation);
+                if (!configuration.IsEngineAvailable(engine)) throw new FileNotFoundException(text.Package_Missing + " " + engine);
+                output = Path.Combine(job, "output-" + attempt);
+                Directory.CreateDirectory(output);
+                progress.SetMode(true);
+                progress.SetText(engine + " / " + operation);
+                var executable = Path.GetFullPath(configuration.RustExecutable.Length == 0 ? "." : configuration.RustExecutable);
+                var inputList = Path.Combine(job, "inputs.txt");
+                File.WriteAllLines(inputList, sources, new System.Text.UTF8Encoding(false));
+                var args = BuildArguments(engine, operation, sources, output, type, Path.GetFullPath(keyPath), inputList).ToList();
+                if (engine == PackageEngine.Kronos)
+                {
+                    var root = Path.GetFullPath(configuration.KronosDirectory);
+                    executable = Path.Combine(root, "runtime", "python.exe");
+                    // Python NSCB changes cwd and uses fixed key/config paths. Keep these job-local.
+                    CopyTree(Path.Combine(root, "ztools"), Path.Combine(job, "ztools"), token);
+                    if (Directory.Exists(Path.Combine(root, "zconfig")))
+                        CopyTree(Path.Combine(root, "zconfig"), Path.Combine(job, "zconfig"), token);
+                    File.Copy(keyPath, Path.Combine(job, "ztools", "keys.txt"), true);
+                    const string bootstrap = "import sys,runpy,os; script=sys.argv.pop(1); " +
+                        "sys.path=[p for p in sys.path if 'ztools' not in p.lower()]; " +
+                        "sys.path.insert(0,os.path.dirname(script)); runpy.run_path(script,run_name='__main__')";
+                    args.InsertRange(0, new[] { "-c", bootstrap, Path.Combine(job, "ztools", "squirrel.py") });
+                }
+                var reportedError = false;
+                NszProcess.Run(executable, args, job, token, onDiagnostic: line =>
+                {
+                    if (line.Contains("Exception:", StringComparison.OrdinalIgnoreCase) ||
+                        line.Contains("Traceback (", StringComparison.OrdinalIgnoreCase)) reportedError = true;
+                });
+                token.ThrowIfCancellationRequested();
+                if (reportedError) throw new InvalidDataException(text.Package_Invalid);
+                var attemptOutputs = Directory.GetFiles(output, "*", SearchOption.AllDirectories)
+                    .Where(p => Path.GetExtension(p).Equals("." + type, StringComparison.OrdinalIgnoreCase)).ToArray();
+                if (attemptOutputs.Length == 0 || (operation != PackageOperation.Split && attemptOutputs.Length != 1))
                     throw new InvalidDataException(text.Package_Invalid);
-                foreach (var title in titles)
-                    if (!actual.Add(title.TitleId + ":" + title.TitleVersion)) throw new InvalidDataException(text.Package_Invalid);
+                var actual = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var path in attemptOutputs)
+                {
+                    CheckIntegrity(path, progress, token);
+                    using var file = loader.Load(path, token);
+                    var titles = file.Overview.CnmtContainers.Select(c => c.CnmtItem).ToArray();
+                    if (titles.Length == 0 || (operation == PackageOperation.Split && titles.Length != 1))
+                        throw new InvalidDataException(text.Package_Invalid);
+                    foreach (var title in titles)
+                        if (!actual.Add(title.TitleId + ":" + title.TitleVersion)) throw new InvalidDataException(text.Package_Invalid);
+                }
+                if (!expected.SetEquals(actual)) throw new InvalidDataException(text.Package_Invalid);
+                return attemptOutputs;
             }
-            if (!expected.SetEquals(actual)) throw new InvalidDataException(text.Package_Invalid);
+            var outputs = PackageEngineRetry.Run(configuration.Engine, Execute, token);
             token.ThrowIfCancellationRequested();
-            var published = Path.Combine(Path.GetFullPath(destination), "NXFV-" + operation + "-" + Guid.NewGuid().ToString("N"));
+            var published = Path.GetFullPath(destination);
             publicationDirectory = published;
             preserveValidatedOutputs = true;
-            PackageOutputPublisher.Publish(output, published, token, files: outputs);
+            PackageOutputPublisher.Publish(output, published, token, files: outputs, mergeIntoExisting: true);
             preserveValidatedOutputs = false;
+            publishedFiles?.Invoke(outputs.Select(path => Path.Combine(published, Path.GetRelativePath(output, path))).ToArray());
             return published;
         }
         catch (Exception ex) when (preserveValidatedOutputs && ex is IOException or UnauthorizedAccessException or OperationCanceledException)
@@ -157,6 +195,7 @@ public sealed class PackageOperationService(IFileLoader loader, IConversionVerif
             if (preserveValidatedOutputs)
             {
                 // Keep only result data; the private engine workspace contains the temporary keys.
+                CleanupDirectory(Path.Combine(job, "inputs"));
                 CleanupDirectory(Path.Combine(job, "ztools"));
                 CleanupDirectory(Path.Combine(job, "zconfig"));
             }
@@ -164,6 +203,40 @@ public sealed class PackageOperationService(IFileLoader loader, IConversionVerif
         }
     }
 
+    public Services.Integrity.BatchIntegrityResult ReadBatchSource(string path, CancellationToken token)
+    {
+        using var file = loader.Load(path, token);
+        return new(path, Path.GetExtension(path).TrimStart('.').ToUpperInvariant(), "", "", "", NcasIntegrity.Original, null)
+        {
+            Packages = file.Overview.CnmtContainers.Select(c => new Services.Integrity.BatchPackageSummary(
+                "", c.CnmtItem.TitleId, c.CnmtItem.ContentType.ToString(), c.CnmtItem.TitleVersion ?? "")
+                { BaseTitleId = c.CnmtItem.ApplicationTitleId }).ToArray()
+        };
+    }
+    public static void EnsureGameId(string expectedGameId, IEnumerable<(string BaseId, string TitleId, LibHac.Ncm.ContentMetaType Type)> contents)
+    {
+        var ids = contents.Select(c => PackageBatchPlanner.SourceGameId(c.BaseId, c.TitleId, c.Type.ToString())).ToArray();
+        if (ids.Length == 0 || ids.Any(id => !string.Equals(id, expectedGameId, StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidDataException(LocalizationManager.Instance.Current.Keys.Batch_MergeUnknownGame);
+    }
+    public void EnsureSplitSource(string source, IProgressReporter progress, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        progress.SetText(LocalizationManager.Instance.Current.Keys.Package_Split + ": " + Path.GetFileName(source));
+        using var sourceLock = new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.Read);
+        using var opened = loader.Load(source, token);
+        if (opened.Overview.CnmtContainers.Count <= 1)
+            throw new PackageSplitNotRequiredException(LocalizationManager.Instance.Current.Keys.Package_SplitNotRequired +
+                Environment.NewLine + source);
+    }
+    public string PrepareSource(string source, string temporaryDirectory, IProgressReporter progress, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        if (!PackageConversionService.Supports(source, NszOperation.Decompress)) return source;
+        if (decompressor == null)
+            throw new InvalidOperationException("NSZ/XCZ input requires an enabled and configured decompression plugin.");
+        return decompressor.Convert(source, temporaryDirectory, NszOperation.Decompress, progress, token).OutputPath;
+    }
     private static void CleanupDirectory(string path)
     {
         try { if (Directory.Exists(path)) Directory.Delete(path, true); }

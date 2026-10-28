@@ -6,7 +6,7 @@ using System.Text;
 
 namespace Emignatik.NxFileViewer.Services.FileAssociations;
 
-public enum ExplorerLaunchMode { Automatic, FileOpen, FileVerify, BatchOpen, BatchVerify }
+public enum ExplorerLaunchMode { Automatic, FileOpen, FileVerify, BatchOpen, BatchVerify, Compress, Decompress, ConvertNsp, ConvertXci, MergeNsp, MergeXci, SplitNsp, SplitXci }
 
 public sealed record ExplorerLaunchRequest(ExplorerLaunchMode Mode, string[] Paths)
 {
@@ -27,6 +27,14 @@ public sealed record ExplorerLaunchRequest(ExplorerLaunchMode Mode, string[] Pat
             "--file-verify" => ExplorerLaunchMode.FileVerify,
             "--batch-open" => ExplorerLaunchMode.BatchOpen,
             "--batch-verify" => ExplorerLaunchMode.BatchVerify,
+            "--compress" => ExplorerLaunchMode.Compress,
+            "--decompress" => ExplorerLaunchMode.Decompress,
+            "--split-xci" => ExplorerLaunchMode.SplitXci,
+            "--split-nsp" => ExplorerLaunchMode.SplitNsp,
+            "--merge-xci" => ExplorerLaunchMode.MergeXci,
+            "--merge-nsp" => ExplorerLaunchMode.MergeNsp,
+            "--convert-xci" => ExplorerLaunchMode.ConvertXci,
+            "--convert-nsp" => ExplorerLaunchMode.ConvertNsp,
             _ => ExplorerLaunchMode.Automatic
         };
         var skip = mode == ExplorerLaunchMode.Automatic ? 0 : 1;
@@ -34,6 +42,18 @@ public sealed record ExplorerLaunchRequest(ExplorerLaunchMode Mode, string[] Pat
         return Create(mode, arguments.Skip(skip));
     }
 
+    public static bool TryGetPackageOperation(ExplorerLaunchMode mode,
+        out PackageOperations.PackageOperation operation, out string type)
+    {
+        type = mode is ExplorerLaunchMode.ConvertXci or ExplorerLaunchMode.MergeXci or ExplorerLaunchMode.SplitXci ? "xci" : "nsp";
+        operation = mode switch {
+            ExplorerLaunchMode.MergeNsp or ExplorerLaunchMode.MergeXci => PackageOperations.PackageOperation.Merge,
+            ExplorerLaunchMode.SplitNsp or ExplorerLaunchMode.SplitXci => PackageOperations.PackageOperation.Split,
+            _ => PackageOperations.PackageOperation.Convert
+        };
+        return mode is ExplorerLaunchMode.ConvertNsp or ExplorerLaunchMode.ConvertXci or ExplorerLaunchMode.MergeNsp or
+            ExplorerLaunchMode.MergeXci or ExplorerLaunchMode.SplitNsp or ExplorerLaunchMode.SplitXci;
+    }
     public static ExplorerLaunchRequest Create(ExplorerLaunchMode mode, IEnumerable<string> paths)
     {
         if (!Enum.IsDefined(mode)) throw new ArgumentException("Unknown Explorer action.");
@@ -46,6 +66,13 @@ public sealed record ExplorerLaunchRequest(ExplorerLaunchMode Mode, string[] Pat
         if (mode is ExplorerLaunchMode.FileOpen or ExplorerLaunchMode.FileVerify &&
             (normalized.Length != 1 || Directory.Exists(normalized[0])))
             throw new ArgumentException("The File action requires exactly one file.");
+        if (mode is ExplorerLaunchMode.Compress or ExplorerLaunchMode.Decompress && normalized.Any(p =>
+            Directory.Exists(p) || !Nsz.PackageConversionService.Supports(p, mode == ExplorerLaunchMode.Compress ? Nsz.NszOperation.Compress : Nsz.NszOperation.Decompress)))
+            throw new ArgumentException("Select NSP/XCI files for compression or NSZ/XCZ files for decompression.");
+        if (TryGetPackageOperation(mode, out var operation, out _) &&
+            (normalized.Any(p => Directory.Exists(p) || Path.GetExtension(p).ToLowerInvariant() is not (".nsp" or ".xci")) ||
+             operation == PackageOperations.PackageOperation.Merge && normalized.Length < 2))
+            throw new ArgumentException("Select local NSP/XCI files; merge requires at least two distinct files.");
         return new(mode, normalized);
     }
 
@@ -70,6 +97,14 @@ public sealed record ExplorerLaunchRequest(ExplorerLaunchMode Mode, string[] Pat
                 "file-verify" => ExplorerLaunchMode.FileVerify,
                 "batch-open" => ExplorerLaunchMode.BatchOpen,
                 "batch-verify" => ExplorerLaunchMode.BatchVerify,
+                "compress" => ExplorerLaunchMode.Compress,
+                "decompress" => ExplorerLaunchMode.Decompress,
+                "split-xci" => ExplorerLaunchMode.SplitXci,
+                "split-nsp" => ExplorerLaunchMode.SplitNsp,
+                "merge-xci" => ExplorerLaunchMode.MergeXci,
+                "merge-nsp" => ExplorerLaunchMode.MergeNsp,
+                "convert-xci" => ExplorerLaunchMode.ConvertXci,
+                "convert-nsp" => ExplorerLaunchMode.ConvertNsp,
                 _ => throw new InvalidDataException("Unknown Explorer action.")
             };
             return Create(mode, fields.Skip(2).Take(fields.Length - 3));

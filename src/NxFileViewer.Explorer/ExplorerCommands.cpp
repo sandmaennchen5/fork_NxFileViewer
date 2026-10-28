@@ -13,8 +13,8 @@
 
 static const CLSID CLSID_NxExplorer = {0x872f5f52,0xbc53,0x4a69,{0xb1,0xd1,0x85,0x83,0xb2,0x0c,0xa4,0xb1}};
 static LONG objects = 0;
-enum class Action { Root, BatchOpen, BatchVerify, FileOpen, FileVerify };
-static const wchar_t* Modes[] = { L"", L"batch-open", L"batch-verify", L"file-open", L"file-verify" };
+enum class Action { Root, BatchOpen, BatchVerify, FileOpen, FileVerify, Compress, Decompress, ConvertNsp, ConvertXci, MergeNsp, MergeXci, SplitNsp, SplitXci };
+static const wchar_t* Modes[] = { L"", L"batch-open", L"batch-verify", L"file-open", L"file-verify", L"compress", L"decompress", L"convert-nsp", L"convert-xci", L"merge-nsp", L"merge-xci", L"split-nsp", L"split-xci" };
 
 static const wchar_t* Title(Action action) {
     wchar_t culture[32] = {}; DWORD bytes = sizeof(culture);
@@ -47,6 +47,47 @@ static bool Supported(const std::wstring& path) {
     for (auto candidate : { L".nsp", L".nsz", L".xci", L".xcz", L".nro", L".nca", L".nax0", L".zip", L".7z" })
         if (_wcsicmp(ext, candidate) == 0) return true;
     return false;
+}
+
+static bool FeatureEnabled(const wchar_t* name) {
+    DWORD value = 1, bytes = sizeof(value);
+    auto result = RegGetValueW(HKEY_CURRENT_USER, L"Software\\NxFileViewerFork\\ExplorerIntegration",
+        name, RRF_RT_REG_DWORD, nullptr, &value, &bytes);
+    // Existing installations have no flags until the updated viewer saves its configuration.
+    return result != ERROR_SUCCESS || value != 0;
+}
+
+static bool SupportsAction(Action action, const std::vector<std::wstring>& paths, bool folder) {
+    if ((action == Action::Compress || action == Action::Decompress) && !FeatureEnabled(L"CompressionEnabled")) return false;
+    if (action >= Action::ConvertNsp && action <= Action::SplitXci) {
+        if (!FeatureEnabled(L"PackageOperationsEnabled")) return false;
+        if (!FeatureEnabled(L"CompressionEnabled")) {
+            for (const auto& path : paths) {
+                auto ext = PathFindExtensionW(path.c_str());
+                if (_wcsicmp(ext, L".nsz") == 0 || _wcsicmp(ext, L".xcz") == 0) return false;
+            }
+        }
+    }
+    if (action == Action::FileOpen || action == Action::FileVerify) return paths.size() == 1 && !folder;
+    if (action >= Action::ConvertNsp && action <= Action::SplitXci) {
+        if (folder || paths.empty()) return false;
+        if ((action == Action::MergeNsp || action == Action::MergeXci) && paths.size() < 2) return false;
+        for (const auto& path : paths) {
+            auto ext = PathFindExtensionW(path.c_str());
+            if (_wcsicmp(ext, L".nsp") != 0 && _wcsicmp(ext, L".xci") != 0 &&
+                _wcsicmp(ext, L".nsz") != 0 && _wcsicmp(ext, L".xcz") != 0) return false;
+        }
+        return true;
+    }
+    if (action != Action::Compress && action != Action::Decompress) return true;
+    if (folder || paths.empty()) return false;
+    for (const auto& path : paths) {
+        auto ext = PathFindExtensionW(path.c_str());
+        if (action == Action::Compress) {
+            if (_wcsicmp(ext, L".nsp") != 0 && _wcsicmp(ext, L".xci") != 0) return false;
+        } else if (_wcsicmp(ext, L".nsz") != 0 && _wcsicmp(ext, L".xcz") != 0) return false;
+    }
+    return true;
 }
 
 static HRESULT Selection(IShellItemArray* items, std::vector<std::wstring>& paths, bool& hasFolder) {
@@ -144,7 +185,7 @@ public:
         try {
             std::vector<std::wstring> paths; bool folder;
             if (FAILED(Selection(items, paths, folder))) return S_OK;
-            if ((action == Action::FileOpen || action == Action::FileVerify) && (paths.size() != 1 || folder)) return S_OK;
+            if (!SupportsAction(action, paths, folder)) return S_OK;
             *state = ECS_ENABLED; return S_OK;
         } catch (...) { return E_OUTOFMEMORY; }
     }
@@ -154,7 +195,7 @@ public:
         try {
             std::vector<std::wstring> paths; bool folder;
             hr = Selection(items, paths, folder);
-            if (SUCCEEDED(hr) && (action == Action::FileOpen || action == Action::FileVerify) && (paths.size() != 1 || folder)) hr = E_INVALIDARG;
+            if (SUCCEEDED(hr) && !SupportsAction(action, paths, folder)) hr = E_INVALIDARG;
             if (SUCCEEDED(hr)) hr = Launch(action, paths);
         } catch (...) { hr = E_OUTOFMEMORY; }
         if (FAILED(hr)) MessageBoxW(nullptr, L"NxFileViewer konnte nicht gestartet werden. Bitte die Explorer-Integration in den Einstellungen erneut hinzuf\u00fcgen.", L"NxFileViewer", MB_OK | MB_ICONERROR);
@@ -181,8 +222,8 @@ public:
     HRESULT STDMETHODCALLTYPE Next(ULONG count, IExplorerCommand** values, ULONG* fetched) override {
         if (!values || (!fetched && count != 1)) return E_POINTER;
         ULONG n = 0;
-        while (n < count && index <= 4) {
-            static constexpr Action order[] = { Action::FileOpen, Action::FileVerify, Action::BatchOpen, Action::BatchVerify };
+        while (n < count && index <= 12) {
+            static constexpr Action order[] = { Action::FileOpen, Action::FileVerify, Action::BatchOpen, Action::BatchVerify, Action::Compress, Action::Decompress, Action::ConvertNsp, Action::ConvertXci, Action::MergeNsp, Action::MergeXci, Action::SplitNsp, Action::SplitXci };
             auto command = new(std::nothrow) Command(order[index - 1]);
             if (!command) { if (fetched) *fetched = n; return E_OUTOFMEMORY; }
             values[n++] = command; ++index;
@@ -190,7 +231,7 @@ public:
         if (fetched) *fetched = n;
         return n == count ? S_OK : S_FALSE;
     }
-    HRESULT STDMETHODCALLTYPE Skip(ULONG count) override { ULONG remaining = 5 - index; index += count < remaining ? count : remaining; return count <= remaining ? S_OK : S_FALSE; }
+    HRESULT STDMETHODCALLTYPE Skip(ULONG count) override { ULONG remaining = 13 - index; index += count < remaining ? count : remaining; return count <= remaining ? S_OK : S_FALSE; }
     HRESULT STDMETHODCALLTYPE Reset() override { index = 1; return S_OK; }
     HRESULT STDMETHODCALLTYPE Clone(IEnumExplorerCommand** value) override { *value = new(std::nothrow) Commands(index); return *value ? S_OK : E_OUTOFMEMORY; }
 };

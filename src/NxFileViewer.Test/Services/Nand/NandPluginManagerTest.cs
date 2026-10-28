@@ -69,6 +69,10 @@ public sealed class NandPluginManagerTest : IDisposable
         await manager.UpdateAsync(_progress, CancellationToken.None);
         Assert.Equal(count, _handler.Downloads);
         _settings.NandExecutablePath = manager.ExecutablePath;
+        await manager.UpdateAsync(_progress, CancellationToken.None);
+        var manual = Path.Combine(_root, "custom.exe");
+        File.Copy(manager.ExecutablePath, manual);
+        _settings.NandExecutablePath = manual;
         await Assert.ThrowsAsync<InvalidOperationException>(() => manager.UpdateAsync(_progress, CancellationToken.None));
         Assert.Equal(count, _handler.Downloads);
     }

@@ -96,6 +96,66 @@ public sealed class PackageEngineTest
             PackageOperation.Merge, Array.Empty<string>(), "missing-output", "nsp", "missing.keys", new Reporter(), cancellation.Token));
     }
 
+    [Fact]
+    public void MergeOrdersActualContentTypesGameThenPatchThenDlcAndKeepsTiesStable()
+    {
+        var ordered = PackageOperationService.OrderMergeSources(new[] {
+            ("dlc.nsp", new[] { LibHac.Ncm.ContentMetaType.AddOnContent }),
+            ("update.nsp", new[] { LibHac.Ncm.ContentMetaType.Patch }),
+            ("game.xci", new[] { LibHac.Ncm.ContentMetaType.Application }),
+            ("second-game.nsp", new[] { LibHac.Ncm.ContentMetaType.Application }),
+            ("super.nsp", new[] { LibHac.Ncm.ContentMetaType.AddOnContent, LibHac.Ncm.ContentMetaType.Application }),
+            ("unknown.nsp", Array.Empty<LibHac.Ncm.ContentMetaType>())
+        });
+        Assert.Equal(new[] { "game.xci", "second-game.nsp", "super.nsp", "update.nsp", "dlc.nsp", "unknown.nsp" }, ordered);
+        var args = PackageOperationService.BuildArguments(PackageEngine.Rust, PackageOperation.Merge, ordered, "out", "nsp", "keys");
+        Assert.Equal(ordered, System.Linq.Enumerable.Take(System.Linq.Enumerable.Skip(args, 1), ordered.Length));
+    }
+
+    [Theory]
+    [InlineData("nsp")]
+    [InlineData("xci")]
+    public void RustSplitPassesRequestedOutputFormat(string format)
+    {
+        var args = PackageOperationService.BuildArguments(PackageEngine.Rust, PackageOperation.Split, new[] { "super.nsp" }, "out", format, "keys");
+        Assert.Equal(new[] { "--dspl", "super.nsp", "-o", "out", "-t", format, "--keys", "keys" }, args);
+    }
+    [Theory]
+    [InlineData(".nsp", 0)]
+    [InlineData(".nsp", 1)]
+    [InlineData(".nsz", 0)]
+    [InlineData(".nsz", 1)]
+    public void SingleContentSplitStopsBeforeHashingDecompressionAndOutputCreation(string extension, int contents)
+    {
+        var root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var source = Path.Combine(root, "single" + extension);
+            var header = new byte[16];
+            System.Text.Encoding.ASCII.GetBytes("PFS0").CopyTo(header, 0);
+            File.WriteAllBytes(source, header);
+            var destination = Path.Combine(root, "output");
+            var service = new PackageOperationService(new SingleContentLoader(contents), new InvalidVerifier(NcasIntegrity.Error));
+            Assert.Throws<PackageSplitNotRequiredException>(() => service.Run(new(PackageEngine.Rust, source, ""),
+                PackageOperation.Split, new[] { source }, destination, "nsp", source, new Reporter(), TestContext.Current.CancellationToken));
+            Assert.False(Directory.Exists(destination));
+            Assert.Equal(header, File.ReadAllBytes(source));
+            using var unlocked = new FileStream(source, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+        }
+        finally { Directory.Delete(root, true); }
+    }
+    private sealed class SingleContentLoader(int count) : IFileLoader
+    {
+        public NxFile Load(string path)
+        {
+            var root = Emignatik.NxFileViewer.Models.TreeItems.Impl.NspItem.FromFile(path, LibHac.Common.Keys.KeySet.CreateDefaultKeySet());
+            var overview = new FileOverview(root);
+            // Only the preflight's metadata count is exercised; no engine sees these placeholders.
+            for (var index = 0; index < count; index++) overview.CnmtContainers.Add(null!);
+            return new NxFile(path, root, overview);
+        }
+    }
     private sealed class UnexpectedLoader : IFileLoader
     {
         public NxFile Load(string path) => throw new InvalidOperationException("Loader must not run for invalid input.");

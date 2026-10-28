@@ -9,6 +9,10 @@ using Xunit;
 
 namespace Emignatik.NxFileViewer.Test.Services;
 
+[CollectionDefinition("Explorer registry isolation", DisableParallelization = true)]
+public sealed class ExplorerRegistryCollection { }
+
+[Collection("Explorer registry isolation")]
 public sealed class ExplorerNativeMenuTest
 {
     [Theory]
@@ -25,7 +29,8 @@ public sealed class ExplorerNativeMenuTest
     [Fact]
     public void RealNativeCommandsHideFileActionsForMultiSelectionAndFolders()
     {
-        // Load the DLL directly: no registration, Explorer restart, or user registry changes.
+        // Override HKCU only in this process; never touch the real Explorer configuration.
+        using var registry = new IsolatedRegistry();
         var root = Path.Combine(Path.GetTempPath(), "NxExplorerTest-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
         var dll = Path.Combine(root, "NxFileViewer.Explorer.dll");
@@ -49,13 +54,16 @@ public sealed class ExplorerNativeMenuTest
             Assert.Equal(1u, flags); // ECF_HASSUBCOMMANDS
             Assert.Equal(0, Method<EnumCommands>(command, 10)(command, out enumeration));
             var first = Path.Combine(root, "A game ü.nsp"); var second = Path.Combine(root, "B game.xci");
+            var compressed = Path.Combine(root, "compressed.NSZ");
+            var compressedXci = Path.Combine(root, "compressed.xcz");
+            File.WriteAllBytes(compressed, Array.Empty<byte>()); File.WriteAllBytes(compressedXci, Array.Empty<byte>());
             var unsupported = Path.Combine(root, "notes.txt");
             File.WriteAllBytes(first, Array.Empty<byte>()); File.WriteAllBytes(second, Array.Empty<byte>()); File.WriteAllText(unsupported, "");
             var titles = ExpectedTitles();
             Assert.Equal(0, Method<GetTitle>(command, 3)(command, IntPtr.Zero, out var rootTitle));
             try { Assert.Equal("NxFileViewer Fork", Marshal.PtrToStringUni(rootTitle)); }
             finally { Marshal.FreeCoTaskMem(rootTitle); }
-            for (var index = 0; index < 4; index++)
+            for (var index = 0; index < 12; index++)
             {
                 Assert.Equal(0, Method<NextCommand>(enumeration, 3)(enumeration, 1, out var child, out var fetched));
                 Assert.Equal(1u, fetched);
@@ -64,11 +72,28 @@ public sealed class ExplorerNativeMenuTest
                     Assert.Equal(0, Method<GetTitle>(child, 3)(child, IntPtr.Zero, out var title));
                     try { Assert.Equal(titles[index], Marshal.PtrToStringUni(title)); }
                     finally { Marshal.FreeCoTaskMem(title); }
-                    AssertState(child, new[] { first }, 0); // ECS_ENABLED
-                    AssertState(child, new[] { first, second }, index < 2 ? 2u : 0u); // ECS_HIDDEN
-                    AssertState(child, new[] { root }, index < 2 ? 2u : 0u);
-                    AssertState(child, new[] { first, root }, index < 2 ? 2u : 0u);
+                    AssertState(child, new[] { first }, index == 5 || index is 8 or 9 ? 2u : 0u);
+                    AssertState(child, new[] { first, second }, index < 2 || index == 5 ? 2u : 0u);
+                    AssertState(child, new[] { root }, index < 2 || index >= 4 ? 2u : 0u);
+                    AssertState(child, new[] { first, root }, index < 2 || index >= 4 ? 2u : 0u);
+                    AssertState(child, new[] { compressed }, index == 4 || index is 8 or 9 ? 2u : 0u);
+                    AssertState(child, new[] { compressed, compressedXci }, index < 2 || index == 4 ? 2u : 0u);
+                    AssertState(child, new[] { first, compressed }, index < 2 || index is 4 or 5 ? 2u : 0u);
                     AssertState(child, new[] { unsupported }, 2);
+                    using var config = Registry.CurrentUser.CreateSubKey(ExplorerIntegration.ConfigurationKey);
+                    config.SetValue("CompressionEnabled", 0, RegistryValueKind.DWord);
+                    config.SetValue("PackageOperationsEnabled", 1, RegistryValueKind.DWord);
+                    AssertState(child, new[] { first }, index is 4 or 5 or 8 or 9 ? 2u : 0u);
+                    AssertState(child, new[] { compressed, compressedXci }, index < 2 || index >= 4 ? 2u : 0u);
+                    config.SetValue("CompressionEnabled", 1, RegistryValueKind.DWord);
+                    config.SetValue("PackageOperationsEnabled", 0, RegistryValueKind.DWord);
+                    AssertState(child, new[] { first }, index == 5 || index >= 6 ? 2u : 0u);
+                    config.SetValue("CompressionEnabled", 0, RegistryValueKind.DWord);
+                    AssertState(child, new[] { first }, index >= 4 ? 2u : 0u);
+                    config.DeleteValue("CompressionEnabled");
+                    config.DeleteValue("PackageOperationsEnabled");
+                    // The same loaded COM object sees re-enabled features without a DLL reload.
+                    AssertState(child, new[] { first }, index == 5 || index is 8 or 9 ? 2u : 0u);
                 }
                 finally { Release(child); }
             }
@@ -91,6 +116,50 @@ public sealed class ExplorerNativeMenuTest
         }
     }
 
+    [Fact]
+    public void SavedFeatureFlagsOnlyUpdateTheOwningPortableInstallation()
+    {
+        using var registry = new IsolatedRegistry();
+        using var config = Registry.CurrentUser.CreateSubKey(ExplorerIntegration.ConfigurationKey);
+        config.SetValue("Executable", Environment.ProcessPath!);
+        var settings = new Emignatik.NxFileViewer.Settings.AppSettings {
+            EnableNszPlugin = false, EnablePackageOperations = true
+        };
+        ExplorerIntegration.SynchronizeFeatures(settings);
+        Assert.Equal(0, config.GetValue("CompressionEnabled"));
+        Assert.Equal(1, config.GetValue("PackageOperationsEnabled"));
+        settings.EnableNszPlugin = true;
+        settings.EnablePackageOperations = false;
+        ExplorerIntegration.SynchronizeFeatures(settings);
+        Assert.Equal(1, config.GetValue("CompressionEnabled"));
+        Assert.Equal(0, config.GetValue("PackageOperationsEnabled"));
+        config.SetValue("Executable", Path.Combine(Path.GetTempPath(), "another-copy", "Viewer.exe"));
+        settings.EnableNszPlugin = false;
+        settings.EnablePackageOperations = true;
+        ExplorerIntegration.SynchronizeFeatures(settings);
+        Assert.Equal(1, config.GetValue("CompressionEnabled"));
+        Assert.Equal(0, config.GetValue("PackageOperationsEnabled"));
+    }
+
+    private sealed class IsolatedRegistry : IDisposable
+    {
+        private readonly string _path = @"Software\NxExplorerTest-" + Guid.NewGuid().ToString("N");
+        private readonly RegistryKey _key;
+        public IsolatedRegistry()
+        {
+            _key = Registry.CurrentUser.CreateSubKey(_path);
+            var error = RegOverridePredefKey(new IntPtr(unchecked((int)0x80000001)), _key.Handle.DangerousGetHandle());
+            if (error != 0) { _key.Dispose(); Registry.CurrentUser.DeleteSubKeyTree(_path, false); throw new System.ComponentModel.Win32Exception(error); }
+        }
+        public void Dispose()
+        {
+            RegOverridePredefKey(new IntPtr(unchecked((int)0x80000001)), IntPtr.Zero);
+            _key.Dispose();
+            Registry.CurrentUser.DeleteSubKeyTree(_path, false);
+        }
+        [DllImport("advapi32.dll")] private static extern int RegOverridePredefKey(IntPtr key, IntPtr replacement);
+    }
+
     private static void AssertState(IntPtr command, string[] paths, uint expected)
     {
         var ids = new IntPtr[paths.Length];
@@ -110,12 +179,20 @@ public sealed class ExplorerNativeMenuTest
         var culture = config?.GetValue("Language") as string;
         if (string.IsNullOrEmpty(culture) || culture.Equals("Auto", StringComparison.OrdinalIgnoreCase))
             culture = CultureInfo.GetCultureInfo(GetUserDefaultUILanguage()).Name;
-        return culture.Split('-')[0].ToLowerInvariant() switch {
-            "de" => new[] { "Im File öffnen", "Im File prüfen", "Im Batch öffnen", "Im Batch prüfen" },
-            "fr" => new[] { "Ouvrir dans File", "Vérifier dans File", "Ouvrir dans Batch", "Vérifier dans Batch" },
-            "es" => new[] { "Abrir en File", "Verificar en File", "Abrir en Batch", "Verificar en Batch" },
-            _ => new[] { "Open in File", "Verify in File", "Open in Batch", "Verify in Batch" }
+        var language = culture.Split('-')[0].ToLowerInvariant();
+        var original = language switch {
+            "de" => new[] { "Im File öffnen", "Im File prüfen", "Im Batch öffnen", "Im Batch prüfen", "Komprimieren", "Dekomprimieren" },
+            "fr" => new[] { "Ouvrir dans File", "Vérifier dans File", "Ouvrir dans Batch", "Vérifier dans Batch", "Compresser", "Décompresser" },
+            "es" => new[] { "Abrir en File", "Verificar en File", "Abrir en Batch", "Verificar en Batch", "Comprimir", "Descomprimir" },
+            _ => new[] { "Open in File", "Verify in File", "Open in Batch", "Verify in Batch", "Compress", "Decompress" }
         };
+        var packageTitles = language switch {
+            "de" => new[] { "Konvertieren zu NSP", "Konvertieren zu XCI", "Zusammenführen zu NSP", "Zusammenführen zu XCI", "Aufteilen zu NSP", "Aufteilen zu XCI" },
+            "fr" => new[] { "Convertir en NSP", "Convertir en XCI", "Fusionner en NSP", "Fusionner en XCI", "Diviser en NSP", "Diviser en XCI" },
+            "es" => new[] { "Convertir a NSP", "Convertir a XCI", "Combinar en NSP", "Combinar en XCI", "Dividir en NSP", "Dividir en XCI" },
+            _ => new[] { "Convert to NSP", "Convert to XCI", "Merge to NSP", "Merge to XCI", "Split to NSP", "Split to XCI" }
+        };
+        return System.Linq.Enumerable.ToArray(System.Linq.Enumerable.Concat(original, packageTitles));
     }
     [DllImport("kernel32.dll")] private static extern ushort GetUserDefaultUILanguage();
     private static T Method<T>(IntPtr instance, int slot) where T : Delegate =>

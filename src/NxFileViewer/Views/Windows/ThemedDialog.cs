@@ -35,7 +35,7 @@ public static class ThemedDialog {
         dialog.ShowDialog();
         return result;
     }
-    public static void Notice(string message, string title, MessageBoxImage image)
+    public static void Notice(string message, string title, MessageBoxImage image, string? actionLabel = null, System.Action? action = null)
     {
         var panel = new System.Windows.Controls.StackPanel { Margin = new Thickness(20) };
         var dialog = new Window { Title = title, Content = panel, Width = 650,
@@ -51,8 +51,17 @@ public static class ThemedDialog {
             MinWidth = 90, Padding = new Thickness(12, 5, 12, 5), HorizontalAlignment = HorizontalAlignment.Right,
             Margin = new Thickness(0, 20, 0, 0) };
         ok.Click += (_, _) => dialog.Close();
+        var openRequested = false;
+        if (action != null)
+        {
+            var extra = new System.Windows.Controls.Button { Content = actionLabel, Padding = new Thickness(12, 5, 12, 5),
+                Margin = new Thickness(0, 12, 0, 0), HorizontalAlignment = HorizontalAlignment.Left };
+            extra.Click += (_, _) => { openRequested = true; dialog.Close(); };
+            panel.Children.Add(extra);
+        }
         panel.Children.Add(ok);
         App.ServiceProvider.GetRequiredService<IThemeService>().RegisterWindow(dialog);
         dialog.ShowDialog();
+        if (openRequested) action?.Invoke();
     }
 }

@@ -1,4 +1,5 @@
 using System;
+using Emignatik.NxFileViewer.Services.FileAssociations;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -13,13 +14,16 @@ using Emignatik.NxFileViewer.Localization;
 using Emignatik.NxFileViewer.Services.Nand;
 using Emignatik.NxFileViewer.Services.Nsz;
 using Emignatik.NxFileViewer.Settings;
+using Emignatik.NxFileViewer.Services.PackageOperations;
 
 namespace Emignatik.NxFileViewer.Services.Updates;
 
 public sealed record ComponentUpdateResult(string Name, string Status, bool UpdateAvailable);
 
 public sealed class ComponentUpdateChecker(NszPluginManager nsz, NandPluginManager nand, IAppSettings settings,
-    HttpClient? httpClient = null, string? applicationDirectory = null)
+    HttpClient? httpClient = null, string? applicationDirectory = null,
+    Func<CancellationToken, Task<Version?>>? installedExplorerVersion = null,
+    Func<string, bool, CancellationToken, Task<ExplorerPackageRelease?>>? explorerRelease = null)
 {
     public async Task<string> CheckAsync(CancellationToken token) => string.Join(Environment.NewLine, (await CheckResultsAsync(token)).Select(r => r.Name + ": " + r.Status));
 
@@ -51,7 +55,48 @@ public sealed class ComponentUpdateChecker(NszPluginManager nsz, NandPluginManag
             var available = IsNewer(version, latest);
             return (available ? string.Format(keys.Update_Available, latest) : keys.Update_Current, available);
         }
+        async Task<(string Status, bool Available)> PackagePlugin(bool rust)
+        {
+            var executable = rust ? PackageEnginePaths.ResolveRust(settings.RustPackageExecutablePath, directory)
+                : Path.Combine(settings.KronosPackageDirectory, "runtime", "python.exe");
+            if (!File.Exists(executable) || (!rust && !File.Exists(Path.Combine(settings.KronosPackageDirectory, "ztools", "squirrel.py"))))
+                return (keys.Component_NotInstalled, false);
+            var metadata = Path.Combine(rust ? Path.GetDirectoryName(executable)! : settings.KronosPackageDirectory, "installation.json");
+            if (!File.Exists(metadata)) return (keys.Component_CustomVersion, false);
+            using var installed = JsonDocument.Parse(await File.ReadAllTextAsync(metadata, token));
+            var repository = rust ? ExternalSources.Current.RustPackageRepository : ExternalSources.Current.KronosPackageRepository;
+            if (!installed.RootElement.TryGetProperty("Repository", out var source) || source.GetString() != repository)
+                return (keys.Component_CustomVersion, false);
+            var label = rust ? "nscb_rust" : "Kronos / NSC_BUILDER";
+            var property = rust ? "Version" : "Commit";
+            if (!installed.RootElement.TryGetProperty(property, out var value) || string.IsNullOrWhiteSpace(value.GetString()))
+                return (keys.Component_CustomVersion, false);
+            using var latest = await Get(rust ? ExternalSources.ReleaseApi(repository)
+                : "https://api.github.com/repos/" + repository + "/commits/master", label);
+            var remote = latest.RootElement.GetProperty(rust ? "tag_name" : "sha").GetString()!;
+            var available = rust ? IsNewer(value.GetString()!, remote)
+                : !string.Equals(value.GetString(), remote, StringComparison.OrdinalIgnoreCase);
+            return (available ? string.Format(keys.Update_Available, rust ? remote : remote[..Math.Min(12, remote.Length)]) : keys.Update_Current, available);
+        }
         var checks = new List<Task<ComponentUpdateResult>>();
+        if (settings.NszPluginActive || settings.PackageOperationsActive)
+            checks.Add(Check("nscb_rust", () => PackagePlugin(true)));
+        if (settings.NszPluginActive || settings.PackageOperationsActive)
+            checks.Add(Check("NSCB Desktop", async () =>
+            {
+                var executable = PackageEnginePaths.ResolveDesktop(settings.RustDesktopExecutablePath, directory);
+                if (!File.Exists(executable)) return (keys.Component_NotInstalled, false);
+                var metadata = Path.Combine(Path.GetDirectoryName(executable)!, "installation.json");
+                if (!File.Exists(metadata)) return (keys.Component_CustomVersion, false);
+                using var state = JsonDocument.Parse(await File.ReadAllTextAsync(metadata, token));
+                if (!state.RootElement.TryGetProperty("Repository", out var repository) ||
+                    repository.GetString() != ExternalSources.Current.RustDesktopRepository ||
+                    !state.RootElement.TryGetProperty("Version", out var version))
+                    return (keys.Component_CustomVersion, false);
+                return await Plugin(executable, version.GetString(), ExternalSources.Current.RustDesktopRepository, "NSCB Desktop");
+            }));
+        if (settings.PackageOperationsActive)
+            checks.Add(Check("Kronos / NSC_BUILDER", () => PackagePlugin(false)));
         if (settings.NszPluginActive)
             checks.Add(Check("NSZ", () => Plugin(nsz.ExecutablePath, nsz.InstalledVersion, ExternalSources.Current.NszRepository, "NSZ")));
         if (settings.NandPluginActive)
@@ -80,9 +125,24 @@ public sealed class ComponentUpdateChecker(NszPluginManager nsz, NandPluginManag
             }
             return (keys.Update_Current, false);
         }));
-        return await Task.WhenAll(checks);
+        // The installed package has its own version, independent of the viewer.
+        // Run this alongside the other checks to avoid serial package-query latency.
+        checks.Add(Check("Explorer MSIX", async () =>
+        {
+            var installed = await (installedExplorerVersion ?? ExplorerIntegration.InstalledModernVersionAsync)(token);
+            if (installed == null) return ("", false);
+            var release = explorerRelease != null
+                ? await explorerRelease(ExplorerIntegration.Architecture, settings.IncludeViewerPrereleases, token)
+                : await new RepositoryMirrors(httpClient, requests, automatic).ExplorerAsync(
+                    ExternalSources.Current.ExplorerSourceSpecs, ExplorerIntegration.Architecture, settings.IncludeViewerPrereleases, token);
+            var newer = release != null && release.Version > installed;
+            return (release == null ? keys.Explorer_NoPackage :
+                newer ? string.Format(keys.Update_Available, release.Version) : keys.Update_Current, newer);
+        }));
+        var results = await Task.WhenAll(checks);
+        // An absent package is omitted; query failures retain their diagnostic row.
+        return results.Where(result => result.Name != "Explorer MSIX" || result.Status.Length > 0).ToArray();
     }
-
     public static bool IsNewer(string installed, string latest)
     {
         static Version? Parse(string value) => Version.TryParse(Regex.Match(value, @"\d+(?:\.\d+){1,3}").Value, out var version) ? version : null;

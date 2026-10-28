@@ -1,27 +1,38 @@
 # NxFileViewer Fork LogViewer
 
-Eigenständiger Windows-Logviewer für Diagnoseprotokolle. NxFileViewer, Plugins und Schlüsseldateien werden nicht benötigt. ZIP entpacken und `NxFileViewerFork.LogViewer.exe` starten. Die Variante `self-contained` enthält .NET; die Standardvariante benötigt die .NET 8 Desktop Runtime.
+A standalone Windows viewer for diagnostic logs. NxFileViewer, plugins and key
+files are not required. Extract the ZIP and run `NxFileViewerFork.LogViewer.exe`.
+Self-contained packages include .NET; standard packages require .NET 10 Desktop Runtime.
 
-- Logdatei über Öffnen / Strg+O, Drag-and-drop oder als erstes Kommandozeilenargument laden.
-- Info blau, Warnungen gelb, Fehler und Critical rot; Dateigruppen wie in der Logseite des Hauptprogramms.
-- Suche ohne Beachtung der Groß-/Kleinschreibung in Meldungen, Zeitstempeln, Logstufen und zugeordneten Dateipfaden.
-- Mindest-Logstufe und optional nur RAM-/GC-Messungen; alle Filter wirken zusammen. Bei ausgefilterten Öffnungsmeldungen bleiben die zugehörigen Dateigruppen sichtbar.
-- Mehrzeilige Ausnahmen bleiben ein Eintrag. Der untere Detailbereich zeigt den vollständigen Text und erlaubt Auswahl/Kopieren; Strg+C in der Liste kopiert den ausgewählten Eintrag samt Dateikontext.
-- F5 / Neu laden liest den aktuellen Stand einer noch laufenden Sitzung ein. Es gibt keine automatische Überwachung.
-- Die Liste ist virtualisiert und hat keine 2.000-Einträge-Grenze. Die Datei wird im Hintergrund eingelesen; ihr Text bleibt für die Suche im RAM. Große Dateien benötigen entsprechend Speicher.
+## Features
 
-Der Viewer liest `.log`/`.txt` direkt und verändert sie nicht. Die ZIP-Datei ist das portable Programmpaket. Sprache: Deutsch bei deutscher Windows-Anzeigesprache, sonst Englisch.
+- Open a log with **Open / Ctrl+O**, drag and drop, or the first command-line argument.
+- Information is blue, warnings yellow, and Error/Critical red. Entries are grouped
+  by file, as on the main application's Log page.
+- Search case-insensitively across messages, timestamps, severity and associated
+  file paths; **Ctrl+F** focuses the search box.
+- Combine search, minimum severity and the optional RAM/GC-only filter. File
+  headings remain visible when their opening messages are filtered out.
+- Multiline exceptions remain one entry. The lower detail pane shows the complete
+  selectable text; **Ctrl+C** in the list copies the entry and its file context.
+- **F5 / Reload** reads the current contents of an active session. Files are not
+  watched automatically.
+- The virtualized list has no 2,000-entry limit. Files load in the background, but
+  their text stays in memory for searching, so large logs require more RAM.
+
+The viewer reads `.log` and `.txt` files without modifying them. ZIPs are portable
+application packages, not log input files. The interface uses German for a German
+Windows display language and English otherwise.
 
 ## Build
 
-`./Publish.ps1` erstellt zusätzlich separate LogViewer-ZIPs für x64/x86, jeweils mit und ohne .NET-Laufzeit. Nur den Viewer bauen:
+From the repository root, publish all standalone LogViewer ZIPs for x64/x86, with
+and without the runtime:
 
 ```powershell
 .\Publish.ps1 -LogViewerOnly
 ```
 
-Mit `-SkipLogViewer` werden diese Zusatzpakete ausgelassen. Dateinamen: `NxFileViewerFork.LogViewer_v<VERSION>[_self-contained]_<ARCH>.zip`.
-
-## English
-
-Extract the standalone ZIP and start `NxFileViewerFork.LogViewer.exe`. Open or drop a `.log`/`.txt` file; Ctrl+O opens, Ctrl+F focuses search and F5 reloads. Search, minimum severity and RAM/GC filters combine. File headings survive filtering and multiline exceptions stay together. Use the lower pane or Ctrl+C in the list to copy a complete entry. The viewer reads files only and does not watch them automatically. Self-contained packages include .NET; standard packages require .NET 8 Desktop Runtime. The visible list is virtualized, but the file text remains in memory for searching.
+The default `.\Publish.ps1` includes these packages; `-SkipLogViewer` omits them.
+Package names use `NxFileViewerFork.LogViewer_v<VERSION>[_self-contained]_<ARCH>.zip`.
+For individual EXE selectors, see [development and publishing](Development.md#individual-executables).

@@ -21,12 +21,15 @@ public sealed record ExternalSourceConfiguration(int SchemaVersion, GitHubConten
     string NszRepository, string NandRepository, string ExplorerRepository,
     string TitlePageUrl, string TitleInfoApiUrl, string NLibApiUrl, string NxContentPageUrl)
 {
+    public string RustDesktopRepository { get; init; } = "cxfcxf/nscb-desktop";
+    public string RustPackageRepository { get; init; } = "cxfcxf/nscb_rust";
+    public string KronosPackageRepository { get; init; } = "Kronos2308/NSC_BUILDER";
     public string[] ExplorerSources { get; init; } = Array.Empty<string>();
     [System.Text.Json.Serialization.JsonIgnore]
     public string[] ExplorerSourceSpecs => ExplorerSources.Length > 0 ? ExplorerSources : new[] { "github:" + ExplorerRepository };
 }
 
-/// <summary>Build-time defaults embedded from update/external-sources.json, never loaded from the network.</summary>
+/// <summary>Build-time defaults embedded from src/config/external-sources.json, never loaded from the network.</summary>
 public static class ExternalSources
 {
     private static readonly Lazy<ExternalSourceConfiguration> Embedded = new(() => {
@@ -61,7 +64,7 @@ public static class ExternalSources
             _ = ViewerUpdateMetadata.Repository(location.Repository);
             ValidateRepositories(location.SourceSpecs);
         }
-        foreach (var repository in new[] { config.NszRepository, config.NandRepository, config.ExplorerRepository }) _ = ViewerUpdateMetadata.Repository(repository);
+        foreach (var repository in new[] { config.NszRepository, config.NandRepository, config.ExplorerRepository, config.RustPackageRepository, config.KronosPackageRepository, config.RustDesktopRepository }) _ = ViewerUpdateMetadata.Repository(repository);
         if (config.ExplorerSources == null) throw new InvalidDataException("Explorer sources cannot be null.");
         ValidateRepositories(config.ExplorerSourceSpecs);
         if (config.TitleDb.Sources.Length != 0) throw new InvalidDataException("TitleDB supports its GitHub repository setting only.");

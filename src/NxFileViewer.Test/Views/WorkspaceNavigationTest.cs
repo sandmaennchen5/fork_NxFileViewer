@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading;
 using System.Linq;
 using System.Windows;
@@ -147,6 +147,16 @@ public sealed class WorkspaceNavigationTest
                 var engineSelector = Assert.IsType<ComboBox>(pluginPage.FindName("PackageEngineSelector"));
                 Assert.Equal("EditedSettings.PackageEngine", engineSelector.GetBindingExpression(ComboBox.SelectedValueProperty)!.ParentBinding.Path.Path);
                 plugins.EditedSettings.PackageEngine = PackageEngine.Kronos;
+                var nszEngineSelector = Assert.IsType<ComboBox>(pluginPage.FindName("NszEngineSelector"));
+                nszEngineSelector.DataContext = plugins;
+                nszEngineSelector.GetBindingExpression(ItemsControl.ItemsSourceProperty)!.UpdateTarget();
+                nszEngineSelector.GetBindingExpression(ComboBox.SelectedValueProperty)!.UpdateTarget();
+                System.Windows.Threading.Dispatcher.CurrentDispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ContextIdle);
+                Assert.Equal(4, nszEngineSelector.Items.Count);
+                nszEngineSelector.SelectedValue = NszCompressionEngine.Rust;
+                Assert.Equal(NszCompressionEngine.Rust, nszEngineSelector.SelectedValue);
+                nszEngineSelector.GetBindingExpression(ComboBox.SelectedValueProperty)!.UpdateSource();
+                Assert.Equal(NszCompressionEngine.Rust, plugins.EditedSettings.NszCompressionEngine);
                 plugins.EditedSettings.RustPackageExecutablePath = @"C:\Plugins\nscb_rust.exe";
                 plugins.EditedSettings.KronosPackageDirectory = @"C:\Plugins\Kronos";
                 plugins.EditedSettings.NandExecutablePath = "C:\\Plugins\\NxNandManager.exe";
@@ -156,6 +166,7 @@ public sealed class WorkspaceNavigationTest
                 Assert.Equal("C:\\Keys\\bis.keys", actual.NandBisKeysPath);
                 Assert.Equal(9, actual.NszCompressionLevel);
                 Assert.Equal(PackageEngine.Kronos, actual.PackageEngine);
+                Assert.Equal(NszCompressionEngine.Rust, actual.NszCompressionEngine);
                 Assert.Equal(@"C:\Plugins\nscb_rust.exe", actual.RustPackageExecutablePath);
                 Assert.Equal(@"C:\Plugins\Kronos", actual.KronosPackageDirectory);
                 Assert.Equal(originalTitleUrl, actual.TitlePageUrl);
@@ -163,6 +174,7 @@ public sealed class WorkspaceNavigationTest
                 main.Navigate(WorkspaceSection.Settings);
                 settings.ApplySettingsCommand.Execute(null);
                 Assert.Equal(PackageEngine.Kronos, actual.PackageEngine);
+                Assert.Equal(NszCompressionEngine.Rust, actual.NszCompressionEngine);
                 Assert.Equal(@"C:\Plugins\Kronos", actual.KronosPackageDirectory);
                 Assert.Equal("C:\\Plugins\\NxNandManager.exe", actual.NandExecutablePath);
                 Assert.Equal(PluginLogLevel.Debug, actual.NszLogLevel);
@@ -196,6 +208,7 @@ public sealed class WorkspaceNavigationTest
                 Assert.IsType<NandView>(((TabItem)nandDetails.Items[3]).Content);
                 Assert.Equal(9, actual.NszCompressionLevel);
                 Assert.Equal(PackageEngine.Kronos, actual.PackageEngine);
+                Assert.Equal(NszCompressionEngine.Rust, actual.NszCompressionEngine);
                 Assert.Equal(@"C:\Plugins\nscb_rust.exe", actual.RustPackageExecutablePath);
                 Assert.Equal(@"C:\Plugins\Kronos", actual.KronosPackageDirectory);
                 Assert.Equal("https://example.com/general-draft", actual.TitlePageUrl);
@@ -205,6 +218,7 @@ public sealed class WorkspaceNavigationTest
                 plugins.CancelSettingsCommand.Execute(null);
                 Assert.Equal(9, actual.NszCompressionLevel);
                 Assert.Equal(PackageEngine.Kronos, actual.PackageEngine);
+                Assert.Equal(NszCompressionEngine.Rust, actual.NszCompressionEngine);
                 Assert.Equal(@"C:\Plugins\nscb_rust.exe", actual.RustPackageExecutablePath);
                 Assert.Equal(@"C:\Plugins\Kronos", actual.KronosPackageDirectory);
                 Assert.Equal(9, plugins.EditedSettings.NszCompressionLevel);
@@ -221,9 +235,37 @@ public sealed class WorkspaceNavigationTest
                 main.Navigate(WorkspaceSection.Updates);
                 var updates = Assert.IsType<UpdateCenterView>(((TabItem)main.FindName("UpdatesTab")).Content);
                 var updateModel = Assert.IsType<UpdateCenterViewModel>(updates.DataContext);
+                var desktopButton = Assert.IsType<Button>(main.FindName("RustDesktopGuiButton"));
+                Assert.Equal("Desktop.OpenGuiCommand", desktopButton.GetBindingExpression(Button.CommandProperty)!.ParentBinding.Path.Path);
+                Assert.NotNull(updateModel.Desktop);
+                var kronosButton = Assert.IsType<Button>(main.FindName("KronosGuiButton"));
+                Assert.Equal("KronosGui.OpenGuiCommand", kronosButton.GetBindingExpression(Button.CommandProperty)!.ParentBinding.Path.Path);
+                var launchSettings = (actual.EnableNszGui, actual.EnableNandGui, actual.EnableRustDesktopGui, actual.EnableKronosGui);
+                var packagesActiveBefore = actual.PackageOperationsActive;
+                var nszActiveBefore = actual.NszPluginActive;
+                try
+                {
+                    actual.EnableNszGui = actual.EnableNandGui = actual.EnableRustDesktopGui = actual.EnableKronosGui = false;
+                    Assert.False(App.ServiceProvider.GetRequiredService<Emignatik.NxFileViewer.Services.Nsz.NszActions>().OpenGuiCommand.CanExecute(null));
+                    Assert.False(App.ServiceProvider.GetRequiredService<Emignatik.NxFileViewer.Services.Nand.NandPluginActions>().OpenGuiCommand.CanExecute(null));
+                    Assert.False(updateModel.Desktop.OpenGuiCommand.CanExecute(null));
+                    Assert.False(App.ServiceProvider.GetRequiredService<Emignatik.NxFileViewer.Services.PackageOperations.KronosGuiActions>().OpenGuiCommand.CanExecute(null));
+                    Assert.Equal(packagesActiveBefore, actual.PackageOperationsActive);
+                    Assert.Equal(nszActiveBefore, actual.NszPluginActive);
+                    foreach (var flag in new[] { "NszGui", "NandGui", "RustDesktopGui", "KronosGui" })
+                    {
+                        var box = Assert.IsType<CheckBox>(settingsPage.FindName("Enable" + flag + "CheckBox"));
+                        Assert.Equal("EditedSettings.Enable" + flag, box.GetBindingExpression(CheckBox.IsCheckedProperty)!.ParentBinding.Path.Path);
+                    }
+                }
+                finally
+                {
+                    actual.EnableNszGui = launchSettings.Item1; actual.EnableNandGui = launchSettings.Item2;
+                    actual.EnableRustDesktopGui = launchSettings.Item3; actual.EnableKronosGui = launchSettings.Item4;
+                }
                 var programGroups = Assert.IsType<StackPanel>(settingsPage.FindName("ProgramSettingsGroups"));
                 Assert.Equal(9, programGroups.Children.Count);
-                foreach (var setting in new[] { "BatchSeparatePackages", "BatchExportSeparatePackages", "BatchSummaryPreservePackageOrder" })
+                foreach (var setting in new[] { "BatchExportSeparatePackages", "BatchSummaryPreservePackageOrder" })
                 {
                     var packageCheckBox = Assert.IsType<CheckBox>(settingsPage.FindName(setting + "CheckBox"));
                     Assert.Equal("EditedSettings." + setting, packageCheckBox.GetBindingExpression(CheckBox.IsCheckedProperty)!.ParentBinding.Path.Path);
@@ -267,10 +309,7 @@ public sealed class WorkspaceNavigationTest
                 settings.EditedSettings.VerifyFilesOpenedInProgram = true;
                 settings.EditedSettings.VerifyFilesOpenedFromWindows = false;
                 var originalCheckUpdates = actual.NszCheckUpdates;
-                var updateCheckbox = (CheckBox)updates.FindName("NszCheckUpdatesBox");
-                var updateBinding = updateCheckbox.GetBindingExpression(CheckBox.IsCheckedProperty)!.ParentBinding;
-                Assert.Equal(nameof(UpdateCenterViewModel.NszCheckUpdates), updateBinding.Path.Path);
-                Assert.Null(updateBinding.RelativeSource);
+                Assert.Null(updates.FindName("NszCheckUpdatesBox"));
                 updateModel.NszCheckUpdates = false;
                 Assert.False(actual.NszCheckUpdates);
                 var settingsManager = App.ServiceProvider.GetRequiredService<IAppSettingsManager>();
@@ -484,11 +523,57 @@ public sealed class WorkspaceNavigationTest
                 grid.UpdateLayout();
                 Assert.False(multiDisplayResult.PackagesExpanded);
                 Assert.Equal(Visibility.Collapsed, multiRow.DetailsVisibility);
+                var previousGameSort = actual.BatchSeparatePackages;
+                var previousAlphabetical = actual.BatchGameSortAlphabetical;
+                actual.BatchGameSortAlphabetical = false;
+                actual.BatchSeparatePackages = false;
+                var previousSort = batch.ResultsView.SortDescriptions.ToArray();
+                var previousSortJson = actual.BatchSortLayout;
+                try
+                {
+                    var gameBox = Assert.IsType<CheckBox>(batchPage.FindName("GameSortingCheckBox"));
+                    Assert.Equal("GameSorting", gameBox.GetBindingExpression(CheckBox.IsCheckedProperty)!.ParentBinding.Path.Path);
+                    Assert.IsType<CheckBox>(batchPage.FindName("GameSortAlphabeticalCheckBox"));
+                    batch.ResultsView.SortDescriptions.Clear();
+                    batch.ResultsView.SortDescriptions.Add(new System.ComponentModel.SortDescription("Title", System.ComponentModel.ListSortDirection.Descending));
+                    batch.SaveStandardSorting();
+                    Assert.Contains("Title", actual.BatchSortLayout);
+                    batch.GameSorting = true;
+                    grid.GetBindingExpression(DataGrid.CanUserSortColumnsProperty)!.UpdateTarget();
+                    Assert.True(grid.CanUserSortColumns);
+                    Assert.Null(((System.Windows.Data.ListCollectionView)batch.ResultsView).CustomSort);
+                    batch.GameSortAlphabetical = true;
+                    grid.GetBindingExpression(DataGrid.CanUserSortColumnsProperty)!.UpdateTarget();
+                    Assert.False(grid.CanUserSortColumns);
+                    Assert.NotNull(((System.Windows.Data.ListCollectionView)batch.ResultsView).CustomSort);
+                    var sortAttempt = new DataGridSortingEventArgs(grid.Columns[0]);
+                    typeof(BatchIntegrityWindow).GetMethod("SortVersionColumn", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.Invoke(batchPage, new object[] { grid, sortAttempt });
+                    Assert.True(sortAttempt.Handled);
+                    batch.GameSorting = false;
+                    Assert.False(batch.CanChangeSort);
+                    batch.GameSorting = true;
+                    batch.GameSortAlphabetical = false;
+                    grid.GetBindingExpression(DataGrid.CanUserSortColumnsProperty)!.UpdateTarget();
+                    Assert.True(grid.CanUserSortColumns);
+                    Assert.Equal("Title", Assert.Single(batch.ResultsView.SortDescriptions).PropertyName);
+                    Assert.Equal(System.ComponentModel.ListSortDirection.Descending, batch.ResultsView.SortDescriptions[0].Direction);
+                }
+                finally
+                {
+                    actual.BatchGameSortAlphabetical = false;
+                    actual.BatchSeparatePackages = false;
+                    batch.ResultsView.SortDescriptions.Clear();
+                    foreach (var sort in previousSort) batch.ResultsView.SortDescriptions.Add(sort);
+                    actual.BatchSortLayout = previousSortJson;
+                    actual.BatchSeparatePackages = previousGameSort;
+                    actual.BatchGameSortAlphabetical = previousAlphabetical;
+                }
                 var originalSeparate = actual.BatchSeparatePackages;
                 var originalExportSeparate = actual.BatchExportSeparatePackages;
                 var originalSummaryOrder = actual.BatchSummaryPreservePackageOrder;
                 try
                 {
+                    actual.BatchGameSortAlphabetical = false;
                     actual.BatchSeparatePackages = false;
                     actual.BatchExportSeparatePackages = false;
                     actual.BatchSummaryPreservePackageOrder = false;
@@ -631,6 +716,22 @@ public sealed class WorkspaceNavigationTest
                 main.Navigate(WorkspaceSection.Home);
                 main.Navigate(WorkspaceSection.Batch);
                 Assert.Equal(Visibility.Visible, titleColumn.Visibility);
+                Assert.Equal("SplitAllPackagesCommand", Assert.IsType<Button>(batchPage.FindName("SplitAllPackagesButton")).GetBindingExpression(Button.CommandProperty)!.ParentBinding.Path.Path);
+                Assert.Equal("MergeAllPackagesCommand", Assert.IsType<Button>(batchPage.FindName("MergeAllPackagesButton")).GetBindingExpression(Button.CommandProperty)!.ParentBinding.Path.Path);
+                var splitOptions = new PackageBatchOptionsWindow(false);
+                Assert.Equal(3, splitOptions.FormatSelector.Items.Count);
+                Assert.Equal(Emignatik.NxFileViewer.Services.PackageOperations.PackageBatchFormat.KeepSource, splitOptions.Format);
+                Assert.Equal(Visibility.Collapsed, splitOptions.GroupingSelector.Visibility);
+                splitOptions.FormatSelector.SelectedIndex = 2;
+                Assert.Equal(Emignatik.NxFileViewer.Services.PackageOperations.PackageBatchFormat.Xci, splitOptions.Format);
+                splitOptions.Close();
+                var mergeOptions = new PackageBatchOptionsWindow(true);
+                Assert.Equal(2, mergeOptions.FormatSelector.Items.Count);
+                Assert.Equal(2, mergeOptions.GroupingSelector.Items.Count);
+                Assert.Equal(Emignatik.NxFileViewer.Services.PackageOperations.PackageMergeGrouping.ByGame, mergeOptions.Grouping);
+                mergeOptions.GroupingSelector.SelectedIndex = 1;
+                Assert.Equal(Emignatik.NxFileViewer.Services.PackageOperations.PackageMergeGrouping.AcrossGames, mergeOptions.Grouping);
+                mergeOptions.Close();
                 var createFileActions = typeof(BatchIntegrityWindow).GetMethod("CreateFileActionsMenu", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
                 var previousNszFeature = actual.EnableNszPlugin;
                 var previousNandFeature = actual.EnableNand;
@@ -645,6 +746,62 @@ public sealed class WorkspaceNavigationTest
                     var enabledPluginMenu = Assert.IsType<ContextMenu>(createFileActions.Invoke(batchPage, new object[] { batch, nszResult }));
                     Assert.Contains(System.Linq.Enumerable.OfType<MenuItem>(enabledPluginMenu.Items), item => Equals(item.Header, featureKeys.Nsz_Compress));
                     Assert.Contains(System.Linq.Enumerable.OfType<MenuItem>(enabledPluginMenu.Items), item => Equals(item.Header, featureKeys.Nsz_Decompress));
+                    System.IO.File.WriteAllBytes(nszPath, Array.Empty<byte>());
+                    System.IO.File.WriteAllBytes(nspPath, Array.Empty<byte>());
+                    try {
+                    var createSelectionActions = typeof(BatchIntegrityWindow).GetMethod("CreateSelectionActionsMenu", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+                    var multiMenu = Assert.IsType<ContextMenu>(createSelectionActions.Invoke(batchPage, new object[] { batch, new[] { nszResult, nspResult } }));
+                    var bulkItems = multiMenu.Items.OfType<MenuItem>().ToArray();
+                    Assert.Contains(bulkItems, item => Equals(item.Header, $"{featureKeys.Nsz_Compress} (1/2)"));
+                    Assert.Contains(bulkItems, item => Equals(item.Header, $"{featureKeys.Nsz_Decompress} (1/2)"));
+                    Assert.Contains(bulkItems, item => Equals(item.Header, $"{featureKeys.MenuItem_CheckIntegrity} (2/2)"));
+                    Assert.DoesNotContain(bulkItems, item => Equals(item.Header, featureKeys.BatchIntegrity_OpenSelected));
+                    Assert.Single(BatchIntegrityWindowViewModel.DistinctFiles(new[] { nszResult, nszResult with { PackageIndex = 1 } }));
+                    var packageWasEnabled = actual.EnablePackageOperations;
+                    actual.EnablePackageOperations = true;
+                    try
+                    {
+                        var xci = nspResult with { FilePath = System.IO.Path.ChangeExtension(nspPath, ".xci"), FileType = "XCI" };
+                        System.IO.File.WriteAllBytes(xci.FilePath, Array.Empty<byte>());
+                        try
+                        {
+                            var super = nspResult with { Packages = new[] {
+                                new Emignatik.NxFileViewer.Services.Integrity.BatchPackageSummary("Game","0100000000000000","Application","0"),
+                                new Emignatik.NxFileViewer.Services.Integrity.BatchPackageSummary("Update","0100000000000800","Patch","65536") } };
+                            var packageMenu = Assert.IsType<ContextMenu>(createSelectionActions.Invoke(batchPage, new object[] { batch, new[] { super, xci } }));
+                            var labels = packageMenu.Items.OfType<MenuItem>().Select(item => item.Header).ToArray();
+                            Assert.Contains($"{featureKeys.Package_ConvertNsp} (2/2)", labels);
+                            Assert.Contains($"{featureKeys.Package_ConvertXci} (2/2)", labels);
+                            Assert.Contains($"{featureKeys.Package_MergeNsp} (2/2)", labels);
+                            Assert.Contains($"{featureKeys.Package_MergeXci} (2/2)", labels);
+                            Assert.Contains($"{featureKeys.Package_Split} (1/2)", labels);
+                            Assert.Contains($"{featureKeys.Package_SplitXci} (1/2)", labels);
+                            var singlePackageMenu = Assert.IsType<ContextMenu>(createFileActions.Invoke(batchPage, new object[] { batch, super }));
+                            Assert.Contains(singlePackageMenu.Items.OfType<MenuItem>(), item => Equals(item.Header, featureKeys.Package_SplitXci));
+                            Assert.DoesNotContain(singlePackageMenu.Items.OfType<MenuItem>(), item => Equals(item.Header, featureKeys.Package_MergeNsp));
+                            var compressedSuper = super with { FilePath = nszPath, FileType = "NSZ" };
+                            var splitRows = Emignatik.NxFileViewer.Services.Integrity.BatchPackageRows.Create(compressedSuper, true);
+                            foreach (var row in splitRows)
+                            {
+                                var rowMenu = Assert.IsType<ContextMenu>(createFileActions.Invoke(batchPage, new object[] { batch, row }));
+                                Assert.Contains(rowMenu.Items.OfType<MenuItem>(), item => Equals(item.Header, featureKeys.Package_Split));
+                                Assert.Contains(rowMenu.Items.OfType<MenuItem>(), item => Equals(item.Header, featureKeys.Package_SplitXci));
+                            }
+                            Assert.Single(BatchIntegrityWindowViewModel.DistinctFiles(splitRows));
+                            var ordinaryMenu = Assert.IsType<ContextMenu>(createFileActions.Invoke(batchPage, new object[] { batch, xci }));
+                            Assert.DoesNotContain(ordinaryMenu.Items.OfType<MenuItem>(), item => Equals(item.Header, featureKeys.Package_Split));
+                        }
+                        finally { System.IO.File.Delete(xci.FilePath); }
+                    }
+                    finally { actual.EnablePackageOperations = packageWasEnabled; }
+                    Assert.Equal(DataGridSelectionMode.Extended, grid.SelectionMode);
+                    Assert.Equal(DataGridSelectionUnit.FullRow, grid.SelectionUnit);
+                    actual.EnableNszPlugin = false;
+                    var bulkDisabled = Assert.IsType<ContextMenu>(createSelectionActions.Invoke(batchPage, new object[] { batch, new[] { nszResult, nspResult } }));
+                    Assert.DoesNotContain(bulkDisabled.Items.OfType<MenuItem>(), item => item.Header.ToString()!.StartsWith(featureKeys.Nsz_Compress) || item.Header.ToString()!.StartsWith(featureKeys.Nsz_Decompress));
+                    actual.EnableNszPlugin = true;
+                    }
+                    finally { System.IO.File.Delete(nszPath); System.IO.File.Delete(nspPath); }
                     actual.EnableNand = false;
                     var nandNavigationTab = Assert.IsType<TabItem>(main.FindName("NandTab"));
                     nandNavigationTab.GetBindingExpression(UIElement.VisibilityProperty)!.UpdateTarget();

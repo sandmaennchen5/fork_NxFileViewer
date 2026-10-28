@@ -31,6 +31,12 @@ public class NamingPatternsParser : INamingPatternsParser
         return ParsePatternInternal(pattern, allowedAddonKeywords, PatternType.Addon);
     }
 
+    public Pattern ParseSuperPattern(string pattern) =>
+        ParsePatternInternal(pattern, PatternKeywordHelper.GetAllowedApplicationKeywords(), PatternType.Super);
+
+    public Pattern ParseMultiPattern(string pattern) =>
+        ParsePatternInternal(pattern, PatternKeywordHelper.GetAllowedMultiKeywords(), PatternType.Multi);
+
     private Pattern ParsePatternInternal(string patternStr, IReadOnlyList<PatternKeyword> allowedKeywords, PatternType patternType)
     {
         var pattern = new Pattern();

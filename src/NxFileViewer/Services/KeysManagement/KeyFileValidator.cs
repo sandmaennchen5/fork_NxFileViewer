@@ -8,34 +8,8 @@ namespace Emignatik.NxFileViewer.Services.KeysManagement;
 
 public static partial class KeyFileValidator
 {
-    // CRC32 fingerprints used by NSZ/Ownfoil. These are checksums, not cryptographic keys.
-    private static readonly IReadOnlyDictionary<string, uint> MasterKeyChecksums = new Dictionary<string, uint>
-    {
-        ["master_key_00"] = 3540309694,
-        ["master_key_01"] = 3477638116,
-        ["master_key_02"] = 2087460235,
-        ["master_key_03"] = 4095912905,
-        ["master_key_04"] = 3833085536,
-        ["master_key_05"] = 2078263136,
-        ["master_key_06"] = 2812171174,
-        ["master_key_07"] = 1146095808,
-        ["master_key_08"] = 1605958034,
-        ["master_key_09"] = 3456782962,
-        ["master_key_0a"] = 2012895168,
-        ["master_key_0b"] = 3813624150,
-        ["master_key_0c"] = 3881579466,
-        ["master_key_0d"] = 723654444,
-        ["master_key_0e"] = 2690905064,
-        ["master_key_0f"] = 4082108335,
-        ["master_key_10"] = 788455323,
-        ["master_key_11"] = 1214507020,
-        ["master_key_12"] = 1051942134,
-        ["master_key_13"] = 2476807835,
-        ["master_key_14"] = 2448653557,
-        ["master_key_15"] = 4071812001,
-        ["master_key_16"] = 418653682,
-    };
-
+    // The build-time catalog contains fingerprints, never actual master keys.
+    private static IReadOnlyDictionary<string, uint> MasterKeyChecksums => MasterKeyCatalog.Current.Checksums;
     public static KeyFileValidationResult ValidateProdKeys(string? filePath)
     {
         if (!IsExistingFile(filePath))

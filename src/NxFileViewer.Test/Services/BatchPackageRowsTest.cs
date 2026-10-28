@@ -37,6 +37,8 @@ public sealed class BatchPackageRowsTest
         Assert.Equal(source.Packages.Select(package => package.DisplayVersion), rows.Select(row => row.DisplayVersion));
         Assert.Equal(source.Packages.Select(package => package.SystemVersion), rows.Select(row => row.SystemVersion));
         Assert.All(rows, row => { Assert.Equal(source.FilePath, row.FilePath); Assert.Equal(source.FileSize, row.FileSize); Assert.Equal(source.Integrity, row.Integrity); Assert.False(row.HasMultiplePackages); });
+        Assert.All(rows, row => { Assert.True(row.HasMultiplePackagesInSource); Assert.Equal(3, row.SourcePackageCount); });
+        Assert.False((Container with { Packages = new[] { Container.Packages[0] } }).HasMultiplePackagesInSource);
         Assert.Equal("Pokemon Violet [xxx].nsp", source.FileName);
         Assert.Equal(3, source.Packages.Length);
         Assert.Same(source, Assert.Single(BatchPackageRows.Create(source, false, true)));

@@ -293,6 +293,50 @@ public sealed class PackageConversionTest : IDisposable
         Assert.Equal(14, settings.NszBlockSizeExponent);
     }
 
+    [Theory]
+    [InlineData(NszOperation.Compress, "--compress")]
+    [InlineData(NszOperation.Decompress, "--decompress")]
+    public void RustUsesSelectedOperationAndOnlyCompressionGetsLevel(NszOperation operation, string expectedFlag)
+    {
+        var args = NszCliPlugin.BuildRustArguments("input.nsz", "output", "prod.keys", 18, operation);
+        Assert.Equal(expectedFlag, args[0]);
+        Assert.DoesNotContain("-C", args);
+        Assert.DoesNotContain("-D", args);
+        if (operation == NszOperation.Decompress) Assert.DoesNotContain("--level", args);
+        else Assert.Contains("--level", args);
+    }
+
+    [Theory]
+    [InlineData(".nsz", ".nsp")]
+    [InlineData(".xcz", ".xci")]
+    public void PackageOperationsPrepareCompressedInputWithoutChangingOriginal(string extension, string unpackedExtension)
+    {
+        var source = Path.ChangeExtension(_source, extension);
+        File.WriteAllText(source, "compressed original");
+        var conversion = new PackageConversionService(_plugin, _verifier);
+        var service = new Emignatik.NxFileViewer.Services.PackageOperations.PackageOperationService(null!, _verifier, conversion);
+        var prepared = service.PrepareSource(source, _output, new Reporter(), TestContext.Current.CancellationToken);
+        Assert.Equal(unpackedExtension, Path.GetExtension(prepared));
+        Assert.Equal("converted content", File.ReadAllText(prepared));
+        Assert.Equal("compressed original", File.ReadAllText(source));
+        Assert.Equal(2, _verifier.Paths.Count);
+        Assert.Equal(1, _plugin.Calls);
+        Assert.Equal(prepared, service.PrepareSource(prepared, _output, new Reporter(), TestContext.Current.CancellationToken));
+        Assert.Equal(1, _plugin.Calls);
+    }
+
+    [Fact]
+    public void PackageOperationsRejectCorruptDecompressionAndKeepOriginal()
+    {
+        var source = Path.ChangeExtension(_source, ".nsz");
+        File.WriteAllText(source, "compressed original");
+        _verifier.OutputIntegrity = NcasIntegrity.Corrupted;
+        var service = new Emignatik.NxFileViewer.Services.PackageOperations.PackageOperationService(null!, _verifier,
+            new PackageConversionService(_plugin, _verifier));
+        Assert.Throws<InvalidDataException>(() => service.PrepareSource(source, _output, new Reporter(), TestContext.Current.CancellationToken));
+        Assert.Equal("compressed original", File.ReadAllText(source));
+        Assert.Empty(Directory.GetFileSystemEntries(_output));
+    }
     public void Dispose() => Directory.Delete(_root, recursive: true);
 
     private sealed class FakePlugin : INszPlugin

@@ -23,6 +23,8 @@ public class RenameFilesCommand : CommandBase, IRenameFilesCommand
     private Pattern? _applicationPatternParts;
     private Pattern? _patchPatternParts;
     private Pattern? _addonPatternParts;
+    private Pattern? _superPatternParts;
+    private Pattern? _multiPatternParts;
     private IBackgroundTaskRunner? _backgroundTaskRunner;
 
     public RenameFilesCommand(IAppSettings appSettings, IServiceProvider serviceProvider, ILoggerFactory loggerFactory)
@@ -67,6 +69,16 @@ public class RenameFilesCommand : CommandBase, IRenameFilesCommand
         }
     }
 
+    public Pattern? MultiPatternParts
+    {
+        get => _multiPatternParts;
+        set { _multiPatternParts = value; NotifyPropertyChanged(); TriggerCanExecuteChanged(); }
+    }
+    public Pattern? SuperPatternParts
+    {
+        get => _superPatternParts;
+        set { _superPatternParts = value; NotifyPropertyChanged(); TriggerCanExecuteChanged(); }
+    }
     public bool AutoCloseOpenedFile
     {
         get => _appSettings.RenamingOptions.AutoCloseOpenedFile;
@@ -146,6 +158,8 @@ public class RenameFilesCommand : CommandBase, IRenameFilesCommand
                 ApplicationPattern = ApplicationPatternParts!,
                 PatchPattern = PatchPatternParts!,
                 AddonPattern = AddonPatternParts!,
+                SuperPattern = SuperPatternParts!,
+                MultiPattern = MultiPatternParts!,
                 InvalidFileNameCharsReplacement = InvalidWindowsCharsReplacement,
                 ReplaceWhiteSpaceChars = ReplaceWhiteSpaceChars,
                 WhiteSpaceCharsReplacement = WhiteSpaceCharsReplacement,
@@ -210,7 +224,7 @@ public class RenameFilesCommand : CommandBase, IRenameFilesCommand
 
     public override bool CanExecute(object? parameter)
     {
-        return _applicationPatternParts != null && _patchPatternParts != null && _addonPatternParts != null && _backgroundTaskRunner is { IsRunning: false };
+        return _applicationPatternParts != null && _patchPatternParts != null && _addonPatternParts != null && _superPatternParts != null && _multiPatternParts != null && _backgroundTaskRunner is { IsRunning: false };
     }
 }
 
@@ -223,6 +237,10 @@ public interface IRenameFilesCommand : ICommand, INotifyPropertyChanged
     Pattern? PatchPatternParts { get; set; }
 
     Pattern? AddonPatternParts { get; set; }
+
+    Pattern? SuperPatternParts { get; set; }
+
+    Pattern? MultiPatternParts { get; set; }
 
     string InputPath { get; set; }
 

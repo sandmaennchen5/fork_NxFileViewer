@@ -94,10 +94,10 @@
                     </WrapPanel>
                     <Border Margin="4,14,4,0" Padding="10" BorderThickness="1" BorderBrush="{DynamicResource Control.Static.Border}" CornerRadius="6">
                         <StackPanel>
-                            <TextBlock Visibility="{Binding Source={x:Static app:App.Features}, Path=PluginsActive, Converter={StaticResource FalseToCollapseVisibilityConverter}}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Home_PluginLaunchTitle}" FontSize="14" FontWeight="SemiBold" Margin="4,0,0,4"/>
-                            <TextBlock Visibility="{Binding Source={x:Static app:App.Features}, Path=PluginsActive, Converter={StaticResource FalseToCollapseVisibilityConverter}}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Home_PluginLaunchTip}" TextWrapping="Wrap" FontSize="12" Margin="4,0,4,6"/>
-                            <WrapPanel Visibility="{Binding Source={x:Static app:App.Features}, Path=PluginsActive, Converter={StaticResource FalseToCollapseVisibilityConverter}}" x:Name="HomePluginRow" HorizontalAlignment="Center">
-                                <Button Visibility="{Binding Source={x:Static app:App.Features}, Path=NandPluginActive, Converter={StaticResource FalseToCollapseVisibilityConverter}}" x:Name="NandGuiButton" Command="{Binding NandPlugin.OpenGuiCommand}" Width="270" MinHeight="92" Padding="12,8" Margin="4,5" HorizontalContentAlignment="Stretch"
+                            <TextBlock Visibility="{Binding HasExternalGuiPlugins, Converter={StaticResource FalseToCollapseVisibilityConverter}}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Home_PluginLaunchTitle}" FontSize="14" FontWeight="SemiBold" Margin="4,0,0,4"/>
+                            <TextBlock Visibility="{Binding HasExternalGuiPlugins, Converter={StaticResource FalseToCollapseVisibilityConverter}}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Home_PluginLaunchTip}" TextWrapping="Wrap" FontSize="12" Margin="4,0,4,6"/>
+                            <WrapPanel Visibility="{Binding HasExternalGuiPlugins, Converter={StaticResource FalseToCollapseVisibilityConverter}}" x:Name="HomePluginRow" HorizontalAlignment="Center">
+                                <Button Visibility="{Binding NandPlugin.IsGuiEnabled, Converter={StaticResource FalseToCollapseVisibilityConverter}}" x:Name="NandGuiButton" Command="{Binding NandPlugin.OpenGuiCommand}" Width="270" MinHeight="92" Padding="12,8" Margin="4,5" HorizontalContentAlignment="Stretch"
                                         ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Home_NandLaunchTip}" ToolTipService.ShowOnDisabled="True">
                                     <Grid>
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="34"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -109,7 +109,7 @@
                                         </StackPanel>
                                     </Grid>
                                 </Button>
-                                <Button Visibility="{Binding Source={x:Static app:App.Features}, Path=NszPluginActive, Converter={StaticResource FalseToCollapseVisibilityConverter}}" x:Name="NszGuiButton" Command="{Binding Nsz.OpenGuiCommand}" Width="270" MinHeight="92" Padding="12,8" Margin="4,5" HorizontalContentAlignment="Stretch"
+                                <Button Visibility="{Binding Nsz.IsGuiEnabled, Converter={StaticResource FalseToCollapseVisibilityConverter}}" x:Name="NszGuiButton" Command="{Binding Nsz.OpenGuiCommand}" Width="270" MinHeight="92" Padding="12,8" Margin="4,5" HorizontalContentAlignment="Stretch"
                                         ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Home_NszLaunchTip}" ToolTipService.ShowOnDisabled="True">
                                     <Grid>
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="34"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -120,6 +120,20 @@
                                             <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Home_LaunchExternal}" FontWeight="SemiBold"/>
                                         </StackPanel>
                                     </Grid>
+                                </Button>
+                                <Button x:Name="RustDesktopGuiButton" Visibility="{Binding Desktop.IsGuiEnabled, Converter={StaticResource FalseToCollapseVisibilityConverter}}" Command="{Binding Desktop.OpenGuiCommand}" Width="270" MinHeight="92" Padding="12,8" Margin="4,5" HorizontalContentAlignment="Stretch">
+                                    <StackPanel>
+                                        <TextBlock Text="NSCB Desktop · nscb_rust" FontSize="14" FontWeight="SemiBold"/>
+                                        <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Home_NszDescription}" TextWrapping="Wrap" FontSize="12" Margin="0,3,0,6"/>
+                                        <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Home_LaunchExternal}" FontWeight="SemiBold"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button x:Name="KronosGuiButton" Visibility="{Binding KronosGui.IsGuiEnabled, Converter={StaticResource FalseToCollapseVisibilityConverter}}" Command="{Binding KronosGui.OpenGuiCommand}" Width="270" MinHeight="92" Padding="12,8" Margin="4,5" HorizontalContentAlignment="Stretch">
+                                    <StackPanel>
+                                        <TextBlock Text="Kronos / NSC_BUILDER" FontSize="14" FontWeight="SemiBold"/>
+                                        <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Package_Title}" TextWrapping="Wrap" FontSize="12" Margin="0,3,0,6"/>
+                                        <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Home_LaunchExternal}" FontWeight="SemiBold"/>
+                                    </StackPanel>
                                 </Button>
                             </WrapPanel>
                         </StackPanel>

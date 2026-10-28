@@ -11,30 +11,39 @@ using Emignatik.NxFileViewer.Localization;
 using Emignatik.NxFileViewer.Services.BackgroundTask;
 using Emignatik.NxFileViewer.Services.KeysManagement;
 using Emignatik.NxFileViewer.Settings;
+using Emignatik.NxFileViewer.Services.PackageOperations;
 
 namespace Emignatik.NxFileViewer.Services.Nsz;
 
-public sealed class NszCliPlugin(NszPluginManager manager, IKeySetProviderService keys, IAppSettings settings, ILogger<NszCliPlugin>? logger = null) : INszPlugin
+public sealed class NszCliPlugin(NszPluginManager manager, IKeySetProviderService keys, IAppSettings settings, ILogger<NszCliPlugin>? logger = null) : INszEnginePlugin
 {
     public void Convert(string source, string outputDirectory, NszOperation operation,
+        IProgressReporter progress, CancellationToken cancellationToken) =>
+        ConvertUsingEngine(settings.NszCompressionEngine.PrimaryRust(), source, outputDirectory, operation, progress, cancellationToken);
+
+    public void ConvertUsingEngine(bool useRust, string source, string outputDirectory, NszOperation operation,
         IProgressReporter progress, CancellationToken cancellationToken)
     {
         if (!settings.NszPluginActive) throw new InvalidOperationException(LocalizationManager.Instance.Current.Keys.Features_PluginsDisabled);
-        var executable = manager.ExecutablePath;
+        var engineName = useRust ? "nscb_rust" : "nicoboss/nsz";
+        var executable = useRust ? PackageEnginePaths.ResolveRust(settings.RustPackageExecutablePath) : manager.ExecutablePath;
         if (!File.Exists(executable))
-            throw new FileNotFoundException(LocalizationManager.Instance.Current.Keys.Nsz_NotInstalled);
+            throw new FileNotFoundException(useRust ? $"{engineName}: {LocalizationManager.Instance.Current.Keys.Package_Missing} ({executable})" : LocalizationManager.Instance.Current.Keys.Nsz_NotInstalled, executable);
+        executable = Path.GetFullPath(executable);
         var keyPath = keys.ActualProdKeysFilePath;
         if (keyPath == null) throw new InvalidOperationException(LocalizationManager.Instance.Current.Keys.Nsz_KeysMissing);
         progress.SetMode(true);
         progress.SetText((operation == NszOperation.Compress ? LocalizationManager.Instance.Current.Keys.Nsz_Compress :
             LocalizationManager.Instance.Current.Keys.Nsz_Decompress) + " " + Path.GetFileName(source));
         using var alias = new NszInputAlias(source, outputDirectory, keyPath, cancellationToken, logger);
-        var arguments = BuildArguments(alias.SourceArgument, ".", alias.KeysArgument, operation, settings.NszCompressionLevel,
+        var arguments = useRust
+            ? BuildRustArguments(alias.SourceArgument, ".", alias.KeysArgument, settings.NszCompressionLevel, operation)
+            : BuildArguments(alias.SourceArgument, ".", alias.KeysArgument, operation, settings.NszCompressionLevel,
             settings.NszCompressionMode, settings.NszBlockSizeExponent, useRelativePaths: true);
         var action = (operation == NszOperation.Compress ? LocalizationManager.Instance.Current.Keys.Nsz_Compress :
             LocalizationManager.Instance.Current.Keys.Nsz_Decompress) + " " + Path.GetFileName(source);
-        logger?.LogInformation("NSZ {Operation}: source={Source}; output={Output}; keys file={Keys}; executable={Executable}; arguments={Arguments}",
-            operation, source, outputDirectory, keyPath, executable, string.Join(" ", arguments));
+        logger?.LogInformation("{Engine} {Operation}: source={Source}; output={Output}; keys file={Keys}; executable={Executable}; arguments={Arguments}",
+            engineName, operation, source, outputDirectory, keyPath, executable, string.Join(" ", arguments));
         var timer = Stopwatch.StartNew();
         var diagnostics = new Queue<string>();
         var diagnosticGate = new object();
@@ -52,7 +61,7 @@ public sealed class NszCliPlugin(NszPluginManager manager, IKeySetProviderServic
                     diagnostics.Enqueue(line);
                     while (diagnostics.Count > 30) diagnostics.Dequeue();
                 }
-                logger?.LogDebug("NSZ: {Output}", line);
+                logger?.LogDebug("{Engine}: {Output}", engineName, line);
             });
             cancellationToken.ThrowIfCancellationRequested();
             alias.RestoreOutputName(operation);
@@ -77,12 +86,22 @@ public sealed class NszCliPlugin(NszPluginManager manager, IKeySetProviderServic
         catch (Exception ex) when (ex is IOException or InvalidDataException)
         {
             lock (diagnosticGate)
-                logger?.LogError("NSZ process failed after {Seconds:F1} seconds. Last diagnostic messages:\n{Diagnostics}",
-                    timer.Elapsed.TotalSeconds, string.Join(Environment.NewLine, diagnostics));
+                logger?.LogError("{Engine} process failed after {Seconds:F1} seconds. Last diagnostic messages:\n{Diagnostics}",
+                    engineName, timer.Elapsed.TotalSeconds, string.Join(Environment.NewLine, diagnostics));
             throw;
         }
-        logger?.LogInformation("NSZ process completed successfully after {Seconds:F1} seconds.", timer.Elapsed.TotalSeconds);
+        logger?.LogInformation("{Engine} process completed successfully after {Seconds:F1} seconds.", engineName, timer.Elapsed.TotalSeconds);
         progress.SetMode(false);
+    }
+
+    public static IReadOnlyList<string> BuildRustArguments(string source, string output, string keys, int level,
+        NszOperation operation = NszOperation.Compress)
+    {
+        var args = new List<string> { operation == NszOperation.Compress ? "--compress" : "--decompress",
+            source, "--keys", keys, "-o", output };
+        if (operation == NszOperation.Compress)
+            args.AddRange(new[] { "--level", Math.Clamp(level, 1, 22).ToString(System.Globalization.CultureInfo.InvariantCulture) });
+        return args;
     }
 
     public static IReadOnlyList<string> BuildArguments(string source, string output, string keys,

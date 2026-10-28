@@ -9,15 +9,25 @@ namespace Emignatik.NxFileViewer.Services.PackageOperations;
 public static class PackageOutputPublisher
 {
     public static void Publish(string ready, string destination, CancellationToken token,
-        Action<string, string>? moveFile = null, IReadOnlyList<string>? files = null)
+        Action<string, string>? moveFile = null, IReadOnlyList<string>? files = null, bool mergeIntoExisting = false)
     {
         token.ThrowIfCancellationRequested();
-        if (Directory.Exists(destination) || File.Exists(destination))
+        if ((!mergeIntoExisting && Directory.Exists(destination)) || File.Exists(destination))
             throw new IOException("Output already exists: " + destination);
+        var inputs = files ?? Directory.GetFiles(ready, "*", SearchOption.AllDirectories);
+        var targets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var source in inputs)
+        {
+            var target = Path.GetFullPath(Path.Combine(destination, Path.GetRelativePath(ready, source)));
+            var root = Path.GetFullPath(destination).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            if (!target.StartsWith(root, StringComparison.OrdinalIgnoreCase) ||
+                !targets.Add(target) || File.Exists(target) || Directory.Exists(target))
+                throw new IOException("Output already exists or is invalid: " + target);
+        }
         Directory.CreateDirectory(destination);
-        var marker = Path.Combine(destination, "NXFV-INCOMPLETE.txt");
+        var marker = Path.Combine(destination, mergeIntoExisting ? ".NXFV-INCOMPLETE-" + Guid.NewGuid().ToString("N") + ".txt" : "NXFV-INCOMPLETE.txt");
         File.WriteAllText(marker, "Publication is incomplete. Validated files may be in this directory and in:\n" + ready);
-        foreach (var source in files ?? Directory.GetFiles(ready, "*", SearchOption.AllDirectories))
+        foreach (var source in inputs)
         {
             token.ThrowIfCancellationRequested();
             var target = Path.Combine(destination, Path.GetRelativePath(ready, source));

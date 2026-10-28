@@ -24,4 +24,6 @@ public enum PatternType
     Application,
     Patch,
     Addon,
+    Super,
+    Multi,
 }

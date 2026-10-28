@@ -104,7 +104,6 @@
                     </GroupBox>
                     <GroupBox Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchPackages_Title}" Margin="8,4,8,8">
                         <StackPanel Margin="8">
-                            <CheckBox x:Name="BatchSeparatePackagesCheckBox" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchPackages_Display}" IsChecked="{Binding EditedSettings.BatchSeparatePackages}" Margin="0,0,0,8"/>
                             <CheckBox x:Name="BatchExportSeparatePackagesCheckBox" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchPackages_Export}" IsChecked="{Binding EditedSettings.BatchExportSeparatePackages}" Margin="0,0,0,8"/>
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                                 <CheckBox x:Name="BatchSummaryPreservePackageOrderCheckBox" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchPackages_SummaryOrder}" ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchPackages_SummaryOrderTip}" IsChecked="{Binding EditedSettings.BatchSummaryPreservePackageOrder}"/>
@@ -383,7 +382,7 @@
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBox Grid.Column="0" Text="{Binding Path=EditedSettings.RenamingOptions.ApplicationPattern}" bindingExtensions:TextBoxExtension.FlushOnEnterKeyPressed ="True" />
+                                    <customControls:NamingPatternSelector Grid.Column="0" Kind="Application" Pattern="{Binding EditedSettings.RenamingOptions.ApplicationPattern, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                     <StackPanel Grid.Column="1" Orientation="Horizontal">
                                         
                                         <customControls:TipLabel ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RenamingTool_ToolTip_BasePattern}"/>
@@ -395,7 +394,7 @@
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBox Grid.Column="0" Text="{Binding Path=EditedSettings.RenamingOptions.PatchPattern}" bindingExtensions:TextBoxExtension.FlushOnEnterKeyPressed ="True" />
+                                    <customControls:NamingPatternSelector Grid.Column="0" Kind="Patch" Pattern="{Binding EditedSettings.RenamingOptions.PatchPattern, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                     <StackPanel Grid.Column="1" Orientation="Horizontal">
                                         
                                         <customControls:TipLabel ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RenamingTool_ToolTip_PatchPattern}"/>
@@ -407,13 +406,21 @@
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBox Grid.Column="0" Text="{Binding Path=EditedSettings.RenamingOptions.AddonPattern}" bindingExtensions:TextBoxExtension.FlushOnEnterKeyPressed ="True" />
+                                    <customControls:NamingPatternSelector Grid.Column="0" Kind="Addon" Pattern="{Binding EditedSettings.RenamingOptions.AddonPattern, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                     <StackPanel Grid.Column="1" Orientation="Horizontal">
                                         
                                         <customControls:TipLabel ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RenamingTool_ToolTip_AddonPattern}"/>
                                     </StackPanel>
 
                                 </Grid>
+                                <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RenamingTool_SuperPattern}" Style="{StaticResource Title2}" />
+                                <customControls:NamingPatternSelector Kind="Super" Pattern="{Binding EditedSettings.RenamingOptions.SuperPattern, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RenamingTool_ToolTip_SuperPattern}"
+                                           TextWrapping="Wrap" Margin="0,4,0,8" />
+                                <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RenamingTool_MultiPattern}" Style="{StaticResource Title2}" />
+                                <customControls:NamingPatternSelector Kind="Multi" Pattern="{Binding EditedSettings.RenamingOptions.MultiPattern, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RenamingTool_ToolTip_MultiPattern}"
+                                           TextWrapping="Wrap" Margin="0,4,0,8" />
                             </StackPanel>
                         </GroupBox>
 
@@ -526,6 +533,14 @@
                         <CheckBox x:Name="EnableMtpCheckBox" IsChecked="{Binding EditedSettings.EnableMtp}" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Features_Mtp}" Margin="0,0,0,12"/>
                         <CheckBox x:Name="EnableFirmwareCheckBox" IsChecked="{Binding EditedSettings.EnableFirmwareCheck}" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Features_Firmware}" Margin="0,0,0,12"/>
                         <CheckBox x:Name="EnablePackageOperationsCheckBox" IsChecked="{Binding EditedSettings.EnablePackageOperations}" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Features_PackageOperations}" Margin="0,0,0,12"/>
+                        <GroupBox Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Features_DirectStarts}" Margin="0,0,0,12">
+                            <StackPanel Margin="10">
+                                <CheckBox x:Name="EnableNszGuiCheckBox" IsChecked="{Binding EditedSettings.EnableNszGui}" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Features_NszGui}" Margin="0,0,0,8"/>
+                                <CheckBox x:Name="EnableNandGuiCheckBox" IsChecked="{Binding EditedSettings.EnableNandGui}" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Features_NandGui}" Margin="0,0,0,8"/>
+                                <CheckBox x:Name="EnableRustDesktopGuiCheckBox" IsChecked="{Binding EditedSettings.EnableRustDesktopGui}" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Features_RustDesktopGui}" Margin="0,0,0,8"/>
+                                <CheckBox x:Name="EnableKronosGuiCheckBox" IsChecked="{Binding EditedSettings.EnableKronosGui}" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Features_KronosGui}"/>
+                            </StackPanel>
+                        </GroupBox>
                         <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Features_Restart}" TextWrapping="Wrap"/>
                     </StackPanel>
                 </GroupBox>

@@ -93,17 +93,19 @@
             <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchTable_Columns}" Click="OpenColumns" Padding="10,3" Margin="0,0,8,0"/>
             <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchTable_ResetColumns}" Click="ResetColumns" Padding="10,3" Margin="0,0,8,0"/>
             <Grid Margin="18,0,0,0" VerticalAlignment="Center">
-                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                 <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <CheckBox Grid.Row="0" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Batch_IncludeArchives}" IsChecked="{Binding IncludeArchives}" Margin="0,0,18,2"/>
                 <CheckBox Grid.Row="1" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_IncludeSubdirectories}" IsChecked="{Binding IncludeSubdirectories}" Margin="0,0,18,0"/>
-                <CheckBox Grid.Row="1" Grid.Column="1" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Batch_GroupFiles}" IsChecked="{Binding GroupFiles, Mode=TwoWay}"/>
+                <CheckBox Grid.Row="1" Grid.Column="1" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Batch_GroupFiles}" IsChecked="{Binding GroupFiles, Mode=TwoWay}" IsEnabled="{Binding CanChangeSort}"/>
                 <CheckBox Grid.Column="1" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_ShowOnlyErrors}" IsChecked="{Binding ShowOnlyErrors}"/>
-            </Grid>
+                            <CheckBox x:Name="GameSortingCheckBox" Grid.Row="2" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Batch_GameSorting}" IsChecked="{Binding GameSorting}" Margin="0,6,18,0"/>
+                <CheckBox x:Name="GameSortAlphabeticalCheckBox" Grid.Row="2" Grid.Column="1" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Batch_GameSortAlphabetical}" IsChecked="{Binding GameSortAlphabetical}" Margin="0,6,0,0"/>
+</Grid>
         </WrapPanel>
         <Grid Grid.Row="2">
             <Grid.ColumnDefinitions><ColumnDefinition x:Name="ResultsPaneColumn" Width="3*"/><ColumnDefinition x:Name="DetailsSplitterColumn" Width="31"/><ColumnDefinition x:Name="DetailsPaneColumn" Width="2*"/></Grid.ColumnDefinitions>
-            <DataGrid ColumnHeaderStyle="{StaticResource BatchColumnHeaderStyle}" x:Name="ResultsGrid" SelectionChanged="ResultsSelectionChanged" ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto" MinColumnWidth="80" PreviewMouseWheel="ScrollTable" Sorting="SortVersionColumn" CanUserSortColumns="True" CanUserReorderColumns="True" EnableColumnVirtualization="False" ItemsSource="{Binding ResultsView}" SelectedItem="{Binding SelectedResult, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False">
+            <DataGrid ColumnHeaderStyle="{StaticResource BatchColumnHeaderStyle}" x:Name="ResultsGrid" SelectionMode="Extended" SelectionUnit="FullRow" SelectionChanged="ResultsSelectionChanged" ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto" MinColumnWidth="80" PreviewMouseWheel="ScrollTable" Sorting="SortVersionColumn" CanUserSortColumns="{Binding CanChangeSort}" CanUserReorderColumns="True" EnableColumnVirtualization="False" ItemsSource="{Binding ResultsView}" SelectedItem="{Binding SelectedResult, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False">
 
                 <DataGrid.RowStyle>
                     <Style TargetType="DataGridRow">
@@ -253,6 +255,8 @@
             <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Batch_VerifyAll}" Command="{Binding VerifyAllCommand}" Padding="12,4" Margin="0,0,8,8"/>
             <Button Visibility="{Binding Source={x:Static app:App.Features}, Path=NszPluginActive, Converter={StaticResource FalseToCollapseVisibilityConverter}}" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nsz_CompressValid}" Command="{Binding CompressValidCommand}" Padding="12,4" Margin="0,0,8,8"/>
             <Button Visibility="{Binding Source={x:Static app:App.Features}, Path=NszPluginActive, Converter={StaticResource FalseToCollapseVisibilityConverter}}" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nsz_DecompressValid}" Command="{Binding DecompressValidCommand}" Padding="12,4" Margin="0,0,8,8"/>
+            <Button x:Name="SplitAllPackagesButton" Visibility="{Binding Source={x:Static app:App.Features}, Path=PackageOperationsActive, Converter={StaticResource FalseToCollapseVisibilityConverter}}" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Batch_SplitAllPackages}" Command="{Binding SplitAllPackagesCommand}" Padding="12,4" Margin="0,0,8,8"/>
+            <Button x:Name="MergeAllPackagesButton" Visibility="{Binding Source={x:Static app:App.Features}, Path=PackageOperationsActive, Converter={StaticResource FalseToCollapseVisibilityConverter}}" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Batch_MergeAllPackages}" Command="{Binding MergeAllPackagesCommand}" Padding="12,4" Margin="0,0,8,8"/>
             <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchIntegrity_MoveValid}" Command="{Binding MoveValidCommand}" Padding="12,4" Margin="0,0,8,8"/>
         </WrapPanel>
         <WrapPanel>

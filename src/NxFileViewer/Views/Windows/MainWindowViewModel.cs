@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
@@ -23,6 +23,10 @@ namespace Emignatik.NxFileViewer.Views.Windows;
 
 public class MainWindowViewModel : WindowViewModelBase, IFilesDropped
 {
+    public bool HasExternalGuiPlugins => (_appSettings.NszPluginActive && _appSettings.EnableNszGui) ||
+        (_appSettings.NandPluginActive && _appSettings.EnableNandGui) ||
+        ((_appSettings.NszPluginActive || _appSettings.PackageOperationsActive) && _appSettings.EnableRustDesktopGui) ||
+        (_appSettings.PackageOperationsActive && _appSettings.EnableKronosGui);
     public bool HasBundledRuntime => Emignatik.NxFileViewer.Services.Updates.ViewerDistribution.IsSelfContained;
     public string ProgramArchitecture => System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.ToString().ToLowerInvariant();
     private readonly ILogger _logger;
@@ -84,6 +88,7 @@ public class MainWindowViewModel : WindowViewModelBase, IFilesDropped
         _logger = (loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory))).CreateLogger(this.GetType());
         _keySetProviderService = keySetProviderService ?? throw new ArgumentNullException(nameof(keySetProviderService));
         _appSettings = appSettings ?? throw new ArgumentNullException(nameof(appSettings));
+        _appSettings.PropertyChanged += (_, _) => NotifyPropertyChanged(nameof(HasExternalGuiPlugins));
         _fileOpeningService = fileOpeningService ?? throw new ArgumentNullException(nameof(fileOpeningService));
         OpenFileCommand = openFileCommand ?? throw new ArgumentNullException(nameof(openFileCommand));
         OpenSphairaCommand = new Utils.MVVM.Commands.RelayCommand(async () =>
@@ -127,6 +132,8 @@ public class MainWindowViewModel : WindowViewModelBase, IFilesDropped
     }
 
     private IServiceProvider ServiceProvider { get; }
+    public Emignatik.NxFileViewer.Services.PackageOperations.KronosGuiActions KronosGui => ServiceProvider.GetRequiredService<Emignatik.NxFileViewer.Services.PackageOperations.KronosGuiActions>();
+    public Emignatik.NxFileViewer.Services.PackageOperations.RustDesktopActions Desktop => ServiceProvider.GetRequiredService<Emignatik.NxFileViewer.Services.PackageOperations.RustDesktopActions>();
     public Emignatik.NxFileViewer.Services.Updates.ViewerUpdateActions ViewerUpdates => ServiceProvider.GetRequiredService<Emignatik.NxFileViewer.Services.Updates.ViewerUpdateActions>();
 
     public Emignatik.NxFileViewer.Services.Nand.NandPluginActions NandPlugin => ServiceProvider.GetRequiredService<Emignatik.NxFileViewer.Services.Nand.NandPluginActions>();

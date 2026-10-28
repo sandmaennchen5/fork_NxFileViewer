@@ -19,6 +19,12 @@ public class NamingSettings : INamingSettings
 
     public Pattern AddonPattern { get; set; } = new();
 
+    IPattern INamingSettings.SuperPattern => SuperPattern;
+    public Pattern SuperPattern { get; set; } = new();
+
+    IPattern INamingSettings.MultiPattern => MultiPattern;
+    public Pattern MultiPattern { get; set; } = new();
+
     public string? InvalidFileNameCharsReplacement { get; set; }
 
     public bool ReplaceWhiteSpaceChars { get; set; }

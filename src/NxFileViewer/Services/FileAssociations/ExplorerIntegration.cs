@@ -113,13 +113,18 @@ public static class ExplorerIntegration
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "NxFileViewerFork", "ExplorerDownloads"),
             new ModernDeployment(), progress, System.Threading.CancellationToken.None);
 
+    public static async Task<Version?> InstalledModernVersionAsync(System.Threading.CancellationToken token = default)
+    {
+        if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000)) return null;
+        using var timeout = System.Threading.CancellationTokenSource.CreateLinkedTokenSource(token);
+        timeout.CancelAfter(TimeSpan.FromSeconds(15));
+        var result = await RunPowerShell("$package=Get-AppxPackage -Name '" + PackageName + "' | Sort-Object { [Version]$_.Version } -Descending | Select-Object -First 1; if ($package) { $package.Version.ToString() }", timeout.Token);
+        return string.IsNullOrWhiteSpace(result) ? null : Version.Parse(result.Trim());
+    }
+
     private sealed class ModernDeployment : IExplorerPackageDeployment
     {
-        public async Task<Version?> InstalledVersionAsync()
-        {
-            var result = await RunPowerShell("$package=Get-AppxPackage -Name '" + PackageName + "' | Sort-Object { [Version]$_.Version } -Descending | Select-Object -First 1; if ($package) { $package.Version.ToString() }");
-            return string.IsNullOrWhiteSpace(result) ? null : Version.Parse(result.Trim());
-        }
+        public Task<Version?> InstalledVersionAsync() => InstalledModernVersionAsync();
         public bool IsTrusted(X509Certificate2 certificate)
         {
             using var store = new X509Store(StoreName.TrustedPeople, StoreLocation.LocalMachine);
@@ -156,6 +161,17 @@ public static class ExplorerIntegration
             CleanupUnusedVersions();
         }
     }
+    public static void SynchronizeFeatures(Settings.IAppSettings settings)
+    {
+        using var user = UserRegistry();
+        using var config = user.OpenSubKey(ConfigurationKey, true);
+        // Another portable copy must not change the integration registered for a different executable.
+        if (config?.GetValue("Executable") is not string executable ||
+            !string.Equals(Path.GetFullPath(executable), CurrentExecutable(), StringComparison.OrdinalIgnoreCase)) return;
+        config.SetValue("CompressionEnabled", settings.EnableNszPlugin ? 1 : 0, RegistryValueKind.DWord);
+        config.SetValue("PackageOperationsEnabled", settings.EnablePackageOperations ? 1 : 0, RegistryValueKind.DWord);
+    }
+
     public static void UpdateLanguage(string language)
     {
         CleanupUnusedVersions();
@@ -206,7 +222,7 @@ public static class ExplorerIntegration
     private static RegistryKey UserRegistry() => RegistryKey.OpenBaseKey(RegistryHive.CurrentUser,
         Environment.Is64BitOperatingSystem ? RegistryView.Registry64 : RegistryView.Registry32);
     private static string Quote(string value) => "'" + value.Replace("'", "''") + "'";
-    private static async Task<string> RunPowerShell(string command)
+    private static async Task<string> RunPowerShell(string command, System.Threading.CancellationToken token = default)
     {
         var script = "$ErrorActionPreference='Stop'; try { " + command + " } catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }";
         // Use native Windows PowerShell even when the viewer itself is a 32-bit process.
@@ -221,7 +237,13 @@ public static class ExplorerIntegration
         using var process = Process.Start(start) ?? throw new IOException("Could not start Windows package registration.");
         var error = process.StandardError.ReadToEndAsync();
         var output = process.StandardOutput.ReadToEndAsync();
-        await process.WaitForExitAsync();
+        try { await process.WaitForExitAsync(token); }
+        catch (OperationCanceledException)
+        {
+            try { if (!process.HasExited) process.Kill(entireProcessTree: true); }
+            catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception) { }
+            throw;
+        }
         var result = await output;
         if (process.ExitCode != 0) throw new InvalidOperationException(await error);
         await error;

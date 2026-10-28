@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Emignatik.NxFileViewer.Utils.MVVM.Localization;
 using LibHac.Ncm;
 
@@ -35,16 +35,29 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
     public string Package_PublicationRecovery => "La publication a été interrompue. Les fichiers validés sont conservés dans les dossiers suivants. Un dossier contenant NXFV-INCOMPLETE.txt est incomplet.";
     public string Features_PackageOperations => "Activer fusion / séparation / NSP ↔ XCI (expérimental)";
     public string Features_PackageOperationsDisabled => "Cette fonction expérimentale est désactivée. Activez-la dans Paramètres → Fonctions et redémarrez l’application.";
-    public string Package_Title => "Fusionner / Séparer le contenu / NSP ↔ XCI (expérimental)";
+    public string Package_Title => "Fusionner / Séparer / Convertir (expérimental)";
     public string Package_Engine => "Moteur de paquets";
     public string Package_RustPath => "cxfcxf / nscb_rust — exécutable";
     public string Package_KronosPath => "Kronos — dossier portable (runtime et ztools)";
-    public string Package_Tip => "Appliquez les paramètres avant de démarrer. Sélectionnez une version par titre. Les sources sont conservées et les résultats sont enregistrés dans un nouveau dossier. La compression NSZ utilise le module existant.";
+    public string Package_Tip => "Appliquez les paramètres avant de démarrer. Sélectionnez une version par titre. Les sources sont conservées et les résultats sont enregistrés dans un nouveau dossier. Les boutons de téléchargement installent et activent directement le moteur. nscb_rust peut être sélectionné séparément pour la compression.";
     public string Package_MergeNsp => "Fusionner → NSP";
     public string Package_MergeXci => "Fusionner → XCI";
     public string Package_ConvertNsp => "Convertir → NSP";
     public string Package_ConvertXci => "Convertir → XCI";
+    public string Batch_SplitAllPackages => "Séparer tous les multipaquets…";
+    public string Batch_MergeAllPackages => "Fusionner les paquets…";
+    public string Batch_KeepSourceFormat => "Conserver le format source (NSP/XCI)";
+    public string Batch_MergeByGame => "Par ID de jeu (jeu + mises à jour + DLC)";
+    public string Batch_MergeAcrossGames => "Paquet de plusieurs jeux";
+    public string Batch_StartPackageJob => "Démarrer";
+    public string Batch_PackageSkipped => "Non traités :";
+    public string Batch_MergeAutoSplitPrompt => "Des paquets de plusieurs jeux avec des contenus supplémentaires correspondants ont été trouvés. Les séparer temporairement puis les fusionner par ID de jeu ? Les fichiers originaux sont conservés.";
+    public string Batch_MergeNeedsSplit => "Plusieurs jeux : séparer au préalable";
+    public string Batch_MergeUnknownGame => "ID de jeu incertain : analyser à nouveau";
+    public string Batch_MergeSingleFile => "Aucun autre paquet pour ce jeu";
+    public string Package_SplitNotRequired => "Ce fichier ne contient pas plusieurs contenus à séparer. Séparation ignorée.";
     public string Package_Split => "Séparer le contenu → NSP";
+    public string Package_SplitXci => "Séparer le contenu → XCI";
     public string Package_Destination => "Choisir le dossier de sortie";
     public string Package_Inputs => "Choisir des fichiers NSP/XCI locaux";
     public string Package_Done => "Dossier de sortie : ";
@@ -67,7 +80,29 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
     public string XciRepair_Failed => "La réparation n’a pas abouti. L’original reste inchangé.\n\n{0}";
     public string Features_Nand => "Activer les fonctions NAND";
     public string Features_NandDisabled => "Les fonctions NAND sont désactivées. Activez-les dans les paramètres et redémarrez.";
-    public string Features_NszPlugin => "Activer le plugin NSZ";
+    public string Features_DirectStarts => "Lancement direct des interfaces externes";
+    public string Features_NszGui => "Lancement direct de NSZ";
+    public string Features_NandGui => "Lancement direct de NxNandManager";
+    public string Features_RustDesktopGui => "Lancement direct de NSCB Desktop";
+    public string Features_KronosGui => "Lancement direct de Kronos / NSC_BUILDER";
+    public string Plugin_General => "Général";
+    public string Plugin_Compression => "Compresser / Décompresser";
+    public string Plugin_Install => "Installer le plugin";
+    public string Output_Title => "Dossier de sortie";
+    public string Output_NextToSource => "À côté de la source";
+    public string Output_ActionSubdirectory => "Sous-dossier par action";
+    public string Output_Custom => "Dossier personnalisé";
+    public string Output_Browse => "Parcourir …";
+    public string Output_Merge => "Fusion";
+    public string Output_Split => "Division";
+    public string Output_Compression => "Compression";
+    public string Output_Decompression => "Décompression";
+    public string Output_OpenBatch => "Ouvrir dans Batch";
+    public string Output_Defaults => "Dossiers de sortie par défaut";
+    public string Output_Engine => "Moteur";
+    public string Batch_GameSorting => "Afficher les multipaquets séparément (:1, :2 …)";
+    public string Batch_GameSortAlphabetical => "Trier par titre du jeu de base";
+    public string Features_NszPlugin => "Activer la compression / décompression";
     public string Features_NandPlugin => "Activer le plugin NxNandManager";
     public string Features_Firmware => "Activer la vérification du firmware";
     public string Features_FirmwareDisabled => "La vérification du firmware est désactivée. Activez-la dans les paramètres et redémarrez.";
@@ -90,7 +125,7 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
     public string Nand_Open => "Ouvrir un dump NAND…";
     public string Nand_Info => "Informations NAND";
     public string Nand_Export => "Exporter la partition…";
-    public string Nand_SettingsTip => "Laissez le chemin EXE vide pour les téléchargements gérés dans Paramètres → Updates → Plugins → NxNandManager. Un EXE personnalisé reste inchangé.";
+    public string Nand_SettingsTip => "Le chemin installé est renseigné automatiquement. Gérez les versions dans Mises à jour. Un exécutable personnalisé différent reste intact.";
     public string Nand_BisKeys => "Fichier de clés BIS (facultatif ; vide = prod.keys actif de NxFileViewer Fork)";
     public string Nand_Tip => "Ouvrez un dump NAND (premier fichier pour un dump fractionné). L’export copie la partition telle quelle, sans déchiffrement. Configurez NxNandManager dans Paramètres → Plugins.";
     public string Nand_NewTarget => "Choisissez un nouveau fichier local. Les fichiers existants ne peuvent pas être remplacés.";
@@ -149,6 +184,7 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
     public string Update_Downloading => "Téléchargement et vérification…";
     public string Update_Installing => "Installation…";
     public string Update_Cancelled => "Mise à jour annulée.";
+    public string Nsz_Engine => "Moteur de compression / décompression";
     public string Nsz_Mode => "Mode de compression";
     public string Nsz_ModeAuto => "Automatique (NSZ : solid, XCZ : blocs)";
     public string Nsz_ModeSolid => "Solid / sans blocs";
@@ -163,7 +199,7 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
     public string Nsz_Number => "Enregistrer avec un numéro";
     public string TitlePage_Custom => "Personnalisée";
     public string Info_WithRuntime => "Avec .NET intégré";
-    public string Info_WithoutRuntime => "Sans .NET intégré — nécessite .NET 8 Desktop Runtime";
+    public string Info_WithoutRuntime => "Sans .NET intégré — nécessite .NET 10 Desktop Runtime";
     public string Info_Description => "NxFileViewer Fork affiche et vérifie les fichiers Nintendo Switch : NSP, NSZ, XCI, XCZ, NCA, ZIP et 7z, le firmware et la conversion NSZ.";
     public string Info_Shortcuts => "Raccourcis clavier";
     public string BatchHistory_Show => "Afficher";
@@ -193,7 +229,7 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
     public string Nsz_OutputSize => "Taille finale (octets)";
     public string Nsz_Verified => "Résultat vérifié";
     public string Nsz_Summary => "{0} convertis et vérifiés ; {1} échecs ; {2} non traités. Les originaux sont conservés.";
-    public string Nsz_SettingsTip => "Chemin facultatif de la CLI NSZ. Laisser vide pour gérer automatiquement les versions officielles. Source et résultat sont vérifiés ; les originaux sont conservés.";
+    public string Nsz_SettingsTip => "Moteur et chemins de compression / décompression. Les chemins installés sont renseignés automatiquement. Source et résultat sont vérifiés ; gérez les versions dans Mises à jour.";
     public string Nsz_CheckUpdates => "Rechercher les mises à jour stables avant conversion";
     public string Nsz_Level => "Niveau de compression (1–22)";
     public string Nsz_OutputExists => "Le fichier cible existe déjà :";
@@ -611,10 +647,18 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
     public string RenamingTool_StatusSimulation => "Simulation";
     public string RenamingTool_StatusRenamed => "Renommé";
     public string RenamingTool_WindowTitle => "Outil de renommage";
+    public string Naming_Manual => "Manuel";
+    public string Naming_Edit => "Modifier…";
+    public string Naming_Variables => "Variables disponibles";
+    public string Naming_AllowedVariables => "Variables autorisées pour ce modèle :";
     public string RenamingTool_Patterns => "Patterns";
     public string RenamingTool_ApplicationPattern => "Pattern d'application";
     public string RenamingTool_PatchPattern => "Pattern de patch";
     public string RenamingTool_AddonPattern => "Pattern d'add-on";
+    public string RenamingTool_SuperPattern => "Paquets combinés (SuperNSP / SuperXCI)";
+    public string RenamingTool_MultiPattern => "Paquets multijeux / collections de DLC";
+    public string RenamingTool_ToolTip_MultiPattern => "Pour plusieurs jeux ou collections de DLC seuls. Variables : GameCount, UpdateCount, DlcCount et Ext. Exemple : MultiPaket (2G+3U+5D).nsz";
+    public string RenamingTool_ToolTip_SuperPattern => "Pour un jeu avec jeu de base et/ou mises à jour et DLC facultatifs. Les jeux différents et collections de DLC seuls utilisent le modèle Multi.";
     public string RenamingTool_InputPath => "Chemin d'entrée";
     public string RenamingTool_FileFilters => "Filtres";
     public string RenamingTool_ToolTip_Patterns =>
@@ -640,6 +684,8 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
             {Title:U} => Le titre en majuscule
 
          Liste des mots clés:
+           GameCount = nombre de jeux de base (G), UpdateCount = nombre de mises à jour (U), DlcCount = nombre de DLC (D). PackageVerNum = version maximale du jeu/des mises à jour, sans les versions des DLC.
+
            • TitleId:
               - L'id du contenu.
            • AppId:
@@ -684,7 +730,7 @@ public class LocalizationKeys_FR : LocalizationKeysBase, ILocalizationKeys
     public string RenamingTool_AutoCloseOpenedFile => "Fermer automatiquement le fichier ouvert";
     public string RenamingTool_IncludeSubDirectories => "Inclure les sous répertoires";
     public string RenamingTool_ContentTypeNotSupported => "Type de contenu «{0}» non supporté.";
-    public string RenamingTool_SuperPackageNotSupported => "Super package non supporté.";
+    public string RenamingTool_SuperPackageNotSupported => "Types de contenu non pris en charge dans le paquet combiné.";
     public string RenamingTool_LogNbFilesToRename => ">>> {0} fichier(s) à renommer...";
 
     public string RenamingTool_LogSimulationMode => "[SIMULATION] ";

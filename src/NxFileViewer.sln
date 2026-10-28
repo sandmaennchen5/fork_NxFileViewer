@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.0.32002.185
+# Visual Studio Version 18
+VisualStudioVersion = 18.12.12316.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NxFileViewer", "NxFileViewer\NxFileViewer.csproj", "{AE1B6D6F-5F73-4ECD-86C8-F7C0B55793D7}"
 EndProject
@@ -14,22 +14,22 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Screenshots", "Screenshots", "{B31909B9-EDA7-464A-B808-EDF829939B71}"
 	ProjectSection(SolutionItems) = preProject
-		..\screenshots\Start.png = ..\screenshots\Start.png
-		..\screenshots\Overview.png = ..\screenshots\Overview.png
-		..\screenshots\Missing-Keys.png = ..\screenshots\Missing-Keys.png
-		..\screenshots\Content.png = ..\screenshots\Content.png
-		..\screenshots\Batch-Game-Overview.png = ..\screenshots\Batch-Game-Overview.png
 		..\screenshots\Batch-Context-Menu.png = ..\screenshots\Batch-Context-Menu.png
-		..\screenshots\Rename.png = ..\screenshots\Rename.png
+		..\screenshots\Batch-Game-Overview.png = ..\screenshots\Batch-Game-Overview.png
+		..\screenshots\Content.png = ..\screenshots\Content.png
+		..\screenshots\Firmware-NCA-Identification.png = ..\screenshots\Firmware-NCA-Identification.png
 		..\screenshots\Firmware-Verification.png = ..\screenshots\Firmware-Verification.png
 		..\screenshots\Firmware-Verification2.png = ..\screenshots\Firmware-Verification2.png
-		..\screenshots\Firmware-NCA-Identification.png = ..\screenshots\Firmware-NCA-Identification.png
+		..\screenshots\Missing-Keys.png = ..\screenshots\Missing-Keys.png
 		..\screenshots\NAND-Information.png = ..\screenshots\NAND-Information.png
-		..\screenshots\Settings-Program.png = ..\screenshots\Settings-Program.png
+		..\screenshots\Overview.png = ..\screenshots\Overview.png
+		..\screenshots\Rename.png = ..\screenshots\Rename.png
 		..\screenshots\Settings-Keys.png = ..\screenshots\Settings-Keys.png
 		..\screenshots\Settings-Naming.png = ..\screenshots\Settings-Naming.png
-		..\screenshots\Settings-Updates.png = ..\screenshots\Settings-Updates.png
 		..\screenshots\Settings-Plugins.png = ..\screenshots\Settings-Plugins.png
+		..\screenshots\Settings-Program.png = ..\screenshots\Settings-Program.png
+		..\screenshots\Settings-Updates.png = ..\screenshots\Settings-Updates.png
+		..\screenshots\Start.png = ..\screenshots\Start.png
 	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NxFileViewer.Test", "NxFileViewer.Test\NxFileViewer.Test.csproj", "{55B6DEB7-0DFB-4C7F-834D-09D7AFC60847}"

@@ -1,4 +1,4 @@
-﻿using Emignatik.NxFileViewer.Utils.MVVM.Localization;
+using Emignatik.NxFileViewer.Utils.MVVM.Localization;
 
 // ReSharper disable InconsistentNaming
 
@@ -44,7 +44,20 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string Package_MergeXci { get; }
     string Package_ConvertNsp { get; }
     string Package_ConvertXci { get; }
+    string Batch_SplitAllPackages { get; }
+    string Batch_MergeAllPackages { get; }
+    string Batch_KeepSourceFormat { get; }
+    string Batch_MergeByGame { get; }
+    string Batch_MergeAcrossGames { get; }
+    string Batch_StartPackageJob { get; }
+    string Batch_PackageSkipped { get; }
+    string Batch_MergeAutoSplitPrompt { get; }
+    string Batch_MergeNeedsSplit { get; }
+    string Batch_MergeUnknownGame { get; }
+    string Batch_MergeSingleFile { get; }
+    string Package_SplitNotRequired { get; }
     string Package_Split { get; }
+    string Package_SplitXci { get; }
     string Package_Destination { get; }
     string Package_Inputs { get; }
     string Package_Done { get; }
@@ -67,6 +80,28 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string XciRepair_Failed { get; }
     string Features_Nand { get; }
     string Features_NandDisabled { get; }
+    string Features_DirectStarts { get; }
+    string Features_NszGui { get; }
+    string Features_NandGui { get; }
+    string Features_RustDesktopGui { get; }
+    string Features_KronosGui { get; }
+    string Plugin_General { get; }
+    string Plugin_Compression { get; }
+    string Plugin_Install { get; }
+    string Output_Title { get; }
+    string Output_NextToSource { get; }
+    string Output_ActionSubdirectory { get; }
+    string Output_Custom { get; }
+    string Output_Browse { get; }
+    string Output_Merge { get; }
+    string Output_Split { get; }
+    string Output_Compression { get; }
+    string Output_Decompression { get; }
+    string Output_OpenBatch { get; }
+    string Output_Defaults { get; }
+    string Output_Engine { get; }
+    string Batch_GameSorting { get; }
+    string Batch_GameSortAlphabetical { get; }
     string Features_NszPlugin { get; }
     string Features_NandPlugin { get; }
     string Features_Firmware { get; }
@@ -149,6 +184,7 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string Update_Downloading { get; }
     string Update_Installing { get; }
     string Update_Cancelled { get; }
+    string Nsz_Engine { get; }
     string Nsz_Mode { get; }
     string Nsz_ModeAuto { get; }
     string Nsz_ModeSolid { get; }
@@ -558,10 +594,18 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string RenamingTool_StatusSimulation { get; }
     string RenamingTool_StatusRenamed { get; }
     string RenamingTool_WindowTitle { get; }
+    string Naming_Manual { get; }
+    string Naming_Edit { get; }
+    string Naming_Variables { get; }
+    string Naming_AllowedVariables { get; }
     string RenamingTool_Patterns { get; }
     string RenamingTool_ApplicationPattern { get; }
     string RenamingTool_PatchPattern { get; }
     string RenamingTool_AddonPattern { get; }
+    string RenamingTool_SuperPattern { get; }
+    string RenamingTool_MultiPattern { get; }
+    string RenamingTool_ToolTip_MultiPattern { get; }
+    string RenamingTool_ToolTip_SuperPattern { get; }
     string RenamingTool_InputPath { get; }
     string RenamingTool_FileFilters { get; }
     string RenamingTool_ToolTip_Patterns { get; }

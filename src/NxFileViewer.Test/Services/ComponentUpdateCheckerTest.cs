@@ -1,4 +1,5 @@
 using System;
+using Emignatik.NxFileViewer.Services;
 using System.IO;
 using System.Net;
 using System.Net.Http;
@@ -43,7 +44,7 @@ public sealed class ComponentUpdateCheckerTest
             using var client = new HttpClient(new Handler(sha));
             var settings = new AppSettings { TitleDbRegion = "US.en" };
             var checker = new ComponentUpdateChecker(new NszPluginManager(settings, NullLogger<NszPluginManager>.Instance, plugin),
-                new NandPluginManager(settings, Path.Combine(root, "nand")), settings, client, root);
+                new NandPluginManager(settings, Path.Combine(root, "nand")), settings, client, root, _ => Task.FromResult<Version?>(null));
             var status = await checker.CheckAsync(CancellationToken.None);
             Assert.Contains("NSZ:", status);
             Assert.Contains("2.0", status);
@@ -58,6 +59,48 @@ public sealed class ComponentUpdateCheckerTest
         finally { Directory.Delete(root, true); }
     }
 
+    [Fact]
+    public async Task PackagePluginsCompareReleaseAndCommitAndKeepCustomVersionsLocal()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "package-check-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var rust = Path.Combine(root, "rust");
+            var kronos = Path.Combine(root, "kronos");
+            var desktop = Path.Combine(root, "desktop");
+            Directory.CreateDirectory(desktop);
+            File.WriteAllText(Path.Combine(desktop, "nscb-desktop.exe"), "fixture");
+            File.WriteAllText(Path.Combine(desktop, "installation.json"), System.Text.Json.JsonSerializer.Serialize(new { Repository = ExternalSources.Current.RustDesktopRepository, Version = "1.0" }));
+            Directory.CreateDirectory(rust);
+            Directory.CreateDirectory(Path.Combine(kronos, "runtime"));
+            Directory.CreateDirectory(Path.Combine(kronos, "ztools"));
+            File.WriteAllText(Path.Combine(rust, "nscb_rust.exe"), "fixture");
+            File.WriteAllText(Path.Combine(kronos, "runtime", "python.exe"), "fixture");
+            File.WriteAllText(Path.Combine(kronos, "ztools", "squirrel.py"), "fixture");
+            File.WriteAllText(Path.Combine(rust, "installation.json"),
+                System.Text.Json.JsonSerializer.Serialize(new { Repository = ExternalSources.Current.RustPackageRepository, Version = "1.0" }));
+            File.WriteAllText(Path.Combine(kronos, "installation.json"),
+                System.Text.Json.JsonSerializer.Serialize(new { Repository = ExternalSources.Current.KronosPackageRepository, Commit = new string('a', 40) }));
+            using var client = new HttpClient(new Handler(new string('b', 40)));
+            var settings = new AppSettings { RustPackageExecutablePath = Path.Combine(rust, "nscb_rust.exe"),
+                KronosPackageDirectory = kronos, RustDesktopExecutablePath = Path.Combine(desktop, "nscb-desktop.exe"), EnablePackageOperations = true, TitleDbRegion = "US.en" };
+            var checker = new ComponentUpdateChecker(new NszPluginManager(settings, NullLogger<NszPluginManager>.Instance, Path.Combine(root, "nsz")),
+                new NandPluginManager(settings, Path.Combine(root, "nand")), settings, client, root, _ => Task.FromResult<Version?>(null));
+            var results = await checker.CheckResultsAsync(CancellationToken.None);
+            Assert.Contains(results, r => r.Name == "nscb_rust" && r.UpdateAvailable);
+            Assert.Contains(results, r => r.Name == "NSCB Desktop" && r.UpdateAvailable);
+            Assert.Contains(results, r => r.Name == "Kronos / NSC_BUILDER" && r.UpdateAvailable);
+            File.WriteAllText(Path.Combine(kronos, "installation.json"),
+                System.Text.Json.JsonSerializer.Serialize(new { Repository = ExternalSources.Current.KronosPackageRepository, Commit = new string('b', 40) }));
+            File.Delete(Path.Combine(rust, "installation.json"));
+            results = await checker.CheckResultsAsync(CancellationToken.None);
+            Assert.Contains(results, r => r.Name == "nscb_rust" && !r.UpdateAvailable);
+            Assert.Contains(results, r => r.Name == "Kronos / NSC_BUILDER" && !r.UpdateAvailable);
+            Assert.Equal("fixture", File.ReadAllText(settings.RustPackageExecutablePath));
+        }
+        finally { Directory.Delete(root, true); }
+    }
     private sealed class Handler(string sha) : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken token)

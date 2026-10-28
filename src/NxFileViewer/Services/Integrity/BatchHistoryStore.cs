@@ -196,7 +196,7 @@ public sealed class BatchHistoryStore(string path)
                     }).ToArray()
                 }).ToArray()
             };
-        // Migrate all old entries before archiving the legacy file. No originals are deleted.
+        // Migrate all old entries before archiving the legacy file; keep the backup until a completed scan is saved.
         if (File.Exists(path))
         {
             var legacy = JsonSerializer.Deserialize<BatchHistoryEntry[]>(File.ReadAllText(path)) ?? Array.Empty<BatchHistoryEntry>();
@@ -214,7 +214,30 @@ public sealed class BatchHistoryStore(string path)
         var keep = ReadEntries().OrderByDescending(e => e.UpdatedUtc).Take(Math.Clamp(limit, 1, 100)).Select(e => e.Id).ToHashSet();
         foreach (var old in ReadEntries().Where(e => !keep.Contains(e.Id)).ToArray())
             File.Delete(EntryPath(old.Id));
+        if (valid.State == "Completed") CleanupLegacyBackups();
     }
+    // A legacy JSON backup is redundant only after the completed scan and retention were saved successfully.
+    // Failed/locked cleanup never turns a successful history save into an error; a later save retries it.
+    private void CleanupLegacyBackups()
+    {
+        var prefix = Path.GetFileName(path) + ".";
+        try
+        {
+            foreach (var backup in Directory.EnumerateFiles(EntriesDirectory, prefix + "*.legacy", SearchOption.TopDirectoryOnly))
+            {
+                var name = Path.GetFileName(backup);
+                if (!name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) || !name.EndsWith(".legacy", StringComparison.OrdinalIgnoreCase) ||
+                    !Guid.TryParseExact(name[prefix.Length..^7], "N", out _)) continue;
+                try
+                {
+                    if ((File.GetAttributes(backup) & FileAttributes.ReparsePoint) == 0) File.Delete(backup);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+    }
+
     public static string? Fingerprint(string path)
     {
         try

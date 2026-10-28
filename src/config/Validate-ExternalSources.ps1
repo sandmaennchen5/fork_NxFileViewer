@@ -13,7 +13,7 @@ foreach ($location in @($config.FirmwareHashes, $config.TitleDb)) {
   foreach ($part in $location.Path.Split('/')) { if ([string]::IsNullOrWhiteSpace($part) -or $part -in @('.','..') -or $part -match '[\x00-\x1f\\?#]') { throw 'Invalid content path.' } }
  }
 }
-foreach ($repository in @($config.NszRepository,$config.NandRepository,$config.ExplorerRepository)) { Assert-Repository $repository }
+foreach ($repository in @($config.NszRepository,$config.NandRepository,$config.ExplorerRepository,$config.RustPackageRepository,$config.KronosPackageRepository,$config.RustDesktopRepository)) { Assert-Repository $repository }
 foreach ($template in @($config.TitlePageUrl,$config.TitleInfoApiUrl,$config.NLibApiUrl,$config.NxContentPageUrl)) {
  if ($template -isnot [string] -or !$template.Contains('{TitleId}') -or $template.Length -gt 4096 -or $template -match '[\x00-\x1f]') { throw 'Expected URL template with {TitleId}.' }
  $url = $template.Replace('{TitleId}','0100000000000000').Replace('{Language}','en')

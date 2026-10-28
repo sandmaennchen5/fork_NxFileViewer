@@ -38,4 +38,8 @@ public interface INamingPatternsParser
     /// <exception cref="EndDelimiterMissingException"></exception>
     /// <exception cref="EmptyPatternException"></exception>
     Pattern ParseAddonPattern(string pattern);
+
+    Pattern ParseSuperPattern(string pattern);
+
+    Pattern ParseMultiPattern(string pattern);
 }

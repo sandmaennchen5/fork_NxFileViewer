@@ -33,7 +33,8 @@ public static class IdHelper
     
     public static string ToStrId(this Span<byte> bytes)
     {
-        return bytes.ToArray().ToStrId();
+        // Avoid recursive extension overload resolution for byte arrays in C# 14.
+        return Convert.ToHexString(bytes);
     }
 
     private static string ToIdFromConvertedNumBytes(IEnumerable<byte> getBytes)

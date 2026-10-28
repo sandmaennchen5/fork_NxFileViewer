@@ -17,13 +17,15 @@ All generated ZIPs, including the legacy transition packages, are uploaded to a 
 
 The package manifest is generated from the tagged source by `Publish.ps1` and is included in each application ZIP. Merely committing changes to `master` continues to build Actions artifacts; it does not publish a release or affect installed applications. Git tags must be pushed to trigger publication. The release descriptor and package migration instructions described below are generated from this same tagged source.
 
+After building the release packages, the workflow appends a **Which ZIP file do I need?** guide to the changelog notes. It uses the generated release descriptor and actual ZIP filenames, including the independently versioned Explorer assets. Runtime requirements are read from the project target frameworks: self-contained ZIPs include .NET; standard ZIPs require the corresponding Desktop Runtime. Optional LogViewer, firmware hashes, transition updaters and update metadata are explained separately. Re-running the guide step replaces its own footer instead of duplicating it.
+
 ## Manifest-driven updates and repository moves
 
-Edit `update/package-manifest.json` in the repository. `Publish.ps1` validates this template, fills in `Version` and `Executable`, and embeds it as `nxfileviewer-package.json` in every application ZIP. `-ExecutableName NewName.exe -PackageName NewName` changes the executable and ZIP prefix while keeping the internal `ApplicationId` stable.
+Edit `src/config/package-manifest.json` in the repository. `Publish.ps1` validates this template, fills in `Version` and `Executable`, and embeds it as `nxfileviewer-package.json` in every application ZIP. `-ExecutableName NewName.exe -PackageName NewName` changes the executable and ZIP prefix while keeping the internal `ApplicationId` stable.
 
 Publishing also generates `nxfileviewer-update.json` next to the ZIPs. The release workflow uploads this small JSON asset alongside the packages; no additional ZIP or helper EXE is required. It maps each architecture/runtime distribution to its actual ZIP name. The updater verifies the descriptor against its GitHub asset SHA-256 digest, checks identity and version, and uses the chosen ZIP's own GitHub SHA-256 digest. Older releases without a descriptor continue to use the original naming convention. If the latest stable release lacks a matching distribution, the new updater searches older releases for a compatible version newer than the installed version. It never substitutes another architecture or runtime distribution.
 
-`UpdateSources` accepts legacy GitHub names and typed GitHub, GitLab, Forgejo or independent HTTPS-manifest sources. See [update/README.md](../update/README.md) for formats and portable hosting. To prepare a move, publish an update containing both the new and old repositories before moving. After successful installation they are remembered in `NxFileViewerFork.update-state.json`; failed installations roll this state back. Checks try the remembered sources and choose the highest eligible version found. GitHub downloads must belong to the supplying repository. Native GitLab/Forgejo addresses use the configured origin; independent HTTPS manifests can explicitly name download hosts/CDNs. A nonempty UpdateSources list replaces the remembered list after installation. Include both repositories during the transition; a later release can explicitly remove the old source. Without local update state, the original repository is the initial source. Installations that missed the preparatory update still need a working old location or a manual update; keep the old source available during the transition. This uses the existing GitHub/HTTPS trust model and asset digests, not a separate developer-signature system.
+`UpdateSources` accepts legacy GitHub names and typed GitHub, GitLab, Forgejo or independent HTTPS-manifest sources. See [update source configuration](../src/config/Update-sources.md) for formats and portable hosting. To prepare a move, publish an update containing both the new and old repositories before moving. After successful installation they are remembered in `NxFileViewerFork.update-state.json`; failed installations roll this state back. Checks try the remembered sources and choose the highest eligible version found. GitHub downloads must belong to the supplying repository. Native GitLab/Forgejo addresses use the configured origin; independent HTTPS manifests can explicitly name download hosts/CDNs. A nonempty UpdateSources list replaces the remembered list after installation. Include both repositories during the transition; a later release can explicitly remove the old source. Without local update state, the original repository is the initial source. Installations that missed the preparatory update still need a working old location or a manual update; keep the old source available during the transition. This uses the existing GitHub/HTTPS trust model and asset digests, not a separate developer-signature system.
 
 A migration example (add to the template's `Migrations` array):
 
@@ -57,7 +59,7 @@ This applies only when upgrading from below 4.0.1 to 4.2.0 or later. Committing 
 
 For both supported actions, `From` and `To` are paths relative to the application directory. `IfTargetExists` supports only `KeepExisting`: an existing destination file and its conflicting source file are both retained. Successfully moved source files are removed; source directories are removed only when empty. This cleanup is part of moving, not a general delete action.
 
-For example, add this entry to `Migrations` in `update/package-manifest.json` to move and rename a file:
+For example, add this entry to `Migrations` in `src/config/package-manifest.json` to move and rename a file:
 
 ```json
 {
@@ -85,7 +87,7 @@ These features require this new updater. Already distributed older versions do n
 
 ## Request cache and GitHub limits
 
-Viewer, managed-plugin, TitleDB and firmware-hash update checks share GitHub metadata requests. Automatic startup checks and NSZ checks before conversion reuse successful responses for six hours. Metadata is stored under `Plugins/CacheUpdates` beside the executable and survives restarts. Manual checks request fresh metadata; simultaneous requests for the same endpoint reuse a completed in-flight response.
+Viewer, managed-plugin, TitleDB and firmware-hash update checks share GitHub metadata requests. Automatic startup checks reuse successful responses for six hours. NSZ no longer checks installed plugin versions before conversion; plugin updates are requested manually under Updates. Missing plugins can still be installed on demand. Metadata is stored under `Plugins/CacheUpdates` beside the executable and survives restarts. Manual checks request fresh metadata; simultaneous requests for the same endpoint reuse a completed in-flight response.
 
 GitHub API limits are detected from 403/429 responses and rate-limit headers. The viewer respects `Retry-After` and `X-RateLimit-Reset` and persists the cooldown across restarts. During that time it shows the next permitted check time. If a response was saved, its result remains visible with its original check date; otherwise the component is shown as unavailable for checking, not as up to date. An ordinary access-denied response is still treated as an error. No GitHub account or token is required.
 
@@ -153,11 +155,11 @@ Tests use mocked releases/downloads, corrupt and unsafe archives, and isolated d
 
 ## Runtime variants
 
-Each x64/x86 release offers a standard ZIP requiring .NET 8 Desktop Runtime and a compressed self-contained ZIP with .NET included. Standard names remain NxFileViewerFork_v<VERSION>_<ARCH>.zip; bundled-runtime names are NxFileViewerFork_v<VERSION>_self-contained_<ARCH>.zip. Both contain exactly NxFileViewerFork.exe, nxfileviewer-package.json and LICENSE.txt. Credits and third-party notices are embedded and available offline on the Info page.
+Each x64/x86 release offers a standard ZIP requiring .NET 10 Desktop Runtime and a compressed self-contained ZIP with .NET included. Standard names remain NxFileViewerFork_v<VERSION>_<ARCH>.zip; bundled-runtime names are NxFileViewerFork_v<VERSION>_self-contained_<ARCH>.zip. Both contain exactly NxFileViewerFork.exe, nxfileviewer-package.json and LICENSE.txt. Credits and third-party notices are embedded and available offline on the Info page.
 
 The executable records its runtime distribution at build time. Updates preserve this distribution and architecture, including preview releases. A missing compatible package is reported or skipped while listing previews; another runtime distribution is never substituted. Previously installed standard builds continue using the original ZIP names.
 
-The Info tab displays the application version, process architecture and whether .NET is bundled. Standard builds explicitly show the .NET 8 Desktop Runtime requirement.
+The Info tab displays the application version, process architecture and whether .NET is bundled. Standard builds explicitly show the .NET 10 Desktop Runtime requirement.
 
 ## Removing old versions
 

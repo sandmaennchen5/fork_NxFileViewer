@@ -14,16 +14,39 @@ param(
     [string]$ExplorerTimestampServer = 'http://timestamp.digicert.com',
     [switch]$UnsignedExplorerPackages,
     [switch]$SkipExplorerPackages,
+    [switch]$ViewerX64,
+    [switch]$ViewerX86,
+    [switch]$ViewerX64WithRuntime,
+    [switch]$ViewerX86WithRuntime,
+    [switch]$LogViewerX64,
+    [switch]$LogViewerX86,
+    [switch]$LogViewerX64WithRuntime,
+    [switch]$LogViewerX86WithRuntime,
+    [switch]$TransitionX64,
+    [switch]$TransitionX86,
+    [switch]$TransitionX64WithRuntime,
+    [switch]$TransitionX86WithRuntime,
     [switch]$LogViewerOnly,
     [switch]$SkipLogViewer,
     [switch]$IncludeLegacyTransition = $true
 )
 
 $ErrorActionPreference = "Stop"
+$SelectedExeVariants = @(
+    'ViewerX64','ViewerX86','ViewerX64WithRuntime','ViewerX86WithRuntime',
+    'LogViewerX64','LogViewerX86','LogViewerX64WithRuntime','LogViewerX86WithRuntime',
+    'TransitionX64','TransitionX86','TransitionX64WithRuntime','TransitionX86WithRuntime'
+) | Where-Object { $PSBoundParameters.ContainsKey($_) -and $PSBoundParameters[$_] }
+if ($SelectedExeVariants -and ($LogViewerOnly -or $SkipLogViewer)) {
+    throw 'Do not combine individual EXE selections with -LogViewerOnly or -SkipLogViewer.'
+}
 if ($LogViewerOnly -and $SkipLogViewer) { throw 'Choose either -LogViewerOnly or -SkipLogViewer.' }
 if ($UnsignedExplorerPackages -and $ExplorerCertificateThumbprint) { throw 'Choose either unsigned packages or a signing certificate.' }
 if ($PackageName -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$' -or $PackageName.EndsWith('.')) { throw 'Supply a plain release package name.' }
-& (Join-Path $PSScriptRoot 'update/Validate-ExternalSources.ps1')
+& (Join-Path $PSScriptRoot 'src/config/Validate-ExternalSources.ps1')
+& (Join-Path $PSScriptRoot 'src/config/Validate-NamingPresets.ps1')
+& (Join-Path $PSScriptRoot 'src/config/Validate-DefaultSettings.ps1')
+& (Join-Path $PSScriptRoot 'src/config/Validate-MasterKeys.ps1')
 $AppName = $PackageName
 $ProjectPath = Join-Path $PSScriptRoot "src/NxFileViewer/NxFileViewer.csproj"
 $PublishedExecutableName = (Select-Xml -LiteralPath $ProjectPath -XPath "//Project/PropertyGroup/AssemblyName").Node.InnerText
@@ -38,7 +61,7 @@ $AppVersion = if ($Version) { $Version } else { (Select-Xml -LiteralPath $Projec
 if ($AppVersion -notmatch '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$') {
     throw 'Supply a version such as 4.2.0, 4.2.0-beta or 4.2.0-beta1, without a v prefix.'
 }
-$ManifestTemplatePath = Join-Path $PSScriptRoot 'update/package-manifest.json'
+$ManifestTemplatePath = Join-Path $PSScriptRoot 'src/config/package-manifest.json'
 if ((Get-Item -LiteralPath $ManifestTemplatePath).Length -gt 65536) { throw 'Package manifest template is too large.' }
 $PackageIdentity = Get-Content -LiteralPath $ManifestTemplatePath -Raw -Encoding UTF8 | ConvertFrom-Json
 if ($PackageIdentity.SchemaVersion -ne 1 -or $PackageIdentity.ApplicationId -cne 'NxFileViewerFork') { throw 'Invalid package manifest identity.' }
@@ -112,7 +135,43 @@ New-Item -ItemType Directory -Path $OutDirRoot -Force | Out-Null
 # Isolated staging leaves existing extracted releases and user keys untouched.
 $StagingRoot = Join-Path $OutDirRoot (".publish-" + [Guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Path $StagingRoot | Out-Null
+# Resolve the SDK using src/global.json for every dotnet invocation.
+Push-Location -LiteralPath (Join-Path $PSScriptRoot 'src')
 try {
+    if ($SelectedExeVariants) {
+        foreach ($selection in $SelectedExeVariants) {
+            $architecture = if ($selection -match 'X64') { 'x64' } else { 'x86' }
+            $withRuntime = $selection.EndsWith('WithRuntime')
+            $suffix = if ($withRuntime) { '_self-contained' } else { '' }
+            if ($selection.StartsWith('LogViewer')) {
+                $selectedProject = Join-Path $PSScriptRoot 'src/NxFileViewer.LogViewer/NxFileViewer.LogViewer.csproj'
+                $builtExe = 'NxFileViewerFork.LogViewer.exe'
+                $targetExe = $builtExe
+                $releaseName = "NxFileViewerFork.LogViewer_v$($AppVersion)$($suffix)_$architecture"
+            } elseif ($selection.StartsWith('Transition')) {
+                $selectedProject = Join-Path $PSScriptRoot 'src/NxFileViewer.Transition/NxFileViewer.Transition.csproj'
+                $builtExe = 'NxFileViewer.exe'
+                $targetExe = $builtExe
+                $releaseName = "NxFileViewer_v$($AppVersion)$($suffix)_$architecture"
+            } else {
+                $selectedProject = $ProjectPath
+                $builtExe = $PublishedExecutableName
+                $targetExe = $ExecutableName
+                $releaseName = "$($AppName)_v$($AppVersion)$($suffix)_$architecture"
+            }
+            $selectedStaging = Join-Path $StagingRoot $selection
+            Write-Host "Publishing $selection"
+            dotnet publish $selectedProject -p:Version=$AppVersion -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=$withRuntime -c Release --self-contained $withRuntime -r "win-$architecture" -o $selectedStaging
+            if ($LASTEXITCODE -ne 0) { throw "Publishing $selection failed ($LASTEXITCODE)." }
+            $exe = Join-Path $selectedStaging $builtExe
+            if (!(Test-Path -LiteralPath $exe -PathType Leaf)) { throw "Published executable missing: $builtExe" }
+            $selectedOutput = Join-Path $OutDirRoot $releaseName
+            New-Item -ItemType Directory -Path $selectedOutput -Force | Out-Null
+            Copy-Item -LiteralPath $exe -Destination (Join-Path $selectedOutput $targetExe) -Force
+            Write-Host ("EXE: " + (Join-Path $selectedOutput $targetExe))
+        }
+        return
+    }
     if (!$SkipLogViewer) {
         $LogViewerProject = Join-Path $PSScriptRoot 'src/NxFileViewer.LogViewer/NxFileViewer.LogViewer.csproj'
         foreach ($ViewerArchitecture in @('x64', 'x86')) {
@@ -259,6 +318,7 @@ Danach NxFileViewer Fork normal starten und unter Einstellungen > Programm das m
     [IO.File]::WriteAllText((Join-Path $OutDirRoot 'nxfileviewer-update.json'), ($ReleaseDescriptor | ConvertTo-Json -Depth 8), [Text.UTF8Encoding]::new($false))
 }
 finally {
+    Pop-Location
     $ResolvedStaging = [IO.Path]::GetFullPath($StagingRoot)
     if ($ResolvedStaging.StartsWith($OutDirRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase) -and
         [IO.Path]::GetFileName($ResolvedStaging).StartsWith(".publish-")) {

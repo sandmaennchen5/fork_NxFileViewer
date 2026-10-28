@@ -1,4 +1,5 @@
 using System;
+using Emignatik.NxFileViewer.Services.PackageOperations;
 using System.Linq;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -47,6 +48,8 @@ public partial class BatchIntegrityWindow : UserControl
             {
                 System.ComponentModel.PropertyChangedEventManager.AddHandler(model, OnGroupingChanged, nameof(model.GroupFiles));
                 UpdateGrouping(model.GroupFiles);
+                PropertyChangedEventManager.AddHandler(model, OnGameSortingChanged, nameof(model.GameSortAlphabetical));
+                OnGameSortingChanged(model, new PropertyChangedEventArgs(nameof(model.GameSortAlphabetical)));
                 if (!ReferenceEquals(_layoutModel, model))
                 {
                     if (_layoutTimer.IsEnabled) FlushColumnLayout();
@@ -204,14 +207,67 @@ public partial class BatchIntegrityWindow : UserControl
     {
         if (sender is not DataGridRow { Item: BatchIntegrityResult file } row ||
             DataContext is not BatchIntegrityWindowViewModel model) return;
-        ResultsGrid.SelectedItem = file;
-        var menu = CreateFileActionsMenu(model, file);
+        if (!ResultsGrid.SelectedItems.Contains(file)) ResultsGrid.SelectedItem = file;
+        var selected = BatchIntegrityWindowViewModel.DistinctFiles(ResultsGrid.SelectedItems.Cast<BatchIntegrityResult>());
+        var menu = selected.Length > 1 ? CreateSelectionActionsMenu(model, selected) : CreateFileActionsMenu(model, file);
         menu.PlacementTarget = row;
         row.ContextMenu = menu;
         menu.IsOpen = true;
         e.Handled = true;
     }
 
+    private ContextMenu CreateSelectionActionsMenu(BatchIntegrityWindowViewModel model, BatchIntegrityResult[] files)
+    {
+        var keys = LocalizationManager.Instance.Current.Keys;
+        var menu = new ContextMenu();
+        void Add(string title, Func<BatchIntegrityResult, bool> canAct, Action<BatchIntegrityResult[]> action)
+        {
+            var eligible = files.Where(canAct).ToArray();
+            if (eligible.Length == 0) return;
+            var item = new MenuItem { Header = $"{title} ({eligible.Length}/{files.Length})" };
+            item.Click += (_, _) => action(eligible);
+            menu.Items.Add(item);
+        }
+        Add(keys.MenuItem_CheckIntegrity, model.CanVerifySelected, model.VerifySelection);
+        if (model.NszPluginActive)
+        {
+            Add(keys.Nsz_Compress, file => model.CanActOnFile(file, NszOperation.Compress), selected => model.ConvertSelection(selected, NszOperation.Compress));
+            Add(keys.Nsz_Decompress, file => model.CanActOnFile(file, NszOperation.Decompress), selected => model.ConvertSelection(selected, NszOperation.Decompress));
+        }
+        Add(keys.BatchNaming_Check, model.CanCheckNaming, selected => model.CheckSelectionNaming(selected, false));
+        Add(keys.RenamingTool_Button_Rename, model.CanCheckNaming, selected => model.CheckSelectionNaming(selected, true));
+        Add(keys.BatchIntegrity_MoveSelected, file => model.CanActOnFile(file), model.MoveSelection);
+        AddPackageActions(menu, model, files, true);
+        return menu;
+    }
+    private void AddPackageActions(ContextMenu menu, BatchIntegrityWindowViewModel model, BatchIntegrityResult[] files, bool multiple)
+    {
+        if (!model.PackageOperationsActive) return;
+        var eligible = files.Where(model.CanPackageFile).ToArray();
+        if (eligible.Length == 0) return;
+        var keys = LocalizationManager.Instance.Current.Keys;
+        menu.Items.Add(new Separator());
+        void Add(string label, PackageOperation operation, string type, BatchIntegrityResult[] inputs)
+        {
+            if (inputs.Length == 0 || operation == PackageOperation.Merge && inputs.Length < 2) return;
+            var item = new MenuItem {
+                Header = multiple ? $"{label} ({inputs.Length}/{files.Length})" : label,
+                IsEnabled = model.CanRunPackageActions
+            };
+            item.Click += (_, _) => model.RunPackageSelection(inputs, operation, type);
+            menu.Items.Add(item);
+        }
+        Add(keys.Package_ConvertNsp, PackageOperation.Convert, "nsp", eligible);
+        Add(keys.Package_ConvertXci, PackageOperation.Convert, "xci", eligible);
+        if (multiple)
+        {
+            Add(keys.Package_MergeNsp, PackageOperation.Merge, "nsp", eligible);
+            Add(keys.Package_MergeXci, PackageOperation.Merge, "xci", eligible);
+        }
+        var combined = eligible.Where(file => file.HasMultiplePackagesInSource).ToArray();
+        Add(keys.Package_Split, PackageOperation.Split, "nsp", combined);
+        Add(keys.Package_SplitXci, PackageOperation.Split, "xci", combined);
+    }
     private ContextMenu CreateFileActionsMenu(BatchIntegrityWindowViewModel model, BatchIntegrityResult file)
     {
         var keys = LocalizationManager.Instance.Current.Keys;
@@ -235,6 +291,7 @@ public partial class BatchIntegrityWindow : UserControl
         Add(keys.BatchNaming_Check, model.CanCheckNaming(file), () => model.CheckSelectedNaming(file));
         Add(keys.RenamingTool_Button_Rename, model.CanCheckNaming(file), () => model.RenameSelected(file));
         Add(keys.BatchIntegrity_MoveSelected, model.CanActOnFile(file), () => model.MoveSelected(file));
+        AddPackageActions(menu, model, new[] { file }, false);
         return menu;
     }
 
@@ -273,8 +330,22 @@ public partial class BatchIntegrityWindow : UserControl
             if (FindScrollViewer(VisualTreeHelper.GetChild(root, i)) is { } found) return found;
         return null;
     }
+    private void OnGameSortingChanged(object? sender, PropertyChangedEventArgs args)
+    {
+        if (DataContext is not BatchIntegrityWindowViewModel model) return;
+        foreach (var column in ResultsGrid.Columns)
+            column.SortDirection = model.GameSortAlphabetical ? null :
+                model.ResultsView.SortDescriptions.Where(s => s.PropertyName == column.SortMemberPath || s.PropertyName == column.SortMemberPath + "SortKey")
+                    .Select(s => (ListSortDirection?)s.Direction).FirstOrDefault();
+    }
     private void SortVersionColumn(object sender, DataGridSortingEventArgs e)
     {
+        if (DataContext is BatchIntegrityWindowViewModel { GameSortAlphabetical: true }) { e.Handled = true; return; }
+        Dispatcher.BeginInvoke(DispatcherPriority.ContextIdle, new Action(() =>
+        {
+            if (ReferenceEquals(sender, ResultsGrid) && DataContext is BatchIntegrityWindowViewModel model && !model.GameSortAlphabetical)
+                model.SaveStandardSorting();
+        }));
         if (e.Column.SortMemberPath is not ("SystemVersion" or "SystemUpdateVersion" or "DisplayVersion")) return;
         if (sender is not DataGrid grid || grid.ItemsSource == null) return;
         var view = CollectionViewSource.GetDefaultView(grid.ItemsSource);
@@ -302,7 +373,9 @@ public partial class BatchIntegrityWindow : UserControl
         var keys = LocalizationManager.Instance.Current.Keys;
         if (ThemedDialog.Confirm(keys.BatchTable_ResetFiltersAndSort, keys.BatchTable_ConfirmResetFiltersAndSort, false) != MessageBoxResult.Yes) return;
         if (DataContext is BatchIntegrityWindowViewModel model) model.ResetFiltersCommand.Execute(null);
+        if (DataContext is BatchIntegrityWindowViewModel { GameSortAlphabetical: true }) return;
         ResultsGrid.Items.SortDescriptions.Clear();
+        if (DataContext is BatchIntegrityWindowViewModel resetModel) resetModel.SaveStandardSorting();
         foreach (var column in ResultsGrid.Columns) column.SortDirection = null;
     }
 }

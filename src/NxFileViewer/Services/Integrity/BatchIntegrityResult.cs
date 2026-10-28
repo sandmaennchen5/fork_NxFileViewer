@@ -20,6 +20,8 @@ public sealed record BatchIntegrityResult(
     [JsonIgnore] public string SourceGroupKey => BatchSourceGrouping.Key(FilePath);
     public BatchPackageSummary[] Packages { get; init; } = Array.Empty<BatchPackageSummary>();
     [JsonIgnore] public bool HasMultiplePackages => Packages.Length > 1;
+    [JsonIgnore] public int SourcePackageCount { get; init; }
+    [JsonIgnore] public bool HasMultiplePackagesInSource => HasMultiplePackages || SourcePackageCount > 1;
     private bool _packagesExpanded;
     [JsonIgnore]
     public bool PackagesExpanded
@@ -109,6 +111,7 @@ public sealed record BatchIntegrityResult(
         var row = this with
         {
             PackageIndex = index, Packages = new[] { package },
+            SourcePackageCount = Math.Max(SourcePackageCount, Packages.Length),
             Title = package.Title, TitleId = package.TitleId, ContentType = package.ContentType,
             Version = package.Version, DisplayVersion = package.DisplayVersion, Titles = package.Titles,
             Publisher = package.Publisher, Languages = package.Languages,

@@ -53,7 +53,7 @@ public class HttpDownloader : IHttpDownloader
 
     private static async Task DownloadAnonymousFtpAsync(Uri uri, string tempFilePath, CancellationToken cancellationToken)
     {
-#pragma warning disable SYSLIB0014 // FtpWebRequest remains the built-in FTP client in .NET 8.
+#pragma warning disable SYSLIB0014 // FtpWebRequest remains the built-in FTP client in .NET 10.
         var request = (FtpWebRequest)WebRequest.Create(uri);
 #pragma warning restore SYSLIB0014
         request.Method = WebRequestMethods.Ftp.DownloadFile;

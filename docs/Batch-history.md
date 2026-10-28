@@ -63,3 +63,10 @@ The program starts with the empty History option selected and no restored batch 
 When logo persistence is off, the currently scanned batch still displays its logos. Compressed images are kept in a separate active-logos-<unique-id>.zip directly in History. This logo-only archive is excluded from the saved scan list and retention count. It is removed on selecting a History entry (including the empty option), starting a new scan, or normally closing the program. Appending files and verifying the current batch retain its active logos. Each running instance owns its own temporary archive; an abnormal termination may leave that instance's file behind.
 
 If the temporary logo ZIP is corrupt or truncated, it is rebuilt from pending logos and a warning is logged; earlier temporary logos may then be unavailable. Logo-cache errors are isolated from metadata checkpoints, and malformed History archives are logged rather than aborting the batch scan. This recovery never changes the source ROMs.
+
+
+## Independent package display and game sorting
+
+**Show multipackages separately (:1, :2 …)** controls only whether a container is displayed as one row or one row per content. It does not lock column sorting.
+
+**Sort alphabetically by base game title** independently groups each base game with its patches and DLC, in that order, and sorts game families alphabetically. Column-header sorting is disabled while this option is active. Enabling/disabling separate package rows remains possible. Disabling alphabetical game sorting restores the exact sort descriptors that were active before it was enabled, including the saved user layout loaded at startup.
