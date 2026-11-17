@@ -36,12 +36,13 @@ public sealed class ViewerUpdateActions : NotifyPropertyChangedBase
         _components = components; _service = service; _settings = settings; _background = background; _logger = logger;
         CheckCommand = new RelayCommand(() => _ = CheckAsync(false), () => !_busy);
         InstallCommand = new RelayCommand(() => Install(), () => !_busy && !_background.IsRunning && _release != null && (!_release.IsPrerelease || _settings.IncludeViewerPrereleases));
+        SwitchToX64Command = new RelayCommand(() => Install(switchToX64: true), () => CanSwitchToX64 && !_busy && !_background.IsRunning);
         RollbackCommand = new RelayCommand(() => Install(true), () => !_busy && !_background.IsRunning && CanRollback());
         CleanupCommand = OldVersionCleanupCommand.Create("NxFileViewer Fork", background, () => !_busy,
             () => OldVersionCleanup.ViewerUpdateDirectories(AppContext.BaseDirectory),
             paths => OldVersionCleanup.DeleteViewerUpdates(AppContext.BaseDirectory, paths),
             () => { CleanupCommand!.TriggerCanExecuteChanged(true); RollbackCommand.TriggerCanExecuteChanged(true); });
-        _background.PropertyChanged += (_, _) => { InstallCommand.TriggerCanExecuteChanged(true); RollbackCommand.TriggerCanExecuteChanged(true); CleanupCommand.TriggerCanExecuteChanged(true); };
+        _background.PropertyChanged += (_, _) => { InstallCommand.TriggerCanExecuteChanged(true); SwitchToX64Command.TriggerCanExecuteChanged(true); RollbackCommand.TriggerCanExecuteChanged(true); CleanupCommand.TriggerCanExecuteChanged(true); };
         _settings.PropertyChanged += (_, args) =>
         {
             if (args.PropertyName != nameof(IAppSettings.IncludeViewerPrereleases)) return;
@@ -54,6 +55,9 @@ public sealed class ViewerUpdateActions : NotifyPropertyChangedBase
     }
     public RelayCommand CheckCommand { get; }
     public RelayCommand InstallCommand { get; }
+    public RelayCommand SwitchToX64Command { get; }
+    public bool CanSwitchToX64 => RuntimeInformation.ProcessArchitecture == Architecture.X86 &&
+        RuntimeInformation.OSArchitecture == Architecture.X64;
     public RelayCommand RollbackCommand { get; }
     public RelayCommand CleanupCommand { get; }
     public string Status { get => _status; private set { _status = value; NotifyPropertyChanged(); } }
@@ -65,6 +69,7 @@ public sealed class ViewerUpdateActions : NotifyPropertyChangedBase
         NotifyPropertyChanged(nameof(HasViewerUpdate));
         CheckCommand.TriggerCanExecuteChanged();
         InstallCommand.TriggerCanExecuteChanged();
+        SwitchToX64Command.TriggerCanExecuteChanged();
         CleanupCommand.TriggerCanExecuteChanged();
         RollbackCommand.TriggerCanExecuteChanged();
     }
@@ -118,15 +123,46 @@ public sealed class ViewerUpdateActions : NotifyPropertyChangedBase
         try { return ViewerRollback.FindBackup(AppContext.BaseDirectory) != null; }
         catch (Exception) { return false; }
     }
-    private async void Install(bool rollback = false)
+    private async void Install(bool rollback = false, bool switchToX64 = false)
     {
-        if (!(rollback ? RollbackCommand : InstallCommand).CanExecute(null)) return;
-        var release = _release!;
-        if (Emignatik.NxFileViewer.Views.Windows.ThemedDialog.Confirm("NxFileViewer Fork Update", rollback ? LocalizationManager.Instance.Current.Keys.Update_RollbackConfirm : string.Format(LocalizationManager.Instance.Current.Keys.Update_Confirm, ReleaseLabel(release)), false) != MessageBoxResult.Yes) return;
+        var command = switchToX64 ? SwitchToX64Command : rollback ? RollbackCommand : InstallCommand;
+        if (!command.CanExecute(null)) return;
+
         SetBusy(true);
         var main = Application.Current.MainWindow;
+        var keys = LocalizationManager.Instance.Current.Keys;
         try
         {
+            var release = _release;
+            if (switchToX64)
+            {
+                Status = keys.Update_Checking;
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+                var assembly = Assembly.GetExecutingAssembly();
+                var includePrereleases = _settings.IncludeViewerPrereleases;
+                release = await _service.CheckAsync(assembly.GetName().Version!, "x64", timeout.Token,
+                    includePrereleases, assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion,
+                    selfContained: ViewerDistribution.IsSelfContained, allowSameVersion: true);
+                if (_background.IsRunning || includePrereleases != _settings.IncludeViewerPrereleases)
+                {
+                    Status = keys.Update_Cancelled;
+                    return;
+                }
+                if (release == null)
+                {
+                    Status = keys.Update_SwitchToX64Unavailable;
+                    return;
+                }
+                Status = string.Format(keys.Update_Available, ReleaseLabel(release) + " (x64)");
+            }
+
+            var confirmation = rollback ? keys.Update_RollbackConfirm :
+                string.Format(switchToX64
+                    ? (ViewerDistribution.IsSelfContained ? keys.Update_SwitchToX64Confirm : keys.Update_SwitchToX64ConfirmStandard)
+                    : keys.Update_Confirm, ReleaseLabel(release!));
+            if (Emignatik.NxFileViewer.Views.Windows.ThemedDialog.Confirm("NxFileViewer Fork Update", confirmation, false) != MessageBoxResult.Yes) return;
+            if (_background.IsRunning || (release?.IsPrerelease == true && !_settings.IncludeViewerPrereleases && !rollback)) return;
+
             var currentExecutable = Environment.ProcessPath ?? throw new InvalidOperationException("Application executable unavailable.");
             _ = ViewerPackageLayout.ExecutableName(Path.GetFileName(currentExecutable));
             if (!string.Equals(Path.GetDirectoryName(Path.GetFullPath(currentExecutable)), Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory), StringComparison.OrdinalIgnoreCase))
@@ -134,7 +170,7 @@ public sealed class ViewerUpdateActions : NotifyPropertyChangedBase
             var prepared = await _background.RunAsync(new RunnableRelay<PreparedViewerUpdate>((progress, token) =>
             {
                 progress.SetText(LocalizationManager.Instance.Current.Keys.Update_Downloading);
-                return rollback ? ViewerRollback.Prepare(AppContext.BaseDirectory) : _service.PrepareAsync(release, AppContext.BaseDirectory, token).GetAwaiter().GetResult();
+                return rollback ? ViewerRollback.Prepare(AppContext.BaseDirectory) : _service.PrepareAsync(release!, AppContext.BaseDirectory, token).GetAwaiter().GetResult();
             }) { SupportsCancellation = true });
             main.IsEnabled = false;
             Status = LocalizationManager.Instance.Current.Keys.Update_Installing;

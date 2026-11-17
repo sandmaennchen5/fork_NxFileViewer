@@ -64,6 +64,11 @@ public class ItemViewModelBuilder : IItemViewModelBuilder
                 itemViewModel = new CnmtContentEntryItemViewModel(cnmtContentEntryItem, _serviceProvider);
                 break;
             case FirmwareFileItem:
+            case NupContentItem:
+                itemViewModel = new ItemViewModel(item, _serviceProvider, deferChildren: true);
+                break;
+            case NupFileItem:
+            case NupPackageItem:
             case NandFileItem:
             case NroFileItem:
             case SdCardItem:

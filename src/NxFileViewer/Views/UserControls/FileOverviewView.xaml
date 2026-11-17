@@ -105,6 +105,18 @@
             </Grid>
         </GroupBox>
 
+        <GroupBox Grid.Row="2" Header="NUP" Visibility="{Binding IsNup, Converter={StaticResource FalseToCollapseVisibilityConverter}}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <ComboBox Margin="8,4" HorizontalAlignment="Center" MinWidth="100"
+                          Visibility="{Binding HasMultipleNupPackages, Converter={StaticResource FalseToCollapseVisibilityConverter}}"
+                          ItemsSource="{Binding NupPackages}" DisplayMemberPath="DisplayName" SelectedItem="{Binding SelectedNupPackage}"/>
+                <userControls:CnmtContainerView Grid.Row="1" DataContext="{Binding SelectedNupPackage}"/>
+            </Grid>
+        </GroupBox>
         <GroupBox Grid.Row="2" Header="Homebrew (NRO)" Visibility="{Binding IsHomebrew, Converter={StaticResource FalseToCollapseVisibilityConverter}}">
             <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="8">
                 <TextBlock Visibility="{Binding HistoryNoticeVisibility}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.BatchHistory_LoadedNotice}" TextWrapping="Wrap" TextAlignment="Center" Width="200" Padding="12" Margin="0,8"/>

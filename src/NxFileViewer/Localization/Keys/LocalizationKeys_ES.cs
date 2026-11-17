@@ -6,6 +6,9 @@ namespace Emignatik.NxFileViewer.Localization.Keys;
 
 public class LocalizationKeys_ES : LocalizationKeysBase, ILocalizationKeys
 {
+    public string Features_Nup => "Compatibilidad con NUP (experimental)";
+    public string Features_NupDisabled => "La compatibilidad con NUP está desactivada. Actívala en la configuración.";
+
     public string Info_Credits => "Colaboradores y créditos";
     public string Info_Licenses => "Textos de las licencias";
 
@@ -14,6 +17,10 @@ public class LocalizationKeys_ES : LocalizationKeysBase, ILocalizationKeys
     public string PluginLog_Off => "Desactivado";
     public string PluginLog_Tip => "El nivel del complemento sustituye al mínimo general para sus mensajes, tanto en la vista como en el archivo de registro.";
 
+    public string Update_SwitchToX64 => "Cambiar a 64 bits";
+    public string Update_SwitchToX64Confirm => "¿Cambiar a NxFileViewer Fork {0} (64 bits, con .NET)? La aplicación se cerrará y reiniciará.";
+    public string Update_SwitchToX64ConfirmStandard => "¿Cambiar a NxFileViewer Fork {0} (64 bits)? Debe estar instalado .NET 10 Desktop Runtime (x64). La aplicación se cerrará y reiniciará.";
+    public string Update_SwitchToX64Unavailable => "No hay ningún paquete compatible de 64 bits para la variante instalada.";
     public string Update_RollbackConfirm => "¿Restaurar la versión anterior del programa? NxFileViewer Fork se cerrará y reiniciará. Eliminar versiones antiguas también elimina esta opción de recuperación.";
     public string Update_Cleanup => "Eliminar versiones antiguas";
     public string Update_CleanupConfirm => "¿Eliminar permanentemente estas versiones antiguas o copias de actualización?\n\n{0}\n\nYa no se podrá volver a estas versiones. Se conservan la versión actual y los ejecutables personalizados configurados.";

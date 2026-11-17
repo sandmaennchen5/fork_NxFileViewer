@@ -47,7 +47,7 @@ public sealed class ViewerUpdateService
         client.DefaultRequestHeaders.UserAgent.ParseAdd("NxFileViewerFork-Updater/1.0");
         return client;
     }
-    public async Task<ViewerRelease?> CheckAsync(Version current, string architecture, CancellationToken token, bool includePrereleases = false, string? currentTag = null, bool selfContained = false, bool automatic = false)
+    public async Task<ViewerRelease?> CheckAsync(Version current, string architecture, CancellationToken token, bool includePrereleases = false, string? currentTag = null, bool selfContained = false, bool automatic = false, bool allowSameVersion = false)
     {
         if (architecture is not ("x64" or "x86")) throw new NotSupportedException("Unsupported update architecture.");
         LastCheckNotice = "";
@@ -67,8 +67,8 @@ public sealed class ViewerUpdateService
             try
             {
                 var candidate = source.Kind == ViewerUpdateSourceKind.GitHub
-                    ? await CheckRepositoryAsync(source.Repository!, current, architecture, sourceToken, includePrereleases, currentTag, selfContained, automatic).ConfigureAwait(false)
-                    : await _remoteSources.CheckAsync(source, current, architecture, includePrereleases, currentTag, selfContained, sourceToken).ConfigureAwait(false);
+                    ? await CheckRepositoryAsync(source.Repository!, current, architecture, sourceToken, includePrereleases, currentTag, selfContained, automatic, allowSameVersion).ConfigureAwait(false)
+                    : await _remoteSources.CheckAsync(source, current, architecture, includePrereleases, currentTag, selfContained, sourceToken, allowSameVersion).ConfigureAwait(false);
                 reachedSource = true;
                 if (candidate != null) candidates.Add(candidate);
             }
@@ -82,18 +82,18 @@ public sealed class ViewerUpdateService
         return candidates.OrderByDescending(ReleaseVersion).ThenBy(r => r.IsPrerelease).FirstOrDefault();
     }
 
-    private static bool Eligible(JsonElement release, Version current, string? currentTag, bool includePrereleases)
+    private static bool Eligible(JsonElement release, Version current, string? currentTag, bool includePrereleases, bool allowSameVersion)
     {
         if (release.GetProperty("draft").GetBoolean()) return false;
         var tag = release.GetProperty("tag_name").GetString()!;
         if (tag.Contains('/') || tag.Contains('\\') || !ViewerVersion.TryParse(tag, out var candidate)) return false;
         if (!includePrereleases && (release.GetProperty("prerelease").GetBoolean() || tag.Split('+')[0].Contains('-'))) return false;
         var installed = ViewerVersion.TryParse(currentTag, out var parsed) && parsed.Numeric == Normalize(current) ? parsed : ViewerVersion.FromNumeric(current);
-        return candidate.CompareTo(installed) > 0;
+        return candidate.CompareTo(installed) >= (allowSameVersion ? 0 : 1);
     }
 
     private async Task<ViewerRelease?> CheckRepositoryAsync(string repository, Version current, string architecture, CancellationToken token,
-        bool includePrereleases, string? currentTag, bool selfContained, bool automatic)
+        bool includePrereleases, string? currentTag, bool selfContained, bool automatic, bool allowSameVersion)
     {
         var endpoint = "https://api.github.com/repos/" + repository + "/releases";
         if (!includePrereleases)
@@ -103,8 +103,8 @@ public sealed class ViewerUpdateService
             catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound) { return null; }
             if (response.Notice.Length > 0) LastCheckNotice = response.Notice;
             using var latest = JsonDocument.Parse(response.Body);
-            if (!Eligible(latest.RootElement, current, currentTag, false)) return null;
-            var candidate = await SelectRemoteReleaseAsync(latest.RootElement, repository, current, architecture, false, currentTag, selfContained, token).ConfigureAwait(false);
+            if (!Eligible(latest.RootElement, current, currentTag, false, allowSameVersion)) return null;
+            var candidate = await SelectRemoteReleaseAsync(latest.RootElement, repository, current, architecture, false, currentTag, selfContained, token, allowSameVersion).ConfigureAwait(false);
             if (candidate != null) return candidate;
             // A missing distribution in latest must not hide a compatible intermediate release.
         }
@@ -118,7 +118,7 @@ public sealed class ViewerUpdateService
             using var releases = JsonDocument.Parse(listing.Body);
             foreach (var item in releases.RootElement.EnumerateArray())
             {
-                var candidate = await SelectRemoteReleaseAsync(item, repository, current, architecture, includePrereleases, currentTag, selfContained, token).ConfigureAwait(false);
+                var candidate = await SelectRemoteReleaseAsync(item, repository, current, architecture, includePrereleases, currentTag, selfContained, token, allowSameVersion).ConfigureAwait(false);
                 if (candidate != null) candidates.Add(candidate);
             }
             if (releases.RootElement.GetArrayLength() < 100) break;
@@ -127,9 +127,9 @@ public sealed class ViewerUpdateService
     }
 
     private async Task<ViewerRelease?> SelectRemoteReleaseAsync(JsonElement release, string repository, Version current, string architecture,
-        bool includePrereleases, string? currentTag, bool selfContained, CancellationToken token)
+        bool includePrereleases, string? currentTag, bool selfContained, CancellationToken token, bool allowSameVersion)
     {
-        if (!Eligible(release, current, currentTag, includePrereleases)) return null;
+        if (!Eligible(release, current, currentTag, includePrereleases, allowSameVersion)) return null;
         var descriptor = release.GetProperty("assets").EnumerateArray().FirstOrDefault(a => a.GetProperty("name").GetString() == ViewerUpdateMetadata.ReleaseManifestName);
         string? assetName = null;
         bool manifestPrerelease = false;
@@ -165,10 +165,10 @@ public sealed class ViewerUpdateService
                 if (!ExpectedHash(archiveDigest).Equals(package.Sha256, StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("Release ZIP digest does not match manifest.");
             }
         }
-        var selected = SelectRelease(release, current, architecture, includePrereleases, true, currentTag, selfContained, repository, assetName);
+        var selected = SelectRelease(release, current, architecture, includePrereleases, true, currentTag, selfContained, repository, assetName, allowSameVersion);
         return selected == null ? null : selected with { IsPrerelease = selected.IsPrerelease || manifestPrerelease };
     }
-    public static ViewerRelease? SelectRelease(JsonElement release, Version current, string architecture, bool includePrereleases = false, bool skipMissingPackage = false, string? currentTag = null, bool selfContained = false, string repository = Repository, string? assetName = null)
+    public static ViewerRelease? SelectRelease(JsonElement release, Version current, string architecture, bool includePrereleases = false, bool skipMissingPackage = false, string? currentTag = null, bool selfContained = false, string repository = Repository, string? assetName = null, bool allowSameVersion = false)
     {
         if (architecture is not ("x64" or "x86")) throw new NotSupportedException("Unsupported update architecture.");
         if (release.GetProperty("draft").GetBoolean()) return null;
@@ -180,7 +180,7 @@ public sealed class ViewerUpdateService
         var version = candidateVersion.Numeric;
         var installedVersion = ViewerVersion.TryParse(currentTag, out var parsedCurrent) && parsedCurrent.Numeric == Normalize(current)
             ? parsedCurrent : ViewerVersion.FromNumeric(current);
-        if (candidateVersion.CompareTo(installedVersion) <= 0) return null;
+        if (candidateVersion.CompareTo(installedVersion) < (allowSameVersion ? 0 : 1)) return null;
         var variant = selfContained ? "_self-contained" : "";
         var name = assetName == null ? $"NxFileViewerFork_v{version.Major}.{version.Minor}.{version.Build}{variant}_{architecture}.zip" : ViewerUpdateMetadata.Asset(assetName);
         var assets = release.GetProperty("assets").EnumerateArray().ToArray();

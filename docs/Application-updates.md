@@ -159,6 +159,8 @@ Each x64/x86 release offers a standard ZIP requiring .NET 10 Desktop Runtime and
 
 The executable records its runtime distribution at build time. Updates preserve this distribution and architecture, including preview releases. A missing compatible package is reported or skipped while listing previews; another runtime distribution is never substituted. Previously installed standard builds continue using the original ZIP names.
 
+On x64 Windows, an x86 viewer offers **Switch to 64-bit** in the Update Center. This explicit action searches the configured update sources for the newest eligible x64 package in the installed runtime distribution, including the installed version. The prerelease preference still applies. Standard builds require the x64 .NET 10 Desktop Runtime. Confirming uses the regular verified installer and restart. Future updates follow the selected x64 distribution. The switch remains available even after releases stop including x86 packages.
+
 The Info tab displays the application version, process architecture and whether .NET is bundled. Standard builds explicitly show the .NET 10 Desktop Runtime requirement.
 
 ## Removing old versions

@@ -10,6 +10,10 @@
         <WrapPanel Margin="0,0,0,10">
           <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Update_Check}" Command="{Binding Viewer.CheckCommand}" Padding="12,5" Margin="0,0,8,0" />
           <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Update_Install}" Command="{Binding Viewer.InstallCommand}" Padding="12,5" />
+          <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Update_SwitchToX64}"
+                  Command="{Binding Viewer.SwitchToX64Command}"
+                  Visibility="{Binding Viewer.CanSwitchToX64, Converter={StaticResource FalseToCollapseVisibilityConverter}}"
+                  Padding="12,5" Margin="8,0,0,0" />
           <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nsz_Rollback}" Command="{Binding Viewer.RollbackCommand}" Padding="12,5" Margin="8,0,0,0" />
           <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Update_Cleanup}" Command="{Binding Viewer.CleanupCommand}" Padding="12,5" Margin="8,0,0,0" />
         </WrapPanel>

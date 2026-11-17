@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.ObjectModel;
 using Emignatik.NxFileViewer.Models.TreeItems;
+using Emignatik.NxFileViewer.Models.TreeItems.Impl;
 using Emignatik.NxFileViewer.Services.Selection;
 using Emignatik.NxFileViewer.Utils.MVVM;
 using Emignatik.NxFileViewer.Views.TreeItems;
@@ -20,7 +21,7 @@ public class ContentViewModel : ViewModelBase
         _selectedItemService = serviceProvider.GetRequiredService<ISelectedItemService>();
 
         var itemViewModelBuilder = ServiceProvider.GetRequiredService<IItemViewModelBuilder>();
-        var itemViewModel = itemViewModelBuilder.Build(rootItem);
+        var itemViewModel = itemViewModelBuilder.Build(rootItem is NupFileItem nup ? nup.ContentRoot : rootItem);
         itemViewModel.IsExpanded = true;
         RootItems.Add(itemViewModel);
     }

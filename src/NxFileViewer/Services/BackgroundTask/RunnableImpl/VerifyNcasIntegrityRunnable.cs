@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Emignatik.NxFileViewer.Localization;
+using Emignatik.NxFileViewer.FileLoading;
 using Emignatik.NxFileViewer.Models.Overview;
 using Emignatik.NxFileViewer.Models.TreeItems;
 using Emignatik.NxFileViewer.Models.TreeItems.Impl;
@@ -61,6 +63,12 @@ public class VerifyNcasIntegrityRunnable : IVerifyNcasIntegrityRunnable
 
     private async Task Verify(IProgressReporter progressReporter, FileOverview fileOverview, CancellationToken cancellationToken)
     {
+        if (fileOverview.RootItem is NupFileItem nup)
+        {
+            VerifyNup(progressReporter, fileOverview, nup, cancellationToken);
+            return;
+        }
+
         // Build the list NCA items to process
         var atLeastOneNcaMissing = false;
         var ncaItemsToProcess = new List<(NcaItem, byte[]?)>();
@@ -160,6 +168,35 @@ public class VerifyNcasIntegrityRunnable : IVerifyNcasIntegrityRunnable
 
     }
 
+    private void VerifyNup(IProgressReporter progress, FileOverview overview, NupFileItem nup, CancellationToken token)
+    {
+        nup.Errors.RemoveAllOfCategory(Category.IntegrityCheck);
+        overview.NcasIntegrity = NcasIntegrity.InProgress;
+        progress.SetText($"NUP · SHA-256 · {nup.Name}");
+        progress.SetPercentage(0);
+        try
+        {
+            NupReader.Verify(nup.FilePath, token, progress.SetPercentage);
+            overview.NcasIntegrity = NcasIntegrity.Original;
+        }
+        catch (OperationCanceledException)
+        {
+            overview.NcasIntegrity = NcasIntegrity.Unchecked;
+            throw;
+        }
+        catch (Exception ex) when (ex is InvalidDataException or EndOfStreamException)
+        {
+            nup.Errors.Add(Category.IntegrityCheck, ex.Message);
+            overview.NcasIntegrity = NcasIntegrity.Corrupted;
+            _logger.LogWarning(ex, "NUP integrity verification failed for {Path}", nup.FilePath);
+        }
+        catch (Exception ex)
+        {
+            nup.Errors.Add(Category.IntegrityCheck, ex.Message);
+            overview.NcasIntegrity = NcasIntegrity.Error;
+            _logger.LogError(ex, "Failed to verify NUP {Path}", nup.FilePath);
+        }
+    }
 }
 
 public interface IVerifyNcasIntegrityRunnable : IRunnable

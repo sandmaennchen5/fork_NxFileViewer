@@ -42,19 +42,20 @@ static HRESULT Executable(std::wstring& value) {
     return value.empty() ? E_FAIL : S_OK;
 }
 
-static bool Supported(const std::wstring& path) {
-    auto ext = PathFindExtensionW(path.c_str());
-    for (auto candidate : { L".nsp", L".nsz", L".xci", L".xcz", L".nro", L".nca", L".nax0", L".zip", L".7z" })
-        if (_wcsicmp(ext, candidate) == 0) return true;
-    return false;
-}
-
-static bool FeatureEnabled(const wchar_t* name) {
+static bool FeatureEnabled(const wchar_t* name, bool defaultEnabled = true) {
     DWORD value = 1, bytes = sizeof(value);
     auto result = RegGetValueW(HKEY_CURRENT_USER, L"Software\\NxFileViewerFork\\ExplorerIntegration",
         name, RRF_RT_REG_DWORD, nullptr, &value, &bytes);
     // Existing installations have no flags until the updated viewer saves its configuration.
-    return result != ERROR_SUCCESS || value != 0;
+    return result == ERROR_SUCCESS ? value != 0 : defaultEnabled;
+}
+
+static bool Supported(const std::wstring& path) {
+    auto ext = PathFindExtensionW(path.c_str());
+    if (_wcsicmp(ext, L".nup") == 0) return FeatureEnabled(L"NupEnabled", false);
+    for (auto candidate : { L".nsp", L".nsz", L".xci", L".xcz", L".nro", L".nca", L".nax0", L".zip", L".7z" })
+        if (_wcsicmp(ext, candidate) == 0) return true;
+    return false;
 }
 
 static bool SupportsAction(Action action, const std::vector<std::wstring>& paths, bool folder) {

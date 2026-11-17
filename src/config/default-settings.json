@@ -2,6 +2,7 @@
   "SchemaVersion": 1,
   "Settings": {
     "PackageEngine": "Rust",
+    "ReportEndpoint": "https://feedback.sandmaennchen5.de/report.php",
     "EnablePlugins": true,
     "EnableMtp": true,
     "EnableNand": true,
@@ -81,6 +82,7 @@
   "Hints": {
     "Settings": {
       "PackageEngine": "Merge / Split contents / Convert (experimental) / Merge / Split contents / Convert (experimental)",
+      "ReportEndpoint": "HTTPS endpoint for submitting issue reports. Leave empty to open the GitHub form in the browser.",
       "EnablePlugins": "Legacy combined-plugin fallback; individual optional functions take precedence",
       "EnableMtp": "Optional features",
       "EnableNand": "Optional features",

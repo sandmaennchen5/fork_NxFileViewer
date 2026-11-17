@@ -528,6 +528,7 @@
                 <GroupBox x:Name="OptionalFeaturesGroup" Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Features_Title}" Margin="8">
                     <StackPanel Margin="8">
                         <CheckBox x:Name="EnableNszPluginCheckBox" IsChecked="{Binding EditedSettings.EnableNszPlugin}" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Features_NszPlugin}" Margin="0,0,0,12"/>
+                        <CheckBox IsChecked="{Binding EditedSettings.EnableNup}" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Features_Nup}" Margin="0,0,0,12"/>
                         <CheckBox x:Name="EnableNandCheckBox" IsChecked="{Binding EditedSettings.EnableNand}" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Features_Nand}" Margin="0,0,0,12"/>
                         <CheckBox x:Name="EnableNandPluginCheckBox" IsEnabled="{Binding EditedSettings.EnableNand}" IsChecked="{Binding EditedSettings.EnableNandPlugin}" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Features_NandPlugin}" Margin="0,0,0,12"/>
                         <CheckBox x:Name="EnableMtpCheckBox" IsChecked="{Binding EditedSettings.EnableMtp}" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Features_Mtp}" Margin="0,0,0,12"/>

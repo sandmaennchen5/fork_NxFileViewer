@@ -101,11 +101,14 @@ public sealed class StoredFileOverviewViewModel : ViewModelBase
 public sealed class StoredCnmtContainerViewModel : ViewModelBase
 {
     private readonly BatchPackageSummary _package;
+    private readonly bool _isNup;
     private readonly IBrushesProvider _brushes;
     private StoredTitleInfoViewModel? _selected;
-    public StoredCnmtContainerViewModel(BatchPackageSummary package, IServiceProvider services, Func<BatchIconReference, byte[]?>? readIcon = null)
+    public StoredCnmtContainerViewModel(BatchPackageSummary package, IServiceProvider services, Func<BatchIconReference, byte[]?>? readIcon = null,
+        bool isNup = false)
     {
         _package = package;
+        _isNup = isNup;
         _brushes = services.GetRequiredService<IBrushesProvider>();
         var titles = package.Titles.Length > 0 ? package.Titles : package.Languages.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
             .Select(language => new BatchTitleSummary(language, package.Title, package.Publisher)).ToArray();
@@ -141,7 +144,7 @@ public sealed class StoredCnmtContainerViewModel : ViewModelBase
     public string Distribution => _package.Distribution;
     public string BuildID => _package.BuildId;
     public bool? IsDemo => _package.IsDemo;
-    public Visibility SecurityVisibility => Visibility.Visible;
+    public Visibility SecurityVisibility => _isNup ? Visibility.Collapsed : Visibility.Visible;
     public string SecurityDetails => _package.SecurityDetails;
     public string SecurityLevel => _package.PermissionDisplay;
     public string FileSystemPermissions => _package.FileSystemPermissions;
@@ -171,7 +174,7 @@ public sealed class StoredCnmtContainerViewModel : ViewModelBase
         }
     }
     public Visibility LogoVisibility => SelectedTitle?.Icon != null ? Visibility.Visible : Visibility.Collapsed;
-    public Visibility HistoryNoticeVisibility => LogoVisibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
+    public Visibility HistoryNoticeVisibility => _isNup || LogoVisibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
     public RelayCommand SaveSelectedImageCommand { get; }
     public RelayCommand CopySelectedImageCommand { get; }
 }

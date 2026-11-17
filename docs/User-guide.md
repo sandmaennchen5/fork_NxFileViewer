@@ -12,6 +12,8 @@ Start offers a NAND shortcut and buttons to open installed plugin GUIs. The upda
 
 The interface supports English, French, German and Spanish, with light, dark and system themes. The first launch starts maximized; saved window placement is respected when enabled. Info lists application details and keyboard shortcuts.
 
+In **Info**, choose **Report an issue** to describe a problem. If you include a session log excerpt, review and edit it before sending. Reports appear publicly on GitHub. With a configured feedback service, you can authorize the report with a GitHub account or submit it without one.
+
 ## File check
 
 - Open NSP, NSZ, XCI, XCZ or standalone NCA files, including supported packages inside ZIP/7z archives. Separate file-dialog filters cover game packages, archives, NCA content and NAND images/split dumps.
@@ -26,6 +28,16 @@ The interface supports English, French, German and Spanish, with light, dark and
 Settings → Program → Verification provides three independent automatic-verification checkboxes: opening files inside the program (including single-file drag and drop), opening through Windows (double-click, Open with or a startup file argument), and dropping files/folders into batch mode. All default to off. Verification starts after loading and can be cancelled. Completed cached checks are not repeated automatically; batch history display does not start verification.
 
 The built-in solid NCZ reader caches a decoded prefix under `Temp/NCZ` to avoid repeated full decompression on backward reads. The first forward skip still requires decoding the preceding data, and temporary disk usage can approach the payload size. Temporary hash-reader caches are released after each NCA, including cancellation or failure; package closure also releases nested NCZ caches, preventing accumulation across completed batch files. Keep enough free space for the active content. Block NCZ files use bounded block reads and indexed lookup. ZstdSharp.Port remains at 0.8.8. See [NCZ reader notes](NSZ-reader-update.md).
+
+## NUP files
+
+Enable **Settings → Optional Features → NUP support (experimental)** to open `.nup` files in File check or include them in Batch check. The option defaults to off.
+
+Use the package selector in **Overview** to inspect the base game, updates and DLC. **Content** shows `base/`, `updates/<version>/` and `dlc/<title-id>/<index>/` for packages present in the container. Expand a package to browse its ExeFS and RomFS folders.
+
+**Verify integrity** compares the SHA-256 digest of each stored file with the digest recorded in the container. The check decompresses Zstandard data as it reads it and can be cancelled. Batched checks support the **NUP** file-type filter.
+
+Register the updated [Explorer integration](Explorer-integration.md) for direct open and verify actions in Windows Explorer.
 
 ## Batch check
 

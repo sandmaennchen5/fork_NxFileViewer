@@ -24,6 +24,7 @@ public class FileOverviewViewModel : ViewModelBase
     private readonly IBrushesProvider _brushesProvider;
 
     private CnmtContainerViewModel? _selectedCnmtContainer;
+    private StoredCnmtContainerViewModel? _selectedNupPackage;
     private string _missingKeys = "";
     private bool _missingKeysWarningDismissed;
 
@@ -55,6 +56,20 @@ public class FileOverviewViewModel : ViewModelBase
         }
 
         SelectedCnmtContainer = CnmtContainers.FirstOrDefault();
+        if (_fileOverview.RootItem is Models.TreeItems.Impl.NupFileItem nup)
+        {
+            NupPackages = nup.ChildItems.Cast<Models.TreeItems.Impl.NupPackageItem>()
+                .Select(package =>
+                {
+                    var summary = package.ToSummary();
+                    if (package.Icon is { Length: > 0 })
+                        summary = summary with { Titles = [new Services.Integrity.BatchTitleSummary("", package.Title, package.Publisher)
+                            { Icon = new Services.Integrity.BatchIconReference(Guid.Empty, "NUP") }] };
+                    return new StoredCnmtContainerViewModel(summary, serviceProvider, _ => package.Icon, isNup: true);
+                })
+                .ToArray();
+            SelectedNupPackage = NupPackages.FirstOrDefault();
+        }
         if (_fileOverview.RootItem is Models.TreeItems.Impl.NroFileItem nro)
         {
             HomebrewTitle = nro.Titles.FirstOrDefault() is { } title ? new TitleInfoViewModel(title, serviceProvider) : null;
@@ -77,7 +92,19 @@ public class FileOverviewViewModel : ViewModelBase
     public bool HasMissingKeys => _fileOverview.MissingKeys.Count > 0;
     public bool IsMissingKeysWarningVisible => HasMissingKeys && !_missingKeysWarningDismissed;
     public bool IsHomebrew => _fileOverview.RootItem is Models.TreeItems.Impl.NroFileItem;
-    public bool HasPackageDetails => !IsHomebrew && _fileOverview.RootItem is not Models.TreeItems.Impl.SaveBackupFileItem;
+    public bool IsNup => _fileOverview.RootItem is Models.TreeItems.Impl.NupFileItem;
+    public IReadOnlyList<StoredCnmtContainerViewModel> NupPackages { get; } = [];
+    public StoredCnmtContainerViewModel? SelectedNupPackage
+    {
+        get => _selectedNupPackage;
+        set
+        {
+            _selectedNupPackage = value;
+            NotifyPropertyChanged();
+        }
+    }
+    public bool HasMultipleNupPackages => NupPackages.Count > 1;
+    public bool HasPackageDetails => !IsNup && !IsHomebrew && _fileOverview.RootItem is not Models.TreeItems.Impl.SaveBackupFileItem;
     public bool HasInstalledTitlesWithoutMeta => _fileOverview.InstalledTitlesWithoutMeta.Count > 0;
     public IReadOnlyList<InstalledTitleInfo> InstalledTitleFallbacks => _fileOverview.InstalledTitlesWithoutMeta;
     public string InstalledTitlesWithoutMeta => string.Join(Environment.NewLine, _fileOverview.InstalledTitlesWithoutMeta.Select(t => $"{t.TitleId}  {t.Title}  {t.Publisher}  {t.DisplayVersion}"));

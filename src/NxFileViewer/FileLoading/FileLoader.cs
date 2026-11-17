@@ -48,6 +48,12 @@ internal class FileLoader : IFileLoader
         using var archiveOperation = PackageZip.BeginOperation();
         token.ThrowIfCancellationRequested();
         PackageZip.ReportLoading(filePath);
+        if (!PackageZip.IsMember(filePath) && NupReader.IsNup(filePath))
+        {
+            if (_appSettings?.EnableNup != true)
+                throw new InvalidOperationException(LocalizationManager.Instance.Current.Keys.Features_NupDisabled);
+            return NupReader.Load(filePath, token);
+        }
         if (!PackageZip.IsMember(filePath) && SaveBackupDetection.IsBackup(filePath, token))
         {
             var root = new SaveBackupFileItem(filePath, SaveBackupDetection.IsLikelyLegacyBackup(filePath, token));

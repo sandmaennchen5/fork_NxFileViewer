@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.IO;
 using Emignatik.NxFileViewer.Settings;
@@ -19,6 +19,8 @@ public class AppLoggerProvider : IAppLoggerProvider
         _memoryTrace = new MemoryTraceDiagnostics(CreateLogger(typeof(MemoryTraceDiagnostics).FullName!));
         _appSettings.PropertyChanged += OnSettingsChanged;
     }
+
+    internal string? SessionLogPath => _fileLog.FilePath;
 
     public void ConfigureRetention()
     {

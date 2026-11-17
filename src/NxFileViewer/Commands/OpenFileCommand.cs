@@ -58,7 +58,9 @@ public class OpenFileCommand : CommandBase, IOpenFileCommand
         {
             InitialDirectory = initialDirectory,
             FileName = lastOpenedFile,
-            Filter = LocalizationManager.Instance.Current.Keys.OpenFile_Filter
+            Filter = _appSettings.EnableNup
+                ? LocalizationManager.Instance.Current.Keys.OpenFile_Filter.Replace("*.nro;", "*.nro;*.nup;", StringComparison.Ordinal) + "|NUP (*.nup)|*.nup"
+                : LocalizationManager.Instance.Current.Keys.OpenFile_Filter
         };
 
         var currentMainWindow = Application.Current.MainWindow;

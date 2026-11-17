@@ -20,7 +20,7 @@ public abstract class ItemBase : NotifyPropertyChangedBase, IItem
 
     public abstract string DisplayName { get; }
 
-    public IReadOnlyList<IItem> ChildItems => _childItems;
+    public virtual IReadOnlyList<IItem> ChildItems => _childItems;
 
     IItem? IItem.ParentItem => ParentItem;
 

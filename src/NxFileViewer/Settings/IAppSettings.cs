@@ -32,6 +32,7 @@ public interface IAppSettings : INotifyPropertyChanged
     bool EnableNszPlugin { get; set; }
     bool EnableNandPlugin { get; set; }
     bool EnableNand { get; set; }
+    bool EnableNup { get; set; }
     bool NandActive { get; }
     bool EnablePackageOperations { get; set; }
     bool PackageOperationsActive { get; }
@@ -119,6 +120,7 @@ public interface IAppSettings : INotifyPropertyChanged
     bool InjectTicketKeys { get; set; }
     bool SaveTicketKeys { get; set; }
 
+    string ReportEndpoint { get; set; }
     string TitlePageUrl { get; set; }
 
     string TitleInfoApiUrl { get; set; }

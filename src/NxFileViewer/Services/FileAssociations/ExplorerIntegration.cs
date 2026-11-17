@@ -170,6 +170,7 @@ public static class ExplorerIntegration
             !string.Equals(Path.GetFullPath(executable), CurrentExecutable(), StringComparison.OrdinalIgnoreCase)) return;
         config.SetValue("CompressionEnabled", settings.EnableNszPlugin ? 1 : 0, RegistryValueKind.DWord);
         config.SetValue("PackageOperationsEnabled", settings.EnablePackageOperations ? 1 : 0, RegistryValueKind.DWord);
+        config.SetValue("NupEnabled", settings.EnableNup ? 1 : 0, RegistryValueKind.DWord);
     }
 
     public static void UpdateLanguage(string language)

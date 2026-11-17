@@ -22,14 +22,14 @@ public sealed class ViewerRemoteReleaseSource(HttpClient client)
     private const int MaximumCatalogSize = 2 * 1024 * 1024;
 
     public async Task<ViewerRelease?> CheckAsync(ViewerUpdateSource source, Version current, string architecture,
-        bool includePrereleases, string? currentTag, bool selfContained, CancellationToken token)
+        bool includePrereleases, string? currentTag, bool selfContained, CancellationToken token, bool allowSameVersion = false)
     {
         var numeric = new Version(current.Major, current.Minor, Math.Max(0, current.Build));
         var installed = ViewerVersion.TryParse(currentTag, out var parsed) && parsed.Numeric == numeric ? parsed : ViewerVersion.FromNumeric(current);
         try
         {
             if (source.Kind == ViewerUpdateSourceKind.Manifest)
-                return await CheckManifestAsync(source, installed, architecture, selfContained, includePrereleases, token).ConfigureAwait(false);
+                return await CheckManifestAsync(source, installed, architecture, selfContained, includePrereleases, token, allowSameVersion).ConfigureAwait(false);
             var candidates = new List<ViewerRelease>();
             var pageSize = source.Kind == ViewerUpdateSourceKind.GitLab ? 100 : 50;
             for (var page = 1; page <= 100; page++)
@@ -40,7 +40,7 @@ public sealed class ViewerRemoteReleaseSource(HttpClient client)
                 if (json.RootElement.ValueKind != JsonValueKind.Array) throw new InvalidDataException("Expected a release list.");
                 foreach (var item in json.RootElement.EnumerateArray())
                 {
-                    var candidate = await SelectNativeAsync(source, item, installed, architecture, selfContained, includePrereleases, token).ConfigureAwait(false);
+                    var candidate = await SelectNativeAsync(source, item, installed, architecture, selfContained, includePrereleases, token, allowSameVersion).ConfigureAwait(false);
                     if (candidate != null) candidates.Add(candidate);
                 }
                 if (response.HasNext == false || (response.HasNext == null && json.RootElement.GetArrayLength() < pageSize)) break;
@@ -55,20 +55,20 @@ public sealed class ViewerRemoteReleaseSource(HttpClient client)
         .ThenBy(r => r.IsPrerelease).FirstOrDefault();
     private static string? Text(JsonElement item, string name) => item.ValueKind == JsonValueKind.Object && item.TryGetProperty(name, out var property) && property.ValueKind == JsonValueKind.String ? property.GetString() : null;
     private static bool Flag(JsonElement item, string name) => item.ValueKind == JsonValueKind.Object && item.TryGetProperty(name, out var property) && property.ValueKind == JsonValueKind.True;
-    private static bool Eligible(string? tag, bool draft, bool prerelease, ViewerVersion installed, bool includePrereleases)
+    private static bool Eligible(string? tag, bool draft, bool prerelease, ViewerVersion installed, bool includePrereleases, bool allowSameVersion)
     {
         if (draft || tag == null || tag.Contains('/') || tag.Contains('\\') || !ViewerVersion.TryParse(tag, out var version)) return false;
-        return version.CompareTo(installed) > 0 && (includePrereleases || (!prerelease && !tag.Split('+')[0].Contains('-')));
+        return version.CompareTo(installed) >= (allowSameVersion ? 0 : 1) && (includePrereleases || (!prerelease && !tag.Split('+')[0].Contains('-')));
     }
 
     private async Task<ViewerRelease?> SelectNativeAsync(ViewerUpdateSource source, JsonElement release, ViewerVersion installed,
-        string architecture, bool selfContained, bool includePrereleases, CancellationToken token)
+        string architecture, bool selfContained, bool includePrereleases, CancellationToken token, bool allowSameVersion)
     {
         var tag = Text(release, "tag_name");
         var future = Flag(release, "upcoming_release") || (DateTimeOffset.TryParse(Text(release, "released_at"), CultureInfo.InvariantCulture,
             DateTimeStyles.AssumeUniversal, out var releasedAt) && releasedAt > DateTimeOffset.UtcNow);
         var prerelease = Flag(release, "prerelease");
-        if (!Eligible(tag, Flag(release, "draft") || future, prerelease, installed, includePrereleases)) return null;
+        if (!Eligible(tag, Flag(release, "draft") || future, prerelease, installed, includePrereleases, allowSameVersion)) return null;
         if (!release.TryGetProperty("assets", out var assetsElement)) return null;
         JsonElement entries;
         if (source.Kind == ViewerUpdateSourceKind.GitLab)
@@ -122,7 +122,7 @@ public sealed class ViewerRemoteReleaseSource(HttpClient client)
     }
 
     private async Task<ViewerRelease?> CheckManifestAsync(ViewerUpdateSource source, ViewerVersion installed, string architecture,
-        bool selfContained, bool includePrereleases, CancellationToken token)
+        bool selfContained, bool includePrereleases, CancellationToken token, bool allowSameVersion)
     {
         var response = await FetchAsync(source.Endpoint, MaximumCatalogSize, token).ConfigureAwait(false);
         using var json = JsonDocument.Parse(response.Bytes);
@@ -139,7 +139,7 @@ public sealed class ViewerRemoteReleaseSource(HttpClient client)
         var candidates = new List<ViewerRelease>();
         foreach (var manifest in manifests)
         {
-            if (!Eligible(manifest.Version, manifest.Draft, manifest.Prerelease, installed, includePrereleases)) continue;
+            if (!Eligible(manifest.Version, manifest.Draft, manifest.Prerelease, installed, includePrereleases, allowSameVersion)) continue;
             var package = manifest.Packages.SingleOrDefault(p => p.Architecture == architecture && p.SelfContained == selfContained);
             if (package == null) continue;
             var hash = PackageHash(package);

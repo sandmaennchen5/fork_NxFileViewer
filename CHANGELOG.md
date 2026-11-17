@@ -5,6 +5,17 @@ All notable changes to NxFileViewer Fork will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.1-beta2] - 2026-11-17
+
+### Added
+
+- Add experimental NUP support for individual files and batch scans under Settings → Optional Features. Show base games, updates and DLC in the package overview with available metadata and icons.
+- Browse NUP contents under `base/`, `updates/<version>/` and `dlc/<title-id>/<index>/`, with the ExeFS and RomFS trees present in each package.
+- Verify the SHA-256 hashes of raw and Zstandard-compressed NUP files using the existing integrity commands in individual and batch views.
+- Register `.nup` for Windows Open with and add individual and batch open and verify actions to the Explorer context menu when NUP support is enabled. The Explorer package version is 1.0.5.0.
+- Add an issue-reporting dialog with an optional, editable log excerpt. The configured feedback service supports reports with or without a GitHub account, and the GitHub issue form is available as a fallback when the service is not configured.
+- Offer **Switch to 64-bit** in the Update Center on x64 Windows. The updater can install a compatible x64 package of the current version or a newer eligible release and retain the installed runtime distribution.
+
 ## [4.1.1-beta1] - 2026-10-28
 
 ### Added

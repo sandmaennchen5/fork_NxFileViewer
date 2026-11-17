@@ -224,6 +224,11 @@
                         </StackPanel>
                         <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Info_Description}" TextWrapping="Wrap" Margin="0,0,0,16"/>
                         <TextBlock Text="GitHub: sandmaennchen5/fork_NxFileViewer" Margin="0,0,0,8"/>
+                        <WrapPanel Margin="0,0,0,12">
+                            <Button x:Name="ReportIssueButton" Click="ReportIssue_Click" Padding="10,4" Margin="0,0,8,0"/>
+                            <Button x:Name="PollsButton" Click="Polls_Click" Padding="10,4" Margin="0,0,8,0"/>
+                            <Button Content="Discord" Click="Discord_Click" Padding="10,4"/>
+                        </WrapPanel>
                         <userControls:CreditsView/>
                         <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Info_Shortcuts}" Style="{StaticResource Title2}" Margin="0,16,0,12"/>
                         <DockPanel Margin="0,0,0,10"><TextBlock Text="Ctrl+O" Width="160" FontWeight="Bold"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.MenuItem_Open}"/></DockPanel>

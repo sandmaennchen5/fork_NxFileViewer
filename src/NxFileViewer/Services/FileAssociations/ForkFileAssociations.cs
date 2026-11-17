@@ -12,7 +12,7 @@ public static class ForkFileAssociations
 {
     public const string ProgId = "NxFileViewerFork.File";
     public const string ApplicationName = "NxFileViewer Fork";
-    public static IReadOnlyList<string> Extensions { get; } = Array.AsReadOnly(new[] { ".nsp", ".nsz", ".xci", ".xcz", ".nro" });
+    public static IReadOnlyList<string> Extensions { get; } = Array.AsReadOnly(new[] { ".nsp", ".nsz", ".xci", ".xcz", ".nro", ".nup" });
     public static IReadOnlyList<AssociationEntry> Entries(string executable)
     {
         executable = Path.GetFullPath(executable);

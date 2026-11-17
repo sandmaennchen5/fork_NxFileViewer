@@ -25,6 +25,8 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        ReportIssueButton.Content = CommunityUsesGerman ? "Fehler melden" : "Report a bug";
+        PollsButton.Content = CommunityUsesGerman ? "Umfragen auf GitHub" : "GitHub polls";
         DataContextChanged += (_, _) =>
         {
             if (_taskRunner != null) _taskRunner.PropertyChanged -= TaskStateChanged;
@@ -39,6 +41,25 @@ public partial class MainWindow : Window
             App.ServiceProvider.GetService<Emignatik.NxFileViewer.Services.FileOpening.IFileOpeningService>()?.SafeClose();
         };
     }
+
+    private static bool CommunityUsesGerman =>
+        System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "de";
+
+    private void ReportIssue_Click(object sender, RoutedEventArgs e) =>
+        new FeedbackWindow(CommunityUsesGerman) { Owner = this }.ShowDialog();
+
+    private void Discord_Click(object sender, RoutedEventArgs e) =>
+        OpenCommunityLink("https://discord.gg/tjvhd3jw3d");
+
+    private void Polls_Click(object sender, RoutedEventArgs e) =>
+        OpenCommunityLink(FeedbackWindow.Repository + "/discussions/categories/polls");
+
+    private void OpenCommunityLink(string url)
+    {
+        try { FeedbackWindow.OpenBrowser(url); }
+        catch (System.ComponentModel.Win32Exception) { MessageBox.Show(this, url); }
+    }
+
 
     public static bool ShouldUseBatchDrop(IReadOnlyList<string> paths, bool isBatchPage) =>
         isBatchPage || paths.Count > 1 || paths.Any(Directory.Exists);

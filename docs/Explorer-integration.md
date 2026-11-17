@@ -7,7 +7,7 @@ The `NxFileViewer Fork` submenu offers these actions. Titles follow the app lang
 | Selection | Action | Result |
 | --- | --- | --- |
 | One supported file | Open in File | File page; no automatic hashing |
-| One supported file | Verify in File | File page; automatic NCA hashing where supported |
+| One supported file | Verify in File | File page; NCA hashing where supported or NUP file hashing |
 | One or more supported files / folders | Open in Batch | Scan the selection into Batch without hashing |
 | One or more supported files / folders | Verify in Batch | Scan and hash the selection in Batch |
 
@@ -22,10 +22,12 @@ for NSP/XCI and **Decompress** for NSZ/XCZ, including multiple files. Mixed comp
 and uncompressed selections and folders hide these actions. The viewer prompts for
 the destination and source-file handling, uses the configured compression engine,
 and verifies results before publishing. Plugins must be enabled in the viewer.
-After updating the viewer, add/update the classic menu or install the new modern
-Explorer package (1.0.1.0) to receive the new commands.
+After updating the viewer, add/update the classic menu or install the current modern
+Explorer package to receive the new commands.
 
 ## Optional feature visibility
+
+Extension **1.0.5.0** includes `.nup` in Open and Verify actions when **NUP support (experimental)** is enabled and saved. Re-register the classic menu or install the updated modern package once. Use **Register file associations** to add `.nup` to Windows Open with.
 
 Extension version **1.0.4.0** and later reads the saved feature switches whenever Explorer queries a command. Disabling **Compress / Decompress** hides both compression actions. Disabling experimental package operations hides Convert, Merge and Split. Package operations on NSZ/XCZ also require compression because those inputs need decompression first. Open and Verify remain available.
 
@@ -62,7 +64,7 @@ Each setup ZIP contains its MSIX, the public `NxFileViewerFork.Explorer.cer`, `T
 
 Publishing creates a five-year self-signed code-signing certificate in **Current User > Personal** on first use and reuses it on later runs. Publishing never adds it to a trust store. The private key stays on the publishing machine and is never included in release files. Keep this certificate and its private key; an encrypted PFX backup may be made separately using Windows certificate management. Do not commit or distribute private keys or PFX files. A new signing certificate requires a new trust confirmation. Certificate expiry alone does not stop an installed extension. Previously timestamped packages can still be accepted after expiry while trust remains in place; Windows validates the timestamp. A valid signing certificate is needed to sign new packages. With the same valid certificate, later releases require no further certificate import. This is individual user trust, not globally recognized publisher trust.
 
-The numeric version is set by `ExplorerPackageVersion` in `NxFileViewer.csproj` (currently `1.0.1.0`). Increment this property when packaged Explorer contents change, independently of the viewer version. If absent, it is derived from the viewer version (`4.0.1-beta4` becomes `4.0.1.4`; the final release uses revision 65535). Use `-ExplorerPackageVersion` to override it. Increment it when updating an installed package with different contents. Signatures receive an RFC 3161 timestamp using DigiCert by default; use `-ExplorerTimestampServer` to override the endpoint.
+The numeric version is set by `ExplorerPackageVersion` in `NxFileViewer.csproj` (currently `1.0.5.0`). Increment this property when packaged Explorer contents change, independently of the viewer version. If absent, it is derived from the viewer version (`4.0.1-beta4` becomes `4.0.1.4`; the final release uses revision 65535). Use `-ExplorerPackageVersion` to override it. Increment it when updating an installed package with different contents. Signatures receive an RFC 3161 timestamp using DigiCert by default; use `-ExplorerTimestampServer` to override the endpoint.
 
 To use an existing signing identity instead:
 

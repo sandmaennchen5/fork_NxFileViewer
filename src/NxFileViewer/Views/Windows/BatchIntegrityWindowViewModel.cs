@@ -461,7 +461,11 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
     public string SearchText { get => _searchText; set { _searchText = value ?? ""; NotifyPropertyChanged(); ResultsView.Refresh(); } }
     public string FileTypeFilter { get => _fileTypeFilter; set { _fileTypeFilter = value ?? ""; NotifyPropertyChanged(); ResultsView.Refresh(); } }
     public string IntegrityFilter { get => _integrityFilter; set { _integrityFilter = value ?? ""; NotifyPropertyChanged(); ResultsView.Refresh(); } }
-    public IReadOnlyList<BatchFilterOption> FileTypeFilters => new[] { "", "Games", "NSP", "NSZ", "XCI", "XCZ", "NRO", "NAX0", "NAND", "ZIP", "7Z", "Folder" }.Where(value => value != "NAND" || _serviceProvider.GetRequiredService<IAppSettings>().NandActive).Select(value => new BatchFilterOption(value)).ToArray();
+    public IReadOnlyList<BatchFilterOption> FileTypeFilters =>
+        new[] { "", "Games", "NSP", "NSZ", "XCI", "XCZ", "NRO", "NUP", "NAX0", "NAND", "ZIP", "7Z", "Folder" }
+            .Where(value => value != "NAND" || _serviceProvider.GetRequiredService<IAppSettings>().NandActive)
+            .Where(value => value != "NUP" || _serviceProvider.GetRequiredService<IAppSettings>().EnableNup)
+            .Select(value => new BatchFilterOption(value)).ToArray();
     public IReadOnlyList<BatchFilterOption> IntegrityFilters { get; } = new[] { new BatchFilterOption("") }.Concat(Enum.GetValues<NcasIntegrity>().Select(value => new BatchFilterOption(value.ToString()))).ToArray();
     public RelayCommand ResetFiltersCommand => new(() => { SearchText = ""; FileTypeFilter = ""; IntegrityFilter = ""; NamingFilter = ""; ShowOnlyErrors = false; });
     public bool ShowOnlyErrors
@@ -672,7 +676,7 @@ public sealed class BatchIntegrityWindowViewModel : WindowViewModelBase
             if (!result.IsFirmware && !result.IsNand && _completedPreviews.TryGetValue(result.FilePath, out var completed) &&
                 SelectedResult?.FilePath.Equals(result.FilePath, StringComparison.OrdinalIgnoreCase) == true)
                 PreviewOverview = completed;
-            if (!result.IsFirmware && !result.IsNand && _completedPreviews.TryGetValue(result.FilePath, out var overview))
+            if (!result.IsFirmware && !result.IsNand && _completedPreviews.TryGetValue(result.FilePath, out var overview) && !overview.IsNup)
             {
                 var packages = overview.CnmtContainers;
                 string Join(Func<CnmtContainerViewModel, string?> selector) => string.Join(" / ",

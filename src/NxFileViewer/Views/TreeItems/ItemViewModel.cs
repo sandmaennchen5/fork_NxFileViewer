@@ -22,17 +22,17 @@ public class ItemViewModel : ViewModelBase, IItemViewModel
     private string? _errorsTooltip;
     private bool _hasErrors;
     private bool _isExpanded;
+    private readonly Lazy<IReadOnlyCollection<IItemViewModel>> _children;
 
-    public ItemViewModel(IItem item, IServiceProvider serviceProvider)
+    public ItemViewModel(IItem item, IServiceProvider serviceProvider, bool deferChildren = false)
     {
         _item = item ?? throw new ArgumentNullException(nameof(item));
         serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
 
         var itemViewModelBuilder = serviceProvider.GetRequiredService<IItemViewModelBuilder>();
 
-        Children = _item.ChildItems
-            .Select(itemViewModelBuilder.Build)
-            .ToList();
+        _children = new Lazy<IReadOnlyCollection<IItemViewModel>>(() => _item.ChildItems.Select(itemViewModelBuilder.Build).ToList());
+        if (!deferChildren) _ = _children.Value;
 
         _menuItemShowErrors = CreateLocalizedMenuItem(nameof(ILocalizationKeys.ContextMenu_ShowItemErrors), serviceProvider.GetRequiredService<IShowItemErrorsWindowCommand>());
 
@@ -67,7 +67,7 @@ public class ItemViewModel : ViewModelBase, IItemViewModel
 
     public string DisplayName => _item.DisplayName;
 
-    public IReadOnlyCollection<IItemViewModel> Children { get; }
+    public IReadOnlyCollection<IItemViewModel> Children => _children.Value;
 
     public bool HasErrors
     {

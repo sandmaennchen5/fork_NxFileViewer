@@ -36,6 +36,36 @@ public sealed class ViewerUpdateTest : IDisposable
         Assert.Null(ViewerUpdateService.SelectRelease(Release(), new Version(3,0,4), "x64", skipMissingPackage: true, selfContained: true));
         Assert.Throws<InvalidDataException>(() => ViewerUpdateService.SelectRelease(Release(), new Version(3,0,4), "x64", selfContained: true));
     }
+    [Theory]
+    [InlineData(4, true, true)]
+    [InlineData(5, true, true)]
+    [InlineData(6, true, false)]
+    [InlineData(4, false, true)]
+    [InlineData(5, false, true)]
+    [InlineData(6, false, false)]
+    public async Task ArchitectureSwitchFindsAnX64OnlyReleaseOfTheSameOrNewerVersion(int installedPatch, bool selfContained, bool expected)
+    {
+        var assetName = "NxFileViewerFork_v3.0.5_" + (selfContained ? "self-contained_" : "") + "x64.zip";
+        var release = JsonSerializer.Serialize(new
+        {
+            tag_name = "v3.0.5",
+            draft = false,
+            prerelease = false,
+            assets = new[] { new { name = assetName, browser_download_url = Url.Replace("NxFileViewerFork_v3.0.5_x64.zip", assetName),
+                digest = "sha256:" + new string('1', 64) } }
+        });
+        using var client = new HttpClient(new Handler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(release)
+        }));
+        var service = new ViewerUpdateService(client, _root);
+
+        var result = await service.CheckAsync(new Version(3, 0, installedPatch), "x64", CancellationToken.None,
+            selfContained: selfContained, allowSameVersion: true);
+
+        Assert.Equal(expected ? assetName : null, result?.AssetName);
+    }
+
     private const string Url = "https://github.com/sandmaennchen5/fork_NxFileViewer/releases/download/v3.0.5/NxFileViewerFork_v3.0.5_x64.zip";
     private static JsonElement Release(string tag = "v3.0.5", bool draft = false, bool prerelease = false, string url = Url) =>
         JsonSerializer.SerializeToElement(new { tag_name = tag, draft, prerelease, assets = new[]

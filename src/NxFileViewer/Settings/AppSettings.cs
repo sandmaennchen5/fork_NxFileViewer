@@ -8,6 +8,15 @@ namespace Emignatik.NxFileViewer.Settings;
 
 public class AppSettings : NotifyPropertyChangedBase, IAppSettings
 {
+    private string _reportEndpoint = DefaultSettings.Get<string>("Settings", "ReportEndpoint");
+
+    [JsonPropertyName("reportEndpoint")]
+    public string ReportEndpoint
+    {
+        get => _reportEndpoint;
+        set { _reportEndpoint = value ?? ""; NotifyPropertyChanged(); }
+    }
+
     private bool _nszGui = DefaultSettings.Get<bool>("Settings", "EnableNszGui");
     public bool EnableNszGui
     {
@@ -138,6 +147,7 @@ public class AppSettings : NotifyPropertyChangedBase, IAppSettings
     public bool NandPluginActive => NandActive && (_nandPluginActive ?? EnableNandPlugin);
     [JsonIgnore]
     public bool NandActive => _nandActive ?? EnableNand;
+    public bool EnableNup { get; set; }
     [JsonIgnore]
     public bool PluginsActive => NszPluginActive || NandPluginActive;
     [JsonIgnore]

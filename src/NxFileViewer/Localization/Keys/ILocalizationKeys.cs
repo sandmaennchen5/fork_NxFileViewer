@@ -14,6 +14,10 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string PluginLog_Off { get; }
     string PluginLog_Tip { get; }
 
+    string Update_SwitchToX64 { get; }
+    string Update_SwitchToX64Confirm { get; }
+    string Update_SwitchToX64ConfirmStandard { get; }
+    string Update_SwitchToX64Unavailable { get; }
     string Update_RollbackConfirm { get; }
     string Update_Cleanup { get; }
     string Update_CleanupConfirm { get; }
@@ -258,6 +262,8 @@ public interface ILocalizationKeys : ILocalizationKeysBase
 
     string FileNotSupported_Log { get; }
     string OpenFile_Filter { get; }
+    string Features_Nup { get; }
+    string Features_NupDisabled { get; }
     string OpenSdCard { get; }
 
     string MenuItem_File { get; }

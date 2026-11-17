@@ -75,6 +75,7 @@ public class FileOverview : NotifyPropertyChangedBase
 
         return BaseFileType switch
         {
+            NxBaseFileType.NUP => NxFileType.NUP,
             NxBaseFileType.NRO => NxFileType.NRO,
             NxBaseFileType.NAX0 => NxFileType.NAX0,
             NxBaseFileType.NCA => NxFileType.NCA,
@@ -114,7 +115,9 @@ public class FileOverview : NotifyPropertyChangedBase
         NxBaseFileType baseFileType;
 
         var rootItemType = RootItem.GetType();
-        if (rootItemType == typeof(XciItem))
+        if (rootItemType == typeof(NupFileItem))
+            baseFileType = NxBaseFileType.NUP;
+        else if (rootItemType == typeof(XciItem))
             baseFileType = NxBaseFileType.XCI;
         else if (rootItemType == typeof(NspItem))
             baseFileType = NxBaseFileType.NSP;
@@ -185,6 +188,7 @@ public enum NxFileType
     NCA,
     NRO,
     NAX0,
+    NUP,
 }
 
 public enum NxBaseFileType
@@ -195,6 +199,7 @@ public enum NxBaseFileType
     NCA,
     NRO,
     NAX0,
+    NUP,
 }
 
 public enum NcaCompressionType

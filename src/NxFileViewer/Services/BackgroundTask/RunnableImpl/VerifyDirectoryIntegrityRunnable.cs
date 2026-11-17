@@ -92,6 +92,7 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
         var firmwareZips = !_appSettings.FirmwareCheckActive ? new HashSet<string>(StringComparer.OrdinalIgnoreCase) : zipCandidates.Where(p => ContainsNca(p) && ExpandPackages(p, cancellationToken, _appSettings.FirmwareCheckActive, _appSettings.NandActive).SequenceEqual(new[] { p }))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var expanded = allFiles.Where(path => Services.Mtp.MtpDirectSource.IsDirect(path) || SupportedExtensions.Contains(Path.GetExtension(path)) || zipCandidates.Contains(path) ||
+                (_appSettings.EnableNup && NupReader.IsNup(path)) ||
                 (_appSettings.NandActive && IsNandFile(path, cancellationToken)))
             .SelectMany(path => ExpandPackages(path, cancellationToken, _appSettings.FirmwareCheckActive, _appSettings.NandActive)).ToArray();
         var archivedFirmware = !_appSettings.FirmwareCheckActive ? new HashSet<string>(StringComparer.OrdinalIgnoreCase) : (_selectedFiles ?? expanded).Where(path => PackageZip.IsMember(path) &&
@@ -180,7 +181,9 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
                             // A UI preview failure must not invalidate the package analysis.
                             _logger.LogWarning(previewException, "Failed to display preview for {FilePath}", file);
                         }
-                        if (_verifyIntegrity && nxFile.NandResult == null && nxFile.RootItem is not Models.TreeItems.Impl.NroFileItem)
+                        var verifyNcas = _verifyIntegrity && nxFile.NandResult == null &&
+                            nxFile.RootItem is not Models.TreeItems.Impl.NroFileItem;
+                        if (verifyNcas)
                         {
                             var verifier = _serviceProvider.GetRequiredService<IVerifyNcasIntegrityRunnable>();
                             verifier.Setup(nxFile.Overview, _appSettings.IgnoreMissingDeltaFragments);
@@ -189,7 +192,7 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
                         var missingKeys = nxFile.Overview.MissingKeys.Count > 0;
                         var integrityError = missingKeys ? LocalizationManager.Instance.Current.Keys.File_MissingKeys + Environment.NewLine +
                             string.Join(", ", nxFile.Overview.MissingKeys.Select(k => k.KeyName).Distinct()) :
-                            (_verifyIntegrity && nxFile.NandResult == null && nxFile.RootItem is not Models.TreeItems.Impl.NroFileItem ? BuildIntegrityError(nxFile.Overview) : null);
+                            (verifyNcas ? BuildIntegrityError(nxFile.Overview) : null);
                         results.Add(new BatchIntegrityResult(
                             file,
                             nxFile.RootItem is Models.TreeItems.Impl.SdCardItem ? "NAX0" : nxFile.NandResult == null ? PackageZip.DisplayFileType(file) : "NAND" + (PackageZip.IsMember(file) ? " (" + Path.GetExtension(PackageZip.ArchivePath(file)).TrimStart('.').ToUpperInvariant() + ")" : ""),
@@ -208,6 +211,19 @@ public sealed class VerifyDirectoryIntegrityRunnable : IVerifyDirectoryIntegrity
                                 Permission = BatchContentMetadata.Assess(nxFile.Overview.CnmtContainers
                                     .Where(p => p.CnmtItem.ContentType is LibHac.Ncm.ContentMetaType.Application or LibHac.Ncm.ContentMetaType.Patch)
                                     .Select(p => p.NpdmItem?.SecurityLevel)) });
+                        if (nxFile.RootItem is Models.TreeItems.Impl.NupFileItem nup && nup.PrimaryPackage is { } primary)
+                            results[^1] = results[^1] with
+                            {
+                                Title = primary.Title,
+                                TitleId = primary.TitleId,
+                                Publisher = primary.Publisher,
+                                Version = primary.Version.ToString(),
+                                DisplayVersion = primary.DisplayVersion,
+                                BuildId = primary.BuildId,
+                                ContentType = primary.Format,
+                                Packages = nup.ChildItems.Cast<Models.TreeItems.Impl.NupPackageItem>()
+                                    .Select(package => package.ToSummary()).ToArray()
+                            };
                         if (nxFile.RootItem is Models.TreeItems.Impl.NroFileItem nro)
                             results[^1] = results[^1] with { Titles = nro.Titles.Select(title => new BatchTitleSummary(title.Language.ToString(), title.AppName, title.Publisher)).ToArray(),
                                 Title = nro.Titles.FirstOrDefault()?.AppName ?? "", Publisher = nro.Titles.FirstOrDefault()?.Publisher ?? "",

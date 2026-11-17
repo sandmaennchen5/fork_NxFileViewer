@@ -56,7 +56,9 @@ public sealed class ExplorerNativeMenuTest
             var first = Path.Combine(root, "A game ü.nsp"); var second = Path.Combine(root, "B game.xci");
             var compressed = Path.Combine(root, "compressed.NSZ");
             var compressedXci = Path.Combine(root, "compressed.xcz");
+            var nup = Path.Combine(root, "experimental.NUP");
             File.WriteAllBytes(compressed, Array.Empty<byte>()); File.WriteAllBytes(compressedXci, Array.Empty<byte>());
+            File.WriteAllBytes(nup, Array.Empty<byte>());
             var unsupported = Path.Combine(root, "notes.txt");
             File.WriteAllBytes(first, Array.Empty<byte>()); File.WriteAllBytes(second, Array.Empty<byte>()); File.WriteAllText(unsupported, "");
             var titles = ExpectedTitles();
@@ -81,6 +83,11 @@ public sealed class ExplorerNativeMenuTest
                     AssertState(child, new[] { first, compressed }, index < 2 || index is 4 or 5 ? 2u : 0u);
                     AssertState(child, new[] { unsupported }, 2);
                     using var config = Registry.CurrentUser.CreateSubKey(ExplorerIntegration.ConfigurationKey);
+                    AssertState(child, new[] { nup }, 2);
+                    config.SetValue("NupEnabled", 1, RegistryValueKind.DWord);
+                    AssertState(child, new[] { nup }, index < 4 ? 0u : 2u);
+                    AssertState(child, new[] { first, nup }, index is 2 or 3 ? 0u : 2u);
+                    config.DeleteValue("NupEnabled");
                     config.SetValue("CompressionEnabled", 0, RegistryValueKind.DWord);
                     config.SetValue("PackageOperationsEnabled", 1, RegistryValueKind.DWord);
                     AssertState(child, new[] { first }, index is 4 or 5 or 8 or 9 ? 2u : 0u);
@@ -128,17 +135,22 @@ public sealed class ExplorerNativeMenuTest
         ExplorerIntegration.SynchronizeFeatures(settings);
         Assert.Equal(0, config.GetValue("CompressionEnabled"));
         Assert.Equal(1, config.GetValue("PackageOperationsEnabled"));
+        Assert.Equal(0, config.GetValue("NupEnabled"));
         settings.EnableNszPlugin = true;
         settings.EnablePackageOperations = false;
+        settings.EnableNup = true;
         ExplorerIntegration.SynchronizeFeatures(settings);
         Assert.Equal(1, config.GetValue("CompressionEnabled"));
         Assert.Equal(0, config.GetValue("PackageOperationsEnabled"));
+        Assert.Equal(1, config.GetValue("NupEnabled"));
         config.SetValue("Executable", Path.Combine(Path.GetTempPath(), "another-copy", "Viewer.exe"));
         settings.EnableNszPlugin = false;
         settings.EnablePackageOperations = true;
+        settings.EnableNup = false;
         ExplorerIntegration.SynchronizeFeatures(settings);
         Assert.Equal(1, config.GetValue("CompressionEnabled"));
         Assert.Equal(0, config.GetValue("PackageOperationsEnabled"));
+        Assert.Equal(1, config.GetValue("NupEnabled"));
     }
 
     private sealed class IsolatedRegistry : IDisposable

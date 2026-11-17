@@ -51,11 +51,11 @@ public sealed class ForkFileAssociationsTest {
         Assert.Equal("\"" + ForkAssociationLauncher.PathFor(executable) + "\" \"%1\"", command.Value);
         Assert.Contains(ForkFileAssociations.ProgId, command.Key);
         var extensions = entries.Where(e => e.Key.EndsWith(@"\FileAssociations")).ToArray();
-        Assert.Equal(new[] { ".nsp", ".nsz", ".xci", ".xcz", ".nro" }, extensions.Select(e => e.Name));
+        Assert.Equal(new[] { ".nsp", ".nsz", ".xci", ".xcz", ".nro", ".nup" }, extensions.Select(e => e.Name));
         Assert.All(extensions, e => Assert.Equal(ForkFileAssociations.ProgId, e.Value));
-        Assert.Equal(5, entries.Count(e => e.Key.EndsWith(@"\OpenWithProgids")));
+        Assert.Equal(extensions.Length, entries.Count(e => e.Key.EndsWith(@"\OpenWithProgids")));
         Assert.Contains(entries, e => e.Key == @"Software\Classes\Applications\NxFileViewerFork.Open.exe" && e.Name == "FriendlyAppName" && e.Value == "NxFileViewer Fork");
-        Assert.Equal(5, entries.Count(e => e.Key.EndsWith(@"\SupportedTypes")));
+        Assert.Equal(extensions.Length, entries.Count(e => e.Key.EndsWith(@"\SupportedTypes")));
         Assert.Equal(command.Value, Assert.Single(entries, e => e.Key == @"Software\Classes\Applications\NxFileViewerFork.Open.exe\shell\open\command").Value);
         Assert.DoesNotContain(entries, e => e.Key.Contains("UserChoice") || e.Key.Contains(@"Applications\NxFileViewer.exe"));
         Assert.DoesNotContain(entries, e => e.Key.EndsWith(".nsp") && e.Name.Length == 0);

@@ -146,7 +146,7 @@ public class FileOpeningService : IFileOpeningService
         if (!enabled || _automaticVerifier == null || generation != _openGeneration || !ReferenceEquals(_openedFile, file) ||
             _backgroundTaskRunnerService.IsRunning || file.NandResult != null ||
             file.RootItem is Models.TreeItems.Impl.FirmwareFileItem or Models.TreeItems.Impl.NroFileItem or Models.TreeItems.Impl.SaveBackupFileItem ||
-            file.Overview.BaseFileType is not (Models.Overview.NxBaseFileType.NSP or Models.Overview.NxBaseFileType.XCI or Models.Overview.NxBaseFileType.NCA or Models.Overview.NxBaseFileType.NAX0) ||
+            file.Overview.BaseFileType is not (Models.Overview.NxBaseFileType.NSP or Models.Overview.NxBaseFileType.XCI or Models.Overview.NxBaseFileType.NCA or Models.Overview.NxBaseFileType.NAX0 or Models.Overview.NxBaseFileType.NUP) ||
             (origin != FileOpenOrigin.ExplorerVerify && file.Overview.NcasIntegrity != Models.Overview.NcasIntegrity.Unchecked)) return;
         _automaticVerifier.Setup(file.Overview, _appSettings.IgnoreMissingDeltaFragments);
         await _backgroundTaskRunnerService.RunAsync(_automaticVerifier);

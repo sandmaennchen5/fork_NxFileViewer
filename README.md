@@ -21,6 +21,7 @@ Firmware references, the standalone LogViewer and Explorer setup packages are se
 | --- | --- |
 | [File browser](docs/User-guide.md#file-check) | NSP, NSZ, XCI, XCZ, NCA and Super packages; content tree, metadata, images and exports |
 | [Integrity checks](docs/User-guide.md#file-check) | NCA hashes and signatures, missing contents/keys, package structure and security information |
+| [NUP (experimental)](docs/User-guide.md#nup-files) | Base game, update and DLC metadata, ExeFS/RomFS browsing and SHA-256 verification in File and Batch |
 | [Batch processing](docs/User-guide.md#batch-check) | Multiple files/folders, selected-file actions, filtering, sorting, saved history and CSV/Excel export |
 | [Renaming](docs/Renaming.md) | Independent game/update/DLC/Super/multi-package presets, custom variables, simulation and target folders |
 | [Compression](docs/NSZ-plugin.md) | NSP ↔ NSZ and XCI ↔ XCZ using nicoboss/nsz or nscb_rust, with source/output verification |
