@@ -32,7 +32,7 @@ public sealed class SessionFileLog : IDisposable
             var assembly = typeof(SessionFileLog).Assembly;
             var version = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
                 ?? assembly.GetName().Version?.ToString() ?? "unknown";
-            Write(LogLevel.Information, $"NxFileViewer Fork session started. Version: {version}; Assembly: {assembly.GetName().Version}.");
+            Write(LogLevel.Information, $"NxFileViewer Fork session started. Version: {version}; Assembly: {assembly.GetName().Version}. {SessionEnvironment.Describe()}");
             Trim(retentionCount);
         }
         catch (IOException) { Dispose(); }
@@ -58,13 +58,15 @@ public sealed class SessionFileLog : IDisposable
         }
     }
 
+    internal static string RedactSecrets(string message) => KeyValue.Replace(message, "$1[REDACTED]");
+
     public void Write(LogLevel level, string message)
     {
         lock (_gate)
         {
             try
             {
-                _writer?.WriteLine($"[{DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss.fff zzz}] [{level}] {KeyValue.Replace(message, "$1[REDACTED]")}");
+                _writer?.WriteLine($"[{DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss.fff zzz}] [{level}] {RedactSecrets(message)}");
             }
             catch (IOException) { Dispose(); }
             catch (UnauthorizedAccessException) { Dispose(); }

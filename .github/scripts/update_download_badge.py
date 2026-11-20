@@ -11,7 +11,7 @@ from urllib.request import Request, urlopen
 
 VIEWER_ZIP = re.compile(
     r"^(NxFileViewerFork|NxFileViewer)_v(\d+)\.(\d+)\.(\d+)"
-    r"(?:-[0-9a-z]+(?:[.-][0-9a-z]+)*)?(?:_self-contained)?_(?:x64|x86)\.zip$",
+    r"(?:-[0-9a-z]+(?:[.-][0-9a-z]+)*)?(?:_self-contained)?_(?:x64|x86|arm64)\.zip$",
     re.IGNORECASE,
 )
 TIMEOUT = 20

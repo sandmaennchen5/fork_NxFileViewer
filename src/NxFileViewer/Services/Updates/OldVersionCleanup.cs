@@ -11,14 +11,14 @@ public static class OldVersionCleanup
     private static string Full(string path) => Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
     private static bool Inside(string path, string directory) => Full(path).StartsWith(Full(directory) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
 
-    private static bool NoLinks(string path)
+    internal static bool NoLinks(string path)
     {
         for (var item = Full(path); !string.IsNullOrEmpty(item); item = Path.GetDirectoryName(item))
             if ((File.Exists(item) || Directory.Exists(item)) && (File.GetAttributes(item) & FileAttributes.ReparsePoint) != 0) return false;
         return true;
     }
 
-    private static bool SafeTree(string directory)
+    internal static bool SafeTree(string directory)
     {
         if (!NoLinks(directory)) return false;
         foreach (var entry in Directory.EnumerateFileSystemEntries(directory))

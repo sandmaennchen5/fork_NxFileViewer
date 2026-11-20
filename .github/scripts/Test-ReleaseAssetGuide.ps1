@@ -20,7 +20,7 @@ function Fixture([string]$name, [bool]$optional = $true, [int]$runtime = 10) {
     $version = '4.1.1-beta1'
     $packages = @()
     $explorer = @()
-    foreach ($architecture in @('x64', 'x86')) {
+    foreach ($architecture in @('x64', 'x86', 'arm64')) {
         foreach ($contained in @($false, $true)) {
             $variant = if ($contained) { '_self-contained' } else { '' }
             $file = "NxFileViewerFork_v$($version)$($variant)_$architecture.zip"
@@ -41,7 +41,7 @@ function Fixture([string]$name, [bool]$optional = $true, [int]$runtime = 10) {
         }
         [IO.File]::WriteAllBytes((Join-Path $out "NxFileViewerFork_v$($version)_firmware-hashes.zip"), [byte[]]@())
     }
-    $descriptor = @{SchemaVersion=1;ApplicationId='NxFileViewerFork';Version=$version;Packages=$packages;ExplorerPackages=$explorer}
+    $descriptor = @{SchemaVersion=1;ApplicationId='NxFileViewerFork';Version=$version;Packages=@($packages | Where-Object Architecture -ne 'arm64');Arm64Packages=@($packages | Where-Object Architecture -eq 'arm64');ExplorerPackages=$explorer}
     [IO.File]::WriteAllText((Join-Path $out 'nxfileviewer-update.json'), ($descriptor | ConvertTo-Json -Depth 6))
     $notes = Join-Path $root 'notes.md'
     [IO.File]::WriteAllText($notes, "### Fixed" + [char]10 + "- Preserve this changelog text." + [char]10)

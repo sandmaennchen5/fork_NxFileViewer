@@ -32,12 +32,12 @@ function Assert-Asset([object]$name) {
 }
 function Asset-Line([string]$name) { return '- ' + [char]96 + $name + [char]96 }
 $runtime = Get-RuntimeVersion 'src/NxFileViewer/NxFileViewer.csproj'
-$packages = @($descriptor.Packages)
+$packages = @($descriptor.Packages) + @($descriptor.Arm64Packages | Where-Object { $null -ne $_ })
 if ($packages.Count -eq 0) { throw 'Release descriptor contains no viewer packages.' }
 $names = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
 foreach ($package in $packages) {
     Assert-Asset $package.AssetName
-    if ($package.SelfContained -isnot [bool] -or $package.Architecture -notin @('x64', 'x86') -or !$names.Add($package.AssetName)) {
+    if ($package.SelfContained -isnot [bool] -or $package.Architecture -notin @('x64', 'x86', 'arm64') -or !$names.Add($package.AssetName)) {
         throw 'Invalid or duplicate viewer package metadata.'
     }
 }
@@ -50,15 +50,15 @@ foreach ($package in $explorer) {
 }
 $escaped = [regex]::Escape($Version)
 $zipFiles = @(Get-ChildItem -LiteralPath $PackageDirectory -Filter '*.zip' -File)
-$logViewer = @($zipFiles | Where-Object { $_.Name -cmatch ('^[A-Za-z0-9._-]+\.LogViewer_v' + $escaped + '(?:_self-contained)?_(?:x64|x86)\.zip$') } | Sort-Object Name)
-$transition = @($zipFiles | Where-Object { $_.Name -cmatch ('^NxFileViewer_v' + $escaped + '(?:_self-contained)?_(?:x64|x86)\.zip$') -and !$names.Contains($_.Name) } | Sort-Object Name)
+$logViewer = @($zipFiles | Where-Object { $_.Name -cmatch ('^[A-Za-z0-9._-]+\.LogViewer_v' + $escaped + '(?:_self-contained)?_(?:x64|x86|arm64)\.zip$') } | Sort-Object Name)
+$transition = @($zipFiles | Where-Object { $_.Name -cmatch ('^NxFileViewer_v' + $escaped + '(?:_self-contained)?_(?:x64|x86|arm64)\.zip$') -and !$names.Contains($_.Name) } | Sort-Object Name)
 $firmware = @($zipFiles | Where-Object { $_.Name -cmatch ('^[A-Za-z0-9._-]+_v' + $escaped + '_firmware-hashes\.zip$') } | Sort-Object Name)
 $logRuntime = if ($logViewer.Count) { Get-RuntimeVersion 'src/NxFileViewer.LogViewer/NxFileViewer.LogViewer.csproj' } else { $null }
 $lines = [Collections.Generic.List[string]]::new()
 $lines.Add('<!-- nxfileviewer-release-asset-guide -->')
 $lines.Add('#### Which ZIP file do I need?')
 $lines.Add('')
-$lines.Add('For a normal installation, choose one of the **viewer ZIPs** below. Choose x64 or x86 to match your Windows installation.')
+$lines.Add('For a normal installation, choose one of the **viewer ZIPs** below. Choose x64, x86 or ARM64 to match your Windows installation. ARM64 is for Windows on ARM, not macOS.')
 $lines.Add('')
 $contained = @($packages | Where-Object SelfContained | Sort-Object Architecture)
 $standard = @($packages | Where-Object { !$_.SelfContained } | Sort-Object Architecture)

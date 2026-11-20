@@ -5,7 +5,11 @@ using System.Threading.Tasks;
 namespace Emignatik.NxFileViewer.Services.Updates;
 
 // The one-time transition has no persistent metadata cache or application dependencies.
-public sealed record GitHubUpdateResponse(string Body) { public string Notice => ""; }
+public sealed record GitHubUpdateResponse(string Body)
+{
+    public string Notice => "";
+    public string NoticeFor(bool automatic) => "";
+}
 public sealed class GitHubUpdateRequests(HttpClient client)
 {
     public static GitHubUpdateRequests For(HttpClient? client) => new(client ?? new HttpClient());

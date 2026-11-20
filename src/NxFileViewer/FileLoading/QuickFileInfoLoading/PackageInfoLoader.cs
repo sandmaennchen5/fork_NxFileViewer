@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -64,7 +64,7 @@ public class PackageInfoLoader : IPackageInfoLoader
         using var localFile = new LocalStorage(nspFilePath, FileAccess.Read);
         using var nspPartition = localFile.LoadPartition();
 
-        var contents = LoadContentsFromPartition(nspPartition, keySet, out var containsNcz);
+        var contents = PackageMetadataReader.Read(nspPartition, keySet, out var containsNcz);
 
         accuratePackageType = containsNcz ? AccuratePackageType.NSZ : AccuratePackageType.NSP;
 
@@ -86,7 +86,7 @@ public class PackageInfoLoader : IPackageInfoLoader
         {
             var xciPartition = xci.OpenPartition(XciPartitionType.Secure);
 
-            var partitionContents = LoadContentsFromPartition(xciPartition, keySet, out var containsNcz);
+            var partitionContents = PackageMetadataReader.Read(xciPartition, keySet, out var containsNcz);
             contents.AddRange(partitionContents);
 
             if (accuratePackageType == AccuratePackageType.XCI && containsNcz)
@@ -96,35 +96,6 @@ public class PackageInfoLoader : IPackageInfoLoader
         return contents;
     }
 
-    private static List<Content> LoadContentsFromPartition(IFileSystem partition, KeySet keySet, out bool containsNcz)
-    {
-        containsNcz = partition.EnumerateEntries()
-            .Where(e => e.Type == DirectoryEntryType.File)
-            .Any(entry => entry.Name.EndsWith(".ncz", StringComparison.OrdinalIgnoreCase));
 
-        var contents = new List<Content>();
-
-        foreach (var cnmt in partition.LoadCnmts(keySet))
-        {
-            var content = new Content(cnmt);
-            contents.Add(content);
-
-            var ncaControlEntry = cnmt.ContentEntries.FirstOrDefault(entry => entry.Type == ContentType.Control);
-
-            if (ncaControlEntry != null)
-            {
-                var ncaId = ncaControlEntry.NcaId.ToStrId();
-
-                var nacp = partition.LoadNacp(ncaId, keySet);
-
-                if (nacp != null)
-                {
-                    content.NacpData = new NacpData(nacp.Value);
-                }
-            }
-        }
-
-        return contents;
-    }
 
 }

@@ -15,7 +15,7 @@ public class NcaItem : PartitionFileEntryItemBase
     private Validity _headerSignatureValidity;
     private bool? _hashValid;
 
-    public static int MaxSections { get; } = 4;
+    public static int MaxSections => Utils.LibHacExtensions.NcaExtension.MaxSections;
 
     public NcaItem(Nca nca, DirectoryEntryEx ncaFileEntry, PartitionFileSystemItemBase parentItem) : base(ncaFileEntry, parentItem)
     {

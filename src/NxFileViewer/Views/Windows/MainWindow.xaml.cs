@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Linq;
 using System.Collections.Generic;
 using System;
@@ -21,12 +21,17 @@ public partial class MainWindow : Window
     private IMainBackgroundTaskRunnerService? _taskRunner;
     private int? _activeTaskTab;
     private int _lastContentTab;
+    private readonly System.Threading.CancellationTokenSource _pollLifetime = new();
+    private int _pollCheckVersion;
+    private int _pendingPollCount;
 
     public MainWindow()
     {
         InitializeComponent();
-        ReportIssueButton.Content = CommunityUsesGerman ? "Fehler melden" : "Report a bug";
-        PollsButton.Content = CommunityUsesGerman ? "Umfragen auf GitHub" : "GitHub polls";
+        RefreshCommunityText();
+        Emignatik.NxFileViewer.Localization.CommunityLanguage.Observe(this, window => window.RefreshCommunityText());
+        Loaded += async (_, _) => await RefreshPollNoticeAsync();
+        Loaded += async (_, _) => await ConfirmUsageStatisticsAsync();
         DataContextChanged += (_, _) =>
         {
             if (_taskRunner != null) _taskRunner.PropertyChanged -= TaskStateChanged;
@@ -36,14 +41,41 @@ public partial class MainWindow : Window
         };
         Closed += (_, _) =>
         {
+            _pollLifetime.Cancel();
             if (_taskRunner != null) _taskRunner.PropertyChanged -= TaskStateChanged;
             _batch?.ClosePreview();
             App.ServiceProvider.GetService<Emignatik.NxFileViewer.Services.FileOpening.IFileOpeningService>()?.SafeClose();
         };
     }
 
+    private async System.Threading.Tasks.Task ConfirmUsageStatisticsAsync()
+    {
+        if (!App.Features.UsageStatisticsChoiceConfirmed)
+        {
+            var dialog = new UsageStatisticsConsentWindow(CommunityUsesGerman) { Owner = this };
+            dialog.ShowDialog();
+            App.Features.SendAnonymousUsageStatistics = dialog.StatisticsEnabled;
+            App.Features.UsageStatisticsChoiceConfirmed = true;
+            App.ServiceProvider.GetRequiredService<Emignatik.NxFileViewer.Settings.IAppSettingsManager>().SaveSafe();
+        }
+        await Emignatik.NxFileViewer.Services.UsageStatisticsService.SendStartupAsync();
+    }
+
     private static bool CommunityUsesGerman =>
-        System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "de";
+        Emignatik.NxFileViewer.Localization.CommunityLanguage.IsGerman;
+
+    private void RefreshCommunityText()
+    {
+        ReportIssueButton.Content = CommunityUsesGerman ? "Fehler / Funktionswunsch melden" : "Report a bug / request a feature";
+        PollsButton.Content = CommunityUsesGerman ? "Umfragen" : "Polls";
+        PendingPollButton.Content = CommunityUsesGerman ? "Jetzt abstimmen" : "Vote now";
+        PendingPollText.Text = CommunityUsesGerman
+            ? _pendingPollCount == 1 ? "Eine offene Umfrage wartet auf deine Stimme." : $"{_pendingPollCount} offene Umfragen warten auf deine Stimme."
+            : _pendingPollCount == 1 ? "An open poll is waiting for your vote." : $"{_pendingPollCount} open polls are waiting for your vote.";
+    }
+
+    private void Repository_Click(object sender, RoutedEventArgs e) =>
+        OpenCommunityLink(FeedbackWindow.Repository);
 
     private void ReportIssue_Click(object sender, RoutedEventArgs e) =>
         new FeedbackWindow(CommunityUsesGerman) { Owner = this }.ShowDialog();
@@ -51,8 +83,35 @@ public partial class MainWindow : Window
     private void Discord_Click(object sender, RoutedEventArgs e) =>
         OpenCommunityLink("https://discord.gg/tjvhd3jw3d");
 
-    private void Polls_Click(object sender, RoutedEventArgs e) =>
-        OpenCommunityLink(FeedbackWindow.Repository + "/discussions/categories/polls");
+    private async void Polls_Click(object sender, RoutedEventArgs e)
+    {
+        new PollsWindow(CommunityUsesGerman) { Owner = this }.ShowDialog();
+        await RefreshPollNoticeAsync();
+    }
+
+    private async System.Threading.Tasks.Task RefreshPollNoticeAsync()
+    {
+        var version = ++_pollCheckVersion;
+        var endpoint = Emignatik.NxFileViewer.Services.CommunityPollService.Endpoint(App.Features.PollEndpoint);
+        PendingPollNotice.Visibility = Visibility.Collapsed;
+        if (endpoint is null) return;
+        try
+        {
+            var polls = await Emignatik.NxFileViewer.Services.CommunityPollService.LoadAsync(endpoint, _pollLifetime.Token);
+            if (version != _pollCheckVersion || _pollLifetime.IsCancellationRequested) return;
+            var count = polls.Count(poll => poll.AwaitingResponse);
+            if (count == 0) return;
+            _pendingPollCount = count;
+            RefreshCommunityText();
+            PendingPollNotice.Visibility = Visibility.Visible;
+        }
+        catch (Exception error) when (error is System.Net.Http.HttpRequestException or IOException or
+                                      UnauthorizedAccessException or OperationCanceledException or System.Text.Json.JsonException)
+        {
+            // Poll availability must not interrupt startup or other work.
+        }
+    }
+
 
     private void OpenCommunityLink(string url)
     {

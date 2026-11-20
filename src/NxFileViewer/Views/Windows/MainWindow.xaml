@@ -81,6 +81,15 @@
                             </WrapPanel>
                         </StackPanel>
                     </Border>
+                    <Border x:Name="PendingPollNotice" Visibility="Collapsed"
+                            BorderBrush="{DynamicResource FontBrush.Warning}" BorderThickness="1"
+                            Padding="12" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock x:Name="PendingPollText" TextWrapping="Wrap" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                            <Button x:Name="PendingPollButton" Click="Polls_Click" HorizontalAlignment="Center" Padding="12,5"/>
+                        </StackPanel>
+                    </Border>
+
                     <TextBlock Text="{Binding ViewerUpdates.AvailableUpdates}" Visibility="{Binding ViewerUpdates.AvailableUpdates, Converter={StaticResource StringNullOrEmptyToCollapsedVisibilityConverter}}" TextWrapping="Wrap" HorizontalAlignment="Center" Margin="0,0,0,12"/>
                     <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Update_Install}" Command="{Binding ViewerUpdates.InstallCommand}" Visibility="{Binding ViewerUpdates.HasViewerUpdate, Converter={StaticResource FalseToCollapseVisibilityConverter}}" Padding="12,5" Margin="0,0,0,12"/>
                     <WrapPanel HorizontalAlignment="Center">
@@ -123,7 +132,7 @@
                                 </Button>
                                 <Button x:Name="RustDesktopGuiButton" Visibility="{Binding Desktop.IsGuiEnabled, Converter={StaticResource FalseToCollapseVisibilityConverter}}" Command="{Binding Desktop.OpenGuiCommand}" Width="270" MinHeight="92" Padding="12,8" Margin="4,5" HorizontalContentAlignment="Stretch">
                                     <StackPanel>
-                                        <TextBlock Text="NSCB Desktop · nscb_rust" FontSize="14" FontWeight="SemiBold"/>
+                                        <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RustDesktop_Title}" TextWrapping="Wrap" FontSize="14" FontWeight="SemiBold"/>
                                         <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Home_NszDescription}" TextWrapping="Wrap" FontSize="12" Margin="0,3,0,6"/>
                                         <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Home_LaunchExternal}" FontWeight="SemiBold"/>
                                     </StackPanel>
@@ -223,12 +232,13 @@
                             </TextBlock>
                         </StackPanel>
                         <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Info_Description}" TextWrapping="Wrap" Margin="0,0,0,16"/>
-                        <TextBlock Text="GitHub: sandmaennchen5/fork_NxFileViewer" Margin="0,0,0,8"/>
+                        <Button x:Name="RepositoryButton" Content="GitHub: sandmaennchen5/fork_NxFileViewer" Click="Repository_Click" HorizontalAlignment="Left" Padding="9,4" Margin="0,0,0,8"/>
                         <WrapPanel Margin="0,0,0,12">
                             <Button x:Name="ReportIssueButton" Click="ReportIssue_Click" Padding="10,4" Margin="0,0,8,0"/>
                             <Button x:Name="PollsButton" Click="Polls_Click" Padding="10,4" Margin="0,0,8,0"/>
                             <Button Content="Discord" Click="Discord_Click" Padding="10,4"/>
                         </WrapPanel>
+                        <userControls:SupportIdentityView/>
                         <userControls:CreditsView/>
                         <TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Info_Shortcuts}" Style="{StaticResource Title2}" Margin="0,16,0,12"/>
                         <DockPanel Margin="0,0,0,10"><TextBlock Text="Ctrl+O" Width="160" FontWeight="Bold"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.MenuItem_Open}"/></DockPanel>

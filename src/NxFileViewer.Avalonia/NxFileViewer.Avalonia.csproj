@@ -1,0 +1,33 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <Version>4.1.1-beta3</Version>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <AssemblyName>NxFileViewerFork.Avalonia</AssemblyName>
+    <ApplicationIcon>../NxFileViewer/Styling/Icons/Icon.ico</ApplicationIcon>
+    <AvaloniaVersion>11.3.21</AvaloniaVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Avalonia.Desktop" Version="$(AvaloniaVersion)" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="$(AvaloniaVersion)" />
+    <PackageReference Include="LibHac" Version="0.19.0" />
+    <PackageReference Include="SharpCompress" Version="0.50.3" />
+    <ProjectReference Include="../LibHac.NSZ/LibHac.NSZ.csproj" />
+    <Compile Include="../NxFileViewer/FileLoading/IPackageTypeAnalyzer.cs" Link="Shared/IPackageTypeAnalyzer.cs" />
+    <Compile Include="../NxFileViewer/FileLoading/PackageSignature.cs" Link="Shared/PackageSignature.cs" />
+    <Compile Include="../NxFileViewer/Utils/LibHacExtensions/IStorageExtension.cs" Link="Shared/IStorageExtension.cs" />
+    <Compile Include="../NxFileViewer/FileLoading/QuickFileInfoLoading/PackageInfo.cs;../NxFileViewer/FileLoading/QuickFileInfoLoading/PackageMetadataReader.cs" Link="Shared/%(Filename)%(Extension)" />
+    <Compile Include="../NxFileViewer/Utils/IdHelper.cs;../NxFileViewer/Utils/LibHacExtensions/IFileSystemExtension.cs;../NxFileViewer/Utils/LibHacExtensions/NcaExtension.cs;../NxFileViewer/Utils/LibHacExtensions/NacpTitleBlockDecompressor.cs;../NxFileViewer/Utils/LibHacExtensions/TitleVersionExtension.cs" Link="Shared/%(Filename)%(Extension)" />
+    <Compile Include="../NxFileViewer/Models/Overview/NacpLanguage.cs" Link="Shared/NacpLanguage.cs" />
+    <Compile Include="../NxFileViewer/Localization/Keys/*.cs" Link="Shared/Localization/%(Filename)%(Extension)" />
+    <Compile Include="../NxFileViewer/Services/Integrity/NcaHashPrefix.cs" Link="Shared/NcaHashPrefix.cs" />
+    <Compile Include="../NxFileViewer/Services/Integrity/FirmwareComparison.cs" Link="Shared/FirmwareComparison.cs" />
+    <Compile Include="../NxFileViewer/Services/ApplicationDataPaths.cs" Link="Shared/ApplicationDataPaths.cs" />
+    <Compile Include="../NxFileViewer/Utils/MVVM/Localization/LocalizationKeysBase.cs;../NxFileViewer/Utils/MVVM/Localization/ILocalizationKeysBase.cs" Link="Shared/Localization/%(Filename)%(Extension)" />
+    <AvaloniaResource Include="../NxFileViewer/Styling/Icons/*.*" Link="Icons/%(Filename)%(Extension)" />
+    <None Include="../../LICENSE" Link="LICENSE.txt" CopyToPublishDirectory="PreserveNewest" />
+    <EmbeddedResource Include="../config/naming-presets.json" LogicalName="Viewer.NamingPresets.json" />
+    <Content Include="../../fw/hashes/*.json" Link="Plugins/fwhashes/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" ExcludeFromSingleFile="true" />
+  </ItemGroup>
+</Project>

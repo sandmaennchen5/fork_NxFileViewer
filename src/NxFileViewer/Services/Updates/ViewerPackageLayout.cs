@@ -66,12 +66,21 @@ public static class ViewerPackageLayout
             if ((File.Exists(item) || Directory.Exists(item)) && (File.GetAttributes(item) & FileAttributes.ReparsePoint) != 0)
                 throw new IOException("Update paths must not contain symbolic links or junctions.");
     }
-    public static string InstalledExecutable(string root)
+    public static string InstalledExecutable(string root, string? processPath = null)
     {
         var manifestPath = Path.Combine(root, ManifestName);
-        var name = "NxFileViewer.exe";
-        if (File.Exists(manifestPath)) name = ReadManifest(File.ReadAllBytes(manifestPath)).Executable;
-        return Path.Combine(root, ExecutableName(name));
+        if (File.Exists(manifestPath))
+            return Path.Combine(root, ExecutableName(ReadManifest(File.ReadAllBytes(manifestPath)).Executable));
+
+        // Test/legacy single-file distributions have no package manifest and may be renamed.
+        root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
+        processPath ??= Environment.ProcessPath;
+        if (!string.IsNullOrWhiteSpace(processPath) && File.Exists(processPath) &&
+            string.Equals(Path.GetDirectoryName(Path.GetFullPath(processPath)), root, StringComparison.OrdinalIgnoreCase))
+            return Path.Combine(root, ExecutableName(Path.GetFileName(processPath)));
+        foreach (var name in new[] { "NxFileViewerFork.exe", "NxFileViewer.exe", "NxFileViewerFork.Avalonia.exe" })
+            if (File.Exists(Path.Combine(root, name))) return Path.Combine(root, name);
+        return Path.Combine(root, "NxFileViewer.exe");
     }
     public static ViewerPackageManifest ReadManifest(byte[] bytes)
     {

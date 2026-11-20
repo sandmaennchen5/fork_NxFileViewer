@@ -33,3 +33,15 @@ do not force garbage collection. See [memory diagnostics](Memory-diagnostics.md)
 
 The live Log page retains at most 2,000 entries. Older entries remain in the session
 file, and the heading of the active file group is preserved when the limit is applied.
+
+## Session identity and report attachments
+
+Session headers include the informational version (including prerelease/build suffix),
+numeric assembly version, OS description/platform, process/OS architecture, UI
+framework, runtime distribution, runtime version and RID. This distinguishes x86,
+x64 and ARM64, WPF/Avalonia and bundled/system .NET without relying on an EXE name.
+
+The WPF report dialog can share a locally anonymized, editable excerpt publicly,
+upload the unchanged current session file privately, or do both. Anonymization is
+applied to the public excerpt; it does not alter the local file or private original.
+See [community features](Community.md) for privacy, Support IDs and service receipts.

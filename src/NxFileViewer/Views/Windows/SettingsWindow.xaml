@@ -74,6 +74,9 @@
                                     <ComboBox ItemsSource="{Binding Path=ThemeOptions}" SelectedValuePath="Value" SelectedValue="{Binding Path=EditedSettings.Theme}" DisplayMemberPath="DisplayName" MinWidth="100" HorizontalAlignment="Left"/>
                                 </StackPanel>
                             </UniformGrid>
+                            <Separator Margin="0,12,0,8"/>
+                            <CheckBox x:Name="UsageStatisticsOption" IsChecked="{Binding EditedSettings.SendAnonymousUsageStatistics}" Margin="0,0,0,4"/>
+                            <TextBlock x:Name="UsageStatisticsHint" TextWrapping="Wrap" Margin="0,0,0,12"/>
                         </StackPanel>
                     </GroupBox>
                     <GroupBox x:Name="ProgramVerificationGroup" Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Workspace_File}" Margin="8,4,8,8">

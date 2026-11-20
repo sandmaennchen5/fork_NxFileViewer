@@ -16,12 +16,16 @@ param(
     [switch]$SkipExplorerPackages,
     [switch]$ViewerX64,
     [switch]$ViewerX86,
+    [switch]$ViewerArm64,
     [switch]$ViewerX64WithRuntime,
     [switch]$ViewerX86WithRuntime,
+    [switch]$ViewerArm64WithRuntime,
     [switch]$LogViewerX64,
     [switch]$LogViewerX86,
+    [switch]$LogViewerArm64,
     [switch]$LogViewerX64WithRuntime,
     [switch]$LogViewerX86WithRuntime,
+    [switch]$LogViewerArm64WithRuntime,
     [switch]$TransitionX64,
     [switch]$TransitionX86,
     [switch]$TransitionX64WithRuntime,
@@ -33,8 +37,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 $SelectedExeVariants = @(
-    'ViewerX64','ViewerX86','ViewerX64WithRuntime','ViewerX86WithRuntime',
-    'LogViewerX64','LogViewerX86','LogViewerX64WithRuntime','LogViewerX86WithRuntime',
+    'ViewerX64','ViewerX86','ViewerArm64','ViewerX64WithRuntime','ViewerX86WithRuntime','ViewerArm64WithRuntime',
+    'LogViewerX64','LogViewerX86','LogViewerArm64','LogViewerX64WithRuntime','LogViewerX86WithRuntime','LogViewerArm64WithRuntime',
     'TransitionX64','TransitionX86','TransitionX64WithRuntime','TransitionX86WithRuntime'
 ) | Where-Object { $PSBoundParameters.ContainsKey($_) -and $PSBoundParameters[$_] }
 if ($SelectedExeVariants -and ($LogViewerOnly -or $SkipLogViewer)) {
@@ -140,7 +144,7 @@ Push-Location -LiteralPath (Join-Path $PSScriptRoot 'src')
 try {
     if ($SelectedExeVariants) {
         foreach ($selection in $SelectedExeVariants) {
-            $architecture = if ($selection -match 'X64') { 'x64' } else { 'x86' }
+            $architecture = if ($selection -match 'Arm64') { 'arm64' } elseif ($selection -match 'X64') { 'x64' } else { 'x86' }
             $withRuntime = $selection.EndsWith('WithRuntime')
             $suffix = if ($withRuntime) { '_self-contained' } else { '' }
             if ($selection.StartsWith('LogViewer')) {
@@ -174,7 +178,7 @@ try {
     }
     if (!$SkipLogViewer) {
         $LogViewerProject = Join-Path $PSScriptRoot 'src/NxFileViewer.LogViewer/NxFileViewer.LogViewer.csproj'
-        foreach ($ViewerArchitecture in @('x64', 'x86')) {
+        foreach ($ViewerArchitecture in @('x64', 'x86', 'arm64')) {
             foreach ($ViewerWithRuntime in @($false, $true)) {
                 $ViewerVariant = if ($ViewerWithRuntime) { '_self-contained' } else { '' }
                 $ViewerReleaseName = "NxFileViewerFork.LogViewer_v${AppVersion}${ViewerVariant}_${ViewerArchitecture}"
@@ -188,7 +192,7 @@ try {
         }
     }
     if ($LogViewerOnly) { return }
-    foreach ($Architecture in @("x64", "x86")) {
+    foreach ($Architecture in @("x64", "x86", "arm64")) {
         foreach ($WithRuntime in @($false, $true)) {
             $Variant = if ($WithRuntime) { "_self-contained" } else { "" }
             $ReleaseName = "${AppName}_v${AppVersion}${Variant}_${Architecture}"
@@ -213,7 +217,7 @@ try {
             }
             Compress-Archive -LiteralPath @($applicationFiles | ForEach-Object { Join-Path $ReleaseDir $_ }) -DestinationPath (Join-Path $OutDirRoot "$ReleaseName.zip") -Force
             $ReleasePackages += [pscustomobject]@{ Architecture=$Architecture; SelfContained=[bool]$WithRuntime; AssetName="$ReleaseName.zip"; Sha256=(Get-FileHash -LiteralPath (Join-Path $OutDirRoot "$ReleaseName.zip") -Algorithm SHA256).Hash }
-            if ($IncludeLegacyTransition) {
+            if ($IncludeLegacyTransition -and $Architecture -ne 'arm64') {
                 $transitionProject = Join-Path $PSScriptRoot 'src/NxFileViewer.Transition/NxFileViewer.Transition.csproj'
                 $transitionDir = Join-Path $StagingRoot ("transition${Variant}_${Architecture}")
                 dotnet publish $transitionProject -p:Version=$AppVersion -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=$WithRuntime -c Release --self-contained $WithRuntime -r "win-$Architecture" -o $transitionDir
@@ -225,7 +229,7 @@ try {
         }
     }
 
-    $ReleaseDescriptor = [ordered]@{ SchemaVersion=1; ApplicationId='NxFileViewerFork'; Version=$AppVersion; Prerelease=$AppVersion.Contains('-'); Packages=$ReleasePackages }
+    $ReleaseDescriptor = [ordered]@{ SchemaVersion=1; ApplicationId='NxFileViewerFork'; Version=$AppVersion; Prerelease=$AppVersion.Contains('-'); Packages=@($ReleasePackages | Where-Object Architecture -ne 'arm64'); Arm64Packages=@($ReleasePackages | Where-Object Architecture -eq 'arm64') }
 
     # The add-on extracts to Plugins/fwhashes next to either architecture's executable.
     $HashRoot = Join-Path $StagingRoot "firmware-hashes"

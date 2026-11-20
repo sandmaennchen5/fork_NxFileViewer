@@ -62,6 +62,21 @@ jobs:
           RELEASE_VERSION: ${{ steps.tag.outputs.version }}
         run: ./Publish.ps1 -Version $env:RELEASE_VERSION -OutputDirectory Publish-Release
 
+      - name: Verify WPF ARM64 packages
+        shell: pwsh
+        run: |
+          $descriptor = Get-Content -LiteralPath Publish-Release/nxfileviewer-update.json -Raw | ConvertFrom-Json
+          if (@($descriptor.Arm64Packages).Count -ne 2) { throw 'Expected both ARM64 viewer distributions.' }
+          foreach ($package in $descriptor.Arm64Packages) {
+              if ($package.Architecture -ne 'arm64' -or !(Test-Path -LiteralPath (Join-Path Publish-Release $package.AssetName))) {
+                  throw 'Missing or invalid ARM64 viewer package.'
+              }
+          }
+          $logs = @(Get-ChildItem -Path 'Publish-Release/NxFileViewerFork.LogViewer_v*_arm64.zip' -File)
+          if ($logs.Count -ne 2 -or @($logs | Where-Object Name -like '*_self-contained_arm64.zip').Count -ne 1) {
+              throw 'Expected both ARM64 LogViewer distributions.'
+          }
+
       - name: Append ZIP download guide
         shell: pwsh
         env:
@@ -85,3 +100,10 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Creating the draft release or uploading packages failed.' }
           gh release edit $env:RELEASE_TAG --draft=false "--prerelease=$env:RELEASE_PRERELEASE"
           if ($LASTEXITCODE -ne 0) { throw 'Publishing the prepared release failed.' }
+
+  notify-discord:
+    needs: release
+    uses: ./.github/workflows/discord-release.yml
+    secrets:
+      DISCORD_RELEASE_WEBHOOK: ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
+      DISCORD_PRERELEASE_WEBHOOK: ${{ secrets.DISCORD_PRERELEASE_WEBHOOK }}

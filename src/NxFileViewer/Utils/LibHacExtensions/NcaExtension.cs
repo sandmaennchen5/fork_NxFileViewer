@@ -1,5 +1,4 @@
 ﻿using System.Collections.Generic;
-using Emignatik.NxFileViewer.Models.TreeItems.Impl;
 using LibHac.Fs.Fsa;
 using LibHac.Tools.Fs;
 using LibHac.Tools.FsSystem;
@@ -9,10 +8,11 @@ namespace Emignatik.NxFileViewer.Utils.LibHacExtensions;
 
 public static class NcaExtension
 {
+    internal const int MaxSections = 4;
 
     public static IEnumerable<FoundEntry> FindEntriesAmongSections(this Nca nca, string searchPattern, SearchOptions searchOptions = SearchOptions.RecurseSubdirectories | SearchOptions.CaseInsensitive)
     {
-        for (var sectionIndex = 0; sectionIndex < NcaItem.MaxSections; sectionIndex++)
+        for (var sectionIndex = 0; sectionIndex < MaxSections; sectionIndex++)
         {
             if (!nca.Header.IsSectionEnabled(sectionIndex))
                 continue;

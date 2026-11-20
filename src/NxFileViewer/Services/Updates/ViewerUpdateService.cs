@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -23,6 +23,8 @@ public sealed record ViewerRelease(Version Version, string AssetName, Uri Downlo
     public string? SourceSpec { get; init; }
     public string DisplayVersion => Tag.Length > 0 ? Tag : Version.ToString();
 }
+public sealed record ViewerInstalledUpdate(ViewerRelease? InstallableRelease, ViewerRelease? X64OnlyRelease, bool RequiresX64Switch);
+
 public sealed record PreparedViewerUpdate(string Directory, string Executable)
 {
     public string EntryPoint { get; init; } = "NxFileViewer.exe";
@@ -49,7 +51,7 @@ public sealed class ViewerUpdateService
     }
     public async Task<ViewerRelease?> CheckAsync(Version current, string architecture, CancellationToken token, bool includePrereleases = false, string? currentTag = null, bool selfContained = false, bool automatic = false, bool allowSameVersion = false)
     {
-        if (architecture is not ("x64" or "x86")) throw new NotSupportedException("Unsupported update architecture.");
+        if (architecture is not ("x64" or "x86" or "arm64")) throw new NotSupportedException("Unsupported update architecture.");
         LastCheckNotice = "";
         var state = ViewerUpdateMetadata.ReadState(_applicationDirectory);
         var sources = state.UpdateSources.Select(ViewerUpdateSource.Parse).DistinctBy(source => source.Key, StringComparer.Ordinal);
@@ -101,7 +103,8 @@ public sealed class ViewerUpdateService
             GitHubUpdateResponse response;
             try { response = await _requests.GetAsync(endpoint + "/latest", automatic, token).ConfigureAwait(false); }
             catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound) { return null; }
-            if (response.Notice.Length > 0) LastCheckNotice = response.Notice;
+            var notice = response.NoticeFor(automatic);
+            if (notice.Length > 0) LastCheckNotice = notice;
             using var latest = JsonDocument.Parse(response.Body);
             if (!Eligible(latest.RootElement, current, currentTag, false, allowSameVersion)) return null;
             var candidate = await SelectRemoteReleaseAsync(latest.RootElement, repository, current, architecture, false, currentTag, selfContained, token, allowSameVersion).ConfigureAwait(false);
@@ -114,7 +117,8 @@ public sealed class ViewerUpdateService
             GitHubUpdateResponse listing;
             try { listing = await _requests.GetAsync(endpoint + $"?per_page=100&page={page}", automatic, token).ConfigureAwait(false); }
             catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound) { break; }
-            if (listing.Notice.Length > 0) LastCheckNotice = listing.Notice;
+            var notice = listing.NoticeFor(automatic);
+            if (notice.Length > 0) LastCheckNotice = notice;
             using var releases = JsonDocument.Parse(listing.Body);
             foreach (var item in releases.RootElement.EnumerateArray())
             {
@@ -154,7 +158,7 @@ public sealed class ViewerUpdateService
             var manifest = ViewerUpdateMetadata.ReadRelease(data, release.GetProperty("tag_name").GetString()!);
             if (manifest.Draft || (!includePrereleases && manifest.Prerelease)) return null;
             manifestPrerelease = manifest.Prerelease;
-            var package = manifest.Packages.SingleOrDefault(p => p.Architecture == architecture && p.SelfContained == selfContained);
+            var package = manifest.AllPackages.SingleOrDefault(p => p.Architecture == architecture && p.SelfContained == selfContained);
             assetName = package?.AssetName;
             if (assetName == null) return null;
             if (package!.Sha256 != null)
@@ -170,7 +174,7 @@ public sealed class ViewerUpdateService
     }
     public static ViewerRelease? SelectRelease(JsonElement release, Version current, string architecture, bool includePrereleases = false, bool skipMissingPackage = false, string? currentTag = null, bool selfContained = false, string repository = Repository, string? assetName = null, bool allowSameVersion = false)
     {
-        if (architecture is not ("x64" or "x86")) throw new NotSupportedException("Unsupported update architecture.");
+        if (architecture is not ("x64" or "x86" or "arm64")) throw new NotSupportedException("Unsupported update architecture.");
         if (release.GetProperty("draft").GetBoolean()) return null;
         var tag = release.GetProperty("tag_name").GetString()!;
         if (tag.Contains('/') || tag.Contains('\\')) return null;
@@ -200,6 +204,31 @@ public sealed class ViewerUpdateService
     }
     private static ViewerVersion ReleaseVersion(ViewerRelease release) =>
         ViewerVersion.TryParse(release.Tag, out var parsed) ? parsed : ViewerVersion.FromNumeric(release.Version);
+    public async Task<ViewerInstalledUpdate> CheckInstalledAsync(Version current, string processArchitecture, string osArchitecture,
+        CancellationToken token, bool includePrereleases = false, string? currentTag = null, bool selfContained = false, bool automatic = false)
+    {
+        var native = await CheckAsync(current, processArchitecture, token, includePrereleases, currentTag, selfContained, automatic).ConfigureAwait(false);
+        if (processArchitecture != "x86" || osArchitecture is not ("x64" or "x86"))
+            return new(native, null, false);
+        var nativeNotice = LastCheckNotice;
+        ViewerRelease? x64;
+        try
+        {
+            x64 = await CheckAsync(current, "x64", token, includePrereleases, currentTag, selfContained, automatic).ConfigureAwait(false);
+            LastCheckNotice = string.Join(" — ", new[] { nativeNotice, LastCheckNotice }.Where(n => n.Length > 0).Distinct());
+        }
+        catch (Exception error) when (error is HttpRequestException or IOException or InvalidDataException or JsonException ||
+                                     error is OperationCanceledException && !token.IsCancellationRequested)
+        {
+            // A failed secondary check must not discard a known compatible update.
+            LastCheckNotice = string.Join(" — ", new[] { nativeNotice, "x64 update check: " + error.Message }.Where(n => n.Length > 0));
+            return new(native, null, false);
+        }
+        if (x64 == null || (native != null && ReleaseVersion(x64).CompareTo(ReleaseVersion(native)) <= 0))
+            return new(native, null, false);
+        return osArchitecture == "x64" ? new(x64, x64, true) : new(native, x64, false);
+    }
+
     private static Version Normalize(Version version) => new(version.Major, version.Minor, Math.Max(0, version.Build));
     private static void ValidateDownloadUrl(Uri url, string repository)
     {
@@ -250,7 +279,13 @@ public sealed class ViewerUpdateService
             using (var executable = File.OpenRead(exe))
             using (var pe = new PEReader(executable))
             {
-                var expectedMachine = (release.Architecture ?? (release.AssetName.EndsWith("_x64.zip", StringComparison.Ordinal) ? "x64" : "x86")) == "x64" ? Machine.Amd64 : Machine.I386;
+                var architecture = release.Architecture ?? (release.AssetName.EndsWith("_arm64.zip", StringComparison.Ordinal)
+                    ? "arm64" : release.AssetName.EndsWith("_x64.zip", StringComparison.Ordinal) ? "x64" : "x86");
+                var expectedMachine = architecture switch
+                {
+                    "arm64" => Machine.Arm64, "x64" => Machine.Amd64, "x86" => Machine.I386,
+                    _ => throw new InvalidDataException("Unsupported update architecture.")
+                };
                 if (pe.PEHeaders.CoffHeader.Machine != expectedMachine ||
                     (pe.PEHeaders.CoffHeader.Characteristics & Characteristics.Dll) != 0 || pe.PEHeaders.CorHeader != null) throw new InvalidDataException("Update executable architecture mismatch.");
             }

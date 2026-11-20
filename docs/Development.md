@@ -45,8 +45,8 @@ Run Publish.ps1 from the **repository root**:
 .\Publish.ps1
 ```
 
-It builds x64/x86 viewer, legacy transition and standalone LogViewer ZIPs, both
-standard and self-contained, plus firmware hashes, the update descriptor and
+It builds x64/x86/ARM64 WPF viewer and standalone LogViewer ZIPs, plus x64/x86
+legacy transition ZIPs, in standard and self-contained variants, with firmware hashes, the update descriptor and
 optional Explorer packages. `-LogViewerOnly` selects the LogViewer packages;
 `-SkipLogViewer` omits them. Explorer signing and packaging options are described
 in [Explorer integration](Explorer-integration.md#publishing).
@@ -61,11 +61,11 @@ See [update packages and release automation](Application-updates.md).
 
 Select any of these switches to build only the requested EXEs:
 
-| Program | x64 | x86 |
-| --- | --- | --- |
-| Viewer | `-ViewerX64` | `-ViewerX86` |
-| LogViewer | `-LogViewerX64` | `-LogViewerX86` |
-| Legacy transition updater | `-TransitionX64` | `-TransitionX86` |
+| Program | x64 | x86 | ARM64 |
+| --- | --- | --- | --- |
+| WPF viewer | `-ViewerX64` | `-ViewerX86` | `-ViewerArm64` |
+| WPF LogViewer | `-LogViewerX64` | `-LogViewerX86` | `-LogViewerArm64` |
+| Legacy transition updater | `-TransitionX64` | `-TransitionX86` | Not built |
 
 Append `WithRuntime` to any selector for a self-contained variant. Selectors can
 be combined:
@@ -79,6 +79,21 @@ be combined:
 These modes write EXEs into versioned output subfolders. They create no ZIPs,
 release descriptors, firmware archives or Explorer packages. Without `WithRuntime`,
 the target machine needs .NET 10 Desktop Runtime for the selected architecture.
+
+## beta3 development version and local test copies
+
+The viewer, WPF/Avalonia LogViewers, Avalonia viewer and transition project use
+`4.1.1-beta3` for direct builds. Publish/release commands still take their version
+from the main viewer project or an explicit `-Version`; the Explorer package keeps
+its independent version. Tag `v4.1.1-beta3` or `4.1.1-beta3` creates a prerelease when
+published through the release workflow. Preparing local files does not create a tag
+or publish a release.
+
+The local `PublishTest.ps1` helper has project-selection and copy settings near its
+start. `$CopyExecutables` accepts several project/name pairs, and `$TestDirectory`
+sets the destination. Keep destination names distinct for WPF/Avalonia outputs and
+close running test executables before replacement. This helper is not the release
+packaging matrix. See [experimental Avalonia builds](Avalonia.md).
 
 ## Editable defaults and native components
 

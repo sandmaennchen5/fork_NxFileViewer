@@ -1,9 +1,42 @@
 # Changelog
 
-All notable changes to NxFileViewer Fork will be documented in this file.
+All notable application changes to NxFileViewer Fork will be documented in this file.
+Changes specific to the separately deployed web service are recorded in `tools/feedback/CHANGELOG.md`.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [4.1.1-beta3] - 2026-11-20
+
+Changes since the 4.1.1-beta2 prerelease.
+
+### Added
+
+- Add a stable public Support ID, copy/search actions and an optional display name for reports without GitHub. Include the Support ID in reports submitted with either sign-in method.
+- Extend reporting to bugs and feature requests, with independently selectable anonymized public log excerpts and unchanged private session-log uploads. Show receipt/status feedback when the companion service accepts a report before GitHub issue creation.
+- Add German/English in-app polls with shared votes, optional startup reminders, persistent **Not participating** and undo actions, and private free-text responses for suggestions. Respect server-configured participation, result visibility and reminder settings.
+- Add optional usage reporting with a first-start explanation, settings control, daily/build-change limits and non-blocking offline handling.
+- Publish Windows ARM64 WPF viewer and LogViewer packages, with standard and self-contained variants, including update-manifest, workflow and download-badge support.
+- Add experimental Avalonia viewer and LogViewer projects. The viewer includes package inspection, batch SHA-256 checks, local firmware comparison, language/theme preferences and rename preview/application; this is not full WPF feature parity.
+- Add separate Discord release/prerelease webhook notifications after release publication.
+
+### Changed
+
+- Use the informational application version, including its prerelease suffix, in reports. Include OS/platform, process/OS architecture, UI framework, runtime distribution and RID in session headers.
+- Let x86 installations detect newer x64-only releases. Offer an explicitly confirmed switch on x64 Windows, report the Windows requirement on x86 Windows, and retain the selected runtime distribution and preview channel.
+- Keep the startup update summary focused on available updates, omitting routine saved-response notices.
+- Make NSCB Desktop's optional external GUI role distinct from the nscb_rust engine. Expose separate safe cleanup actions for NSZ download caches and old Kronos GUI sessions.
+- Add configurable test-publish project selection and copying of multiple executables with independent destination names. Keep WPF/Avalonia test executables distinct.
+- Explain usage reporting in the selected app language. Closing the first-start prompt, pressing Esc or allowing its visible ten-second countdown to expire keeps reporting enabled; **Disable** explicitly turns it off.
+- Share package-signature detection, package metadata and firmware-comparison logic between the WPF and Avalonia frontends.
+
+### Fixed
+
+- Restore old-version cleanup for application and managed-plugin layouts while protecting active installations, keys, locked files and pending/failed recovery data.
+- Correct dark-theme labels in reporting/polls and localize the added community/settings interfaces. Remove the poll window's web-overview button.
+- Correct test publishing to locate and rename the actual Avalonia output executables.
+- Restore transition-updater compilation with the shared GitHub response-notice API.
+- Read complete package signatures even when a stream returns short reads, preserving NSP/NSZ, XCI/XCZ and NRO detection.
 
 ## [4.1.1-beta2] - 2026-11-17
 

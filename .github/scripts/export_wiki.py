@@ -11,7 +11,7 @@ GERMAN_SOURCE = ".nxfileviewer-wiki-de.json"
 
 
 def collect(root):
-    pages = {root / "README.md": "Home"}
+    pages = {root / "README.md": "Home", root / "CHANGELOG.md": "Changelog"}
     for file in sorted((root / "docs").glob("*.md")):
         pages[file] = "Documentation" if file.name == "README.md" else file.stem
     pages.update({

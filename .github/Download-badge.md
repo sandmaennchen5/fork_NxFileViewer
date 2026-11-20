@@ -7,10 +7,10 @@ or on manual dispatch. Its filter is defined in
 
 ## Counted downloads
 
-All published releases, including betas, are included for x64/x86, with and without
+All published releases, including betas, are included for x64/x86/ARM64, with and without
 the runtime:
 
-- `NxFileViewerFork_v<Version>[_self-contained]_<x64|x86>.zip`
+- `NxFileViewerFork_v<Version>[_self-contained]_<x64|x86|arm64>.zip`
 - Legacy `NxFileViewer_v<Version>...zip` files only for versions before 4.1.0.
 
 Transition updaters from 4.1.0 onward, LogViewer, Explorer packages, firmware hashes,

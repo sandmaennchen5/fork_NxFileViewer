@@ -9,6 +9,7 @@ class WikiExportTests(unittest.TestCase):
         root = Path(directory) / "project"
         for name, text in {
             "README.md": "# Project\n\n[Guide](docs/Guide.md#topic)\n![Start](screenshots/A%20B.png)\n",
+            "CHANGELOG.md": "# Changelog\n\n## [4.1.1-beta3]\n\nRelease notes.\n",
             "docs/README.md": "# Documentation\n",
             "docs/Guide.md": "# Guide\n\n## Topic\n\n[Config](../src/config/README.md)\n",
             "src/config/README.md": "# Configuration\n",
@@ -28,6 +29,7 @@ class WikiExportTests(unittest.TestCase):
             root, output = self.fixture(temp)
             count = wiki.export(root, output, "owner/project")
             self.assertGreater(count, 5)
+            self.assertIn("4.1.1-beta3", (output / "Changelog.md").read_text(encoding="utf-8"))
             home = (output / "Home.md").read_text(encoding="utf-8")
             self.assertIn("https://github.com/owner/project/wiki/Guide#topic", home)
             self.assertIn("https://raw.githubusercontent.com/owner/project/master/screenshots/A%20B.png", home)

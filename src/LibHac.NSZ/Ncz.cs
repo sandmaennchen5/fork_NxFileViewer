@@ -65,6 +65,10 @@ public class Ncz : Nca
         return new NczToNcaStream(nczHeader.OriginalBytes, ncaEncryptionStream, nczHeader.NcaSize);
     }
 
+    /// <summary>Opens a stream of the reconstructed NCA bytes, including the original encrypted header.</summary>
+    public static Stream OpenOriginalStream(Stream nczStream) =>
+        CreateOriginalNczToNcaStream(NczHeader.Read(nczStream), nczStream);
+
     private static NczToNcaStream CreateFastNczToNcaStream(NczHeader nczHeader, Stream nczStream, KeySet keySet)
     {
         using var originalNczToNcaStream = CreateOriginalNczToNcaStream(nczHeader, nczStream);

@@ -4,6 +4,29 @@ Open **Settings → Updates** to check for an application update or download and
 
 By default only stable releases are offered. Enable **Include pre-releases in application updates** and apply settings to include published previews. Drafts and older/equal semantic versions are ignored; changing the channel invalidates the current offer.
 
+## When x86 releases are discontinued
+
+An x86 application additionally checks for newer x64 releases in the same runtime
+distribution, using the configured sources and preview setting. This check applies
+both at startup and in Settings → Updates.
+
+- On x64 Windows, a newer release available only for x64 appears as an update with
+  **x64 only** and **Switch to 64-bit**. The normal Install button also routes through
+  the explicit 64-bit switch confirmation; it never silently changes architecture.
+- On x86 Windows, the newer release is listed as requiring **64-bit Windows**.
+  It is not installable. If an older compatible x86 update is still available, that
+  update remains installable and both versions are listed.
+- If the same new version is available for x86 and x64, the normal update stays on
+  x86. An older x64 release never replaces a newer compatible x86 update.
+- The standard / self-contained distribution is retained. A standard x64 package
+  requires the x64 .NET Desktop Runtime, as stated in the switch confirmation.
+- Native x64/ARM64 checks and x86 emulation on ARM64 retain their existing behavior.
+
+Publish a final x86 release containing this updater **before** removing x86 assets
+from subsequent releases. Previously installed versions do not acquire this discovery
+behavior retroactively. No test or startup check downloads or installs a release ZIP
+without the normal user-initiated installation and confirmation.
+
 ## Automatic releases from version tags
 
 Push a tag such as `v4.2.0` (or `4.2.0`) to build and publish a stable GitHub Release. Tags such as `v4.2.0-beta`, `v4.2.0-beta1` and `v4.2.0-beta2` create pre-releases. Other version suffixes are not accepted by the release workflow.
@@ -23,7 +46,7 @@ After building the release packages, the workflow appends a **Which ZIP file do 
 
 Edit `src/config/package-manifest.json` in the repository. `Publish.ps1` validates this template, fills in `Version` and `Executable`, and embeds it as `nxfileviewer-package.json` in every application ZIP. `-ExecutableName NewName.exe -PackageName NewName` changes the executable and ZIP prefix while keeping the internal `ApplicationId` stable.
 
-Publishing also generates `nxfileviewer-update.json` next to the ZIPs. The release workflow uploads this small JSON asset alongside the packages; no additional ZIP or helper EXE is required. It maps each architecture/runtime distribution to its actual ZIP name. The updater verifies the descriptor against its GitHub asset SHA-256 digest, checks identity and version, and uses the chosen ZIP's own GitHub SHA-256 digest. Older releases without a descriptor continue to use the original naming convention. If the latest stable release lacks a matching distribution, the new updater searches older releases for a compatible version newer than the installed version. It never substitutes another architecture or runtime distribution.
+Publishing also generates `nxfileviewer-update.json` next to the ZIPs. The release workflow uploads this small JSON asset alongside the packages; no additional ZIP or helper EXE is required. It maps each architecture/runtime distribution to its actual ZIP name. The updater verifies the descriptor against its GitHub asset SHA-256 digest, checks identity and version, and uses the chosen ZIP's own GitHub SHA-256 digest. Older releases without a descriptor continue to use the original naming convention. If the latest stable release lacks a matching distribution, the new updater searches older releases for a compatible version newer than the installed version. Explicit architecture checks never substitute a different package. The application can separately offer an explicitly confirmed x86-to-x64 switch, as described below; the runtime distribution remains unchanged.
 
 `UpdateSources` accepts legacy GitHub names and typed GitHub, GitLab, Forgejo or independent HTTPS-manifest sources. See [update source configuration](../src/config/Update-sources.md) for formats and portable hosting. To prepare a move, publish an update containing both the new and old repositories before moving. After successful installation they are remembered in `NxFileViewerFork.update-state.json`; failed installations roll this state back. Checks try the remembered sources and choose the highest eligible version found. GitHub downloads must belong to the supplying repository. Native GitLab/Forgejo addresses use the configured origin; independent HTTPS manifests can explicitly name download hosts/CDNs. A nonempty UpdateSources list replaces the remembered list after installation. Include both repositories during the transition; a later release can explicitly remove the old source. Without local update state, the original repository is the initial source. Installations that missed the preparatory update still need a working old location or a manual update; keep the old source available during the transition. This uses the existing GitHub/HTTPS trust model and asset digests, not a separate developer-signature system.
 
@@ -89,11 +112,11 @@ These features require this new updater. Already distributed older versions do n
 
 Viewer, managed-plugin, TitleDB and firmware-hash update checks share GitHub metadata requests. Automatic startup checks reuse successful responses for six hours. NSZ no longer checks installed plugin versions before conversion; plugin updates are requested manually under Updates. Missing plugins can still be installed on demand. Metadata is stored under `Plugins/CacheUpdates` beside the executable and survives restarts. Manual checks request fresh metadata; simultaneous requests for the same endpoint reuse a completed in-flight response.
 
-GitHub API limits are detected from 403/429 responses and rate-limit headers. The viewer respects `Retry-After` and `X-RateLimit-Reset` and persists the cooldown across restarts. During that time it shows the next permitted check time. If a response was saved, its result remains visible with its original check date; otherwise the component is shown as unavailable for checking, not as up to date. An ordinary access-denied response is still treated as an error. No GitHub account or token is required.
+GitHub API limits are detected from 403/429 responses and rate-limit headers. The viewer respects `Retry-After` and `X-RateLimit-Reset` and persists the cooldown across restarts. During that time it shows the next permitted check time. If a response was saved, its result remains visible. Automatic startup checks omit the saved-result date suffix; manual checks retain it when showing cached data. Otherwise the component is shown as unavailable for checking, not as up to date. An ordinary access-denied response is still treated as an error. No GitHub account or token is required.
 
 ## Download, verification and replacement
 
-Installation requires an idle viewer and a writable program directory. The matching x64/x86 release ZIP is staged under `Updates/<unique-id>` beside the executable. GitHub's SHA-256 asset digest, the full EXE product version (including preview suffix) and PE architecture are checked before installation. Missing digests are rejected.
+Installation requires an idle viewer and a writable program directory. The matching x64/x86/ARM64 WPF release ZIP is staged under `Updates/<unique-id>` beside the executable. GitHub's SHA-256 asset digest, the full EXE product version (including preview suffix) and PE architecture are checked before installation. Missing digests are rejected.
 
 Release ZIPs contain their files directly at the archive root. Additional files and subdirectories are installed at the same relative paths beside the main executable. Existing files absent from the ZIP remain untouched. Unsafe paths, directory links, keys and settings files are rejected.
 
@@ -155,9 +178,9 @@ Tests use mocked releases/downloads, corrupt and unsafe archives, and isolated d
 
 ## Runtime variants
 
-Each x64/x86 release offers a standard ZIP requiring .NET 10 Desktop Runtime and a compressed self-contained ZIP with .NET included. Standard names remain NxFileViewerFork_v<VERSION>_<ARCH>.zip; bundled-runtime names are NxFileViewerFork_v<VERSION>_self-contained_<ARCH>.zip. Both contain exactly NxFileViewerFork.exe, nxfileviewer-package.json and LICENSE.txt. Credits and third-party notices are embedded and available offline on the Info page.
+Each x64/x86/ARM64 WPF release offers a standard ZIP requiring .NET 10 Desktop Runtime and a compressed self-contained ZIP with .NET included. Standard names remain NxFileViewerFork_v<VERSION>_<ARCH>.zip; bundled-runtime names are NxFileViewerFork_v<VERSION>_self-contained_<ARCH>.zip. Both contain exactly NxFileViewerFork.exe, nxfileviewer-package.json and LICENSE.txt. Credits and third-party notices are embedded and available offline on the Info page.
 
-The executable records its runtime distribution at build time. Updates preserve this distribution and architecture, including preview releases. A missing compatible package is reported or skipped while listing previews; another runtime distribution is never substituted. Previously installed standard builds continue using the original ZIP names.
+The executable records its runtime distribution at build time. Normal updates preserve this distribution and architecture, including preview releases; the separately confirmed x86-to-x64 switch is the explicit exception. A missing compatible package is reported or skipped while listing previews; another runtime distribution is never substituted. Previously installed standard builds continue using the original ZIP names.
 
 On x64 Windows, an x86 viewer offers **Switch to 64-bit** in the Update Center. This explicit action searches the configured update sources for the newest eligible x64 package in the installed runtime distribution, including the installed version. The prerelease preference still applies. Standard builds require the x64 .NET 10 Desktop Runtime. Confirming uses the regular verified installer and restart. Future updates follow the selected x64 distribution. The switch remains available even after releases stop including x86 packages.
 
@@ -173,3 +196,43 @@ Application cleanup removes complete successful automatic-update directories und
 ### Restore the previous program version
 
 The update center offers **Use previous version** while a completed update still contains its validated package backups. It selects the most recently completed eligible update, asks for confirmation, and restarts through the same atomic replacement and startup recovery helper used for updates. The complete previous package is restored, including overwritten companions and removal of files added by that update. The current package becomes a new recovery backup. Cleaning old program versions removes the corresponding rollback backups; the button is disabled when none remain.
+
+### Download caches and Kronos GUI sessions
+
+The Updates page provides separate NSZ **Clear download cache** and Kronos
+**Remove old GUI sessions** actions. Both show the exact candidates and require
+confirmation. They do not remove installed plugin versions.
+
+The download action only deletes recognized SHA-256-named .download files from
+the managed NSZ Downloads folder. Locked files and unrelated files are retained.
+A later installation may download the archives again.
+
+The session action permanently removes the selected workspaces, including their
+generated output and settings; its confirmation explicitly explains this.
+Only GUID-named sessions older than 24 hours are offered. Keys, links and locked
+files are protected. New Kronos launches hold an exclusive session lock.
+For older sessions without tracking, cleanup is conservative: it does not offer
+sessions while any cmd, Python, py or NSCB process is running. Close those
+consoles first. Eligibility is checked again immediately before deletion.
+
+## Windows ARM64 (WPF)
+
+Publish.ps1 now builds the WPF viewer and standalone WPF LogViewer for x64, x86
+and ARM64, each with and without the bundled .NET runtime. Build and tagged-release
+workflows include the ARM64 ZIPs. Avalonia publishing is unchanged. Legacy
+transition ZIPs remain x64/x86 only because there was no legacy ARM64 application.
+
+Individual EXE selections are available through -ViewerArm64,
+-ViewerArm64WithRuntime, -LogViewerArm64 and -LogViewerArm64WithRuntime.
+The standard ZIP names end in _arm64.zip or _self-contained_arm64.zip.
+
+The release descriptor keeps its original four x64/x86 distributions under
+Packages and adds the two viewer ARM64 distributions under Arm64Packages.
+Older clients ignore the extension; new clients validate and combine both lists.
+Update selection preserves ARM64 and runtime distribution, and downloaded
+executables must have a native ARM64 PE header. No x64 package is substituted.
+
+NSZ already selects nsz-cli-windows-arm64.exe on Windows ARM64. The other external
+plugins do not currently provide equivalent native Windows ARM64 packages;
+x64 emulation and native-device behavior still require separate testing.
+Cross-publishing verifies packaging and architecture, not execution on ARM hardware.

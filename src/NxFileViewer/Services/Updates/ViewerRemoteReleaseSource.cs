@@ -98,7 +98,7 @@ public sealed class ViewerRemoteReleaseSource(HttpClient client)
             Verify(metadata.Bytes, ViewerUpdateService.ExpectedHash(descriptor.Digest));
         var manifest = ViewerUpdateMetadata.ReadRelease(metadata.Bytes, tag!);
         if (manifest.Draft || (!includePrereleases && manifest.Prerelease)) return null;
-        var package = manifest.Packages.SingleOrDefault(p => p.Architecture == architecture && p.SelfContained == selfContained);
+        var package = manifest.AllPackages.SingleOrDefault(p => p.Architecture == architecture && p.SelfContained == selfContained);
         if (package == null) return null;
         var hash = PackageHash(package);
         Uri url;
@@ -140,7 +140,7 @@ public sealed class ViewerRemoteReleaseSource(HttpClient client)
         foreach (var manifest in manifests)
         {
             if (!Eligible(manifest.Version, manifest.Draft, manifest.Prerelease, installed, includePrereleases, allowSameVersion)) continue;
-            var package = manifest.Packages.SingleOrDefault(p => p.Architecture == architecture && p.SelfContained == selfContained);
+            var package = manifest.AllPackages.SingleOrDefault(p => p.Architecture == architecture && p.SelfContained == selfContained);
             if (package == null) continue;
             var hash = PackageHash(package);
             var url = new Uri(source.Endpoint, package.Url ?? package.AssetName);

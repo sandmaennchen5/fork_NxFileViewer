@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Emignatik.NxFileViewer.Utils.MVVM.Localization;
 using LibHac.Ncm;
 
@@ -17,11 +17,20 @@ public class LocalizationKeys_DE : LocalizationKeysBase, ILocalizationKeys
     public string PluginLog_Off => "Aus";
     public string PluginLog_Tip => "Die Pluginstufe ersetzt die allgemeine Mindeststufe für Meldungen dieses Plugins. Gilt für die Logansicht und die gespeicherte Protokolldatei.";
 
+    public string Update_X64Only => "nur x64";
+    public string Update_X64WindowsRequired => "benötigt 64-Bit-Windows";
     public string Update_SwitchToX64 => "Auf 64-Bit wechseln";
     public string Update_SwitchToX64Confirm => "Auf NxFileViewer Fork {0} (64-Bit, mit .NET) wechseln? Die Anwendung wird geschlossen und neu gestartet.";
     public string Update_SwitchToX64ConfirmStandard => "Auf NxFileViewer Fork {0} (64-Bit) wechseln? Dafür muss die .NET 10 Desktop Runtime (x64) installiert sein. Die Anwendung wird geschlossen und neu gestartet.";
     public string Update_SwitchToX64Unavailable => "Kein passendes 64-Bit-Paket für die installierte Variante verfügbar.";
     public string Update_RollbackConfirm => "Die vorherige Programmversion wiederherstellen? NxFileViewer Fork wird geschlossen und neu gestartet. Nach dem Entfernen alter Versionen ist diese Wiederherstellung nicht mehr verfügbar.";
+    public string Storage_Downloads => "Download-Cache leeren";
+    public string Storage_Sessions => "Alte GUI-Sitzungen entfernen";
+    public string Storage_DownloadConfirm => "Diese zwischengespeicherten NSZ-Downloads endgültig löschen?\n\n{0}\n\nInstallierte Plugins bleiben erhalten. Bei einer späteren Installation werden die Dateien gegebenenfalls erneut heruntergeladen.";
+    public string Storage_SessionConfirm => "Diese Kronos-GUI-Sitzungen endgültig löschen?\n\n{0}\n\nACHTUNG: Alle enthaltenen Dateien einschließlich erzeugter Ausgaben und Einstellungen werden gelöscht. Benötigte Dateien vorher sichern. Installierte Kronos-Versionen bleiben erhalten.";
+    public string Storage_DownloadEmpty => "Keine löschbaren Downloads gefunden. Geöffnete oder geschützte Dateien bleiben erhalten.";
+    public string Storage_SessionEmpty => "Keine löschbaren Kronos-Sitzungen gefunden. Nur Sitzungen älter als 24 Stunden werden angeboten. Kronos-, Python- und cmd-Konsolen vorher schließen. Sitzungen mit Schlüsseln oder gesperrten Dateien bleiben erhalten.";
+    public string Storage_Done => "{0} Eintrag/Einträge entfernt.";
     public string Update_Cleanup => "Alte Versionen entfernen";
     public string Update_CleanupConfirm => "Folgende alte Versionen bzw. Update-Sicherungen endgültig entfernen?\n\n{0}\n\nDie betreffenden Rückfallversionen stehen danach nicht mehr zur Verfügung. Die aktuelle Version und konfigurierte eigene Programmdateien bleiben erhalten.";
     public string Update_CleanupEmpty => "Keine alten, zur Bereinigung freigegebenen Versionen gefunden. Laufende, kürzlich abgeschlossene oder fehlgeschlagene Programmupdates bleiben erhalten.";
@@ -44,6 +53,10 @@ public class LocalizationKeys_DE : LocalizationKeysBase, ILocalizationKeys
     public string Features_PackageOperationsDisabled => "Diese experimentelle Funktion ist deaktiviert. Unter Einstellungen → Funktionen aktivieren und das Programm neu starten.";
     public string Package_Title => "Zusammenführen / Inhalte aufteilen / Umwandeln (experimentell)";
     public string Package_Engine => "Paket-Engine";
+    public string RustBackend_Title => "nscb_rust – Backend";
+    public string RustBackend_Tip => "NxFileViewer verwendet dieses Backend für interne Komprimierungs- und Paketfunktionen. NSCB Desktop ist eine optionale Ergänzung mit eigener Oberfläche.";
+    public string RustDesktop_Title => "NSCB Desktop – optionale externe Oberfläche";
+    public string RustDesktop_Tip => "Erweitert nscb_rust um ein separat gestartetes Programmfenster. Benötigt das nscb_rust-Backend; für die internen Funktionen von NxFileViewer ist diese Oberfläche nicht erforderlich.";
     public string Package_RustPath => "cxfcxf / nscb_rust — Programmdatei";
     public string Package_KronosPath => "Kronos — portabler Ordner (runtime und ztools)";
     public string Package_Tip => "Einstellungen vor dem Start übernehmen. Pro Titel eine Version auswählen. Quelldateien bleiben erhalten; Ergebnisse landen in einem neuen Ordner. Download-Schaltflächen installieren und aktivieren die Engine direkt. Für die Kompression kann nscb_rust separat gewählt werden.";
@@ -90,7 +103,7 @@ public class LocalizationKeys_DE : LocalizationKeysBase, ILocalizationKeys
     public string Features_DirectStarts => "Direktstarts externer Oberflächen";
     public string Features_NszGui => "NSZ direkt starten";
     public string Features_NandGui => "NxNandManager direkt starten";
-    public string Features_RustDesktopGui => "NSCB Desktop direkt starten";
+    public string Features_RustDesktopGui => "Optionale NSCB-Desktop-Oberfläche extern starten";
     public string Features_KronosGui => "Kronos / NSC_BUILDER direkt starten";
     public string Plugin_General => "Allgemein";
     public string Plugin_Compression => "Komprimieren / Dekomprimieren";

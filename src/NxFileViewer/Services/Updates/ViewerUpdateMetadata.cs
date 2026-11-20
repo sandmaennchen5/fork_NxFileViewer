@@ -18,6 +18,10 @@ public sealed record ViewerReleasePackage(string Architecture, bool SelfContaine
 }
 public sealed record ViewerReleaseManifest(int SchemaVersion, string ApplicationId, string Version, ViewerReleasePackage[] Packages)
 {
+    // Kept separate in published JSON so pre-ARM64 clients still see four legacy distributions.
+    public ViewerReleasePackage[] Arm64Packages { get; init; } = Array.Empty<ViewerReleasePackage>();
+    [System.Text.Json.Serialization.JsonIgnore]
+    public IEnumerable<ViewerReleasePackage> AllPackages => Packages.Concat(Arm64Packages);
     public ViewerReleasePackage[] ExplorerPackages { get; init; } = Array.Empty<ViewerReleasePackage>();
     public bool Draft { get; init; }
     public bool Prerelease { get; init; }
@@ -132,12 +136,13 @@ public static class ViewerUpdateMetadata
         var manifest = JsonSerializer.Deserialize<ViewerReleaseManifest>(bytes) ?? throw new InvalidDataException("Release manifest missing.");
         if (manifest.SchemaVersion != 1 || manifest.ApplicationId != ViewerPackageLayout.ApplicationId ||
             !ViewerVersion.TryParse(manifest.Version, out var version) || !ViewerVersion.TryParse(tag, out var expected) || version.CompareTo(expected) != 0 ||
-            manifest.Packages == null || manifest.Packages.Length > 4)
+            manifest.Packages == null || manifest.Arm64Packages == null || manifest.Arm64Packages.Length > 2 ||
+            manifest.Packages.Length + manifest.Arm64Packages.Length > 6 || manifest.Arm64Packages.Any(p => p == null || p.Architecture != "arm64"))
             throw new InvalidDataException("Release manifest identity or version mismatch.");
         var variants = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var package in manifest.Packages)
+        foreach (var package in manifest.AllPackages)
         {
-            if (package == null || package.Architecture is not ("x64" or "x86") || !variants.Add(package.Architecture + ":" + package.SelfContained))
+            if (package == null || package.Architecture is not ("x64" or "x86" or "arm64") || !variants.Add(package.Architecture + ":" + package.SelfContained))
                 throw new InvalidDataException("Invalid or duplicate release distribution.");
             _ = Asset(package.AssetName);
             if (package.Sha256 != null && (package.Sha256.Length != 64 || !package.Sha256.All(Uri.IsHexDigit))) throw new InvalidDataException("Invalid package SHA-256.");

@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    name: Build (win-x64 / win-x86)
+    name: Build (win-x64 / win-x86 / win-arm64)
     runs-on: windows-latest
 
     steps:
@@ -62,12 +62,88 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+      - name: Upload application ARM64
+        uses: actions/upload-artifact@v7
+        with:
+          path: |
+            Publish/NxFileViewerFork_v*_arm64.zip
+            !Publish/NxFileViewerFork_v*_self-contained_arm64.zip
+          archive: false
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload application ARM64 with .NET
+        uses: actions/upload-artifact@v7
+        with:
+          path: |
+            Publish/NxFileViewerFork_v*_self-contained_arm64.zip
+          archive: false
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload LogViewer ARM64
+        uses: actions/upload-artifact@v7
+        with:
+          path: |
+            Publish/NxFileViewerFork.LogViewer_v*_arm64.zip
+            !Publish/NxFileViewerFork.LogViewer_v*_self-contained_arm64.zip
+          archive: false
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload LogViewer ARM64 with .NET
+        uses: actions/upload-artifact@v7
+        with:
+          path: |
+            Publish/NxFileViewerFork.LogViewer_v*_self-contained_arm64.zip
+          archive: false
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Upload legacy transition x64
         uses: actions/upload-artifact@v7
         with:
           path: |
             Publish/NxFileViewer_v*_x64.zip
             !Publish/NxFileViewer_v*_self-contained_x64.zip
+          archive: false
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload application ARM64
+        uses: actions/upload-artifact@v7
+        with:
+          path: |
+            Publish/NxFileViewerFork_v*_arm64.zip
+            !Publish/NxFileViewerFork_v*_self-contained_arm64.zip
+          archive: false
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload application ARM64 with .NET
+        uses: actions/upload-artifact@v7
+        with:
+          path: |
+            Publish/NxFileViewerFork_v*_self-contained_arm64.zip
+          archive: false
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload LogViewer ARM64
+        uses: actions/upload-artifact@v7
+        with:
+          path: |
+            Publish/NxFileViewerFork.LogViewer_v*_arm64.zip
+            !Publish/NxFileViewerFork.LogViewer_v*_self-contained_arm64.zip
+          archive: false
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload LogViewer ARM64 with .NET
+        uses: actions/upload-artifact@v7
+        with:
+          path: |
+            Publish/NxFileViewerFork.LogViewer_v*_self-contained_arm64.zip
           archive: false
           if-no-files-found: error
           retention-days: 7

@@ -8,6 +8,27 @@ namespace Emignatik.NxFileViewer.Settings;
 
 public class AppSettings : NotifyPropertyChangedBase, IAppSettings
 {
+    [JsonPropertyName("supportId")]
+    public string SupportId { get; set; } = DefaultSettings.Get<string>("Settings", "SupportId");
+    [JsonPropertyName("supportIdEndpoint")]
+    public string SupportIdEndpoint { get; set; } = DefaultSettings.Get<string>("Settings", "SupportIdEndpoint");
+
+    private string _reportDisplayName = DefaultSettings.Get<string>("Settings", "ReportDisplayName");
+    [JsonPropertyName("reportDisplayName")]
+    public string ReportDisplayName
+    {
+        get => _reportDisplayName;
+        set { _reportDisplayName = value ?? ""; NotifyPropertyChanged(); }
+    }
+
+    private string _pollEndpoint = DefaultSettings.Get<string>("Settings", "PollEndpoint");
+    [JsonPropertyName("pollEndpoint")]
+    public string PollEndpoint
+    {
+        get => _pollEndpoint;
+        set { _pollEndpoint = value ?? ""; NotifyPropertyChanged(); }
+    }
+
     private string _reportEndpoint = DefaultSettings.Get<string>("Settings", "ReportEndpoint");
 
     [JsonPropertyName("reportEndpoint")]
@@ -328,6 +349,15 @@ public class AppSettings : NotifyPropertyChangedBase, IAppSettings
         get => _includeViewerPrereleases;
         set { _includeViewerPrereleases = value; NotifyPropertyChanged(); }
     }
+    public bool UsageStatisticsChoiceConfirmed { get; set; } = DefaultSettings.Get<bool>("Settings", "UsageStatisticsChoiceConfirmed");
+
+    private bool _sendAnonymousUsageStatistics = DefaultSettings.Get<bool>("Settings", "SendAnonymousUsageStatistics");
+    public bool SendAnonymousUsageStatistics
+    {
+        get => _sendAnonymousUsageStatistics;
+        set { _sendAnonymousUsageStatistics = value; NotifyPropertyChanged(); }
+    }
+
     private bool _checkViewerUpdatesOnStartup = DefaultSettings.Get<bool>("Settings", "CheckViewerUpdatesOnStartup");
     public bool CheckViewerUpdatesOnStartup
     {

@@ -1193,6 +1193,8 @@ public sealed class WorkspaceNavigationTest
         try { app = new App { ShutdownMode = ShutdownMode.OnExplicitShutdown }; }
         finally { dispatcher.Hooks.OperationPosted -= capture; }
         foreach (var operation in queued) operation.Abort();
+        App.Features.SendAnonymousUsageStatistics = false;
+        App.Features.UsageStatisticsChoiceConfirmed = true;
         return app;
     }
     private static void VerifyStandaloneLogViewer()

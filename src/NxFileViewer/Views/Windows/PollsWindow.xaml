@@ -1,0 +1,16 @@
+﻿<Window x:Class="Emignatik.NxFileViewer.Views.Windows.PollsWindow"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ Width="640" Height="600" MinWidth="400" MinHeight="350"
+ Foreground="{DynamicResource Control.Static.Foreground}"
+ Style="{DynamicResource WindowStyle}" WindowStartupLocation="CenterOwner">
+ <DockPanel Margin="20">
+  <StackPanel DockPanel.Dock="Top">
+   <WrapPanel>
+    <Button x:Name="RefreshButton" Click="Refresh_Click" Padding="10,4" Margin="0,0,8,8"/>
+   </WrapPanel>
+   <TextBlock x:Name="Status" TextWrapping="Wrap" Margin="0,0,0,12" AutomationProperties.LiveSetting="Polite"/>
+  </StackPanel>
+  <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel x:Name="PollList"/></ScrollViewer>
+ </DockPanel>
+</Window>

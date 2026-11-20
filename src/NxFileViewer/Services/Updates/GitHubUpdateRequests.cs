@@ -16,9 +16,17 @@ namespace Emignatik.NxFileViewer.Services.Updates;
 
 public sealed record GitHubUpdateResponse(string Body, DateTimeOffset CheckedAt, bool Cached, DateTimeOffset? RetryAt)
 {
-    public string Notice => RetryAt.HasValue
-        ? string.Format(LocalizationManager.Instance.Current.Keys.Update_RateLimited, RetryAt.Value.LocalDateTime) + " " + string.Format(LocalizationManager.Instance.Current.Keys.Update_CachedAt, CheckedAt.LocalDateTime)
-        : Cached ? string.Format(LocalizationManager.Instance.Current.Keys.Update_CachedAt, CheckedAt.LocalDateTime) : "";
+    public string Notice => NoticeFor(false);
+
+    public string NoticeFor(bool automatic)
+    {
+        var retry = RetryAt.HasValue
+            ? string.Format(LocalizationManager.Instance.Current.Keys.Update_RateLimited, RetryAt.Value.LocalDateTime)
+            : "";
+        if (automatic || (!Cached && !RetryAt.HasValue)) return retry;
+        var saved = string.Format(LocalizationManager.Instance.Current.Keys.Update_CachedAt, CheckedAt.LocalDateTime);
+        return retry.Length > 0 ? retry + " " + saved : saved;
+    }
 }
 public sealed class GitHubRateLimitException(DateTimeOffset retryAt) : HttpRequestException
 {

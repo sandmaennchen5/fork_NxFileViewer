@@ -43,7 +43,8 @@ public sealed class ComponentUpdateChecker(NszPluginManager nsz, NandPluginManag
         async Task<JsonDocument> Get(string url, string label)
         {
             var response = await requests.GetAsync(url, automatic, token);
-            if (response.Notice.Length > 0) notices[label] = response.Notice;
+            var notice = response.NoticeFor(automatic);
+            if (notice.Length > 0) notices[label] = notice;
             return JsonDocument.Parse(response.Body);
         }
         async Task<(string Status, bool Available)> Plugin(string executable, string? version, string repository, string label)

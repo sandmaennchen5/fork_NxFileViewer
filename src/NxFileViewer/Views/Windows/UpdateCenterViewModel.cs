@@ -45,6 +45,21 @@ public sealed class UpdateCenterViewModel : ViewModelBase
             () => !background.IsRunning && (settings.NszPluginActive || settings.PackageOperationsActive));
         UpdateKronosCommand = new RelayCommand(() => UpdatePackage(PackageEngine.Kronos),
             () => !background.IsRunning && settings.PackageOperationsActive);
+        CleanupDownloadsCommand = OldVersionCleanupCommand.Create("NSZ", background, () => settings.NszPluginActive,
+            () => PluginStorageCleanup.Downloads(nszManager.RootDirectory),
+            paths => PluginStorageCleanup.DeleteDownloads(nszManager.RootDirectory, paths), () => { },
+            () => {
+                var keys = LocalizationManager.Instance.Current.Keys;
+                return new CleanupMessages(keys.Storage_Downloads, keys.Storage_DownloadConfirm, keys.Storage_DownloadEmpty, keys.Storage_Done);
+            });
+        var sessionsRoot = Path.Combine(AppContext.BaseDirectory, "Plugins", "KronosGuiSessions");
+        CleanupSessionsCommand = OldVersionCleanupCommand.Create("Kronos", background, () => settings.PackageOperationsActive,
+            () => PluginStorageCleanup.Sessions(sessionsRoot),
+            paths => PluginStorageCleanup.DeleteSessions(sessionsRoot, paths), () => { },
+            () => {
+                var keys = LocalizationManager.Instance.Current.Keys;
+                return new CleanupMessages(keys.Storage_Sessions, keys.Storage_SessionConfirm, keys.Storage_SessionEmpty, keys.Storage_Done);
+            });
         Nsz = nsz; Viewer = viewer;
         Nand = nand;
         RefreshTitlesCommand = new RelayCommand(RefreshTitles, () => !background.IsRunning);
@@ -52,6 +67,8 @@ public sealed class UpdateCenterViewModel : ViewModelBase
         SaveFirmwareCommand = new RelayCommand(() => RefreshFirmware(true), () => settings.FirmwareCheckActive && !background.IsRunning);
         background.PropertyChanged += (_, _) =>
         {
+            CleanupDownloadsCommand.TriggerCanExecuteChanged(true);
+            CleanupSessionsCommand.TriggerCanExecuteChanged(true);
             UpdateRustCommand.TriggerCanExecuteChanged(true);
             UpdateKronosCommand.TriggerCanExecuteChanged(true);
             if (!background.IsRunning) RefreshInstalledData();
@@ -61,6 +78,8 @@ public sealed class UpdateCenterViewModel : ViewModelBase
         };
         settings.PropertyChanged += (_, args) =>
         {
+            CleanupDownloadsCommand.TriggerCanExecuteChanged(true);
+            CleanupSessionsCommand.TriggerCanExecuteChanged(true);
             if (args.PropertyName is nameof(IAppSettings.TitleDbRegion) or nameof(IAppSettings.RustPackageExecutablePath) or nameof(IAppSettings.KronosPackageDirectory)) RefreshInstalledData();
             if (args.PropertyName == nameof(IAppSettings.NszCheckUpdates)) NotifyPropertyChanged(nameof(NszCheckUpdates));
         };
@@ -79,6 +98,8 @@ public sealed class UpdateCenterViewModel : ViewModelBase
     }
     public PackageVersionActions Versions { get; }
     public RustDesktopActions Desktop { get; }
+    public RelayCommand CleanupDownloadsCommand { get; }
+    public RelayCommand CleanupSessionsCommand { get; }
     public RelayCommand UpdateRustCommand { get; }
     public RelayCommand UpdateKronosCommand { get; }
     public string NszPluginStatus => _nszManager.Status;

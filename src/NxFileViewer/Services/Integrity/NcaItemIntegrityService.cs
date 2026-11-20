@@ -94,9 +94,7 @@ public class NcaItemIntegrityService : INcaItemIntegrityService
             {
                 if (ncaItem.TryGetExpectedHashFromId(out var expectedHashFromId))
                 {
-                    // Hash from name is shorter than the real hash
-                    var actualHashShort = actualHash[new Range(0, expectedHashFromId.Length)];
-                    hashValid = actualHashShort.SequenceEqual(expectedHashFromId);
+                    hashValid = NcaHashPrefix.Matches(actualHash, expectedHashFromId);
                 }
                 else
                 {

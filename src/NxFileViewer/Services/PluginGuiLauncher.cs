@@ -154,15 +154,18 @@ public static class PluginGuiLauncher
         // This is the requested interactive NSCB console. Keep its outputs/config;
         // remove only the private key copy when the launcher terminates.
         var workspace = Path.Combine(Utils.PathHelper.CurrentAppDir, "Plugins", "KronosGuiSessions", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(workspace);
+        var sessionGuard = new FileStream(Path.Combine(workspace, ".nx-session.lock"), FileMode.CreateNew,
+            FileAccess.ReadWrite, FileShare.None);
         try
         {
             var process = Process.Start(CreateKronosStartInfo(directory, keysPath, workspace))
                 ?? throw new IOException("Kronos could not be started.");
             process.EnableRaisingEvents = true;
-            process.Exited += (_, _) => { CleanupKronosKeys(workspace); process.Dispose(); };
-            if (process.HasExited) { CleanupKronosKeys(workspace); process.Dispose(); }
+            process.Exited += (_, _) => { CleanupKronosKeys(workspace); sessionGuard.Dispose(); process.Dispose(); };
+            if (process.HasExited) { CleanupKronosKeys(workspace); sessionGuard.Dispose(); process.Dispose(); }
         }
-        catch { CleanupKronosKeys(workspace); throw; }
+        catch { CleanupKronosKeys(workspace); sessionGuard.Dispose(); throw; }
     }
     private static void CopyKronosTree(string source, string destination)
     {

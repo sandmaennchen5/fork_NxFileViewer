@@ -54,6 +54,8 @@ public interface IAppSettings : INotifyPropertyChanged
     bool BatchExportExcel { get; set; }
     string NandExecutablePath { get; set; }
     string NandBisKeysPath { get; set; }
+    bool UsageStatisticsChoiceConfirmed { get; set; }
+    bool SendAnonymousUsageStatistics { get; set; }
     bool CheckViewerUpdatesOnStartup { get; set; }
     bool IncludeViewerPrereleases { get; set; }
     string NszExecutablePath { get; set; }
@@ -120,6 +122,10 @@ public interface IAppSettings : INotifyPropertyChanged
     bool InjectTicketKeys { get; set; }
     bool SaveTicketKeys { get; set; }
 
+    string SupportId { get; set; }
+    string SupportIdEndpoint { get; set; }
+    string ReportDisplayName { get; set; }
+    string PollEndpoint { get; set; }
     string ReportEndpoint { get; set; }
     string TitlePageUrl { get; set; }
 

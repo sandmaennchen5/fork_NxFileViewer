@@ -160,6 +160,31 @@ public sealed class OldVersionCleanupTest : IDisposable
         Assert.Null(ViewerRollback.FindBackup(_root));
         Assert.Throws<IOException>(() => ViewerRollback.Prepare(_root));
     }
+    [Fact]
+    public void ViewerCleanupFindsForkExeWithoutPackageManifest()
+    {
+        var stage = Path.GetDirectoryName(ViewerBackup())!;
+        var legacy = Path.Combine(_root, "NxFileViewer.exe");
+        var fork = Path.Combine(_root, "NxFileViewerFork.exe");
+        File.Move(legacy, fork);
+        File.WriteAllText(Path.Combine(stage, "plan.json"), JsonSerializer.Serialize(new { Target = fork }));
+        Assert.Equal(fork, ViewerPackageLayout.InstalledExecutable(_root));
+        Assert.Equal(stage, Assert.Single(OldVersionCleanup.ViewerUpdateDirectories(_root)));
+        OldVersionCleanup.DeleteViewerUpdates(_root, new[] { stage });
+        Assert.True(File.Exists(fork));
+        Assert.False(Directory.Exists(stage));
+    }
+
+    [Fact]
+    public void ManifestlessExecutableDetectionSupportsRenamedTestApps()
+    {
+        Directory.CreateDirectory(_root);
+        var custom = Path.Combine(_root, "MyViewerTest.exe");
+        File.WriteAllText(custom, "current");
+        File.WriteAllText(Path.Combine(_root, "NxFileViewerFork.exe"), "another distribution");
+        Assert.Equal(custom, ViewerPackageLayout.InstalledExecutable(_root, custom));
+    }
+
     private string ViewerBackup(bool completed = true, bool recent = false, bool failed = false, bool pending = false, string? target = null)
     {
         Directory.CreateDirectory(_root);

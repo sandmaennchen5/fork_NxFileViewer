@@ -48,6 +48,7 @@ public class AppSettingsManager : IAppSettingsManager
             throw new ArgumentNullException(nameof(appSettings));
 
         _shallowCopier.Copy(appSettings, _appSettings);
+        MigrateCommunityEndpoints();
         _appSettings.RustPackageExecutablePath = PackageEnginePaths.ResolveRust(_appSettings.RustPackageExecutablePath);
         _appSettings.RustDesktopExecutablePath = PackageEnginePaths.ResolveDesktop(_appSettings.RustDesktopExecutablePath);
         _appSettings.KronosPackageDirectory = PackageEnginePaths.ResolveKronos(_appSettings.KronosPackageDirectory);
@@ -67,7 +68,10 @@ public class AppSettingsManager : IAppSettingsManager
             if (settingsModel == null)
                 return false;
 
+            using var document = JsonDocument.Parse(bytes);
+            settingsModel.UsageStatisticsChoiceConfirmed = IsUsageStatisticsChoiceConfirmed(document.RootElement);
             _shallowCopier.Copy(settingsModel, _appSettings);
+            MigrateCommunityEndpoints();
             _appSettings.RustPackageExecutablePath = PackageEnginePaths.ResolveRust(_appSettings.RustPackageExecutablePath);
             _appSettings.RustDesktopExecutablePath = PackageEnginePaths.ResolveDesktop(_appSettings.RustDesktopExecutablePath);
             _appSettings.KronosPackageDirectory = PackageEnginePaths.ResolveKronos(_appSettings.KronosPackageDirectory);
@@ -84,6 +88,26 @@ public class AppSettingsManager : IAppSettingsManager
         }
     }
 
+
+    public static bool IsUsageStatisticsChoiceConfirmed(JsonElement savedSettings)
+    {
+        if (savedSettings.ValueKind != JsonValueKind.Object ||
+            !savedSettings.TryGetProperty(nameof(IAppSettings.SendAnonymousUsageStatistics), out var enabled) ||
+            (enabled.ValueKind != JsonValueKind.True && enabled.ValueKind != JsonValueKind.False))
+            return false;
+        // Earlier versions only wrote false when statistics had been explicitly disabled.
+        if (enabled.ValueKind == JsonValueKind.False) return true;
+        return savedSettings.TryGetProperty(nameof(IAppSettings.UsageStatisticsChoiceConfirmed), out var confirmed) &&
+            confirmed.ValueKind == JsonValueKind.True;
+    }
+
+    private void MigrateCommunityEndpoints()
+    {
+        if (_appSettings.ReportEndpoint == "https://feedback.sandmaennchen5.de/report.php")
+            _appSettings.ReportEndpoint = "https://nxfile.sandmaennchen5.de/report.php";
+        if (_appSettings.PollEndpoint == "https://feedback.sandmaennchen5.de/polls.php")
+            _appSettings.PollEndpoint = "https://nxfile.sandmaennchen5.de/umfragen";
+    }
 
     public void SaveSafe()
     {

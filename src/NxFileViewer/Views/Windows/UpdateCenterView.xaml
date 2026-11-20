@@ -37,11 +37,22 @@
                   <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nsz_Update}" Command="{Binding Nsz.UpdateCommand}" Padding="12,5" Margin="0,0,8,0" />
                   <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nsz_Rollback}" Command="{Binding Nsz.RollbackCommand}" Padding="12,5" Margin="0,0,8,0" />
                   <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Update_Cleanup}" Command="{Binding Nsz.CleanupCommand}" Padding="12,5" Margin="8,0,0,0" />
+                  <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Storage_Downloads}" Command="{Binding CleanupDownloadsCommand}" Margin="8,0,0,0" Padding="12,5" />
                 </WrapPanel>
               </StackPanel>
             </GroupBox>
-            <GroupBox Header="NSCB Desktop" Visibility="{Binding Desktop.IsEnabled, Converter={StaticResource FalseToCollapseVisibilityConverter}}">
+            <GroupBox Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RustBackend_Title}" Visibility="{Binding RustUpdatesVisible, Converter={StaticResource FalseToCollapseVisibilityConverter}}">
               <StackPanel Margin="10">
+                <TextBlock TextWrapping="Wrap" Margin="0,0,0,8" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RustBackend_Tip}" />
+                <TextBlock Text="{Binding RustStatus}" TextWrapping="Wrap" Margin="0,0,0,8" />
+                <WrapPanel>
+                  <Button HorizontalAlignment="Left" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nsz_Update}" Command="{Binding UpdateRustCommand}" Padding="12,5" />
+                  <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nsz_Rollback}" Command="{Binding Versions.RustRollbackCommand}" Margin="8,0,0,0" Padding="12,5" />
+                  <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Update_Cleanup}" Command="{Binding Versions.RustCleanupCommand}" Margin="8,0,0,0" Padding="12,5" />
+                </WrapPanel>
+                <GroupBox Header="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RustDesktop_Title}" Margin="16,14,0,0" Visibility="{Binding Desktop.IsEnabled, Converter={StaticResource FalseToCollapseVisibilityConverter}}">
+              <StackPanel Margin="10">
+                <TextBlock TextWrapping="Wrap" Margin="0,0,0,8" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.RustDesktop_Tip}" />
                 <TextBlock Text="{Binding Desktop.Status}" TextWrapping="Wrap" Margin="0,0,0,8" />
                 <WrapPanel>
                   <Button HorizontalAlignment="Left" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nsz_Update}" Command="{Binding Desktop.InstallCommand}" Padding="12,5" />
@@ -50,14 +61,6 @@
                 </WrapPanel>
               </StackPanel>
             </GroupBox>
-            <GroupBox Header="nscb_rust" Visibility="{Binding RustUpdatesVisible, Converter={StaticResource FalseToCollapseVisibilityConverter}}">
-              <StackPanel Margin="10">
-                <TextBlock Text="{Binding RustStatus}" TextWrapping="Wrap" Margin="0,0,0,8" />
-                <WrapPanel>
-                  <Button HorizontalAlignment="Left" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nsz_Update}" Command="{Binding UpdateRustCommand}" Padding="12,5" />
-                  <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nsz_Rollback}" Command="{Binding Versions.RustRollbackCommand}" Margin="8,0,0,0" Padding="12,5" />
-                  <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Update_Cleanup}" Command="{Binding Versions.RustCleanupCommand}" Margin="8,0,0,0" Padding="12,5" />
-                </WrapPanel>
               </StackPanel>
             </GroupBox>
             <GroupBox Header="Kronos / NSC_BUILDER" Visibility="{Binding Source={x:Static app:App.Features}, Path=PackageOperationsActive, Converter={StaticResource FalseToCollapseVisibilityConverter}}">
@@ -67,6 +70,7 @@
                   <Button HorizontalAlignment="Left" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nsz_Update}" Command="{Binding UpdateKronosCommand}" Padding="12,5" />
                   <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nsz_Rollback}" Command="{Binding Versions.KronosRollbackCommand}" Margin="8,0,0,0" Padding="12,5" />
                   <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Update_Cleanup}" Command="{Binding Versions.KronosCleanupCommand}" Margin="8,0,0,0" Padding="12,5" />
+                  <Button Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Storage_Sessions}" Command="{Binding CleanupSessionsCommand}" Margin="8,0,0,0" Padding="12,5" />
                 </WrapPanel>
               </StackPanel>
             </GroupBox>

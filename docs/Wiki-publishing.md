@@ -1,7 +1,7 @@
 # Publishing the documentation as a GitHub wiki
 
 The documentation remains maintained in this application repository. The exporter
-creates an additional wiki copy with Home, sidebar and footer pages. It converts
+creates an additional wiki copy with Home, Changelog, topic guides, sidebar and footer pages. It converts
 local Markdown links to wiki pages and links screenshots and source/configuration
 files back to this repository.
 

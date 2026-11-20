@@ -7,6 +7,21 @@ namespace LibHac.NSZ.Test;
 public class SolidNczTest
 {
     [Fact]
+    public void OriginalStreamIncludesHeaderAndDecodedPayloadWithoutKeys()
+    {
+        var payload = new byte[8192];
+        new Random(9).NextBytes(payload);
+        using var source = CreateNcz(payload, payload.Length);
+        using var original = Ncz.OpenOriginalStream(source);
+        using var actual = new MemoryStream();
+        original.CopyTo(actual);
+
+        var expected = new byte[NczHeader.INCOMPRESSIBLE_HEADER_SIZE + payload.Length];
+        payload.CopyTo(expected, NczHeader.INCOMPRESSIBLE_HEADER_SIZE);
+        Assert.Equal(expected, actual.ToArray());
+    }
+
+    [Fact]
     public void SectionsStartingInsideOriginalHeaderDoNotOvercountDecodedLength()
     {
         var payload = new byte[8192]; new Random(9).NextBytes(payload);

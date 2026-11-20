@@ -12,6 +12,20 @@ namespace Emignatik.NxFileViewer.Test.Services.Updates;
 
 public sealed class GitHubUpdateRequestsTest
 {
+    [Fact]
+    public void StartupNoticeHidesCacheDateButKeepsRateLimit()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var saved = new GitHubUpdateResponse("{}", now, true, null);
+        Assert.Empty(saved.NoticeFor(true));
+        Assert.NotEmpty(saved.NoticeFor(false));
+        var limited = saved with { RetryAt = now.AddMinutes(10) };
+        var expected = string.Format(Emignatik.NxFileViewer.Localization.LocalizationManager.Instance.Current.Keys.Update_RateLimited,
+            limited.RetryAt.Value.LocalDateTime);
+        Assert.Equal(expected, limited.NoticeFor(true));
+        Assert.Contains(saved.Notice, limited.NoticeFor(false));
+    }
+
     private const string Url = "https://api.github.com/repos/example/tool/releases/latest";
     private sealed class Handler : HttpMessageHandler
     {
@@ -26,7 +40,7 @@ public sealed class GitHubUpdateRequestsTest
         }
     }
     [Fact]
-    public async Task ViewerUsesAutomaticCacheAndManualRefreshAndReportsSavedDate()
+    public async Task ViewerUsesAutomaticCacheWithoutSavedDateAndManualRefresh()
     {
         using var handler = new Handler { Reply = () => new(HttpStatusCode.OK)
         {
@@ -37,7 +51,7 @@ public sealed class GitHubUpdateRequestsTest
         var token = TestContext.Current.CancellationToken;
         Assert.Null(await viewer.CheckAsync(new Version(2,0,0), "x64", token, automatic: true));
         Assert.Null(await viewer.CheckAsync(new Version(2,0,0), "x64", token, automatic: true));
-        Assert.NotEmpty(viewer.LastCheckNotice);
+        Assert.Empty(viewer.LastCheckNotice);
         Assert.Equal(1, handler.Calls);
         Assert.Null(await viewer.CheckAsync(new Version(2,0,0), "x64", token));
         Assert.Empty(viewer.LastCheckNotice);

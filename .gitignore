@@ -1,16 +1,22 @@
 *.suo
 *.user
-
 [Bb]in/
 [Oo]bj/
-
 .vs/
+__pycache__
 packages/
 Publish/
-
-# Local user test data (automated tests under src remain tracked)
 /test/
+/tools/feedback/
 /work
 @eaDir/
 Thumbs.db@SynoEAStream
 Thumbs.db
+config.php
+*.pem
+*.sqlite*
+*.sql
+*.sql.gz
+github-issues-cache.*
+.github-cache-*
+PublishTest.ps1

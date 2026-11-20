@@ -17,7 +17,7 @@ class DownloadBadgeTests(unittest.TestCase):
     def test_only_real_viewer_variants_and_legacy_viewers(self):
         for prefix in ("NxFileViewerFork_v4.2.0-beta1", "NxFileViewer_v4.0.0"):
             for runtime in ("", "_self-contained"):
-                for arch in ("x64", "x86"):
+                for arch in ("x64", "x86", "arm64"):
                     with self.subTest(prefix=prefix, runtime=runtime, arch=arch):
                         self.assertTrue(badge.is_viewer_zip(f"{prefix}{runtime}_{arch}.zip"))
         for name in (

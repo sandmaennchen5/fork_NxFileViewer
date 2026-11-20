@@ -17,6 +17,7 @@
 | Convert, merge and split NSP/XCI | [Package engines](PACKAGE_ENGINES.md) |
 | NAND dumps and partition export | [NAND plugin](NAND-plugin.md) |
 | File associations and Explorer menus | [File associations](User-guide.md#windows-file-associations) · [Explorer integration](Explorer-integration.md) |
+| Feedback, Support ID, polls and usage statistics | [Community features](Community.md) |
 | Application and plugin updates | [Updates](Application-updates.md) |
 | Settings, caches and local storage | [Storage](User-guide.md#updates-and-local-storage) |
 | Interface examples | [Screenshot gallery](Screenshots.md) |
@@ -25,6 +26,7 @@
 
 - [Export and publish the GitHub wiki](Wiki-publishing.md)
 
+- [Experimental Avalonia builds](Avalonia.md)
 - [Build, tests and publishing](Development.md)
 - [Editable application and naming defaults](../src/config/README.md)
 - [External sources and package manifests](../src/config/Update-sources.md)

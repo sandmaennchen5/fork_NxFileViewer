@@ -1,6 +1,5 @@
-﻿using System;
+using System;
 using System.IO;
-using System.Text;
 using Emignatik.NxFileViewer.Localization;
 using Microsoft.Extensions.Logging;
 
@@ -18,23 +17,12 @@ public class PackageTypeAnalyzer : IPackageTypeAnalyzer
     public PackageType GetType(string filePath)
     {
         using var fileStream = Services.Mtp.MtpDirectSource.OpenRead(filePath);
-        var buffer = new byte[0x104];
-        var read = fileStream.Read(buffer);
-        if (read >= 0x14 && Encoding.ASCII.GetString(buffer, 0x10, 4) == "NRO0")
-            return PackageType.NRO;
-        if (read >= 4 && Encoding.ASCII.GetString(buffer, 0, 4) == "PFS0")
-        {
+        var type = PackageSignature.Read(fileStream);
+        if (type == PackageType.NSP)
             CheckExtensionConsistency(filePath, ".nsp", ".nsz");
-            return PackageType.NSP;
-        }
-
-        if (read >= 0x104 && Encoding.ASCII.GetString(buffer, 0x100, 4) == "HEAD")
-        {
+        else if (type == PackageType.XCI)
             CheckExtensionConsistency(filePath, ".xci", ".xcz");
-            return PackageType.XCI;
-        }
-
-        return PackageType.UNKNOWN;
+        return type;
     }
 
     private void CheckExtensionConsistency(string filePath, string expectedExt1, string expectedExt2)

@@ -8,12 +8,14 @@ Browse, verify and manage Nintendo Switch packages in a Windows desktop applicat
 
 ## Get started
 
-1. Download and extract the **x64** or **x86** viewer ZIP.
+1. Download and extract the **x64**, **x86** or **Windows ARM64** WPF viewer ZIP matching your system.
 2. Choose **self-contained** to include .NET, or install [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) for the standard ZIP.
 3. Start `NxFileViewerFork.exe` from a writable folder and configure your keys under **Settings → Keys**.
 4. Open a file, drop files/folders into Batch, or use the optional Explorer menu.
 
 Firmware references, the standalone LogViewer and Explorer setup packages are separate downloads. See [installation and updates](docs/Application-updates.md).
+
+The current development prerelease is **4.1.1-beta3**; see the [changes since beta2](CHANGELOG.md#411-beta3---2026-11-20). Experimental Avalonia builds have a smaller feature set than the WPF viewer.
 
 ## Features
 
@@ -47,6 +49,10 @@ Detailed workflows, configuration and limitations are in the **[documentation](d
 ![Batch game overview](screenshots/Batch-Game-Overview.png)
 
 [All screenshots](docs/Screenshots.md)
+
+## Feedback and community
+
+Report bugs or feature requests, find your Support ID and participate in polls under **Info**. See [feedback, polls and usage statistics](docs/Community.md) for public/private log choices, reminders, optional reporting and companion-service requirements.
 
 ## Development and credits
 

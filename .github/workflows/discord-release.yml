@@ -1,0 +1,84 @@
+name: Discord Release Notification
+
+on:
+  release:
+    types: [published]
+  workflow_call:
+    secrets:
+      DISCORD_RELEASE_WEBHOOK:
+        required: false
+      DISCORD_PRERELEASE_WEBHOOK:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Discord notification
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || github.ref_name }}
+          DISCORD_RELEASE_WEBHOOK: ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
+          DISCORD_PRERELEASE_WEBHOOK: ${{ secrets.DISCORD_PRERELEASE_WEBHOOK }}
+        run: |
+          node <<'NODE'
+          const { execFileSync } = require('node:child_process');
+
+          async function notify() {
+            const release = JSON.parse(execFileSync('gh', [
+              'release', 'view', '--repo', process.env.GH_REPO,
+              '--json', 'name,tagName,url,body,isPrerelease,publishedAt',
+              '--', process.env.RELEASE_TAG,
+            ], { encoding: 'utf8' }));
+
+            const secret = release.isPrerelease
+              ? 'DISCORD_PRERELEASE_WEBHOOK'
+              : 'DISCORD_RELEASE_WEBHOOK';
+            if (!process.env[secret]) {
+              console.log(`::warning::Discord notification skipped because ${secret} is missing.`);
+              return;
+            }
+
+            const notes = (release.body ?? '')
+              .split(/^####[ \t]+Which ZIP file do I need\?[ \t]*$/m, 1)[0]
+              .trim();
+            const description = notes.length > 4000
+              ? notes.slice(0, 3995).replace(/[\uD800-\uDBFF]$/, '').trimEnd() + '\n\n...'
+              : notes;
+            const label = release.isPrerelease ? 'Prerelease' : 'Release';
+            const embed = {
+              title: `${label} · ${release.name || release.tagName}`.slice(0, 256).replace(/[\uD800-\uDBFF]$/, ''),
+              url: release.url,
+              color: 5814783,
+              fields: [
+                { name: 'Repository', value: process.env.GH_REPO, inline: true },
+                { name: 'Version', value: release.tagName, inline: true },
+              ],
+              footer: { text: 'GitHub Release' },
+              timestamp: release.publishedAt,
+            };
+            if (description) embed.description = description;
+
+            const webhook = new URL(process.env[secret]);
+            webhook.searchParams.set('wait', 'true');
+            const response = await fetch(webhook, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ allowed_mentions: { parse: [] }, embeds: [embed] }),
+              signal: AbortSignal.timeout(30000),
+            });
+            if (!response.ok) {
+              console.error(`Discord webhook returned HTTP ${response.status}.`);
+              process.exitCode = 1;
+            }
+          }
+
+          notify().catch(() => {
+            console.error('Could not load the published release or send the Discord notification.');
+            process.exitCode = 1;
+          });
+          NODE

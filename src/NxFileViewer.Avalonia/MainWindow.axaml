@@ -1,0 +1,131 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="NxFileViewer.Avalonia.MainWindow"
+        Title="NxFileViewer Fork · Avalonia" Icon="/Icons/Icon.ico"
+        Width="1400" Height="850" MinWidth="1000" MinHeight="600"
+        DragDrop.AllowDrop="True">
+    <Grid RowDefinitions="Auto,*,Auto">
+        <Menu>
+            <MenuItem Header="{Binding Workspace_Menu}">
+                <MenuItem Header="{Binding MenuItem_Open}" InputGesture="Ctrl+O" Click="OpenClicked"/>
+                <MenuItem Header="{Binding BrowseKeysFile_ProdTitle}" Click="LoadKeysClicked"/>
+                <MenuItem Header="{Binding MenuItem_Close}" Click="CloseClicked"/>
+                <Separator/>
+                <MenuItem Header="{Binding MenuItem_Exit}" Click="ExitClicked"/>
+            </MenuItem>
+        </Menu>
+        <TabControl x:Name="Workspace" Grid.Row="1">
+            <TabItem Header="{Binding Workspace_Home}">
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="16">
+                    <TextBlock Text="NxFileViewer Fork" FontSize="30" HorizontalAlignment="Center"/>
+                    <Button Click="OpenClicked" Padding="12,10" HorizontalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Image Source="/Icons/open_16x16.png" Width="20" Height="20"/>
+                            <TextBlock Text="{Binding MenuItem_Open}"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </TabItem>
+            <TabItem Header="{Binding Workspace_File}">
+                <Grid ColumnDefinitions="350,5,*" Margin="8">
+                    <ListBox x:Name="Entries" SelectionChanged="EntrySelected"/>
+                    <GridSplitter Grid.Column="1" ResizeDirection="Columns" HorizontalAlignment="Stretch"/>
+                    <ScrollViewer Grid.Column="2" Margin="12">
+                        <StackPanel Spacing="8">
+                            <TextBlock x:Name="FileNameText" FontSize="20" TextWrapping="Wrap"/>
+                            <TextBlock x:Name="FileInfoText" TextWrapping="Wrap"/>
+                            <TextBlock x:Name="EntryInfoText" TextWrapping="Wrap"/>
+                            <TextBlock x:Name="MetadataStatus" TextWrapping="Wrap"/>
+                            <ItemsControl x:Name="TitleDetails">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border BorderThickness="0,1,0,0" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" Padding="0,10">
+                                            <StackPanel Spacing="4">
+                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                                <TextBlock Text="{Binding TypeAndId}" TextWrapping="Wrap"/>
+                                                <TextBlock Text="{Binding PublisherAndVersion}" TextWrapping="Wrap"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </TabItem>
+            <TabItem Header="{Binding Batch_Scan}">
+                <Grid RowDefinitions="Auto,*,Auto" Margin="12" RowSpacing="8">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Content="{Binding BatchIntegrity_Browse}" Click="ChooseBatchFolder"/>
+                        <CheckBox x:Name="BatchRecursive" Content="{Binding BatchIntegrity_IncludeSubdirectories}" IsChecked="True"/>
+                        <Button x:Name="BatchStartButton" Content="{Binding Batch_Scan}" IsEnabled="False" Click="StartBatch"/>
+                        <Button x:Name="BatchHashButton" Content="SHA-256" ToolTip.Tip="{Binding NcaHash_ProgressText}" IsEnabled="False" Click="StartBatch"/>
+                        <Button x:Name="BatchCancelButton" Content="{Binding CancelAction}" IsEnabled="False" Click="CancelBatch"/>
+                        <TextBlock x:Name="BatchFolderText" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <ListBox x:Name="BatchResults" Grid.Row="1" DoubleTapped="OpenBatchResult">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="{Binding Path}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                    <TextBlock Text="{Binding Summary}" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                    <TextBlock x:Name="BatchStatus" Grid.Row="2" TextWrapping="Wrap"/>
+                </Grid>
+            </TabItem>
+            <TabItem Header="{Binding Firmware_Title}">
+                <Grid RowDefinitions="Auto,Auto,*" RowSpacing="8" Margin="12">
+                    <StackPanel x:Name="FirmwareActions" Orientation="Horizontal" Spacing="8">
+                        <Button Content="{Binding BatchIntegrity_SelectDirectory}" Click="ChooseFirmwareFolder"/>
+                        <Button Content="{Binding Firmware_BrowseZip}" Click="ChooseFirmwareArchive"/>
+                        <Button Content="NCA…" ToolTip.Tip="{Binding Firmware_NcaMatches}" Click="ChooseFirmwareNca"/>
+                    </StackPanel>
+                    <Button x:Name="FirmwareCancel" Grid.Row="1" Content="{Binding CancelAction}" IsEnabled="False" Click="CancelFirmware"/>
+                    <TextBox x:Name="FirmwareResult" Grid.Row="2" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+                </Grid>
+            </TabItem>
+            <TabItem Header="{Binding SettingsView_Title}">
+                <StackPanel Margin="16" Spacing="8" MaxWidth="650" HorizontalAlignment="Left">
+                    <TextBlock Text="{Binding SettingsView_Title_Language}"/>
+                    <ComboBox x:Name="LanguageChoice" MinWidth="220">
+                        <ComboBoxItem Content="Auto" Tag=""/>
+                        <ComboBoxItem Content="Deutsch" Tag="de"/>
+                        <ComboBoxItem Content="English" Tag="en"/>
+                        <ComboBoxItem Content="Français" Tag="fr"/>
+                        <ComboBoxItem Content="Español" Tag="es"/>
+                    </ComboBox>
+                    <TextBlock Text="{Binding SettingsView_Title_Theme}"/>
+                    <ComboBox x:Name="ThemeChoice" MinWidth="220">
+                        <ComboBoxItem Content="Auto" Tag=""/>
+                        <ComboBoxItem Content="Light" Tag="Light"/>
+                        <ComboBoxItem Content="Dark" Tag="Dark"/>
+                    </ComboBox>
+                    <Button Content="{Binding BrowseKeysFile_ProdTitle}" Click="LoadKeysClicked"/>
+                    <TextBlock x:Name="SettingsKeysPath" TextWrapping="Wrap"/>
+                    <Button Content="{Binding SettingsView_Button_Apply}" Click="SavePreferences"/>
+                    <TextBlock x:Name="SettingsStatus" TextWrapping="Wrap"/>
+                </StackPanel>
+            </TabItem>
+            <TabItem Header="{Binding RenamingTool_WindowTitle}">
+                <StackPanel Margin="16" Spacing="8" MaxWidth="750" HorizontalAlignment="Left">
+                    <Button Content="{Binding MenuItem_Open}" Click="ChooseRenameFile"/>
+                    <TextBlock Text="{Binding RenamingTool_OldName}"/>
+                    <TextBlock x:Name="RenameSourceText" TextWrapping="Wrap"/>
+                    <Button Content="{Binding RenamingTool_StatusSimulation}" Click="SuggestRename"/>
+                    <TextBlock Text="{Binding RenamingTool_NewName}"/>
+                    <TextBox x:Name="RenameTargetName" MinWidth="500" TextChanged="RenameNameChanged"/>
+                    <TextBlock x:Name="RenamePreview" TextWrapping="Wrap"/>
+                    <Button x:Name="RenameApply" Content="{Binding RenamingTool_Button_Rename}" IsEnabled="False" Click="ApplyRename"/>
+                    <TextBlock x:Name="RenameStatus" TextWrapping="Wrap"/>
+                </StackPanel>
+            </TabItem>
+        </TabControl>
+        <Border Grid.Row="2" Padding="8,4">
+            <TextBlock x:Name="StatusText" TextTrimming="CharacterEllipsis"/>
+        </Border>
+    </Grid>
+</Window>

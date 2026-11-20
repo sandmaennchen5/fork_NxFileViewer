@@ -84,6 +84,15 @@ public sealed class SessionFileLogTest : IDisposable
         Assert.Contains("[Information] NxFileViewer Fork session started.", firstLine);
         Assert.Contains("Version: " + version + ";", firstLine);
         Assert.Contains("Assembly: " + assembly.GetName().Version, firstLine);
+        Assert.Contains("Platform: Windows;", firstLine);
+        Assert.Contains("OS: ", firstLine);
+        Assert.Contains("Process: " + System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture, firstLine);
+        Assert.Contains("OS architecture: " + System.Runtime.InteropServices.RuntimeInformation.OSArchitecture, firstLine);
+        Assert.Contains("UI: WPF;", firstLine);
+        Assert.Contains("Distribution: ", firstLine);
+        Assert.Contains("Runtime: " + System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription, firstLine);
+        Assert.Contains("RID: " + System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier, firstLine);
+        Assert.DoesNotContain("MachineGuid", firstLine);
     }
     public void Dispose()
     {

@@ -125,3 +125,12 @@ See [NAND setup](NAND-plugin.md).
 In **Settings → Program → Windows file associations**, click **Register NxFileViewer Fork** to register `.nsp`, `.nsz`, `.xci`, `.xcz` and `.nro` for the current Windows user. The shared stable ProgID `NxFileViewerFork.File` uses the adjacent native `NxFileViewerFork.Open.exe` launcher, quoted together with the file argument. The main application is `NxFileViewerFork.exe`; the launcher reads its name from an adjacent `NxFileViewerFork.Open.target` reference and is refreshed when the application starts. Package updates preserve file associations. Then choose **NxFileViewer Fork** through Windows **Open with → Choose another app → Always** for each extension you want as default. Existing defaults and original-viewer registrations are preserved. Repeat registration after moving the app to another folder; no administrator rights are required. Registration takes effect immediately, independently of saving or cancelling settings.
 
 See [classic and modern Explorer menus](Explorer-integration.md).
+
+## Feedback and polls
+
+In the WPF viewer, **Info → Report a bug / request a feature** accepts both types
+of report. It shows the public Support ID and independent public-anonymized/private-
+original log options. **Info → Polls** supports bilingual choices, private free text
+and **Not participating** / undo. Optional startup reminders exclude declined,
+answered, hidden and closed polls. See [community features](Community.md) for the
+usage-reporting explanation, ten-second first-start prompt and service requirements.

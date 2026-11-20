@@ -26,7 +26,7 @@ Windows display language and English otherwise.
 
 ## Build
 
-From the repository root, publish all standalone LogViewer ZIPs for x64/x86, with
+From the repository root, publish all standalone WPF LogViewer ZIPs for x64/x86/ARM64, with
 and without the runtime:
 
 ```powershell
@@ -36,3 +36,9 @@ and without the runtime:
 The default `.\Publish.ps1` includes these packages; `-SkipLogViewer` omits them.
 Package names use `NxFileViewerFork.LogViewer_v<VERSION>[_self-contained]_<ARCH>.zip`.
 For individual EXE selectors, see [development and publishing](Development.md#individual-executables).
+
+## Experimental Avalonia variant
+
+`src/NxFileViewer.LogViewer.Avalonia` builds `NxFileViewerFork.LogViewer.Avalonia.exe`
+with a separate interface and shared log parsing/text resources. It is distinct
+from the WPF executable and its release ZIPs. See [Avalonia builds](Avalonia.md).

@@ -1,4 +1,4 @@
-using Emignatik.NxFileViewer.Utils.MVVM.Localization;
+﻿using Emignatik.NxFileViewer.Utils.MVVM.Localization;
 
 // ReSharper disable InconsistentNaming
 
@@ -15,10 +15,19 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string PluginLog_Tip { get; }
 
     string Update_SwitchToX64 { get; }
+    string Update_X64Only { get; }
+    string Update_X64WindowsRequired { get; }
     string Update_SwitchToX64Confirm { get; }
     string Update_SwitchToX64ConfirmStandard { get; }
     string Update_SwitchToX64Unavailable { get; }
     string Update_RollbackConfirm { get; }
+    string Storage_Downloads { get; }
+    string Storage_Sessions { get; }
+    string Storage_DownloadConfirm { get; }
+    string Storage_SessionConfirm { get; }
+    string Storage_DownloadEmpty { get; }
+    string Storage_SessionEmpty { get; }
+    string Storage_Done { get; }
     string Update_Cleanup { get; }
     string Update_CleanupConfirm { get; }
     string Update_CleanupEmpty { get; }
@@ -41,6 +50,10 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string Features_PackageOperationsDisabled { get; }
     string Package_Title { get; }
     string Package_Engine { get; }
+    string RustBackend_Title { get; }
+    string RustBackend_Tip { get; }
+    string RustDesktop_Title { get; }
+    string RustDesktop_Tip { get; }
     string Package_RustPath { get; }
     string Package_KronosPath { get; }
     string Package_Tip { get; }

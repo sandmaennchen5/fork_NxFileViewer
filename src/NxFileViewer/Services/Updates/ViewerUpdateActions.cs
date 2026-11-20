@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -27,6 +27,8 @@ public sealed class ViewerUpdateActions : NotifyPropertyChangedBase
     private readonly ILogger<ViewerUpdateActions> _logger;
     private readonly ComponentUpdateChecker _components;
     private ViewerRelease? _release;
+    private ViewerRelease? _x64OnlyRelease;
+    private bool _requiresX64Switch;
     private bool _busy;
     private string _status = "";
     private string _availableUpdates = "";
@@ -46,7 +48,8 @@ public sealed class ViewerUpdateActions : NotifyPropertyChangedBase
         _settings.PropertyChanged += (_, args) =>
         {
             if (args.PropertyName != nameof(IAppSettings.IncludeViewerPrereleases)) return;
-            _release = null;
+            _release = _x64OnlyRelease = null;
+            _requiresX64Switch = false;
             Status = "";
             AvailableUpdates = "";
             NotifyPropertyChanged(nameof(HasViewerUpdate));
@@ -76,18 +79,29 @@ public sealed class ViewerUpdateActions : NotifyPropertyChangedBase
     public async Task CheckAsync(bool automatic)
     {
         if (_busy || (automatic && !_settings.CheckViewerUpdatesOnStartup)) return;
+        _release = _x64OnlyRelease = null;
+        _requiresX64Switch = false;
         SetBusy(true);
         Status = LocalizationManager.Instance.Current.Keys.Update_Checking;
         try
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
             var architecture = RuntimeInformation.ProcessArchitecture switch
-            { Architecture.X64 => "x64", Architecture.X86 => "x86", _ => throw new NotSupportedException("No release package for this architecture.") };
+            { Architecture.X64 => "x64", Architecture.X86 => "x86", Architecture.Arm64 => "arm64", _ => throw new NotSupportedException("No release package for this architecture.") };
             var includePrereleases = _settings.IncludeViewerPrereleases;
-            _release = await _service.CheckAsync(Assembly.GetExecutingAssembly().GetName().Version!, architecture, timeout.Token, includePrereleases, Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion, ViewerDistribution.IsSelfContained, automatic);
-            if (includePrereleases != _settings.IncludeViewerPrereleases) { _release = null; Status = ""; return; }
-            Status = _release == null ? LocalizationManager.Instance.Current.Keys.Update_Current :
-                string.Format(LocalizationManager.Instance.Current.Keys.Update_Available, ReleaseLabel(_release));
+            var osArchitecture = RuntimeInformation.OSArchitecture switch
+            { Architecture.X64 => "x64", Architecture.X86 => "x86", Architecture.Arm64 => "arm64", _ => "unknown" };
+            var found = await _service.CheckInstalledAsync(Assembly.GetExecutingAssembly().GetName().Version!, architecture,
+                osArchitecture, timeout.Token, includePrereleases,
+                Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion,
+                ViewerDistribution.IsSelfContained, automatic);
+            if (includePrereleases != _settings.IncludeViewerPrereleases) { _release = _x64OnlyRelease = null; Status = ""; return; }
+            _release = found.InstallableRelease;
+            _x64OnlyRelease = found.X64OnlyRelease;
+            _requiresX64Switch = found.RequiresX64Switch;
+            Status = AvailableViewerLabel == null ? LocalizationManager.Instance.Current.Keys.Update_Current :
+                string.Format(LocalizationManager.Instance.Current.Keys.Update_Available, AvailableViewerLabel);
+            if (_requiresX64Switch) Status += " " + LocalizationManager.Instance.Current.Keys.Update_SwitchToX64 + ".";
             if (_service.LastCheckNotice.Length > 0) Status += " — " + _service.LastCheckNotice;
 
         }
@@ -97,7 +111,8 @@ public sealed class ViewerUpdateActions : NotifyPropertyChangedBase
         }
         catch (Exception ex)
         {
-            _release = null;
+            _release = _x64OnlyRelease = null;
+            _requiresX64Switch = false;
             Status = LocalizationManager.Instance.Current.Keys.Update_Failed;
             _logger.LogWarning(ex, "Viewer update check failed.");
 
@@ -109,13 +124,25 @@ public sealed class ViewerUpdateActions : NotifyPropertyChangedBase
                 using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(45));
                 var results = await _components.CheckResultsAsync(timeout.Token, automatic);
                 Status += Environment.NewLine + string.Join(Environment.NewLine, results.Select(r => r.Name + ": " + r.Status));
-                AvailableUpdates = UpdateAvailabilitySummary.Format(_release == null ? null : ReleaseLabel(_release), results);
+                AvailableUpdates = UpdateAvailabilitySummary.Format(AvailableViewerLabel, results);
             }
-            catch (Exception ex) { AvailableUpdates = UpdateAvailabilitySummary.Format(_release == null ? null : ReleaseLabel(_release), Array.Empty<ComponentUpdateResult>()); Status += Environment.NewLine + LocalizationManager.Instance.Current.Keys.Update_Failed; _logger.LogWarning(ex, "Component update check failed."); }
+            catch (Exception ex) { AvailableUpdates = UpdateAvailabilitySummary.Format(AvailableViewerLabel, Array.Empty<ComponentUpdateResult>()); Status += Environment.NewLine + LocalizationManager.Instance.Current.Keys.Update_Failed; _logger.LogWarning(ex, "Component update check failed."); }
             SetBusy(false);
             if (!automatic) Emignatik.NxFileViewer.Views.Windows.ThemedDialog.Notice(Status, "NxFileViewer Fork Update", MessageBoxImage.Information);
         }
     }
+    private string? AvailableViewerLabel
+    {
+        get
+        {
+            if (_x64OnlyRelease == null) return _release == null ? null : ReleaseLabel(_release);
+            var keys = LocalizationManager.Instance.Current.Keys;
+            var x64 = ReleaseLabel(_x64OnlyRelease) + " (" + keys.Update_X64Only +
+                (_requiresX64Switch ? "" : ", " + keys.Update_X64WindowsRequired) + ")";
+            return _requiresX64Switch || _release == null ? x64 : ReleaseLabel(_release) + "; " + x64;
+        }
+    }
+
     private static string ReleaseLabel(ViewerRelease release) => release.DisplayVersion +
         (release.IsPrerelease ? " (" + LocalizationManager.Instance.Current.Keys.Update_Prerelease + ")" : "");
     private static bool CanRollback()
@@ -125,6 +152,7 @@ public sealed class ViewerUpdateActions : NotifyPropertyChangedBase
     }
     private async void Install(bool rollback = false, bool switchToX64 = false)
     {
+        if (!rollback && _requiresX64Switch) switchToX64 = true;
         var command = switchToX64 ? SwitchToX64Command : rollback ? RollbackCommand : InstallCommand;
         if (!command.CanExecute(null)) return;
 
