@@ -42,6 +42,25 @@ The current development prerelease is **4.1.1-beta3**; see the [changes since be
 
 Detailed workflows, configuration and limitations are in the **[documentation](docs/README.md)**.
 
+## 🧭 Roadmap
+### ✅ Done
+- NAND File Explorer (like in Nx Game Info)
+- Windows Explorer - Context Menu
+- update .NET 10 (November 10, 2026 End of support .NET 8)
+- Special sorting alphabetical by game (Base+Patch+DLC)
+### ⏳ In Progress
+- UI/UX Improvements
+- Avalonia UI
+- MTP (Sphaira) support
+- compress tools NSZ + ncsb_rust
+- SuperNSP / SuperXCI Split and Merge tools NSC_Builder + nscb_rust
+- Automatic tool switching in case of failure
+- NUP File Support
+### 🔜 Planned
+- Linux and MacOS
+### 💭 Brainstorm / Ideas
+- Plugin nxdumphost (Dump content from switch via pc host and directly into batch)
+
 ## Screenshots
 
 ![Start](screenshots/Start.png)
