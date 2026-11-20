@@ -1,0 +1,36 @@
+{
+    "app_name": "NxFileViewer",
+    "chart_titles": {
+        "versionen": "Versions",
+        "betriebssysteme": "Operating systems",
+        "architekturen": "Architectures",
+        "oberflaechen": "UI frameworks",
+        "dotnet": ".NET distribution",
+        "installationen": "Installations"
+    },
+    "labels": {},
+    "badges": {
+        "installations": "Active installations ({days} days)",
+        "installs": "Installs",
+        "single": "{title}: {label}",
+        "combined": "{title}",
+        "pair": "{label}: {count}",
+        "separator": " · ",
+        "empty": "No reports"
+    },
+    "bars": {
+        "title": "{app} · {title}",
+        "description": "Active identities in the last {days} days, by last reported environment.",
+        "subtitle": "{total} active identities · last {days} days",
+        "footer": "Updated: {updated} UTC · Self-reported usage data",
+        "empty": "No reports in this period yet."
+    },
+    "trends": {
+        "title": "{app} · {title} · History",
+        "description": "Daily active identities in the rolling {days}-day window. Available history starts: {start}.",
+        "subtitle": "Active identities ({days} days) · available history since {start}",
+        "empty": "No reports in this period yet.",
+        "other": "Other",
+        "all_installations": "All installations"
+    }
+}
