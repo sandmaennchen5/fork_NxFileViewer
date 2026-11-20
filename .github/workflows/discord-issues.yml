@@ -1,0 +1,125 @@
+name: Sync Issues to Discord
+
+on:
+  issues:
+    types: [opened, edited, closed, reopened]
+  issue_comment:
+    types: [created]
+
+permissions:
+  issues: write
+
+concurrency:
+  group: discord-issue-${{ github.event.issue.number }}
+  queue: max
+
+jobs:
+  sync:
+    if: ${{ !github.event.issue.pull_request && github.event.comment.user.login != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      DISCORD_ISSUES_WEBHOOK: ${{ secrets.DISCORD_ISSUES_WEBHOOK }}
+    steps:
+      - name: Update Discord forum thread
+        run: |
+          node <<'NODE'
+          const { readFileSync } = require('node:fs');
+          const { issue: eventIssue, comment } = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8'));
+          const repo = `${process.env.GITHUB_API_URL}/repos/${process.env.GITHUB_REPOSITORY}`;
+          const issuePath = `/issues/${eventIssue.number}`;
+          const marker = /<!-- discord-issue-sync:v1 (\d+) (\d+)((?: \d+)*) -->$/;
+
+          function truncate(value, limit) {
+            if (value.length <= limit) return value;
+            return value.slice(0, limit - 1).replace(/[\uD800-\uDBFF]$/, '') + '…';
+          }
+
+          async function request(service, url, method, body, headers = {}) {
+            const response = await fetch(url, {
+              method,
+              headers: { 'Content-Type': 'application/json', ...headers },
+              body: body === undefined ? undefined : JSON.stringify(body),
+              redirect: 'error',
+              signal: AbortSignal.timeout(30000),
+            }).catch(() => { throw Error(`${service} ${method} request failed.`); });
+            if (!response.ok) throw Error(`${service} ${method} returned HTTP ${response.status}.`);
+            return response.json();
+          }
+
+          function github(path, method = 'GET', body) {
+            return request('GitHub', repo + path, method, body, {
+              Accept: 'application/vnd.github+json',
+              Authorization: `Bearer ${process.env.GH_TOKEN}`,
+            });
+          }
+
+          async function sync() {
+            const webhook = (process.env.DISCORD_ISSUES_WEBHOOK ?? '').trim();
+            if (!webhook) {
+              console.log('::warning::Discord issue sync skipped because DISCORD_ISSUES_WEBHOOK is missing.');
+              return;
+            }
+            if (!/^https:\/\/discord\.com\/api\/webhooks\/\d+\/[\w-]+\/?$/.test(webhook)) {
+              throw Error('DISCORD_ISSUES_WEBHOOK must be the Discord forum webhook URL.');
+            }
+            const endpoint = webhook.replace(/\/$/, '');
+            const issue = await github(issuePath);
+            let mapping;
+            for (let page = 1; !mapping; page++) {
+              const comments = await github(`${issuePath}/comments?per_page=100&page=${page}`);
+              mapping = comments.find(entry =>
+                entry.user?.login === 'github-actions[bot]' && marker.test(entry.body ?? ''));
+              if (comments.length < 100) break;
+            }
+            let [, threadId, messageId, recordedIds = ''] = mapping?.body.match(marker) ?? [];
+            const replied = new Set(recordedIds.trim().split(' ').filter(Boolean));
+
+            async function saveMapping() {
+              const ids = [threadId, messageId, ...replied].join(' ');
+              const body = `This issue is mirrored in a Discord forum thread.\n\n<!-- discord-issue-sync:v1 ${ids} -->`;
+              mapping = mapping
+                ? await github(`/issues/comments/${mapping.id}`, 'PATCH', { body })
+                : await github(`${issuePath}/comments`, 'POST', { body });
+            }
+
+            const title = `#${issue.number} – ${issue.title}`;
+            const starter = {
+              allowed_mentions: { parse: [] },
+              embeds: [{
+                title: truncate(title, 256),
+                url: issue.html_url,
+                description: truncate(issue.body || 'No description provided.', 4000),
+                fields: [{ name: 'Status', value: issue.state === 'closed' ? 'Closed' : 'Open' }],
+              }],
+            };
+
+            if (!mapping) {
+              const created = await request('Discord', endpoint + '?wait=true', 'POST', {
+                ...starter, thread_name: truncate(title, 100),
+              });
+              threadId = created.channel_id;
+              messageId = created.id;
+              await saveMapping();
+            } else if (!comment) {
+              await request('Discord', `${endpoint}/messages/${messageId}?thread_id=${threadId}`, 'PATCH', starter);
+            }
+
+            if (!comment || replied.has(String(comment.id))) return;
+            await request('Discord', `${endpoint}?wait=true&thread_id=${threadId}`, 'POST', {
+              allowed_mentions: { parse: [] },
+              embeds: [{
+                title: `GitHub comment by ${comment.user.login}`,
+                url: comment.html_url,
+                description: truncate(comment.body || 'No text provided.', 4000),
+              }],
+            });
+            replied.add(String(comment.id));
+            await saveMapping();
+          }
+
+          sync().catch(error => {
+            console.error(error.message);
+            process.exitCode = 1;
+          });
+          NODE
