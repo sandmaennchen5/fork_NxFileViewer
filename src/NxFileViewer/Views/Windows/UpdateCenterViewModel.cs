@@ -80,7 +80,7 @@ public sealed class UpdateCenterViewModel : ViewModelBase
         {
             CleanupDownloadsCommand.TriggerCanExecuteChanged(true);
             CleanupSessionsCommand.TriggerCanExecuteChanged(true);
-            if (args.PropertyName is nameof(IAppSettings.TitleDbRegion) or nameof(IAppSettings.RustPackageExecutablePath) or nameof(IAppSettings.KronosPackageDirectory)) RefreshInstalledData();
+            if (args.PropertyName is nameof(IAppSettings.TitleDbRepository) or nameof(IAppSettings.TitleDbRegion) or nameof(IAppSettings.RustPackageExecutablePath) or nameof(IAppSettings.KronosPackageDirectory)) RefreshInstalledData();
             if (args.PropertyName == nameof(IAppSettings.NszCheckUpdates)) NotifyPropertyChanged(nameof(NszCheckUpdates));
         };
         RefreshInstalledData();
@@ -151,11 +151,11 @@ public sealed class UpdateCenterViewModel : ViewModelBase
         NotifyPropertyChanged(nameof(NszPluginStatus));
         string Catalog(string region)
         {
-            var date = InstalledDataStatus.TitleDbDate(AppContext.BaseDirectory, region);
+            var date = InstalledDataStatus.TitleDbDate(AppContext.BaseDirectory, region, _settings.TitleDbRepository);
             return date.HasValue ? string.Format(keys.DataUpdate_TitleCatalogDate, region, date.Value.ToLocalTime().ToString("g"))
                 : string.Format(keys.DataUpdate_TitleCatalogMissing, region);
         }
-        TitleCatalogSummary = Catalog(_settings.TitleDbRegion);
+        TitleCatalogSummary = _settings.TitleDbRepository + Environment.NewLine + Catalog(_settings.TitleDbRegion);
         if (_settings.TitleDbRegion != "US.en") TitleCatalogSummary += Environment.NewLine + Catalog("US.en");
         var version = _settings.FirmwareCheckActive ? InstalledDataStatus.LocalFirmwareVersion(AppContext.BaseDirectory) : null;
         LocalFirmwareSummary = version == null ? keys.DataUpdate_NoLocalFirmware : string.Format(keys.DataUpdate_LocalFirmwareVersion, version);
@@ -167,15 +167,16 @@ public sealed class UpdateCenterViewModel : ViewModelBase
         if (!RefreshTitlesCommand.CanExecute(null)) return;
         TitleStatus = LocalizationManager.Instance.Current.Keys.DataUpdate_Working;
         var region = _settings.TitleDbRegion;
+        var repository = _settings.TitleDbRepository;
         try
         {
             var count = await _background.RunAsync(new RunnableRelay<int>((progress, token) =>
             {
-                progress.SetText("TitleDB: " + region);
+                progress.SetText(repository + " · " + region);
                 try
                 {
-                    var total = _titles.RefreshTitleDbAsync(region, token).GetAwaiter().GetResult();
-                    if (region != "US.en") total += _titles.RefreshTitleDbAsync("US.en", token).GetAwaiter().GetResult();
+                    var total = _titles.RefreshTitleDbAsync(region, token, repository).GetAwaiter().GetResult();
+                    if (region != "US.en") total += _titles.RefreshTitleDbAsync("US.en", token, repository).GetAwaiter().GetResult();
                     return total;
                 }
                 finally { _cache.ClearCache(); }

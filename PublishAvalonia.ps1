@@ -5,6 +5,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+& (Join-Path $PSScriptRoot 'src/config/Validate-ExternalSources.ps1')
 $projects = @(
     @{ Project = 'NxFileViewer.Avalonia'; Name = 'NxFileViewerFork' }
     @{ Project = 'NxFileViewer.LogViewer.Avalonia'; Name = 'NxFileViewerFork.LogViewer' }

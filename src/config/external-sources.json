@@ -15,6 +15,10 @@
     "Ref": "master",
     "Path": ""
   },
+  "TitleDbAlternatives": [
+    { "Repository": "luketanti/titledb", "Ref": "HEAD", "Path": "" },
+    { "Repository": "borntohonk/titledb", "Ref": "master", "Path": "" }
+  ],
   "RustPackageRepository": "cxfcxf/nscb_rust",
   "RustDesktopRepository": "cxfcxf/nscb-desktop",
   "KronosPackageRepository": "Kronos2308/NSC_BUILDER",

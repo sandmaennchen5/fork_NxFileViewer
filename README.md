@@ -15,7 +15,7 @@ Browse, verify and manage Nintendo Switch packages in a Windows desktop applicat
 
 Firmware references, the standalone LogViewer and Explorer setup packages are separate downloads. See [installation and updates](docs/Application-updates.md).
 
-The current development prerelease is **4.1.1-beta3**; see the [changes since beta2](CHANGELOG.md#411-beta3---2026-11-20). Experimental Avalonia builds have a smaller feature set than the WPF viewer.
+The current development prerelease is **4.1.1-beta4**. See the [changes since beta3](CHANGELOG.md#411-beta4---2026-11-21).
 
 ## Features
 

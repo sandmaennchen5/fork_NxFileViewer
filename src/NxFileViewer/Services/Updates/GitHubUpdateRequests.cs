@@ -57,6 +57,13 @@ public sealed class GitHubUpdateRequests
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException) { }
     }
     private string CachePath(string url) => Path.Combine(_directory!, Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(url))) + ".json");
+    internal string? ReadCachedBody(string url)
+    {
+        if (_directory == null) return null;
+        try { return JsonSerializer.Deserialize<Entry>(File.ReadAllText(CachePath(url)))?.Body; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException) { return null; }
+    }
+
     private void Save(string path, object value)
     {
         if (_directory == null) return;

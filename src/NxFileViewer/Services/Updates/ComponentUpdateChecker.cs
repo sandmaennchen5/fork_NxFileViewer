@@ -102,14 +102,15 @@ public sealed class ComponentUpdateChecker(NszPluginManager nsz, NandPluginManag
             checks.Add(Check("NSZ", () => Plugin(nsz.ExecutablePath, nsz.InstalledVersion, ExternalSources.Current.NszRepository, "NSZ")));
         if (settings.NandPluginActive)
             checks.Add(Check("NxNandManager", () => Plugin(nand.ExecutablePath, nand.InstalledVersion, ExternalSources.Current.NandRepository, "NxNandManager")));
+        var titleSource = TitleDbSources.Resolve(settings.TitleDbRepository);
         foreach (var region in new[] { settings.TitleDbRegion, "US.en" }.Distinct())
         {
             var captured = region;
             checks.Add(Check("Title DB " + region, async () =>
             {
                 if (!Regex.IsMatch(captured, @"^[A-Z]{2}\.[a-z]{2}\z")) throw new InvalidDataException();
-                using var entry = await Get(ExternalSources.Current.TitleDb.ApiUrl(captured + ".json"), "Title DB " + captured);
-                var path = Path.Combine(ApplicationDataPaths.TitleDb(directory), captured + ".json");
+                using var entry = await Get(titleSource.ApiUrl(captured + ".json"), "Title DB " + captured);
+                var path = TitleDbSources.CatalogPath(ApplicationDataPaths.TitleDb(directory), titleSource, captured);
                 var available = !MatchesGitBlob(path, entry.RootElement.GetProperty("sha").GetString()!);
                 return (available ? keys.Component_UpdateAvailable : keys.Update_Current, available);
             }));

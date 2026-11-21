@@ -22,23 +22,153 @@ namespace NxFileViewer.Avalonia;
 
 internal sealed record PackageEntry(string Name, long Size)
 {
+    public bool IsRoot { get; init; }
+    public IReadOnlyList<PackageEntry> Children { get; init; } = Array.Empty<PackageEntry>();
+    public string IconPath => IsRoot ? "/Icons/NspItem.png" :
+        Name.EndsWith(".nca", StringComparison.OrdinalIgnoreCase) || Name.EndsWith(".ncz", StringComparison.OrdinalIgnoreCase)
+            ? "/Icons/PartitionFileEntryItem.png" : "/Icons/PartitionFileEntryItem.png";
+    public global::Avalonia.Media.IImage Icon => IconCache.Get(IconPath);
     public override string ToString() => Name;
 }
 
 internal sealed record NcaHashResult(string Name, bool? Matches, Validity? Signature = null, string? Error = null);
 
-internal sealed record PackageFile(string Path, string Type, long Size, IReadOnlyList<PackageEntry> Entries, IReadOnlyList<Content> Titles, bool NeedsProdKeys, string? MetadataError)
+internal sealed record PackageFile(string Path, string Type, long Size, IReadOnlyList<PackageEntry> Entries, IReadOnlyList<Content> Titles, bool NeedsProdKeys, string? MetadataError, string? HeaderDetails = null)
 {
+    internal static IReadOnlyDictionary<string, string> ContentDigests(string path, bool secureOnly, CancellationToken token)
+    {
+        var digests = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        using var storage = new LocalStorage(path, FileAccess.Read);
+        using var input = File.OpenRead(path);
+        void Add(IFileSystem partition, string prefix)
+        {
+            foreach (var entry in partition.EnumerateEntries().Where(entry => entry.Type == DirectoryEntryType.File))
+            {
+                token.ThrowIfCancellationRequested();
+                using var file = partition.LoadFile(entry);
+                using var stream = file.AsStream();
+                var compressed = entry.Name.EndsWith(".ncz", StringComparison.OrdinalIgnoreCase);
+                using var original = compressed ? Ncz.OpenOriginalStream(stream) : null;
+                using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+                var content = original ?? stream; var buffer = new byte[1024 * 1024]; int count;
+                while ((count = content.Read(buffer, 0, buffer.Length)) > 0) { token.ThrowIfCancellationRequested(); hash.AppendData(buffer, 0, count); }
+                var name = compressed ? entry.Name[..^4] + ".nca" : entry.Name;
+                digests.Add(prefix + name, Convert.ToHexString(hash.GetHashAndReset()));
+            }
+        }
+        if (PackageSignature.Read(input) == PackageType.NSP) { using var partition = storage.LoadPartition(); Add(partition, ""); }
+        else
+        {
+            var gameCard = new Xci(new KeySet(), storage);
+            foreach (var kind in new[] { XciPartitionType.Update, XciPartitionType.Normal, XciPartitionType.Secure, XciPartitionType.Logo })
+            {
+                if (!gameCard.HasPartition(kind) || secureOnly && kind != XciPartitionType.Secure) continue;
+                using var partition = gameCard.OpenPartition(kind);
+                Add(partition, kind == XciPartitionType.Secure ? "" : kind + "/");
+            }
+        }
+        return digests;
+    }
+    internal static void ExtractEntry(string source, string entryName, string destination, CancellationToken token) =>
+        ExtractEntry(source, entryName, destination, token, false);
+
+    internal static void ExtractEntry(string source, string entryName, string destination, CancellationToken token, bool reconstructNcz)
+    {
+        if (string.Equals(System.IO.Path.GetFullPath(source), System.IO.Path.GetFullPath(destination), StringComparison.OrdinalIgnoreCase))
+            throw new IOException("The destination is the source package.");
+        using var input = File.OpenRead(source);
+        var type = PackageSignature.Read(input);
+        using var storage = new LocalStorage(source, FileAccess.Read);
+        if (type == PackageType.NSP)
+        {
+            using var partition = storage.LoadPartition();
+            CopyEntry(partition, entryName, destination, token, reconstructNcz);
+        }
+        else if (type == PackageType.XCI)
+        {
+            var gameCard = new Xci(new KeySet(), storage);
+            if (!gameCard.HasPartition(XciPartitionType.Secure))
+                throw new InvalidDataException("The secure partition is missing.");
+            using var partition = gameCard.OpenPartition(XciPartitionType.Secure);
+            CopyEntry(partition, entryName, destination, token, reconstructNcz);
+        }
+        else
+            throw new InvalidDataException("Unsupported package format.");
+    }
+
+    private static void CopyEntry(IFileSystem partition, string name, string destination, CancellationToken token, bool reconstructNcz)
+    {
+        var entry = partition.EnumerateEntries().SingleOrDefault(entry => entry.Type == DirectoryEntryType.File && entry.Name == name)
+            ?? throw new FileNotFoundException(name);
+        var temporary = destination + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        try
+        {
+            using (var file = partition.LoadFile(entry))
+            using (var stream = file.AsStream())
+            using (var original = reconstructNcz && name.EndsWith(".ncz", StringComparison.OrdinalIgnoreCase) ? Ncz.OpenOriginalStream(stream) : null)
+            using (var output = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                (original ?? stream).CopyToAsync(output, token).GetAwaiter().GetResult();
+                if (output.Length != (original?.Length ?? entry.Size)) throw new InvalidDataException("The package entry is truncated.");
+            }
+            token.ThrowIfCancellationRequested();
+            File.Move(temporary, destination, overwrite: true);
+        }
+        finally
+        {
+            if (File.Exists(temporary)) File.Delete(temporary);
+        }
+    }
+
+    internal static void ExtractAll(string source, string parentDirectory, bool reconstructNcz, CancellationToken token)
+    {
+        var destination = System.IO.Path.Combine(parentDirectory, System.IO.Path.GetFileNameWithoutExtension(source));
+        if (Directory.Exists(destination) || File.Exists(destination))
+            throw new IOException("The output folder already exists: " + destination);
+        var stage = System.IO.Path.Combine(parentDirectory, ".nx-extract-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(stage);
+        try
+        {
+            var package = Read(source, null);
+            var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var entry in package.Entries)
+            {
+                token.ThrowIfCancellationRequested();
+                if (entry.Name != System.IO.Path.GetFileName(entry.Name) || entry.Name.IndexOfAny(System.IO.Path.GetInvalidFileNameChars()) >= 0 ||
+                    entry.Name is "." or ".." || entry.Name.EndsWith('.') || entry.Name.EndsWith(' '))
+                    throw new InvalidDataException("Unsafe package entry name.");
+                var name = reconstructNcz && entry.Name.EndsWith(".ncz", StringComparison.OrdinalIgnoreCase)
+                    ? System.IO.Path.ChangeExtension(entry.Name, ".nca") : entry.Name;
+                if (!names.Add(name)) throw new InvalidDataException("Duplicate output name: " + name);
+                ExtractEntry(source, entry.Name, System.IO.Path.Combine(stage, name), token, reconstructNcz);
+            }
+            token.ThrowIfCancellationRequested();
+            Directory.Move(stage, destination);
+        }
+        finally
+        {
+            var root = System.IO.Path.GetFullPath(parentDirectory);
+            var resolvedStage = System.IO.Path.GetFullPath(stage);
+            if (Directory.Exists(resolvedStage) && System.IO.Path.GetDirectoryName(resolvedStage) == System.IO.Path.TrimEndingDirectorySeparator(root) &&
+                System.IO.Path.GetFileName(resolvedStage).StartsWith(".nx-extract-", StringComparison.Ordinal))
+                Directory.Delete(resolvedStage, recursive: true);
+        }
+    }
+
     internal static PackageFile Read(string path, string? keysPath) => Read(path, keysPath, null, default);
 
-    internal static PackageFile Read(string path, string? keysPath, List<NcaHashResult>? hashes, CancellationToken token)
+    internal static PackageFile Read(string path, string? keysPath, List<NcaHashResult>? hashes, CancellationToken token, bool includeDetails = true)
     {
         using var stream = File.OpenRead(path);
         var type = PackageSignature.Read(stream);
+        var extension = System.IO.Path.GetExtension(path);
+        if (type == PackageType.UNKNOWN && (extension.Equals(".nca", StringComparison.OrdinalIgnoreCase) ||
+            extension.Equals(".ncz", StringComparison.OrdinalIgnoreCase)))
+            return ReadStandalone(path, keysPath, hashes, token);
         var (entries, titles, needsProdKeys, metadataError) = type switch
         {
-            PackageType.NSP => ReadNsp(path, keysPath, hashes, token),
-            PackageType.XCI => ReadXci(path, keysPath, hashes, token),
+            PackageType.NSP => ReadNsp(path, keysPath, hashes, token, includeDetails),
+            PackageType.XCI => ReadXci(path, keysPath, hashes, token, includeDetails),
             PackageType.NRO => EmptyPartition,
             _ => throw new InvalidDataException("Unknown Nintendo Switch file format.")
         };
@@ -52,28 +182,68 @@ internal sealed record PackageFile(string Path, string Type, long Size, IReadOnl
         return new PackageFile(path, label, stream.Length, entries, titles, needsProdKeys, metadataError);
     }
 
-    private static PartitionContents ReadNsp(string path, string? keysPath, List<NcaHashResult>? hashes, CancellationToken token)
+    private static PackageFile ReadStandalone(string path, string? keysPath, List<NcaHashResult>? hashes, CancellationToken token)
+    {
+        using var source = File.OpenRead(path);
+        var compressed = System.IO.Path.GetExtension(path).Equals(".ncz", StringComparison.OrdinalIgnoreCase);
+        using var original = compressed ? Ncz.OpenOriginalStream(source) : null;
+        var stream = original ?? source;
+        var name = System.IO.Path.GetFileName(path);
+        bool? matches = null;
+        Validity? signature = null;
+        string? details = null;
+        string? error = null;
+        if (hashes != null)
+        {
+            var id = name.Split('.', 2)[0];
+            if (id.Length == 32 && id.All(Uri.IsHexDigit))
+            {
+                var hash = SHA256.HashDataAsync(stream, token).AsTask().GetAwaiter().GetResult();
+                matches = NcaHashPrefix.Matches(hash, Convert.FromHexString(id));
+            }
+        }
+        token.ThrowIfCancellationRequested();
+        if (keysPath != null)
+        {
+            try
+            {
+                stream.Position = 0;
+                var nca = new Nca(LoadKeys(keysPath), stream.AsStorage());
+                details = $"{nca.Header.TitleId:X16} · {nca.Header.ContentType} · Key generation {nca.Header.KeyGeneration}";
+                if (hashes != null) signature = nca.VerifyHeaderSignature();
+            }
+            catch (Exception ex) when (ex is IOException or InvalidDataException or LibHacException)
+            {
+                error = ex.Message;
+            }
+        }
+        hashes?.Add(new NcaHashResult(name, matches, signature, error));
+        return new PackageFile(path, compressed ? "NCZ" : "NCA", source.Length,
+            Array.Empty<PackageEntry>(), Array.Empty<Content>(), keysPath == null, error, details);
+    }
+
+    private static PartitionContents ReadNsp(string path, string? keysPath, List<NcaHashResult>? hashes, CancellationToken token, bool includeDetails)
     {
         using var storage = new LocalStorage(path, FileAccess.Read);
         using var partition = storage.LoadPartition();
-        return ReadPartition(partition, keysPath, hashes, token);
+        return ReadPartition(partition, keysPath, hashes, token, includeDetails);
     }
 
-    private static PartitionContents ReadXci(string path, string? keysPath, List<NcaHashResult>? hashes, CancellationToken token)
+    private static PartitionContents ReadXci(string path, string? keysPath, List<NcaHashResult>? hashes, CancellationToken token, bool includeDetails)
     {
         using var file = new LocalFile(path, OpenMode.Read);
         using var storage = new FileStorage(file);
         var gameCard = new Xci(new KeySet(), storage);
         if (!gameCard.HasPartition(XciPartitionType.Secure)) return EmptyPartition;
         using var partition = gameCard.OpenPartition(XciPartitionType.Secure);
-        return ReadPartition(partition, keysPath, hashes, token);
+        return ReadPartition(partition, keysPath, hashes, token, includeDetails);
     }
 
     private sealed record PartitionContents(IReadOnlyList<PackageEntry> Entries, IReadOnlyList<Content> Titles, bool NeedsProdKeys = false, string? MetadataError = null);
 
     private static readonly PartitionContents EmptyPartition = new(Array.Empty<PackageEntry>(), Array.Empty<Content>());
 
-    private static PartitionContents ReadPartition(IFileSystem partition, string? keysPath, List<NcaHashResult>? hashes, CancellationToken token)
+    private static PartitionContents ReadPartition(IFileSystem partition, string? keysPath, List<NcaHashResult>? hashes, CancellationToken token, bool includeDetails)
     {
         if (hashes != null)
             CheckNcaHashes(partition, hashes, keysPath, token);
@@ -88,7 +258,7 @@ internal sealed record PackageFile(string Path, string Type, long Size, IReadOnl
         try
         {
             var keys = LoadKeys(keysPath);
-            return new PartitionContents(entries, PackageMetadataReader.Read(partition, keys, out _));
+            return new PartitionContents(entries, PackageMetadataReader.Read(partition, keys, out _, injectTicketKeys: InjectTicketKeys, readDetails: includeDetails));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or LibHac.Common.LibHacException)
         {
@@ -96,10 +266,12 @@ internal sealed record PackageFile(string Path, string Type, long Size, IReadOnl
         }
     }
 
+    internal static bool InjectTicketKeys { get; set; } = true;
+    internal static string? TitleKeysFilePath { get; set; }
     private static KeySet LoadKeys(string keysPath)
     {
         var keys = KeySet.CreateDefaultKeySet();
-        ExternalKeyReader.ReadKeyFile(keys, keysPath, null, null, null);
+        ExternalKeyReader.ReadKeyFile(keys, keysPath, File.Exists(TitleKeysFilePath) ? TitleKeysFilePath : null, null, null);
         return keys;
     }
 

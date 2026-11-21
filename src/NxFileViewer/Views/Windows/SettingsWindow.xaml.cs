@@ -1,4 +1,7 @@
+using System;
+using System.Linq;
 using System.Windows.Controls;
+using Emignatik.NxFileViewer.Services;
 
 namespace Emignatik.NxFileViewer.Views.Windows;
 
@@ -8,6 +11,8 @@ public partial class SettingsWindow : UserControl
     public SettingsWindow()
     {
         InitializeComponent();
+        foreach (var source in TitleDbSources.All)
+            TitleDbRepositoryChoice.Items.Add(new ComboBoxItem { Tag = source.Repository, Content = TitleDbSources.Label(source, null) });
         RefreshCommunityText();
         Emignatik.NxFileViewer.Localization.CommunityLanguage.Observe(this, view => view.RefreshCommunityText());
         Loaded += (_, _) => RefreshKeyLocations();
@@ -15,6 +20,25 @@ public partial class SettingsWindow : UserControl
             if (ReferenceEquals(args.OriginalSource, SettingsSections) && SettingsSections.SelectedItem == KeysSettingsTab)
                 RefreshKeyLocations();
         };
+    }
+
+    private async void TitleDbRepositoryOpened(object? sender, EventArgs e)
+    {
+        if (DataContext is not SettingsWindowViewModel model) return;
+        var region = model.EditedSettings.TitleDbRegion;
+        var items = TitleDbRepositoryChoice.Items.OfType<ComboBoxItem>().ToArray();
+        foreach (var item in items)
+        {
+            var source = TitleDbSources.Resolve(item.Tag as string);
+            item.Content = TitleDbSources.Label(source, TitleDbSources.CachedDate(source, region));
+        }
+        await System.Threading.Tasks.Task.WhenAll(items.Select(async item =>
+        {
+            var source = TitleDbSources.Resolve(item.Tag as string);
+            var date = await TitleDbSources.UpdateDateAsync(source, region);
+            if (region == model.EditedSettings.TitleDbRegion)
+                item.Content = TitleDbSources.Label(source, date);
+        }));
     }
 
     private void RefreshCommunityText()

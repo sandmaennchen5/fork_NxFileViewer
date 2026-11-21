@@ -4,11 +4,13 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
+using Avalonia.Media;
 namespace NxFileViewer.LogViewer;
 
 public partial class MainWindow : Window
@@ -22,6 +24,12 @@ public partial class MainWindow : Window
 
     public MainWindow()
     {
+        using var stream = typeof(MainWindow).Assembly.GetManifestResourceStream("LogViewer.Palette")
+            ?? throw new InvalidOperationException("The shared LogViewer palette is missing.");
+        XNamespace xaml = "http://schemas.microsoft.com/winfx/2006/xaml";
+        var palette = XElement.Load(stream);
+        foreach (var brush in palette.Elements(palette.Name.Namespace + "SolidColorBrush"))
+            Resources[(string)brush.Attribute(xaml + "Key")!] = SolidColorBrush.Parse((string)brush.Attribute("Color")!);
         InitializeComponent();
         AddHandler(DragDrop.DragOverEvent, FilesDragOver);
         AddHandler(DragDrop.DropEvent, FilesDropped);

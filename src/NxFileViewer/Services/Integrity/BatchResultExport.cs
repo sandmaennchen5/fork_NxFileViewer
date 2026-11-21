@@ -73,10 +73,8 @@ public static class BatchResultExport
 
     public static void WriteCsv(Stream stream, IEnumerable<BatchIntegrityResult> results, IReadOnlyList<BatchExportColumn> columns)
     {
-        using var writer = new StreamWriter(stream, new UTF8Encoding(true), leaveOpen: true);
-        void Row(IEnumerable<string> values) => writer.Write(string.Join(";", values.Select(value => "\"" + value.Replace("\"", "\"\"") + "\"")) + "\r\n");
-        Row(columns.Select(column => column.Header));
-        foreach (var result in results) Row(columns.Select(column => Value(result, column)));
+        BatchCsvWriter.Write(stream, columns.Select(column => column.Header),
+            results.Select(result => columns.Select(column => Value(result, column))));
     }
 
     // A small streaming Open XML workbook: text cells preserve title IDs and never become formulas.

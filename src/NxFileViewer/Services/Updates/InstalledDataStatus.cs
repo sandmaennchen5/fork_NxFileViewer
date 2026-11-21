@@ -48,10 +48,10 @@ public static class InstalledDataStatus
         catch (UnauthorizedAccessException) { return null; }
     }
 
-    public static DateTime? TitleDbDate(string applicationDirectory, string region)
+    public static DateTime? TitleDbDate(string applicationDirectory, string region, string? repository = null)
     {
         if (!Regex.IsMatch(region, @"^[A-Z]{2}\.[a-z]{2}\z")) return null;
-        var path = Path.Combine(ApplicationDataPaths.TitleDb(applicationDirectory), region + ".json");
+        var path = TitleDbSources.CatalogPath(ApplicationDataPaths.TitleDb(applicationDirectory), TitleDbSources.Resolve(repository), region);
         try { return File.Exists(path) ? File.GetLastWriteTimeUtc(path) : null; }
         catch (IOException) { return null; }
         catch (UnauthorizedAccessException) { return null; }

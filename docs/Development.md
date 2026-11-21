@@ -80,12 +80,12 @@ These modes write EXEs into versioned output subfolders. They create no ZIPs,
 release descriptors, firmware archives or Explorer packages. Without `WithRuntime`,
 the target machine needs .NET 10 Desktop Runtime for the selected architecture.
 
-## beta3 development version and local test copies
+## beta4 development version and local test copies
 
 The viewer, WPF/Avalonia LogViewers, Avalonia viewer and transition project use
-`4.1.1-beta3` for direct builds. Publish/release commands still take their version
+`4.1.1-beta4` for direct builds. Publish/release commands still take their version
 from the main viewer project or an explicit `-Version`; the Explorer package keeps
-its independent version. Tag `v4.1.1-beta3` or `4.1.1-beta3` creates a prerelease when
+its independent version. Tag `v4.1.1-beta4` or `4.1.1-beta4` creates a prerelease when
 published through the release workflow. Preparing local files does not create a tag
 or publish a release.
 

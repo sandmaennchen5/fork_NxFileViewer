@@ -112,7 +112,7 @@ public sealed class NandExplorer : IDisposable
             {
                 var entry = ReadRaw(checked(start + (long)entries * 512 + i * stride), (int)stride);
                 var name = Encoding.Unicode.GetString(entry, 56, 72).TrimEnd('\0');
-                if (!NandCliPlugin.PartitionNames.Contains(name)) continue;
+                if (!NandPartitionCatalog.Names.Contains(name)) continue;
                 var first = BinaryPrimitives.ReadUInt64LittleEndian(entry.AsSpan(32));
                 var last = BinaryPrimitives.ReadUInt64LittleEndian(entry.AsSpan(40));
                 if (last < first || last >= (ulong)((_length - start) / 512)) throw new InvalidDataException("Invalid NAND partition bounds.");

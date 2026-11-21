@@ -1,4 +1,4 @@
-﻿using Emignatik.NxFileViewer.Utils.MVVM.Localization;
+using Emignatik.NxFileViewer.Utils.MVVM.Localization;
 
 // ReSharper disable InconsistentNaming
 
@@ -591,6 +591,7 @@ public interface ILocalizationKeys : ILocalizationKeysBase
     string SettingsView_TitlePageUrl { get; }
     string SettingsView_TitleInfoApiUrl { get; }
     string SettingsView_TitleInfoProvider { get; }
+    string SettingsView_TitleDbRepository { get; }
     string SettingsView_TitleDbRegion { get; }
     string SettingsView_TitleDbCacheTip { get; }
     string BatchIntegrity_FileType { get; }

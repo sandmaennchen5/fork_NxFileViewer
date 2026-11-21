@@ -6,21 +6,11 @@ using Emignatik.NxFileViewer.Services.Updates;
 
 namespace Emignatik.NxFileViewer.Services;
 
-public sealed record GitHubContentLocation(string Repository, string Ref, string Path)
-{
-    public string[] Sources { get; init; } = Array.Empty<string>();
-    [System.Text.Json.Serialization.JsonIgnore]
-    public string[] SourceSpecs => Sources.Length > 0 ? Sources : new[] { "github:" + Repository };
-    private string ContentPath(string file) => string.Join("/", (Path.Length > 0 ? Path + "/" + file : file)
-        .TrimEnd('/').Split('/').Select(Uri.EscapeDataString));
-    public string ApiUrl(string file = "") => "https://api.github.com/repos/" + Repository + "/contents/" + ContentPath(file) + "?ref=" + Uri.EscapeDataString(Ref);
-    public string RawUrl(string file) => "https://raw.githubusercontent.com/" + Repository + "/" + Uri.EscapeDataString(Ref) + "/" + ContentPath(file);
-}
-
 public sealed record ExternalSourceConfiguration(int SchemaVersion, GitHubContentLocation FirmwareHashes, GitHubContentLocation TitleDb,
     string NszRepository, string NandRepository, string ExplorerRepository,
     string TitlePageUrl, string TitleInfoApiUrl, string NLibApiUrl, string NxContentPageUrl)
 {
+    public GitHubContentLocation[] TitleDbAlternatives { get; init; } = Array.Empty<GitHubContentLocation>();
     public string RustDesktopRepository { get; init; } = "cxfcxf/nscb-desktop";
     public string RustPackageRepository { get; init; } = "cxfcxf/nscb_rust";
     public string KronosPackageRepository { get; init; } = "Kronos2308/NSC_BUILDER";
@@ -54,7 +44,9 @@ public static class ExternalSources
         if (bytes.Length > 65536) throw new InvalidDataException("External source configuration too large.");
         var config = JsonSerializer.Deserialize<ExternalSourceConfiguration>(bytes) ?? throw new InvalidDataException("External sources missing.");
         if (config.SchemaVersion != 1) throw new InvalidDataException("Unsupported external source schema.");
-        foreach (var location in new[] { config.FirmwareHashes, config.TitleDb })
+        if (config.TitleDbAlternatives == null || config.TitleDbAlternatives.Length > 7)
+            throw new InvalidDataException("Expected at most seven TitleDB alternatives.");
+        foreach (var location in new[] { config.FirmwareHashes, config.TitleDb }.Concat(config.TitleDbAlternatives))
         {
             if (location == null || string.IsNullOrWhiteSpace(location.Ref) || location.Ref.Length > 256 ||
                 location.Ref.Any(char.IsControl) || location.Ref.Contains('\\') || location.Path == null || location.Path.Length > 1024 ||
@@ -67,7 +59,10 @@ public static class ExternalSources
         foreach (var repository in new[] { config.NszRepository, config.NandRepository, config.ExplorerRepository, config.RustPackageRepository, config.KronosPackageRepository, config.RustDesktopRepository }) _ = ViewerUpdateMetadata.Repository(repository);
         if (config.ExplorerSources == null) throw new InvalidDataException("Explorer sources cannot be null.");
         ValidateRepositories(config.ExplorerSourceSpecs);
-        if (config.TitleDb.Sources.Length != 0) throw new InvalidDataException("TitleDB supports its GitHub repository setting only.");
+        var titleSources = config.TitleDbAlternatives.Prepend(config.TitleDb).ToArray();
+        if (titleSources.Any(source => source.Sources.Length != 0) ||
+            titleSources.Select(source => source.Repository).Distinct(StringComparer.OrdinalIgnoreCase).Count() != titleSources.Length)
+            throw new InvalidDataException("Expected unique TitleDB GitHub repositories.");
         foreach (var template in new[] { config.TitlePageUrl, config.TitleInfoApiUrl, config.NLibApiUrl, config.NxContentPageUrl })
         {
             if (template == null || !template.Contains("{TitleId}", StringComparison.Ordinal)) throw new InvalidDataException("URL template requires {TitleId}.");

@@ -6,36 +6,26 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 
 namespace Emignatik.NxFileViewer.Services.OnlineServices;
 
-internal sealed class TitleDbCatalog(string cacheDirectory, ILogger? logger)
+internal sealed partial class TitleDbCatalog(string cacheDirectory, Action<string>? logWarning = null)
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly Dictionary<string, (Dictionary<string, OnlineTitleInfo> Titles, DateTime RefreshAfter)> _catalogs = new();
 
-    public static IReadOnlyDictionary<string, OnlineTitleInfo> ReadLocal(string region)
-    {
-        if (!Regex.IsMatch(region, "^[A-Z]{2}\\.[a-z]{2}$")) return new Dictionary<string, OnlineTitleInfo>();
-        var path = Path.Combine(ApplicationDataPaths.TitleDb(AppContext.BaseDirectory), region + ".json");
-        try { return File.Exists(path) ? Parse(File.ReadAllText(path)) : new Dictionary<string, OnlineTitleInfo>(); }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
-        { return new Dictionary<string, OnlineTitleInfo>(); }
-    }
-
-    public async Task<OnlineTitleInfo?> FindAsync(string region, string titleId, HttpClient client)
+    public async Task<OnlineTitleInfo?> FindAsync(GitHubContentLocation source, string region, string titleId, HttpClient client)
     {
         if (!Regex.IsMatch(region, "^[A-Z]{2}\\.[a-z]{2}$"))
             throw new ArgumentException("Invalid TitleDB region.", nameof(region));
+        var path = TitleDbSources.CatalogPath(cacheDirectory, source, region);
         await _gate.WaitAsync();
         try
         {
             var now = DateTime.UtcNow;
-            if (_catalogs.TryGetValue(region, out var cached) && now < cached.RefreshAfter)
+            if (_catalogs.TryGetValue(path, out var cached) && now < cached.RefreshAfter)
                 return cached.Titles.GetValueOrDefault(titleId);
 
-            var path = Path.Combine(cacheDirectory, region + ".json");
             Dictionary<string, OnlineTitleInfo>? titles = cached.Titles;
             DateTime refreshed = DateTime.MinValue;
             if (titles == null && File.Exists(path))
@@ -47,19 +37,19 @@ internal sealed class TitleDbCatalog(string cacheDirectory, ILogger? logger)
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
                 {
-                    logger?.LogWarning("Unable to read TitleDB cache: {Reason}", ex.Message);
+                    logWarning?.Invoke("Unable to read TitleDB cache: " + ex.Message);
                 }
             }
             if (titles == null || now - refreshed >= TimeSpan.FromDays(1))
             {
                 try
                 {
-                    var json = await client.GetStringAsync(ExternalSources.Current.TitleDb.RawUrl(region + ".json"));
+                    var json = await client.GetStringAsync(source.RawUrl(region + ".json"));
                     titles = Parse(json); // Never replace a good cache with invalid JSON.
                     refreshed = now;
                     try
                     {
-                        Directory.CreateDirectory(cacheDirectory);
+                        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
                         var tempPath = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
                         try
                         {
@@ -70,39 +60,39 @@ internal sealed class TitleDbCatalog(string cacheDirectory, ILogger? logger)
                     }
                     catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                     {
-                        logger?.LogWarning("Unable to save TitleDB cache: {Reason}", ex.Message);
+                        logWarning?.Invoke("Unable to save TitleDB cache: " + ex.Message);
                     }
                 }
                 catch (Exception ex) when (titles != null && ex is HttpRequestException or TaskCanceledException or JsonException)
                 {
-                    logger?.LogWarning("TitleDB update unavailable: {Reason}. Using cached titles.", ex.Message);
-                    _catalogs[region] = (titles!, now.AddMinutes(5));
+                    logWarning?.Invoke("TitleDB update unavailable: " + ex.Message + ". Using cached titles.");
+                    _catalogs[path] = (titles!, now.AddMinutes(5));
                     return titles!.GetValueOrDefault(titleId);
                 }
             }
-            _catalogs[region] = (titles!, refreshed.AddDays(1));
+            _catalogs[path] = (titles!, refreshed.AddDays(1));
             return titles!.GetValueOrDefault(titleId);
         }
         finally { _gate.Release(); }
     }
 
-    public async Task<int> RefreshAsync(string region, HttpClient client, CancellationToken token)
+    public async Task<int> RefreshAsync(GitHubContentLocation source, string region, HttpClient client, CancellationToken token)
     {
         if (!Regex.IsMatch(region, "^[A-Z]{2}\\.[a-z]{2}$")) throw new ArgumentException("Invalid TitleDB region.");
+        var path = TitleDbSources.CatalogPath(cacheDirectory, source, region);
         await _gate.WaitAsync(token);
         try
         {
-            var json = await client.GetStringAsync(ExternalSources.Current.TitleDb.RawUrl(region + ".json"), token);
+            var json = await client.GetStringAsync(source.RawUrl(region + ".json"), token);
             var titles = Parse(json);
-            Directory.CreateDirectory(cacheDirectory);
-            var path = Path.Combine(cacheDirectory, region + ".json");
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             var temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
             try
             {
                 await File.WriteAllTextAsync(temporary, json, token);
                 token.ThrowIfCancellationRequested();
                 File.Move(temporary, path, overwrite: true);
-                _catalogs[region] = (titles, DateTime.UtcNow.AddDays(1));
+                _catalogs[path] = (titles, DateTime.UtcNow.AddDays(1));
                 return titles.Count;
             }
             finally { if (File.Exists(temporary)) File.Delete(temporary); }
@@ -110,32 +100,4 @@ internal sealed class TitleDbCatalog(string cacheDirectory, ILogger? logger)
         finally { _gate.Release(); }
     }
 
-    private static Dictionary<string, OnlineTitleInfo> Parse(string json)
-    {
-        using var document = JsonDocument.Parse(json);
-        if (document.RootElement.ValueKind != JsonValueKind.Object)
-            throw new JsonException("TitleDB must contain an object indexed by NSU ID.");
-        var titles = new Dictionary<string, OnlineTitleInfo>(StringComparer.OrdinalIgnoreCase);
-        foreach (var entry in document.RootElement.EnumerateObject())
-        {
-            var value = entry.Value;
-            if (value.ValueKind != JsonValueKind.Object)
-                continue;
-            var id = GetString(value, "id");
-            var name = GetString(value, "name");
-            if (!Regex.IsMatch(id, "^[a-fA-F0-9]{16}$") || string.IsNullOrWhiteSpace(name))
-                continue;
-            titles.TryAdd(id, new OnlineTitleInfo
-            {
-                Id = id, Name = name, Publisher = GetString(value, "publisher"),
-                Description = GetString(value, "description"), IconUrl = GetString(value, "iconUrl")
-            });
-        }
-        if (titles.Count == 0)
-            throw new JsonException("TitleDB contains no usable title entries.");
-        return titles;
-    }
-
-    private static string GetString(JsonElement value, string property) =>
-        value.TryGetProperty(property, out var field) && field.ValueKind == JsonValueKind.String ? field.GetString()! : "";
 }

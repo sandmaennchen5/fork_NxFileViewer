@@ -131,6 +131,7 @@ public interface IAppSettings : INotifyPropertyChanged
 
     string TitleInfoApiUrl { get; set; }
     TitleInfoProvider TitleInfoProvider { get; set; }
+    string TitleDbRepository { get; set; }
     string TitleDbRegion { get; set; }
     string NLibApiUrl { get; set; }
 

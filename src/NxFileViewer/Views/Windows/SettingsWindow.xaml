@@ -231,6 +231,10 @@
                                         </Style.Triggers>
                                     </Style>
                                 </StackPanel.Style>
+                                <TextBlock Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_TitleDbRepository}"/>
+                                <ComboBox x:Name="TitleDbRepositoryChoice" MaxWidth="460" HorizontalAlignment="Left"
+                                          SelectedValuePath="Tag" SelectedValue="{Binding EditedSettings.TitleDbRepository, Mode=TwoWay}"
+                                          DropDownOpened="TitleDbRepositoryOpened"/>
                                 <TextBlock Style="{StaticResource Title2}" Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.SettingsView_TitleDbRegion}"/>
                                 <ComboBox MaxWidth="460" HorizontalAlignment="Left" ItemsSource="{Binding TitleDbRegions}" SelectedItem="{Binding EditedSettings.TitleDbRegion}"/>
                             </StackPanel>

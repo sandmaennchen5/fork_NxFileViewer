@@ -461,6 +461,7 @@ public class AppSettings : NotifyPropertyChangedBase, IAppSettings
     private string _titlePageUrl = Emignatik.NxFileViewer.Services.ExternalSources.Current.TitlePageUrl;
     private string _titleInfoApiUrl = Emignatik.NxFileViewer.Services.ExternalSources.Current.TitleInfoApiUrl;
     private TitleInfoProvider _titleInfoProvider = DefaultSettings.Get<TitleInfoProvider>("Settings", "TitleInfoProvider");
+    private string? _titleDbRepository;
     private string _titleDbRegion = DefaultSettings.Get<string>("Settings", "TitleDbRegion");
     private string _nLibApiUrl = Emignatik.NxFileViewer.Services.ExternalSources.Current.NLibApiUrl;
     private string _lastUsedDir = "";
@@ -648,6 +649,12 @@ public class AppSettings : NotifyPropertyChangedBase, IAppSettings
     {
         get => _titleInfoProvider;
         set { _titleInfoProvider = value; NotifyPropertyChanged(); }
+    }
+
+    public string TitleDbRepository
+    {
+        get => Services.TitleDbSources.Resolve(_titleDbRepository).Repository;
+        set { _titleDbRepository = value; NotifyPropertyChanged(); }
     }
 
     public string TitleDbRegion

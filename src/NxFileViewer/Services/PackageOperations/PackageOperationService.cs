@@ -14,7 +14,6 @@ using Emignatik.NxFileViewer.Settings;
 namespace Emignatik.NxFileViewer.Services.PackageOperations;
 
 public sealed class PackageSplitNotRequiredException(string message) : Exception(message);
-public enum PackageOperation { Merge, Convert, Split }
 public sealed record PackageEngineConfiguration(PackageEngine Engine, string RustExecutable, string KronosDirectory)
 {
     public static PackageEngineConfiguration Capture(IAppSettings settings) =>
@@ -41,31 +40,8 @@ public sealed class PackageOperationService(IFileLoader loader, IConversionVerif
         }).DefaultIfEmpty(3).Min()).Select(source => source.Path).ToArray();
 
     public static IReadOnlyList<string> BuildArguments(PackageEngine engine, PackageOperation operation,
-        IReadOnlyList<string> sources, string output, string type, string keys, string? inputList = null)
-    {
-        if (type is not ("nsp" or "xci")) throw new ArgumentException("Unsupported target type.");
-        var args = new List<string>();
-        args.Add((engine, operation) switch
-        {
-            (PackageEngine.Rust, PackageOperation.Merge) => "--direct_multi",
-            (PackageEngine.Rust, PackageOperation.Convert) => "--direct_creation",
-            (PackageEngine.Rust, PackageOperation.Split) => "--dspl",
-            (PackageEngine.Kronos, PackageOperation.Merge) => "--direct_multi",
-            (PackageEngine.Kronos, PackageOperation.Convert) => "--direct_creation",
-            (PackageEngine.Kronos, PackageOperation.Split) => "--direct_splitter",
-            _ => throw new ArgumentOutOfRangeException(nameof(engine))
-        });
-        if (engine == PackageEngine.Kronos && operation == PackageOperation.Merge)
-        {
-            if (inputList == null) throw new ArgumentException("Kronos merge requires an input list.");
-            args.AddRange(new[] { "calculate", "-tfile", inputList });
-        }
-        else args.AddRange(sources);
-        args.AddRange(new[] { "-o", output, "-t", type });
-        if (engine == PackageEngine.Kronos) args.AddRange(new[] { "-pv", "false", "-kp", "false" });
-        if (engine == PackageEngine.Rust) args.AddRange(new[] { "--keys", keys });
-        return args;
-    }
+        IReadOnlyList<string> sources, string output, string type, string keys, string? inputList = null) =>
+        PackageCommandArguments.BuildArguments(engine, operation, sources, output, type, keys, inputList);
 
     public string Run(PackageEngineConfiguration configuration, PackageOperation operation, string[] sources,
         string destination, string type, string keyPath, IProgressReporter progress, CancellationToken token, string? expectedGameId = null, Action<IReadOnlyList<string>>? publishedFiles = null)

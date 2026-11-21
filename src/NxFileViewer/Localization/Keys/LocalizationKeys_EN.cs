@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Emignatik.NxFileViewer.Utils.MVVM.Localization;
 using LibHac.Ncm;
 
@@ -645,6 +645,7 @@ public class LocalizationKeys_EN : LocalizationKeysBase, ILocalizationKeys
     public string SettingsView_TitlePageUrl => "Title page URL";
     public string SettingsView_TitleInfoApiUrl => "Title information API URL";
     public string SettingsView_TitleInfoProvider => "Title name source";
+    public string SettingsView_TitleDbRepository => "TitleDB source";
     public string SettingsView_TitleDbRegion => "TitleDB region / language";
     public string SettingsView_TitleDbCacheTip => "TitleDB is stored locally and refreshed daily. Cached data remains available during outages. Missing titles are also looked up in US.en.";
     public string BatchIntegrity_FileType => "File type";

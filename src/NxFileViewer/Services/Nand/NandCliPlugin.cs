@@ -56,7 +56,7 @@ public sealed class NandCliPlugin(IAppSettings settings, INandProcessRunner? pro
         using var explorer = new NandExplorer(source, token);
         explorer.OpenPartition(partition, ExplorerKey(partition.Name));
         var entries = explorer.List(path);
-        var titles = TitleDbCatalog.ReadLocal(settings.TitleDbRegion);
+        var titles = TitleDbCatalog.ReadLocal(settings.TitleDbRegion, settings.TitleDbRepository);
         var keys = new LibHac.Common.Keys.KeySet();
         try { keys = keyProvider?.GetKeySet() ?? keys; }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException) { }
@@ -123,12 +123,7 @@ public sealed class NandCliPlugin(IAppSettings settings, INandProcessRunner? pro
         });
     public void ExportSave(string source, NandExplorerPartition partition, NandExplorerEntry save,
         string destination, CancellationToken token) => WithSave(source, partition, save, token, reader => { reader.ExportAll(destination); return true; });
-    public static IReadOnlyList<string> PartitionNames { get; } = new[]
-    {
-        "BOOT0", "BOOT1", "PRODINFO", "PRODINFOF", "SAFE", "SYSTEM", "USER",
-        "BCPKG2-1-Normal-Main", "BCPKG2-2-Normal-Sub", "BCPKG2-3-SafeMode-Main",
-        "BCPKG2-4-SafeMode-Sub", "BCPKG2-5-Repair-Main", "BCPKG2-6-Repair-Sub"
-    };
+    public static IReadOnlyList<string> PartitionNames => NandPartitionCatalog.Names;
 
     public static IReadOnlyList<string> FindPartitions(string information) => PartitionNames
         .Where(name => Regex.IsMatch(information, @"(?m)^\s*(?:-\s*|NAND type\s*:\s*)" + Regex.Escape(name) + @"(?![\w-])"))

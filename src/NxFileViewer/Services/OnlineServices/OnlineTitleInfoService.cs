@@ -23,14 +23,14 @@ public class OnlineTitleInfoService : IOnlineTitleInfoService, ITitleDbUpdater
         _appSettings = appSettings ?? throw new ArgumentNullException(nameof(appSettings));
         _logger = loggerFactory?.CreateLogger<OnlineTitleInfoService>();
         _httpClient = httpClient;
-        _titleDb = new TitleDbCatalog(cacheDirectory ?? ApplicationDataPaths.TitleDb(AppContext.BaseDirectory), _logger);
+        _titleDb = new TitleDbCatalog(cacheDirectory ?? ApplicationDataPaths.TitleDb(AppContext.BaseDirectory), message => _logger?.LogWarning("{Message}", message));
     }
 
 
-    public async Task<int> RefreshTitleDbAsync(string region, CancellationToken token)
+    public async Task<int> RefreshTitleDbAsync(string region, CancellationToken token, string? repository = null)
     {
         using var ownedClient = _httpClient == null ? new HttpClient { Timeout = TimeSpan.FromMinutes(2) } : null;
-        return await _titleDb.RefreshAsync(region, _httpClient ?? ownedClient!, token);
+        return await _titleDb.RefreshAsync(TitleDbSources.Resolve(repository ?? _appSettings.TitleDbRepository), region, _httpClient ?? ownedClient!, token);
     }
 
     public async Task<IOnlineTitleInfo?> GetTitleInfoAsync(string titleId)
@@ -42,8 +42,9 @@ public class OnlineTitleInfoService : IOnlineTitleInfoService, ITitleDbUpdater
             if (_appSettings.TitleInfoProvider == TitleInfoProvider.GitHubTitleDb)
             {
                 var region = _appSettings.TitleDbRegion;
-                var local = await _titleDb.FindAsync(region, titleId, client);
-                return local ?? (region == "US.en" ? null : await _titleDb.FindAsync("US.en", titleId, client));
+                var source = TitleDbSources.Resolve(_appSettings.TitleDbRepository);
+                var local = await _titleDb.FindAsync(source, region, titleId, client);
+                return local ?? (region == "US.en" ? null : await _titleDb.FindAsync(source, "US.en", titleId, client));
             }
             var template = _appSettings.TitleInfoProvider == TitleInfoProvider.NLib ? _appSettings.NLibApiUrl : _appSettings.TitleInfoApiUrl;
             var language = "en";
@@ -73,5 +74,5 @@ public class OnlineTitleInfoService : IOnlineTitleInfoService, ITitleDbUpdater
 
 public interface ITitleDbUpdater
 {
-    Task<int> RefreshTitleDbAsync(string region, CancellationToken token);
+    Task<int> RefreshTitleDbAsync(string region, CancellationToken token, string? repository = null);
 }

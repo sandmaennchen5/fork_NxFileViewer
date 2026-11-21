@@ -11,7 +11,7 @@ internal sealed class App : Application
     public static void Main(string[] args) =>
         AppBuilder.Configure<App>().UsePlatformDetect().StartWithClassicDesktopLifetime(args);
 
-    public override void Initialize() => Styles.Add(new FluentTheme());
+    public override void Initialize() { Styles.Add(new FluentTheme()); Styles.Add(new global::Avalonia.Markup.Xaml.Styling.StyleInclude(new Uri("avares://NxFileViewerFork.Avalonia/")) { Source = new Uri("avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml") }); }
 
     public override void OnFrameworkInitializationCompleted()
     {

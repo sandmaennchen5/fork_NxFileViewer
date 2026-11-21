@@ -6,7 +6,12 @@ if ($config.SchemaVersion -ne 1) { throw 'Expected external source schema 1.' }
 function Assert-Repository([object]$value) {
  if ($value -isnot [string] -or $value.Length -gt 201 -or $value -notmatch '^[A-Za-z0-9_-][A-Za-z0-9_.-]*/[A-Za-z0-9_.-]+$' -or @($value.Split('/') | Where-Object { $_ -in @('.','..') -or $_.EndsWith('.') }).Count) { throw 'Expected a GitHub owner/repository.' }
 }
-foreach ($location in @($config.FirmwareHashes, $config.TitleDb)) {
+$titleSources = @($config.TitleDb)
+if ($config.PSObject.Properties.Name -contains 'TitleDbAlternatives') {
+ if ($config.TitleDbAlternatives -isnot [array] -or $config.TitleDbAlternatives.Count -gt 7) { throw 'Expected at most seven TitleDB alternatives.' }
+ $titleSources += $config.TitleDbAlternatives
+}
+foreach ($location in (@($config.FirmwareHashes) + $titleSources)) {
  if ($null -eq $location -or $location.Ref -isnot [string] -or [string]::IsNullOrWhiteSpace($location.Ref) -or $location.Ref.Length -gt 256 -or $location.Ref -match '[\x00-\x1f\\]' -or $location.Path -isnot [string] -or $location.Path.Length -gt 1024) { throw 'Invalid content location.' }
  Assert-Repository $location.Repository
  if ($location.Path.Length -gt 0) {
@@ -37,5 +42,11 @@ foreach ($location in @($config.FirmwareHashes,$config.TitleDb)) {
  if ($location.PSObject.Properties.Name -contains 'Sources') { Assert-SourceList $location.Sources }
 }
 
-if ($null -ne $config.TitleDb.Sources -and @($config.TitleDb.Sources).Count -gt 0) { throw 'TitleDB supports its GitHub repository setting only.' }
+$seenTitleRepositories = @{}
+foreach ($source in $titleSources) {
+ if ($seenTitleRepositories.ContainsKey($source.Repository) -or ($null -ne $source.Sources -and @($source.Sources).Count -gt 0)) {
+  throw 'Expected unique TitleDB GitHub repositories.'
+ }
+ $seenTitleRepositories[$source.Repository] = $true
+}
 Write-Host 'External service sources validated.'

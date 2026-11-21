@@ -169,6 +169,27 @@ public class TitleProviderTest : IDisposable
     }
 
     [Fact]
+    public async Task SwitchingTitleDbSourceUsesItsOwnCatalogAndTitleCache()
+    {
+        using var client = new HttpClient(new Handler(request => Ok(
+            request.RequestUri!.AbsolutePath.StartsWith("/luketanti/", StringComparison.Ordinal)
+                ? Catalog.Replace("Until Then", "Alternate title")
+                : Catalog)));
+        var settings = new AppSettings { TitleInfoProvider = TitleInfoProvider.GitHubTitleDb, TitleDbRegion = "US.en" };
+        var online = new OnlineTitleInfoService(settings, httpClient: client, cacheDirectory: _cacheDirectory);
+        var cache = new CachedOnlineTitleInfoService(online, settings);
+
+        Assert.Equal("blawar/titledb", settings.TitleDbRepository);
+        Assert.Equal("Until Then", (await cache.GetTitleInfoAsync(TitleId))!.Name);
+        settings.TitleDbRepository = "luketanti/titledb";
+        Assert.Equal("Alternate title", (await cache.GetTitleInfoAsync(TitleId))!.Name);
+        Assert.Contains("Alternate title", File.ReadAllText(Path.Combine(_cacheDirectory, "luketanti", "titledb", "US.en.json")));
+        settings.TitleDbRepository = "blawar/titledb";
+        Assert.Equal("Until Then", (await cache.GetTitleInfoAsync(TitleId))!.Name);
+        Assert.Contains("Until Then", File.ReadAllText(Path.Combine(_cacheDirectory, "US.en.json")));
+    }
+
+    [Fact]
     public async Task FailedManualRefreshPreservesUsableCatalog()
     {
         var json = Catalog;

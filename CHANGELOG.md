@@ -6,6 +6,12 @@ Changes specific to the separately deployed web service are recorded in `tools/f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.1-beta4] - 2026-11-21
+
+### Added
+
+- Choose between the blawar, luketanti and borntohonk TitleDB catalogs in Settings. blawar remains the default. The source list shows the latest catalog date for the selected region when available and keeps the last known date in the updater cache.
+
 ## [4.1.1-beta3] - 2026-11-20
 
 Changes since the 4.1.1-beta2 prerelease.

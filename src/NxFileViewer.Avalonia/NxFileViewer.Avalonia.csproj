@@ -1,7 +1,7 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <Version>4.1.1-beta3</Version>
+    <Version>4.1.1-beta4</Version>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <AssemblyName>NxFileViewerFork.Avalonia</AssemblyName>
@@ -9,6 +9,9 @@
     <AvaloniaVersion>11.3.21</AvaloniaVersion>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../NxFileViewer/Services/Nsz/NszCommandArguments.cs;../NxFileViewer/Services/Nsz/NszProcess.cs;../NxFileViewer/Services/Nsz/NszProgressUpdate.cs;../NxFileViewer/Services/Nsz/NszInputAlias.cs;../NxFileViewer/Services/Nsz/XciPartitionIntegrity.cs;../NxFileViewer/Services/Nsz/XciGamecardLayout.cs;../NxFileViewer/Services/PackageOperations/PackageCommandArguments.cs;../NxFileViewer/Services/BackgroundTask/IProgressReporter.cs;../NxFileViewer/Settings/NszCompressionMode.cs;../NxFileViewer/Settings/PackageEngine.cs" Link="Shared/%(Filename)%(Extension)" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.11" />
+    <PackageReference Include="Avalonia.Controls.DataGrid" Version="11.3.0" />
     <PackageReference Include="Avalonia.Desktop" Version="$(AvaloniaVersion)" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="$(AvaloniaVersion)" />
     <PackageReference Include="LibHac" Version="0.19.0" />
@@ -22,12 +25,36 @@
     <Compile Include="../NxFileViewer/Models/Overview/NacpLanguage.cs" Link="Shared/NacpLanguage.cs" />
     <Compile Include="../NxFileViewer/Localization/Keys/*.cs" Link="Shared/Localization/%(Filename)%(Extension)" />
     <Compile Include="../NxFileViewer/Services/Integrity/NcaHashPrefix.cs" Link="Shared/NcaHashPrefix.cs" />
+    <Compile Include="../NxFileViewer/Services/KeysManagement/KeyFileValidator.cs;../NxFileViewer/Services/KeysManagement/KeyFileValidationResult.cs;../NxFileViewer/Services/KeysManagement/MasterKeyCatalog.cs;../NxFileViewer/Services/KeysManagement/MasterKeyFirmwareMap.cs" Link="Shared/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="../config/master-keys.json" LogicalName="Viewer.MasterKeys.json" />
+    <Compile Include="../NxFileViewer/Services/SupportIdentityClient.cs" Link="Shared/SupportIdentityClient.cs" />
+    <Compile Include="../NxFileViewer/Services/Integrity/BatchArchiveSources.cs" Link="Shared/BatchArchiveSources.cs" />
+    <Compile Include="../NxFileViewer/Services/Integrity/BatchCsvWriter.cs" Link="Shared/BatchCsvWriter.cs" />
+    <Compile Include="../NxFileViewer/Services/Security/ProgramPermissionAnalyzer.cs" Link="Shared/ProgramPermissionAnalyzer.cs" />
+    <Compile Include="../NxFileViewer/Services/PackageAnalysis/PackageStructureNames.cs" Link="Shared/PackageStructureNames.cs" />
+    <Compile Include="../NxFileViewer/Utils/FileSizeHelper.cs" Link="Shared/FileSizeHelper.cs" />
+    <Compile Include="../NxFileViewer/Utils/FileSizeUnit.cs" Link="Shared/FileSizeUnit.cs" />
     <Compile Include="../NxFileViewer/Services/Integrity/FirmwareComparison.cs" Link="Shared/FirmwareComparison.cs" />
-    <Compile Include="../NxFileViewer/Services/ApplicationDataPaths.cs" Link="Shared/ApplicationDataPaths.cs" />
+    <Compile Include="../NxFileViewer/Services/ApplicationDataPaths.cs;../NxFileViewer/Services/GitHubContentLocation.cs;../NxFileViewer/Services/TitleDbSources.cs;../NxFileViewer/Services/Updates/GitHubUpdateRequests.cs;../NxFileViewer/Services/OnlineServices/TitleDbCatalog.cs" Link="Shared/%(Filename)%(Extension)" />
+    <Compile Include="../NxFileViewer/Services/PluginGuiLauncher.cs;../NxFileViewer/Utils/PathHelper.cs" Link="Shared/%(Filename)%(Extension)" />
     <Compile Include="../NxFileViewer/Utils/MVVM/Localization/LocalizationKeysBase.cs;../NxFileViewer/Utils/MVVM/Localization/ILocalizationKeysBase.cs" Link="Shared/Localization/%(Filename)%(Extension)" />
     <AvaloniaResource Include="../NxFileViewer/Styling/Icons/*.*" Link="Icons/%(Filename)%(Extension)" />
     <None Include="../../LICENSE" Link="LICENSE.txt" CopyToPublishDirectory="PreserveNewest" />
+    <EmbeddedResource Include="../NxFileViewer/Views/Windows/MainWindow.xaml" LogicalName="Viewer.WorkspaceIcons" />
     <EmbeddedResource Include="../config/naming-presets.json" LogicalName="Viewer.NamingPresets.json" />
+    <EmbeddedResource Include="../config/default-settings.json" LogicalName="Viewer.DefaultSettings.json" />
+    <EmbeddedResource Include="../config/external-sources.json" LogicalName="Viewer.ExternalSources.json" />
+    <EmbeddedResource Include="../config/package-manifest.json" LogicalName="Viewer.PackageManifest.json" />
+    <Compile Include="../NxFileViewer/Services/Updates/ViewerVersion.cs" Link="Shared/ViewerVersion.cs" />
+    <Compile Include="../NxFileViewer/Services/Updates/PluginVersionStorage.cs;../NxFileViewer/Services/PackageOperations/PackageEnginePaths.cs" Link="Shared/%(Filename)%(Extension)" />
+    <Compile Include="../NxFileViewer/Services/Nand/NandDetection.cs;../NxFileViewer/Services/Nand/NandExplorer.cs;../NxFileViewer/Services/Nand/NandPartitionCatalog.cs" Link="Shared/%(Filename)%(Extension)" />
+    <Compile Include="../NxFileViewer/Services/OnlineServices/TitleDbCatalog.Local.cs;../NxFileViewer/Services/OnlineServices/OnlineTitleInfo.cs;../NxFileViewer/Services/OnlineServices/IOnlineTitleInfo.cs;../NxFileViewer/Services/OnlineServices/OptionalRatingConverter.cs" Link="Shared/%(Filename)%(Extension)" />
+    <AssemblyMetadata Include="ViewerSelfContained" Value="$(SelfContained)" />
+    <EmbeddedResource Include="../NxFileViewer/Styling/Theme/LightTheme.xaml" LogicalName="Viewer.Theme.Light" />
+    <EmbeddedResource Include="../NxFileViewer/Styling/Theme/DarkTheme.xaml" LogicalName="Viewer.Theme.Dark" />
+    <EmbeddedResource Include="../../CREDITS.txt" LogicalName="Viewer.Credits" />
+    <EmbeddedResource Include="../../LICENSE" LogicalName="Viewer.License" />
+    <EmbeddedResource Include="../../docs/THIRD-PARTY-NOTICES.txt" LogicalName="Viewer.ThirdPartyNotices" />
     <Content Include="../../fw/hashes/*.json" Link="Plugins/fwhashes/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" ExcludeFromSingleFile="true" />
   </ItemGroup>
 </Project>

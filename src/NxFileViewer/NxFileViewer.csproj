@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -12,7 +12,7 @@
     <Company>sandmaennchen5</Company>
     <Product>NxFileViewer Fork</Product>
     <Authors>sandmaennchen5</Authors>
-    <Version>4.1.1-beta3</Version>
+    <Version>4.1.1-beta4</Version>
     <!-- Increment when the packaged Explorer extension changes. -->
     <ExplorerPackageVersion>1.0.5.0</ExplorerPackageVersion>
     <PackageProjectUrl>https://github.com/sandmaennchen5/fork_NxFileViewer</PackageProjectUrl>

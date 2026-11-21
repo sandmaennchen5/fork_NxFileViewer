@@ -29,7 +29,7 @@ public class CachedOnlineTitleInfoService : ICachedOnlineTitleInfoService
         if (!IsEnabled)
             return await _onlineTitleInfoService.GetTitleInfoAsync(titleId);
 
-        var cacheKey = $"{Volatile.Read(ref _generation)}|{_settings?.TitleInfoProvider}|{_settings?.TitleDbRegion}|{_settings?.NLibApiUrl}|{_settings?.TitleInfoApiUrl}|{_settings?.AppLanguage}|{titleId.ToUpperInvariant()}";
+        var cacheKey = $"{Volatile.Read(ref _generation)}|{_settings?.TitleInfoProvider}|{_settings?.TitleDbRegion}|{_settings?.TitleDbRepository}|{_settings?.NLibApiUrl}|{_settings?.TitleInfoApiUrl}|{_settings?.AppLanguage}|{titleId.ToUpperInvariant()}";
         if (_memoryCache.TryGetValue(cacheKey, out var cachedTitleInfo) && DateTime.UtcNow < cachedTitleInfo.Expires)
             return cachedTitleInfo.Title;
 

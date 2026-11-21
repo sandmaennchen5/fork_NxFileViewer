@@ -23,8 +23,8 @@ public static class NandDetection
         var name = Path.GetFileName(path.Replace('\\', '/'));
         var extension = Path.GetExtension(name).ToLowerInvariant();
         return extension is ".bin" or ".img" ||
-            extension is ".enc" or ".dec" && NandCliPlugin.PartitionNames.Contains(Path.GetFileNameWithoutExtension(name), StringComparer.OrdinalIgnoreCase) ||
-            NandCliPlugin.PartitionNames.Contains(name, StringComparer.OrdinalIgnoreCase) ||
+            extension is ".enc" or ".dec" && NandPartitionCatalog.Names.Contains(Path.GetFileNameWithoutExtension(name), StringComparer.OrdinalIgnoreCase) ||
+            NandPartitionCatalog.Names.Contains(name, StringComparer.OrdinalIgnoreCase) ||
             Regex.IsMatch(name, @"(?:^\d{2}$|\.(?:0|00)$)");
     }
 
@@ -34,8 +34,8 @@ public static class NandDetection
     public static bool IsContinuationName(string path, Func<string, bool> exists)
     {
         var name = Path.GetFileName(path.Replace('\\', '/'));
-        if (NandCliPlugin.PartitionNames.Contains(name, StringComparer.OrdinalIgnoreCase) ||
-            NandCliPlugin.PartitionNames.Contains(Path.GetFileNameWithoutExtension(name), StringComparer.OrdinalIgnoreCase)) return false;
+        if (NandPartitionCatalog.Names.Contains(name, StringComparer.OrdinalIgnoreCase) ||
+            NandPartitionCatalog.Names.Contains(Path.GetFileNameWithoutExtension(name), StringComparer.OrdinalIgnoreCase)) return false;
         var match = Regex.Match(name, @"^(?<prefix>.*?)(?<number>\d+)(?<suffix>\.bin)?$", RegexOptions.IgnoreCase);
         if (!match.Success || !int.TryParse(match.Groups["number"].Value, out var number) || number == 0) return false;
         var prefix = match.Groups["prefix"].Value;
@@ -81,7 +81,7 @@ public static class NandDetection
                 var entry = Read(entryOffset, (int)entrySize);
                 if (entry.Length == 0) break;
                 var name = Encoding.Unicode.GetString(entry, 56, 72).TrimEnd('\0');
-                if (NandCliPlugin.PartitionNames.Contains(name, StringComparer.Ordinal)) names.Add(name);
+                if (NandPartitionCatalog.Names.Contains(name, StringComparer.Ordinal)) names.Add(name);
             }
             // Generic PC GPT images must not be classified as Switch NAND.
             if (!names.Contains("PRODINFO") || !names.Contains("SYSTEM")) continue;
@@ -98,7 +98,7 @@ public static class NandDetection
         if (type != null) return new(type, new[] { type }, false, stream.Length, 1);
         if (!IsCandidateName(path)) return null;
         var fileName = Path.GetFileNameWithoutExtension(path);
-        type = NandCliPlugin.PartitionNames.FirstOrDefault(name => name.Equals(fileName, StringComparison.OrdinalIgnoreCase) || name.Equals(Path.GetFileName(path), StringComparison.OrdinalIgnoreCase));
+        type = NandPartitionCatalog.Names.FirstOrDefault(name => name.Equals(fileName, StringComparison.OrdinalIgnoreCase) || name.Equals(Path.GetFileName(path), StringComparison.OrdinalIgnoreCase));
         return type != null && stream.Length % 512 == 0 ? new(type, new[] { type }, true, stream.Length, 1) : null;
     }
 

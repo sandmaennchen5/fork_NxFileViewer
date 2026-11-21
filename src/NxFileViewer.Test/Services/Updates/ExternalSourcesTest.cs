@@ -19,6 +19,9 @@ public sealed class ExternalSourcesTest
         Assert.Equal("https://api.github.com/repos/sandmaennchen5/fork_NxFileViewer/contents/fw/hashes?ref=master", config.FirmwareHashes.ApiUrl());
         Assert.Equal("https://raw.githubusercontent.com/blawar/titledb/master/US.en.json", config.TitleDb.RawUrl("US.en.json"));
         Assert.Equal("https://api.github.com/repos/blawar/titledb/contents/US.en.json?ref=master", config.TitleDb.ApiUrl("US.en.json"));
+        Assert.Collection(config.TitleDbAlternatives,
+            source => Assert.Equal("luketanti/titledb", source.Repository),
+            source => Assert.Equal("borntohonk/titledb", source.Repository));
     }
 
     [Fact]

@@ -55,6 +55,14 @@ public class Content
     public TitleVersion Version => _cnmt.TitleVersion;
 
     public int PatchNumber => _cnmt.TitleVersion.GetPatchNumber();
+    public TitleVersion MinimumSystemVersion => _cnmt.MinimumSystemVersion;
+    public byte? KeyGeneration { get; set; }
+    public string? Distribution { get; set; }
+    public string? BuildId { get; set; }
+    public ulong? FileSystemPermissions { get; set; }
+    public string? SecurityLevel { get; set; }
+    public string? AcidSignature { get; set; }
+    public string? DetailsError { get; set; }
 
 }
 
@@ -94,6 +102,7 @@ public class NacpData
 
 public class Title
 {
+    public byte[]? Icon { get; set; }
     private readonly ApplicationControlProperty.ApplicationTitle _applicationControlTitle;
 
     public Title(ApplicationControlProperty.ApplicationTitle applicationControlTitle)
