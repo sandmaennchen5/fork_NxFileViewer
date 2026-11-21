@@ -5,12 +5,18 @@ on:
     types: [opened, edited, closed, reopened]
   issue_comment:
     types: [created]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: GitHub issue number to sync
+        required: true
+        type: number
 
 permissions:
   issues: write
 
 concurrency:
-  group: discord-issue-${{ github.event.issue.number }}
+  group: discord-issue-${{ github.event.issue.number || inputs.issue_number }}
   queue: max
 
 jobs:
@@ -20,14 +26,17 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       DISCORD_ISSUES_WEBHOOK: ${{ secrets.DISCORD_ISSUES_WEBHOOK }}
+      DISCORD_ISSUES_BOT_TOKEN: ${{ secrets.DISCORD_ISSUES_BOT_TOKEN }}
     steps:
       - name: Update Discord forum thread
         run: |
           node <<'NODE'
           const { readFileSync } = require('node:fs');
-          const { issue: eventIssue, comment } = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8'));
+          const { issue: eventIssue, comment, inputs } = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8'));
+          const issueNumber = Number(eventIssue?.number ?? inputs?.issue_number);
+          if (!Number.isSafeInteger(issueNumber) || issueNumber < 1) throw Error('Invalid issue number.');
           const repo = `${process.env.GITHUB_API_URL}/repos/${process.env.GITHUB_REPOSITORY}`;
-          const issuePath = `/issues/${eventIssue.number}`;
+          const issuePath = `/issues/${issueNumber}`;
           const marker = /<!-- discord-issue-sync:v1 (\d+) (\d+)((?: \d+)*) -->$/;
 
           function truncate(value, limit) {
@@ -64,7 +73,9 @@ jobs:
               throw Error('DISCORD_ISSUES_WEBHOOK must be the Discord forum webhook URL.');
             }
             const endpoint = webhook.replace(/\/$/, '');
+            const botToken = (process.env.DISCORD_ISSUES_BOT_TOKEN ?? '').trim();
             const issue = await github(issuePath);
+            if (issue.pull_request) throw Error('The selected number belongs to a pull request.');
             let mapping;
             for (let page = 1; !mapping; page++) {
               const comments = await github(`${issuePath}/comments?per_page=100&page=${page}`);
@@ -83,6 +94,7 @@ jobs:
                 : await github(`${issuePath}/comments`, 'POST', { body });
             }
 
+            const closed = issue.state === 'closed';
             const title = `#${issue.number} – ${issue.title}`;
             const starter = {
               allowed_mentions: { parse: [] },
@@ -90,10 +102,11 @@ jobs:
                 title: truncate(title, 256),
                 url: issue.html_url,
                 description: truncate(issue.body || 'No description provided.', 4000),
-                fields: [{ name: 'Status', value: issue.state === 'closed' ? 'Closed' : 'Open' }],
+                fields: [{ name: 'Status', value: closed ? 'Closed' : 'Open' }],
               }],
             };
 
+            const updateStarter = mapping && !comment;
             if (!mapping) {
               const created = await request('Discord', endpoint + '?wait=true', 'POST', {
                 ...starter, thread_name: truncate(title, 100),
@@ -101,21 +114,42 @@ jobs:
               threadId = created.channel_id;
               messageId = created.id;
               await saveMapping();
-            } else if (!comment) {
-              await request('Discord', `${endpoint}/messages/${messageId}?thread_id=${threadId}`, 'PATCH', starter);
             }
 
-            if (!comment || replied.has(String(comment.id))) return;
-            await request('Discord', `${endpoint}?wait=true&thread_id=${threadId}`, 'POST', {
-              allowed_mentions: { parse: [] },
-              embeds: [{
-                title: `GitHub comment by ${comment.user.login}`,
-                url: comment.html_url,
-                description: truncate(comment.body || 'No text provided.', 4000),
-              }],
-            });
-            replied.add(String(comment.id));
-            await saveMapping();
+            const channel = `https://discord.com/api/v10/channels/${threadId}`;
+            const botAuth = { Authorization: `Bot ${botToken}` };
+            const replyPending = comment && !replied.has(String(comment.id));
+            let archived = false;
+            if (botToken) {
+              const thread = await request('Discord thread', channel, 'GET', undefined, botAuth);
+              archived = thread.thread_metadata.archived;
+              if (archived && (!closed || updateStarter || replyPending)) {
+                await request('Discord thread', channel, 'PATCH', { archived: false }, botAuth);
+                archived = false;
+              }
+            }
+
+            try {
+              if (updateStarter) {
+                await request('Discord', `${endpoint}/messages/${messageId}?thread_id=${threadId}`, 'PATCH', starter);
+              }
+              if (replyPending) {
+                await request('Discord', `${endpoint}?wait=true&thread_id=${threadId}`, 'POST', {
+                  allowed_mentions: { parse: [] },
+                  embeds: [{
+                    title: `GitHub comment by ${comment.user.login}`,
+                    url: comment.html_url,
+                    description: truncate(comment.body || 'No text provided.', 4000),
+                  }],
+                });
+                replied.add(String(comment.id));
+                await saveMapping();
+              }
+            } finally {
+              if (botToken && closed && !archived) {
+                await request('Discord thread', channel, 'PATCH', { archived: true }, botAuth);
+              }
+            }
           }
 
           sync().catch(error => {
