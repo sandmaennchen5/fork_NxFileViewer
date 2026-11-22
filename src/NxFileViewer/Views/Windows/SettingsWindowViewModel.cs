@@ -715,6 +715,10 @@ public class SettingsWindowViewModel : WindowViewModelBase
             EditedSettings.UsageStatisticsChoiceConfirmed =
                 EditedSettings.SendAnonymousUsageStatistics != _appSettingsManager.Settings.SendAnonymousUsageStatistics ||
                 _appSettingsManager.Settings.UsageStatisticsChoiceConfirmed;
+            EditedSettings.UsageStatisticsChoiceVersion =
+                EditedSettings.SendAnonymousUsageStatistics != _appSettingsManager.Settings.SendAnonymousUsageStatistics
+                    ? Emignatik.NxFileViewer.Services.UsageStatisticsService.BuildVersion
+                    : _appSettingsManager.Settings.UsageStatisticsChoiceVersion;
             _appSettingsManager.Load(EditedSettings);
         }
         _appSettingsManager.SaveSafe();

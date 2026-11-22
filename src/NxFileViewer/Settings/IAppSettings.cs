@@ -55,6 +55,7 @@ public interface IAppSettings : INotifyPropertyChanged
     string NandExecutablePath { get; set; }
     string NandBisKeysPath { get; set; }
     bool UsageStatisticsChoiceConfirmed { get; set; }
+    string UsageStatisticsChoiceVersion { get; set; }
     bool SendAnonymousUsageStatistics { get; set; }
     bool CheckViewerUpdatesOnStartup { get; set; }
     bool IncludeViewerPrereleases { get; set; }

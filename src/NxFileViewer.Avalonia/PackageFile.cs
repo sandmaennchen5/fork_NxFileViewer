@@ -1,4 +1,5 @@
 using System;
+using Emignatik.NxFileViewer.Services.Mtp;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -38,8 +39,8 @@ internal sealed record PackageFile(string Path, string Type, long Size, IReadOnl
     internal static IReadOnlyDictionary<string, string> ContentDigests(string path, bool secureOnly, CancellationToken token)
     {
         var digests = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        using var storage = new LocalStorage(path, FileAccess.Read);
-        using var input = File.OpenRead(path);
+        using var storage = MtpDirectSource.OpenStorage(path);
+        using var input = MtpDirectSource.OpenRead(path);
         void Add(IFileSystem partition, string prefix)
         {
             foreach (var entry in partition.EnumerateEntries().Where(entry => entry.Type == DirectoryEntryType.File))
@@ -76,9 +77,9 @@ internal sealed record PackageFile(string Path, string Type, long Size, IReadOnl
     {
         if (string.Equals(System.IO.Path.GetFullPath(source), System.IO.Path.GetFullPath(destination), StringComparison.OrdinalIgnoreCase))
             throw new IOException("The destination is the source package.");
-        using var input = File.OpenRead(source);
+        using var input = MtpDirectSource.OpenRead(source);
         var type = PackageSignature.Read(input);
-        using var storage = new LocalStorage(source, FileAccess.Read);
+        using var storage = MtpDirectSource.OpenStorage(source);
         if (type == PackageType.NSP)
         {
             using var partition = storage.LoadPartition();
@@ -159,7 +160,7 @@ internal sealed record PackageFile(string Path, string Type, long Size, IReadOnl
 
     internal static PackageFile Read(string path, string? keysPath, List<NcaHashResult>? hashes, CancellationToken token, bool includeDetails = true)
     {
-        using var stream = File.OpenRead(path);
+        using var stream = MtpDirectSource.OpenRead(path);
         var type = PackageSignature.Read(stream);
         var extension = System.IO.Path.GetExtension(path);
         if (type == PackageType.UNKNOWN && (extension.Equals(".nca", StringComparison.OrdinalIgnoreCase) ||
@@ -184,8 +185,9 @@ internal sealed record PackageFile(string Path, string Type, long Size, IReadOnl
 
     private static PackageFile ReadStandalone(string path, string? keysPath, List<NcaHashResult>? hashes, CancellationToken token)
     {
-        using var source = File.OpenRead(path);
+        using var source = MtpDirectSource.OpenRead(path);
         var compressed = System.IO.Path.GetExtension(path).Equals(".ncz", StringComparison.OrdinalIgnoreCase);
+        if (compressed && hashes == null) EnsureCompressionAllowed(source);
         using var original = compressed ? Ncz.OpenOriginalStream(source) : null;
         var stream = original ?? source;
         var name = System.IO.Path.GetFileName(path);
@@ -224,15 +226,14 @@ internal sealed record PackageFile(string Path, string Type, long Size, IReadOnl
 
     private static PartitionContents ReadNsp(string path, string? keysPath, List<NcaHashResult>? hashes, CancellationToken token, bool includeDetails)
     {
-        using var storage = new LocalStorage(path, FileAccess.Read);
+        using var storage = MtpDirectSource.OpenStorage(path);
         using var partition = storage.LoadPartition();
         return ReadPartition(partition, keysPath, hashes, token, includeDetails);
     }
 
     private static PartitionContents ReadXci(string path, string? keysPath, List<NcaHashResult>? hashes, CancellationToken token, bool includeDetails)
     {
-        using var file = new LocalFile(path, OpenMode.Read);
-        using var storage = new FileStorage(file);
+        using var storage = MtpDirectSource.OpenStorage(path);
         var gameCard = new Xci(new KeySet(), storage);
         if (!gameCard.HasPartition(XciPartitionType.Secure)) return EmptyPartition;
         using var partition = gameCard.OpenPartition(XciPartitionType.Secure);
@@ -245,6 +246,9 @@ internal sealed record PackageFile(string Path, string Type, long Size, IReadOnl
 
     private static PartitionContents ReadPartition(IFileSystem partition, string? keysPath, List<NcaHashResult>? hashes, CancellationToken token, bool includeDetails)
     {
+        if (!AllowBlockless && hashes == null)
+            foreach (var entry in partition.EnumerateEntries().Where(entry => entry.Type == DirectoryEntryType.File && entry.Name.EndsWith(".ncz", StringComparison.OrdinalIgnoreCase)))
+            { using var file = partition.LoadFile(entry); using var stream = file.AsStream(); EnsureCompressionAllowed(stream); }
         if (hashes != null)
             CheckNcaHashes(partition, hashes, keysPath, token);
 
@@ -258,7 +262,12 @@ internal sealed record PackageFile(string Path, string Type, long Size, IReadOnl
         try
         {
             var keys = LoadKeys(keysPath);
-            return new PartitionContents(entries, PackageMetadataReader.Read(partition, keys, out _, injectTicketKeys: InjectTicketKeys, readDetails: includeDetails));
+            var contents = PackageMetadataReader.Read(partition, keys, out _, injectTicketKeys: InjectTicketKeys, readDetails: includeDetails);
+            var present = entries.Where(entry => entry.Name.EndsWith(".nca", StringComparison.OrdinalIgnoreCase) || entry.Name.EndsWith(".ncz", StringComparison.OrdinalIgnoreCase)).Select(entry => entry.Name[..^4]).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var missing = contents.SelectMany(content => content.ReferencedContents).Where(reference => !present.Contains(reference.Id) && (!IgnoreMissingDeltaFragments || reference.Type != LibHac.Ncm.ContentType.DeltaFragment)).Distinct().ToArray();
+            var errors = missing.Select(reference => string.Format(Emignatik.NxFileViewer.Localization.LocalizationManager.Instance.Current.Keys.LoadingError_NcaFileMissing_Log, reference.Id, reference.Type)).ToArray();
+            if (hashes != null) foreach (var reference in missing) hashes.Add(new NcaHashResult(reference.Id + ".nca", null, null, string.Format(Emignatik.NxFileViewer.Localization.LocalizationManager.Instance.Current.Keys.LoadingError_NcaFileMissing_Log, reference.Id, reference.Type)));
+            return new PartitionContents(entries, contents, MetadataError: errors.Length == 0 ? null : string.Join(Environment.NewLine, errors));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or LibHac.Common.LibHacException)
         {
@@ -266,6 +275,15 @@ internal sealed record PackageFile(string Path, string Type, long Size, IReadOnl
         }
     }
 
+    internal static bool AllowBlockless { get; set; } = true;
+    internal static bool IgnoreMissingDeltaFragments { get; set; } = true;
+    private static void EnsureCompressionAllowed(Stream input)
+    {
+        if (AllowBlockless) return;
+        var position = input.Position;
+        try { if (!NczHeader.Read(input).IsUsingBlockCompression) throw new InvalidDataException(Emignatik.NxFileViewer.Localization.LocalizationManager.Instance.Current.Keys.LoadingError_NczBlocklessCompressionDisabled); }
+        finally { input.Position = position; }
+    }
     internal static bool InjectTicketKeys { get; set; } = true;
     internal static string? TitleKeysFilePath { get; set; }
     private static KeySet LoadKeys(string keysPath)

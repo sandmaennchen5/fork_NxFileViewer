@@ -6,6 +6,8 @@ namespace Emignatik.NxFileViewer.Localization;
 
 internal static class CommunityLanguage
 {
+    public static string SelectedLanguage => LocalizationManager.Instance.Current.Keys.CultureName.Split('-')[0];
+
     public static bool IsGerman => LocalizationManager.Instance.Current.Keys.CultureName
         .StartsWith("de", StringComparison.OrdinalIgnoreCase);
 

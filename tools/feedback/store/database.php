@@ -27,6 +27,7 @@ function databaseTables(): array {
             attempts INT NOT NULL DEFAULT 0, next_attempt BIGINT NOT NULL, lease_until BIGINT NOT NULL DEFAULT 0,
             last_error VARCHAR(64) NOT NULL DEFAULT '', created_at BIGINT NOT NULL, updated_at BIGINT NOT NULL,
             INDEX feedback_due(status,next_attempt), INDEX feedback_created(created_at)",
+        'feedback_system_details' => "ticket $id PRIMARY KEY, details TEXT NOT NULL",
         'reports' => "ticket $id PRIMARY KEY,state $id UNIQUE,verifier VARCHAR(128),status VARCHAR(16),expires BIGINT,INDEX report_expiry(expires)",
         'rate_limit' => "bucket $bucket PRIMARY KEY, count INT, expires BIGINT",
         'support_rate' => "bucket $bucket PRIMARY KEY, count INT, expires BIGINT",

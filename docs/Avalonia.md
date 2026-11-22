@@ -1,62 +1,24 @@
-# Experimental Avalonia frontends
+# First converted Avalonia applications — early beta
 
 [Documentation index](README.md) · [Development and publishing](Development.md)
 
-The **4.1.1-beta3** source includes separate Avalonia viewer and LogViewer projects.
-They are experimental frontends, not a replacement with full WPF feature parity.
-The supported release/publishing matrix remains the Windows WPF application unless
-an Avalonia build is selected explicitly. Linux/macOS are not claimed as tested or
-published release targets merely because Avalonia is cross-platform.
+**4.1.1-beta5** includes the first converted Avalonia applications: the viewer and
+standalone LogViewer. The conversion is still in progress. **All Avalonia packages
+are early beta versions; not all functions are implemented or tested.** They do not
+yet provide complete WPF appearance or feature parity.
 
-## Viewer
+Beta releases publish these applications for Windows, Linux and macOS. Building a
+package for a platform does not mean every function has been tested on that platform.
+Windows-specific components and external tools can have additional limitations.
+Use the Windows WPF viewer for the existing full application workflows.
 
-Project: `src/NxFileViewer.Avalonia`; executable: `NxFileViewerFork.Avalonia.exe`.
+## Applications and settings
 
-Implemented areas include:
-
-- File selection and drag/drop, package signatures and NSP/NSZ/XCI/XCZ/NRO inspection.
-- WPF-style overview/content tabs with cover art, languages, build ID and program permissions.
-- Shared title/content metadata, NCA SHA-256 checks against filename hash prefixes,
-  original NCZ reconstruction and available header-signature checks.
-- Batch folder and ZIP/7z scanning with cancellation, optional checks and verification of an existing list.
-  Includes type/integrity/search/error filters, alphabetical sorting, column selection/reset,
-  selected-file details, visible-column CSV/JSON export and a retained source history.
-  History entries are re-read and never restore old integrity results as current verification.
-- Batch name checks, rename proposals transferred to the simulation/review page, and moving
-  verified unchanged originals without overwriting existing files.
-- Staged batch compression/decompression through Rust or NSZ, and Rust split/merge/NSP/XCI
-  conversion. Sources and outputs are verified; title versions and reconstructed entry SHA-256
-  digests must agree before publication. This stricter path can reject engine output that changes
-  ticket or other ancillary content; real-game end-to-end coverage is still limited.
-- Local firmware-reference comparison using `Plugins/fwhashes/*.json`.
-- Folder-based rename previews with target folder, filters, simulation, cancellation and a result/error table.
-- Separate persisted naming patterns for applications, updates, DLCs, combined packages and collections.
-  Existing local WPF TitleDB files supply title names without an online lookup.
-- A NAND workspace using the shared read-only partition/FAT reader, BIS keys and file export.
-  Physical-drive discovery and save-data browsing are still missing from this frontend.
-- Tree context actions and a property table showing NCA header details.
-- An integrated session log with level filters, independent from the standalone LogViewer.
-- German, English, French and Spanish language selection and light/dark/automatic themes.
-- WPF-style settings sub-tabs, plugin sub-sections, naming help, key validation,
-  title-key selection, ticket injection, compression controls, optional/direct-start switches,
-  batch history/export options and session-log level/retention settings.
-- Info includes the report link, configured poll web overview, Discord, cached WPF support ID,
-  credits, licenses and shortcuts. An explicit refresh registers/loads the support ID through
-  the same service as WPF. Native reporting and poll forms are still WPF workflows.
-- Online version checks for Avalonia releases and external tools, with startup/prerelease options.
-  Release links are available; update installation and rollback are not implemented.
-- Discovery of existing WPF plugin paths and managed plugin versions in the same application folder.
-
-Preferences use the separate `NxFileViewerFork.Avalonia.settings.json` beside the
-executable. The WPF viewer's community reporting/polls, updater, plugin managers,
-Explorer integration, MTP/SD source controls and full workspace workflows are not equivalent features of
-this frontend. Use the WPF viewer for its documented full feature set.
-
-## LogViewer
-
-Project: `src/NxFileViewer.LogViewer.Avalonia`; executable:
-`NxFileViewerFork.LogViewer.Avalonia.exe`. It shares the log document/parser and
-UI text definitions with the WPF LogViewer and has its own Avalonia interface.
+- Viewer project: `src/NxFileViewer.Avalonia`; Windows executable: `NxFileViewerFork.Avalonia.exe`.
+- LogViewer project: `src/NxFileViewer.LogViewer.Avalonia`; Windows executable: `NxFileViewerFork.LogViewer.Avalonia.exe`.
+- Viewer preferences are stored separately in `NxFileViewerFork.Avalonia.settings.json`
+  beside the executable. Existing WPF preferences can supply the initial settings.
+- Keep WPF and Avalonia executable names distinct when testing them in the same folder.
 
 ## Build and test publishing
 
@@ -67,4 +29,24 @@ dotnet build src/NxFileViewer.LogViewer.Avalonia/NxFileViewer.LogViewer.Avalonia
 
 The local `PublishTest.ps1` helper can select WPF/Avalonia projects and copy several
 finished executables into a configured test folder with distinct destination names.
-The regular `Publish.ps1` Windows release matrix does not imply Avalonia ZIP releases.
+The regular `Publish.ps1` Windows release matrix remains independent of Avalonia.
+For tags such as `v4.1.1-beta5`, the Release workflow additionally uses
+`PublishAvalonia.ps1` on native Windows, Linux and macOS runners:
+
+- Windows: x64, x86 and ARM64.
+- Linux: x64 and ARM64.
+- macOS: Intel x64 and Apple Silicon ARM64.
+
+Both applications are packaged with and without .NET (28 additional ZIPs). Windows
+ZIPs retain the `_x64`, `_x86` and `_arm64` suffixes; Linux and macOS use
+`_linux-x64`, `_linux-arm64`, `_osx-x64` and `_osx-arm64`. Native ZIP packaging
+preserves executable permissions on Linux/macOS. The macOS packages are unsigned
+executable ZIPs, not signed `.app` installers.
+
+The release waits for all three platform builds and verifies every expected ZIP
+before publishing. Stable tags skip the Avalonia matrix. To build selected runtimes
+locally, for example on Linux:
+
+```powershell
+./PublishAvalonia.ps1 -Version 4.1.1-beta5 -RuntimeIdentifiers linux-x64,linux-arm64
+```

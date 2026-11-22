@@ -7,6 +7,14 @@ using Emignatik.NxFileViewer.Services.KeysManagement;
 namespace NxFileViewer.Avalonia;
 public partial class MainWindow
 {
+    private static string? ResolveKeyFile(string? custom, string name)
+    {
+        if (!string.IsNullOrWhiteSpace(custom) && File.Exists(custom)) return Path.GetFullPath(custom);
+        var local = Path.Combine(AppContext.BaseDirectory, name);
+        if (File.Exists(local)) return local;
+        var profile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".switch", name);
+        return File.Exists(profile) ? profile : custom;
+    }
     private async void ChooseTitleKeys(object? sender, RoutedEventArgs e)
     {
         var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions { Title = "title.keys", FileTypeFilter = new[] { FilePickerFileTypes.All } });

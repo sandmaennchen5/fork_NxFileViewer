@@ -1,4 +1,5 @@
-﻿using System;
+using System;
+using System.Linq;
 using System.Collections.Generic;
 using Emignatik.NxFileViewer.Utils;
 using Emignatik.NxFileViewer.Utils.LibHacExtensions;
@@ -41,6 +42,8 @@ public class Content
     }
 
     public ContentMetaType Type => _cnmt.Type;
+
+    public IReadOnlyList<PackageContentReference> ReferencedContents => _cnmt.ContentEntries.Select(entry => new PackageContentReference(entry.NcaId.ToStrId(), entry.Type)).ToArray();
 
     public string TitleId => _cnmt.TitleId.ToStrId();
 
@@ -114,3 +117,5 @@ public class Title
 
     public string Publisher => _applicationControlTitle.PublisherString.ToString();
 }
+
+public sealed record PackageContentReference(string Id, ContentType Type);

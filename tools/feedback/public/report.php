@@ -43,7 +43,7 @@ function authorizationReply(PDO $db,array $config,array $report,string $ticket,b
     execute($db,databaseSql($db,"INSERT INTO reports (ticket,state,verifier,status,expires) VALUES (?,?,?,'pending',?) ON CONFLICT(ticket) DO UPDATE SET state=excluded.state,verifier=excluded.verifier,status='pending',expires=excluded.expires",
         "INSERT INTO reports (ticket,state,verifier,status,expires) VALUES (?,?,?,'pending',?) ON DUPLICATE KEY UPDATE state=VALUES(state),verifier=VALUES(verifier),status='pending',expires=VALUES(expires)"),[$report['ticket'],$hashedState,$verifier,time()+650]);
     $authorization='https://github.com/login/oauth/authorize?'.http_build_query(['client_id'=>$config['client_id'],'redirect_uri'=>$config['callback_url'],'state'=>$state,'code_challenge'=>base64Url(hash('sha256',$verifier,true)),'code_challenge_method'=>'S256'],encoding_type:PHP_QUERY_RFC3986);
-    reply(feedbackPublic($report)+['authorization'=>$authorization,'ticket'=>$ticket,'privateLogStored'=>$privateStored],202);
+    reply(feedbackPublic($report)+['authorization'=>$authorization,'ticket'=>$ticket,'privateLogStored'=>$privateStored,'systemDetailsStored'=>feedbackSystemDetails($db,$report['ticket'])!==null],202);
 }
 function handleCallback(PDO $db,array $config): never {
     $state=$_GET['state']??'';
@@ -166,6 +166,10 @@ try {
         reply(['error' => 'invalid_private_log'], 400);
     }
 
+    $systemDetails=$input['systemDetails']??null;
+    if($systemDetails!==null&&(!is_string($systemDetails)||strlen($systemDetails)>4096||trim($systemDetails)===''))
+        reply(['error'=>'invalid_system_details'],400);
+
     if($mode==='github')$displayName='';
     // Stable request IDs let the app retry a lost HTTP response without duplicating a report.
     $submissionId=$input['submissionId']??null;
@@ -177,7 +181,7 @@ try {
         if($existing['mode']!==$mode||$existing['title']!==$title||$existing['body']!==feedbackBody($mode,$body,$displayName,$existing['support_id']))reply(['error'=>'submission_conflict'],409);
         $stored=(bool)execute($db,'SELECT 1 FROM private_issue_logs WHERE ticket=?',[$hashedTicket])->fetchColumn();
         if($mode==='github'&&in_array($existing['status'],['awaiting_auth','needs_auth'],true))authorizationReply($db,$config,$existing,$ticket,$stored);
-        reply(feedbackPublic($existing)+['ticket'=>$ticket,'privateLogStored'=>$stored],$existing['status']==='created'?200:202);
+        reply(feedbackPublic($existing)+['ticket'=>$ticket,'privateLogStored'=>$stored,'systemDetailsStored'=>feedbackSystemDetails($db,$hashedTicket)!==null],$existing['status']==='created'?200:202);
     }
 
     // Limit submissions per source and across the endpoint, including authorization attempts.
@@ -200,13 +204,13 @@ try {
 
     $profile=$participant===null?null:supportProfile($db,$config,$participant,$mode==='anonymous'?$displayName:'');
     $body=feedbackBody($mode,$body,$displayName,$profile['supportId']??'');
-    try{$report=feedbackStore($db,$hashedTicket,$requestKey,$mode,$title,$body,$profile,$displayName,$privateLog);}
+    try{$report=feedbackStore($db,$hashedTicket,$requestKey,$mode,$title,$body,$profile,$displayName,$privateLog,$systemDetails);}
     catch(PDOException $error){
         $report=feedbackFind($db,$hashedTicket);if(!$report)throw $error;
     }
     if($mode==='github')authorizationReply($db,$config,$report,$ticket,$privateLog!==null);
     $report=feedbackDeliver($db,$config,$hashedTicket);
-    reply(feedbackPublic($report)+['ticket'=>$ticket,'privateLogStored'=>$privateLog!==null],$report['status']==='created'?201:202);
+    reply(feedbackPublic($report)+['ticket'=>$ticket,'privateLogStored'=>$privateLog!==null,'systemDetailsStored'=>feedbackSystemDetails($db,$hashedTicket)!==null],$report['status']==='created'?201:202);
 } catch (Throwable $error) {
     if (isset($db) && $db->inTransaction()) $db->rollBack();
     error_log('NxFileViewer feedback request failed (' . get_class($error) . ')');

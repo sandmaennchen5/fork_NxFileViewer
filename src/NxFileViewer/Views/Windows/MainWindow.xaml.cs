@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Linq;
 using System.Collections.Generic;
 using System;
@@ -50,12 +50,14 @@ public partial class MainWindow : Window
 
     private async System.Threading.Tasks.Task ConfirmUsageStatisticsAsync()
     {
-        if (!App.Features.UsageStatisticsChoiceConfirmed)
+        var version = Emignatik.NxFileViewer.Services.UsageStatisticsService.BuildVersion;
+        if (Emignatik.NxFileViewer.Settings.AppSettingsManager.ShouldConfirmSystemReport(App.Features, version))
         {
-            var dialog = new UsageStatisticsConsentWindow(CommunityUsesGerman) { Owner = this };
+            var dialog = new UsageStatisticsConsentWindow(App.Features.SendAnonymousUsageStatistics) { Owner = this };
             dialog.ShowDialog();
             App.Features.SendAnonymousUsageStatistics = dialog.StatisticsEnabled;
             App.Features.UsageStatisticsChoiceConfirmed = true;
+            App.Features.UsageStatisticsChoiceVersion = version;
             App.ServiceProvider.GetRequiredService<Emignatik.NxFileViewer.Settings.IAppSettingsManager>().SaveSafe();
         }
         await Emignatik.NxFileViewer.Services.UsageStatisticsService.SendStartupAsync();

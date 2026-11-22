@@ -6,17 +6,14 @@ using System.Threading;
 using System.Diagnostics;
 using Emignatik.NxFileViewer.Localization;
 using Emignatik.NxFileViewer.Services.BackgroundTask;
-using Emignatik.NxFileViewer.Services.GlobalEvents;
 
 namespace Emignatik.NxFileViewer.Services.Mtp;
 
-public sealed class MtpImportService
+public sealed partial class MtpImportService
 {
     private readonly IMtpBackend _backend;
     private readonly string _cache;
     private readonly List<string> _sessions = new();
-    public MtpImportService(IAppEvents events, Services.FileOpening.IFileOpeningService opening) : this(new ShellMtpBackend(), Path.Combine(AppContext.BaseDirectory, "Temp", "MTP"))
-    { events.AppShuttingDown += () => { opening.SafeClose(); Cleanup(); }; }
     public MtpImportService(IMtpBackend backend, string cache) { _backend = backend; _cache = Path.GetFullPath(cache); }
     public TaskWrapper Import(MtpEntry entry, IProgressReporter reporter, CancellationToken token, string? cacheRoot = null, FileLoading.SdBatchAreas? areas = null) => new(this, entry, reporter, token, cacheRoot, areas);
     // The entire transfer uses one STA, so native COM objects never cross apartments.

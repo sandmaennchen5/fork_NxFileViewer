@@ -14,6 +14,9 @@ public partial class MainWindow
     private sealed record RenameBatchRow(string Source, string? Destination, long Size, DateTime Modified, string Status, bool CanApply) { public string? Error { get; init; } }
     private RenameBatchRow[] _renameBatch = Array.Empty<RenameBatchRow>();
     private bool _renamingBatch;
+    private bool _settingRenameOverride;
+    private string[]? _renameBatchSourcesOverride;
+    private void RenameInputChanged(object? sender, global::Avalonia.Controls.TextChangedEventArgs e) { if (!_settingRenameOverride) _renameBatchSourcesOverride = null; }
     private CancellationTokenSource? _renameBatchCancellation;
     private void CancelRenameBatch(object? sender, RoutedEventArgs e) => _renameBatchCancellation?.Cancel();
 
@@ -22,24 +25,40 @@ public partial class MainWindow
         var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions { Title = _text.RenamingTool_WindowTitle });
         if (folders.FirstOrDefault()?.TryGetLocalPath() is { } path) RenameInputPath.Text = path;
     }
-    private async void PreviewRenameBatch(object? sender, RoutedEventArgs e)
+    private async void ChooseRenameDestination(object? sender, RoutedEventArgs e)
+    {
+        var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions { Title = _text.RenamingTool_WindowTitle });
+        if (folders.FirstOrDefault()?.TryGetLocalPath() is { } folder) RenameOutputPath.Text = folder;
+    }
+    private async void RunRenameBatch(object? sender, RoutedEventArgs e)
+    {
+        if (_renamingBatch) return;
+        var simulate = RenameSimulation.IsChecked == true;
+        await PrepareRenameBatch();
+        if (!_closed && !simulate && _renameBatch.Any(row => row.CanApply)) await ApplyPreparedRenameBatch();
+    }
+    private async void PreviewRenameBatch(object? sender, RoutedEventArgs e) => await PrepareRenameBatch();
+    private async Task PrepareRenameBatch()
     {
         if (_renamingBatch) return;
         using var cancellation = new CancellationTokenSource();
         _renameBatchCancellation = cancellation;
         RenameBatchCancelButton.IsEnabled = true;
         _renamingBatch = true;
+        _renameBatch = Array.Empty<RenameBatchRow>();
         RenameBatchPreviewButton.IsEnabled = RenameBatchApplyButton.IsEnabled = false;
         try
         {
             string[] paths;
-            if (Directory.Exists(RenameInputPath.Text))
+            if (_renameBatchSourcesOverride != null) paths = _renameBatchSourcesOverride.ToArray();
+            else if (Directory.Exists(RenameInputPath.Text))
             {
                 var root = RenameInputPath.Text!;
                 var recursive = RenameRecursive.IsChecked == true;
                 var patterns = (RenameFilter.Text ?? "*.nsp;*.nsz;*.xci;*.xcz").Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
                 paths = await Task.Run(() => patterns.SelectMany(pattern => Directory.EnumerateFiles(root, pattern, new EnumerationOptions { RecurseSubdirectories = recursive, IgnoreInaccessible = true })).Distinct(StringComparer.OrdinalIgnoreCase).ToArray());
             }
+            else if (File.Exists(RenameInputPath.Text)) paths = new[] { Path.GetFullPath(RenameInputPath.Text!) };
             else
             {
                 var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions { Title = _text.RenamingTool_WindowTitle, AllowMultiple = true, FileTypeFilter = new[] { new FilePickerFileType("Nintendo Switch") { Patterns = new[] { "*.nsp", "*.nsz", "*.xci", "*.xcz" } } } });
@@ -60,8 +79,7 @@ public partial class MainWindow
                         var info = new FileInfo(path);
                         var size = info.Length;
                         var modified = info.LastWriteTimeUtc;
-                        var destination = GetRenameDestination(path, CreateOfflineName(path, keys, pattern));
-                        if (!string.IsNullOrWhiteSpace(outputFolder)) destination = Path.Combine(Path.GetFullPath(outputFolder), Path.GetFileName(destination));
+                        var destination = GetRenameDestination(path, CreateOfflineName(path, keys, pattern), outputFolder);
                         var changed = !string.Equals(path, destination, StringComparison.OrdinalIgnoreCase);
                         var available = !File.Exists(destination) && !Directory.Exists(destination);
                         proposals.Add(new RenameBatchRow(path, destination, size, modified,
@@ -102,7 +120,8 @@ public partial class MainWindow
         }
     }
 
-    private async void ApplyRenameBatch(object? sender, RoutedEventArgs e)
+    private async void ApplyRenameBatch(object? sender, RoutedEventArgs e) => await ApplyPreparedRenameBatch();
+    private async Task ApplyPreparedRenameBatch()
     {
         if (_renamingBatch) return;
         if (RenameSimulation.IsChecked == true) { RenameBatchStatus.Text = _text.RenamingTool_StatusSimulation; return; }
@@ -112,6 +131,7 @@ public partial class MainWindow
         _renamingBatch = true;
         RenameBatchPreviewButton.IsEnabled = RenameBatchApplyButton.IsEnabled = false;
         var rows = _renameBatch.ToArray();
+        var autoClose = RenameAutoClose.IsChecked == true;
         try
         {
             for (var index = 0; index < rows.Length && !_closed && !cancellation.IsCancellationRequested; index++)
@@ -120,9 +140,15 @@ public partial class MainWindow
                 if (!row.CanApply) continue;
                 try
                 {
+                    if (string.Equals(_openedPath, row.Source, StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (!autoClose) throw new IOException("The file is currently open. Close it or enable automatic closing.");
+                        CloseClicked(null, new RoutedEventArgs()); Workspace.SelectedItem = RenameTab;
+                    }
                     var info = new FileInfo(row.Source);
                     if (info.Length != row.Size || info.LastWriteTimeUtc != row.Modified)
                         throw new IOException("Source changed since preview.");
+                    EnsureRenameDirectoryIsLocal(row.Destination!);
                     Directory.CreateDirectory(Path.GetDirectoryName(row.Destination!)!);
                     File.Move(row.Source, row.Destination!, overwrite: false);
                     rows[index] = row with { CanApply = false, Status = _text.RenamingTool_StatusRenamed };

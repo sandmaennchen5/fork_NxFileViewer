@@ -132,7 +132,7 @@
       "EnableBatchHistory": "Program",
       "IncludeViewerPrereleases": "Updates / Application updates",
       "UsageStatisticsChoiceConfirmed": "Whether startup usage statistics have been explicitly accepted or disabled.",
-      "SendAnonymousUsageStatistics": "Send one daily pseudonymous startup report, plus after a version change.",
+      "SendAnonymousUsageStatistics": "Send a pseudonymous system report at startup every 90 days and after an upgrade or a change in system details.",
       "CheckViewerUpdatesOnStartup": "Updates / Application updates",
       "NszCheckUpdates": "Legacy setting (ignored); plugin updates are manual under Updates",
       "NszCompressionLevel": "Compress / Decompress / Compress / Decompress",

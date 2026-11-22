@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
@@ -21,8 +21,8 @@ internal static class CommunityPollService
 
     internal static async Task<List<Poll>> LoadAsync(Uri endpoint, CancellationToken cancellation, int? poll = null, int? option = null, string? language = null, string? action = null, string? answer = null)
     {
-        var participant = SupportIdentityService.Participant();
-        language ??= Localization.CommunityLanguage.IsGerman ? "de" : "en";
+        var participant = SupportIdentityClient.Participant();
+        language ??= Localization.LocalizationManager.Instance.Current.Keys.CultureName.StartsWith("de", StringComparison.OrdinalIgnoreCase) ? "de" : "en";
         var api = endpoint.AbsoluteUri + "?api=1&lang=" + (language == "de" ? "de" : "en");
         PollResponse? result;
         if (poll.HasValue)

@@ -51,40 +51,35 @@ public partial class MainWindow
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
         finally { _batchCancellation = null; if (!_closed) SetBatchBusy(false); }
     }
-    private async void ChooseBatchColumns(object? sender, RoutedEventArgs e)
+    private void ChooseBatchColumns(object? sender, RoutedEventArgs e)
     {
-        var panel = new StackPanel { Margin = new global::Avalonia.Thickness(16), Spacing = 8 };
-        foreach (var column in BatchResults.Columns)
+        var menu = new ContextMenu();
+        foreach (var column in BatchResults.Columns.OrderBy(column => column.DisplayIndex))
         {
-            var check = new CheckBox { Content = column.Header?.ToString(), IsChecked = column.IsVisible };
-            check.IsCheckedChanged += (_, _) => column.IsVisible = check.IsChecked == true;
-            panel.Children.Add(check);
+            var item = new MenuItem { Header = column.Header?.ToString(), ToggleType = MenuItemToggleType.CheckBox, IsChecked = column.IsVisible };
+            item.Click += (_, _) => column.IsVisible = item.IsChecked;
+            menu.Items.Add(item);
         }
-        var dialog = new Window { Title = _text.BatchTable_Columns, Width = 360, Height = 520, WindowStartupLocation = WindowStartupLocation.CenterOwner, Content = new ScrollViewer { Content = panel } };
-        dialog.RequestedThemeVariant = RequestedThemeVariant;
-        dialog.Styles.Add(new global::Avalonia.Markup.Xaml.Styling.StyleInclude(new Uri("avares://NxFileViewerFork.Avalonia/")) { Source = new Uri("avares://NxFileViewerFork.Avalonia/WorkspaceStyles.axaml") });
-        WpfTheme.Apply(dialog);
-        var close = new Button { Content = _text.MenuItem_Close }; close.Click += (_, _) => dialog.Close(); panel.Children.Add(close);
-        await dialog.ShowDialog(this);
+        if (sender is Control target) menu.Open(target);
     }
     private void ResetBatchColumns(object? sender, RoutedEventArgs e)
-    { for (var i = 0; i < BatchResults.Columns.Count; i++) { var column = BatchResults.Columns[i]; column.IsVisible = true; column.DisplayIndex = i; column.Width = new DataGridLength(i == 0 ? 260 : 150); } }
+    { for (var i = 0; i < BatchResults.Columns.Count; i++) { var column = BatchResults.Columns[i]; column.IsVisible = _defaultBatchColumns.GetValueOrDefault(column).Visible; column.DisplayIndex = i; column.Width = _defaultBatchColumns.GetValueOrDefault(column).Width; } }
     private async Task<RenameBatchRow[]> PrepareBatchNames(bool updateStatus)
     {
-        var rows = FilteredBatchRows(); var keys = _keysPath; var result = new List<RenameBatchRow>();
+        var rows = FilteredBatchRows().DistinctBy(row => row.Path).ToArray(); var keys = _keysPath; var result = new List<RenameBatchRow>();
         foreach (var row in rows)
         {
-            if (row.DisplayPath != row.Path) continue;
+            if (row.DisplayPath != row.Path || Emignatik.NxFileViewer.Services.Mtp.MtpDirectSource.IsDirect(row.Path)) continue;
             try
             {
                 var target = await Task.Run(() => GetRenameDestination(row.Path, CreateOfflineName(row.Path, keys, null)));
                 var info = new FileInfo(row.Path); var changed = !string.Equals(target, row.Path, StringComparison.OrdinalIgnoreCase);
                 var available = !File.Exists(target) && !Directory.Exists(target);
                 result.Add(new(row.Path, target, info.Length, info.LastWriteTimeUtc, changed ? available ? _text.RenamingTool_StatusSimulation : _text.RenamingTool_StatusError : _text.RenamingTool_StatusUnchanged, changed && available));
-                if (updateStatus) { var index = _batchRows.IndexOf(row); if (index >= 0) _batchRows[index] = row with { Naming = changed ? _text.BatchNaming_Differs : _text.BatchNaming_Matches }; }
+                if (updateStatus) { var index = Array.FindIndex(_batchRows.ToArray(), candidate => candidate.Path == row.Path); if (index >= 0) _batchRows[index] = row with { Naming = changed ? _text.BatchNaming_Differs : _text.BatchNaming_Matches, NewName = System.IO.Path.GetFileName(target), NamingError = "" }; }
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or LibHac.Common.LibHacException or LibHac.NSZ.NczFormatException or ZstdSharp.ZstdException)
-            { result.Add(new(row.Path, null, 0, default, _text.RenamingTool_StatusError, false) { Error = ex.Message }); var index = _batchRows.IndexOf(row); if (index >= 0) _batchRows[index] = row with { Naming = _text.BatchNaming_Error, Error = ex.Message }; }
+            { result.Add(new(row.Path, null, 0, default, _text.RenamingTool_StatusError, false) { Error = ex.Message }); var index = Array.FindIndex(_batchRows.ToArray(), candidate => candidate.Path == row.Path); if (index >= 0) _batchRows[index] = row with { Naming = _text.BatchNaming_Error, NamingError = ex.Message }; }
         }
         var collisions = result.Where(row => row.CanApply).GroupBy(row => row.Destination!, StringComparer.OrdinalIgnoreCase).Where(group => group.Count() > 1).Select(group => group.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
         RefreshBatchFilter();
@@ -95,6 +90,10 @@ public partial class MainWindow
     {
         if (_batchCancellation != null) return;
         _renameBatch = await PrepareBatchNames(true); if (_closed) return;
+        _settingRenameOverride = true;
+        RenameInputPath.Text = _renameBatch.Length + " · " + _text.BatchIntegrity_Title;
+        _settingRenameOverride = false;
+        _renameBatchSourcesOverride = _renameBatch.Select(row => row.Source).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         RenameBatchRows.ItemsSource = _renameBatch; RenameSimulation.IsChecked = true;
         RenameBatchApplyButton.IsEnabled = _renameBatch.Any(row => row.CanApply);
         RenameBatchStatus.Text = _renameBatch.Length.ToString("N0"); Workspace.SelectedItem = RenameTab;
@@ -102,7 +101,7 @@ public partial class MainWindow
     private async void MoveValidBatch(object? sender, RoutedEventArgs e)
     {
         if (_batchCancellation != null) return;
-        var rows = FilteredBatchRows().Where(row => row.Verified && row.Original && !row.HasError && row.DisplayPath == row.Path).ToArray();
+        var rows = FilteredBatchRows().DistinctBy(row => row.Path).Where(row => row.Verified && row.Original && !row.HasError && row.DisplayPath == row.Path && !Emignatik.NxFileViewer.Services.Mtp.MtpDirectSource.IsDirect(row.Path)).ToArray();
         if (rows.Length == 0) { StatusText.Text = _text.NcasIntegrity_Unchecked; return; }
         var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions { Title = _text.BatchIntegrity_MoveValid });
         if (folders.FirstOrDefault()?.TryGetLocalPath() is not { } folder) return;
@@ -113,7 +112,7 @@ public partial class MainWindow
                 var info = new FileInfo(row.Path);
                 if (!info.Exists || info.Length != row.Package?.Size || info.LastWriteTimeUtc.Ticks != row.Modified) throw new IOException("Source changed since verification: " + row.Path);
                 var destination = Path.Combine(folder, info.Name); File.Move(row.Path, destination, false);
-                var index = _batchRows.IndexOf(row); if (index >= 0) _batchRows[index] = row with { Path = destination, DisplayPath = destination };
+                var index = Array.FindIndex(_batchRows.ToArray(), candidate => candidate.Path == row.Path); if (index >= 0) _batchRows[index] = row with { Path = destination, DisplayPath = destination };
                 LogSession("INFO", row.Path + " → " + destination);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { StatusText.Text = ex.Message; LogSession("ERROR", ex.Message); }

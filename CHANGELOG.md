@@ -6,6 +6,27 @@ Changes specific to the separately deployed web service are recorded in `tools/f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.1-beta5] - 2026-11-22
+
+Changes since the 4.1.1-beta4 prerelease.
+
+### Added
+
+- Provide the first converted Avalonia applications: the viewer and standalone LogViewer. These are early beta versions; the conversion is still in progress, not all functions are implemented or tested, and full WPF feature parity is not yet available.
+- Include these early Avalonia beta applications in beta-tag releases for Windows (x64, x86, ARM64), Linux (x64, ARM64) and macOS (Intel x64, Apple Silicon ARM64), with standard and self-contained packages. Stable releases retain the Windows WPF packages.
+
+### Changed
+
+- Send enabled system reports every 90 days and after an application upgrade or a change in the reported system details. Explain the collected data in the selected language, use a visible 30-second confirmation countdown and preserve the current choice when the dialog closes. Offer disabled reporting again after an upgrade while keeping it disabled unless explicitly enabled.
+- Include application/build and system details in the protected report archive for reports submitted with or without GitHub sign-in, independently of the automatic system-report setting. Warn when the companion service does not confirm storage; in-app submissions require a configured reporting service.
+- Group release ZIP explanations by application, operating system and runtime variant. List architecture-only variants once with the `{Arch}` placeholder and the available architectures, and identify every Avalonia package as an early, incompletely tested beta.
+- Build Avalonia beta packages on Windows, Linux and macOS runners, preserve executable permissions in Unix ZIPs, and require all expected packages before publishing the release.
+
+### Fixed
+
+- Use Windows ZIP packaging in both Windows PowerShell 5.1 and PowerShell 7 instead of requiring a Unix `zip` command on Windows.
+- Prevent optional SDK Git-metadata queries from interrupting local Release builds on SMB shares or mapped network drives. CI source-control metadata and explicit build overrides remain enabled.
+
 ## [4.1.1-beta4] - 2026-11-21
 
 ### Added

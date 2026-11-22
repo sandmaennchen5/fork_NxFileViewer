@@ -14,20 +14,13 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  release:
-    name: Publish tagged release
-    runs-on: windows-latest
-    permissions:
-      contents: write
-    env:
-      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
-      GH_TOKEN: ${{ github.token }}
-      GH_REPO: ${{ github.repository }}
-
+  validate:
+    name: Validate release tag
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.tag.outputs.version }}
+      prerelease: ${{ steps.tag.outputs.prerelease }}
     steps:
-      - name: Checkout tag
-        uses: actions/checkout@v4
-
       - name: Validate release tag
         id: tag
         shell: pwsh
@@ -43,13 +36,78 @@ jobs:
           "version=$version" >> $env:GITHUB_OUTPUT
           "prerelease=$prerelease" >> $env:GITHUB_OUTPUT
 
+  avalonia:
+    name: Avalonia (${{ matrix.platform }})
+    needs: validate
+    if: needs.validate.outputs.prerelease == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: Windows
+            os: windows-latest
+            runtimes: '["win-x64", "win-x86", "win-arm64"]'
+          - platform: Linux
+            os: ubuntu-latest
+            runtimes: '["linux-x64", "linux-arm64"]'
+          - platform: macOS
+            os: macos-latest
+            runtimes: '["osx-x64", "osx-arm64"]'
+    runs-on: ${{ matrix.os }}
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@v7
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: src/global.json
+      - name: Build Avalonia packages
+        shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ needs.validate.outputs.version }}
+          RELEASE_RUNTIMES: ${{ matrix.runtimes }}
+        run: |
+          $runtimes = @($env:RELEASE_RUNTIMES | ConvertFrom-Json)
+          ./PublishAvalonia.ps1 -Version $env:RELEASE_VERSION -OutputDirectory Publish-Avalonia -RuntimeIdentifiers $runtimes -SkipFirmwareHashes
+      - name: Upload Avalonia packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-avalonia-${{ matrix.platform }}
+          path: Publish-Avalonia/*.zip
+          if-no-files-found: error
+          retention-days: 1
+
+  release:
+    name: Publish tagged release
+    needs: [validate, avalonia]
+    if: ${{ !cancelled() && needs.validate.result == 'success' && (needs.avalonia.result == 'success' || needs.avalonia.result == 'skipped') }}
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@v4
+
+      - name: Test Avalonia packaging
+        shell: pwsh
+        run: ./.github/scripts/Test-PublishAvalonia.ps1
+      - name: Test Avalonia packaging in Windows PowerShell 5.1
+        shell: powershell
+        run: ./.github/scripts/Test-PublishAvalonia.ps1
       - name: Test release ZIP guide
         shell: pwsh
         run: ./.github/scripts/Test-ReleaseAssetGuide.ps1
       - name: Prepare application version and changelog notes
         shell: pwsh
         env:
-          RELEASE_VERSION: ${{ steps.tag.outputs.version }}
+          RELEASE_VERSION: ${{ needs.validate.outputs.version }}
         run: ./.github/scripts/Prepare-Release.ps1 -Version $env:RELEASE_VERSION -NotesPath (Join-Path $env:RUNNER_TEMP 'release-notes.md')
       - name: Setup .NET 10
         uses: actions/setup-dotnet@v4
@@ -59,8 +117,33 @@ jobs:
       - name: Build release packages
         shell: pwsh
         env:
-          RELEASE_VERSION: ${{ steps.tag.outputs.version }}
+          RELEASE_VERSION: ${{ needs.validate.outputs.version }}
         run: ./Publish.ps1 -Version $env:RELEASE_VERSION -OutputDirectory Publish-Release
+
+      - name: Download Avalonia beta packages
+        if: needs.validate.outputs.prerelease == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-avalonia-*
+          path: Publish-Release
+          merge-multiple: true
+
+      - name: Verify Avalonia beta packages
+        if: needs.validate.outputs.prerelease == 'true'
+        shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          foreach ($app in @('NxFileViewerFork', 'NxFileViewerFork.LogViewer')) {
+              foreach ($platform in @('x64', 'x86', 'arm64', 'linux-x64', 'linux-arm64', 'osx-x64', 'osx-arm64')) {
+                  foreach ($variant in @('', '_self-contained')) {
+                      $name = "${app}_Avalonia_v$($env:RELEASE_VERSION)${variant}_${platform}.zip"
+                      if (!(Test-Path -LiteralPath (Join-Path Publish-Release $name) -PathType Leaf)) {
+                          throw "Missing Avalonia beta package: $name"
+                      }
+                  }
+              }
+          }
 
       - name: Verify WPF ARM64 packages
         shell: pwsh
@@ -80,15 +163,15 @@ jobs:
       - name: Append ZIP download guide
         shell: pwsh
         env:
-          RELEASE_VERSION: ${{ steps.tag.outputs.version }}
+          RELEASE_VERSION: ${{ needs.validate.outputs.version }}
         run: ./.github/scripts/Add-ReleaseAssetGuide.ps1 -Version $env:RELEASE_VERSION -PackageDirectory Publish-Release -NotesPath (Join-Path $env:RUNNER_TEMP 'release-notes.md')
 
       - name: Create release with packages
         shell: pwsh
         env:
           RELEASE_TAG: ${{ github.ref_name }}
-          RELEASE_VERSION: ${{ steps.tag.outputs.version }}
-          RELEASE_PRERELEASE: ${{ steps.tag.outputs.prerelease }}
+          RELEASE_VERSION: ${{ needs.validate.outputs.version }}
+          RELEASE_PRERELEASE: ${{ needs.validate.outputs.prerelease }}
         run: |
           $ErrorActionPreference = 'Stop'
           $packages = @(Get-ChildItem -LiteralPath Publish-Release -Filter '*.zip' -File | ForEach-Object FullName)

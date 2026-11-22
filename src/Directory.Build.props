@@ -1,5 +1,8 @@
 <Project>
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <!-- Local SMB/mapped-drive builds can fail while the SDK reads optional Git
+         metadata. Keep CI SourceLink/provenance and explicit caller overrides. -->
+    <EnableSourceControlManagerQueries Condition="'$(EnableSourceControlManagerQueries)' == '' and '$(CI)' != 'true' and '$(GITHUB_ACTIONS)' != 'true'">false</EnableSourceControlManagerQueries>
     <!-- Keep file names and line numbers without embedding the checkout location. -->
     <PathMap Condition="'$(PathMap)' != ''">$(PathMap),$(MSBuildThisFileDirectory)..\=/_/NxFileViewer/</PathMap>
     <PathMap Condition="'$(PathMap)' == ''">$(MSBuildThisFileDirectory)..\=/_/NxFileViewer/</PathMap>

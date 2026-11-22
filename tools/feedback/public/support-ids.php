@@ -54,13 +54,13 @@ try {
 <p><?=webT('Eine fehlende Statistikmeldung bedeutet nicht automatisch „deaktiviert“: Das Programm kann länger nicht gestartet worden oder offline sein. Die tatsächliche Einstellung wird nicht gemeldet.')?></p>
 <?php if ($overview['unmapped_usage'] > 0): ?><p><?= $overview['unmapped_usage'] ?><?=webT(' ältere Statistikkennungen haben noch keine registrierte öffentliche Support-ID. Sie zählen hier nicht als Support-ID. Bei ihrer nächsten Statistikmeldung wird die Zuordnung ergänzt.')?></p><?php endif ?>
 <form method="get">
-<label><?=webT('Support-ID, interne Kennung oder Name')?><br><input name="q" maxlength="200" value="<?= supportIdEscape($search) ?>"></label>
+<label><?=webT('Support-ID oder Name')?><br><input name="q" maxlength="200" value="<?= supportIdEscape($search) ?>"></label>
 <label><?=webT('Nutzungsstatistik')?><br><select name="usage"><?php foreach (['all'=>webT('Alle'), 'reported'=>webT('Mindestens eine Meldung'), 'active'=>strtr(webT('Meldung in {days} Tagen'),['{days}'=>(string)$days]), 'inactive'=>strtr(webT('Letzte Meldung älter als {days} Tage'),['{days}'=>(string)$days]), 'never'=>webT('Noch keine Meldung')] as $value=>$text): ?><option value="<?= $value ?>" <?= $filter===$value?'selected':'' ?>><?= supportIdEscape($text) ?></option><?php endforeach ?></select></label>
 <button><?=webT('Filtern')?></button><a href="/admin/support/ids"><?=webT('Zurücksetzen')?></a></form>
 <p><?= $result['total'] ?><?=webT(' passende Support-ID(s), Seite ')?><?= $page ?><?=webT('. Bis zu 100 IDs pro Seite.')?></p>
-<div class="table-scroll"><table><thead><tr><th><?=webT('Support-ID / interne Kennung')?></th><th>Name</th><th><?=webT('Erstmals registriert (UTC)')?></th><th><?=webT('Letzter Kontakt (UTC)')?></th><th>Issues</th><th><?=webT('Nutzungsstatistik')?></th><th><?=webT('Letzte gemeldete Umgebung')?></th></tr></thead><tbody>
+<div class="table-scroll"><table><thead><tr><th>Support-ID</th><th>Name</th><th><?=webT('Erstmals registriert (UTC)')?></th><th><?=webT('Letzter Kontakt (UTC)')?></th><th>Issues</th><th><?=webT('Nutzungsstatistik')?></th><th><?=webT('Letzte gemeldete Umgebung')?></th></tr></thead><tbody>
 <?php foreach ($result['rows'] as $row): ?>
-<tr><td><a href="/admin/support?q=<?= rawurlencode($row['support_id']) ?>"><?= supportIdEscape($row['support_id']) ?></a><br><code><?= supportIdEscape($row['internal_id']) ?></code></td>
+<tr><td><a href="/admin/support?q=<?= rawurlencode($row['support_id']) ?>"><?= supportIdEscape($row['support_id']) ?></a></td>
 <td><?= supportIdEscape($row['display_name']) ?></td><td><?= gmdate('Y-m-d H:i:s',(int)$row['created_at']) ?></td><td><?= gmdate('Y-m-d H:i:s',(int)$row['updated_at']) ?></td>
 <td><?= (int)$row['issue_count'] ?></td>
 <td><?php if ($row['last_seen'] === null): ?><?=webT('Noch keine Meldung')?><?php else: ?><?= (int)$row['last_seen'] >= $cutoff ? strtr(webT('Meldung in {days} Tagen'),['{days}'=>(string)$days]) : webT('Keine aktuelle Meldung') ?><br><?= gmdate('Y-m-d H:i:s',(int)$row['last_seen']) ?> UTC<?php endif ?></td>

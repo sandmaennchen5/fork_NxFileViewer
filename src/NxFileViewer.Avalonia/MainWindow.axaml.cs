@@ -48,6 +48,7 @@ public partial class MainWindow : Window
                 screen.WorkingArea.X + Math.Max(0, (screen.WorkingArea.Width - (int)(Width * screen.Scaling)) / 2),
                 screen.WorkingArea.Y + Math.Max(0, (screen.WorkingArea.Height - (int)(Height * screen.Scaling)) / 2));
         };
+        Opened += async (_, _) => await ConfirmSystemReport();
         ActualThemeVariantChanged += (_, _) => WpfTheme.Apply(this);
         WpfTheme.Apply(this);
         InitializePreferences();
@@ -63,6 +64,9 @@ public partial class MainWindow : Window
         {
             _closed = true;
             _batchCancellation?.Cancel();
+            _nandCancellation?.Cancel();
+            _mtpCancellation?.Cancel();
+            _mtpImport?.Cleanup();
             _renameBatchCancellation?.Cancel();
             _firmwareCancellation?.Cancel();
             _extractionCancellation?.Cancel();
@@ -75,7 +79,7 @@ public partial class MainWindow : Window
         };
     }
 
-    internal async Task OpenFileAsync(string path)
+    internal async Task OpenFileAsync(string path, bool fromWindows = false)
     {
         var version = ++_openVersion;
         ResetFileVerification();
@@ -109,7 +113,7 @@ public partial class MainWindow : Window
             Workspace.SelectedIndex = 1;
             StatusText.Text = FileNameText.Text;
             LogSession("INFO", package.Path);
-            if (_verifyOnOpen) VerifyOpenedFile(this, new RoutedEventArgs());
+            if (fromWindows ? _preferences.SharedSettings.VerifyFilesOpenedFromWindows : _verifyOnOpen) VerifyOpenedFile(this, new RoutedEventArgs());
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException or LibHac.Common.LibHacException or LibHac.NSZ.NczFormatException or ZstdSharp.ZstdException)
         {
@@ -160,6 +164,7 @@ public partial class MainWindow : Window
         ResetFileVerification();
         ResetNcaContents();
         _openedPath = null;
+        RefreshHome();
         FileBody.IsVisible = false;
         FileEmpty.IsVisible = true;
         Entries.ItemsSource = null;

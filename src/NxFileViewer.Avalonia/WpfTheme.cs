@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Xml.Linq;
+using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Styling;
@@ -11,6 +12,8 @@ internal static class WpfTheme
 {
     internal static void Apply(Window window)
     {
+        if (!window.Styles.OfType<global::Avalonia.Markup.Xaml.Styling.StyleInclude>().Any(style => style.Source?.AbsolutePath.EndsWith("/WorkspaceStyles.axaml", StringComparison.Ordinal) == true))
+            window.Styles.Add(new global::Avalonia.Markup.Xaml.Styling.StyleInclude(new Uri("avares://NxFileViewerFork.Avalonia/")) { Source = new Uri("avares://NxFileViewerFork.Avalonia/WorkspaceStyles.axaml") });
         var theme = window.ActualThemeVariant == ThemeVariant.Dark ? "Dark" : "Light";
         using var stream = typeof(WpfTheme).Assembly.GetManifestResourceStream("Viewer.Theme." + theme)
             ?? throw new InvalidOperationException("The shared WPF theme is missing.");

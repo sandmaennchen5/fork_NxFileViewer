@@ -10,6 +10,40 @@ namespace Emignatik.NxFileViewer.Test.Services.Nand;
 
 public sealed class NandExplorerTest
 {
+    [Fact]
+    public void ExportsRawPartitionBytesAndRejectsOutOfBoundsRanges()
+    {
+        var image = Enumerable.Range(0, 0x10000).Select(value => (byte)value).ToArray();
+        WithImage(image, path =>
+        {
+            using var reader = new NandExplorer(path, TestContext.Current.CancellationToken);
+            using var output = new MemoryStream();
+            reader.ExportPartition(new("USER", 511, 1025), output);
+            Assert.Equal(image.AsSpan(511, 1025).ToArray(), output.ToArray());
+            Assert.Equal(image, File.ReadAllBytes(path));
+            foreach (var invalid in new[] { new NandExplorerPartition("USER", -1, 1), new("USER", 0, -1), new("USER", image.Length - 1, 2), new("USER", long.MaxValue, 1) })
+            {
+                using var rejected = new MemoryStream();
+                Assert.Throws<InvalidDataException>(() => reader.ExportPartition(invalid, rejected));
+                Assert.Equal(0, rejected.Length);
+            }
+        });
+    }
+
+    [Fact]
+    public void RawPartitionExportHonorsCancellationBeforeWriting()
+    {
+        WithImage(new byte[4096], path =>
+        {
+            using var cancellation = new System.Threading.CancellationTokenSource();
+            using var reader = new NandExplorer(path, cancellation.Token);
+            using var output = new MemoryStream();
+            cancellation.Cancel();
+            Assert.Throws<OperationCanceledException>(() => reader.ExportPartition(new("USER", 0, 512), output));
+            Assert.Equal(0, output.Length);
+        });
+    }
+
     private static byte[] FatImage()
     {
         var image = new byte[0x10000];

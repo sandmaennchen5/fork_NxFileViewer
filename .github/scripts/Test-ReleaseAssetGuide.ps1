@@ -59,15 +59,19 @@ try {
     $standard = $text.IndexOf('Viewer: requires .NET 10 Desktop Runtime')
     Assert ($contained -ge 0 -and $standard -gt $contained) 'Runtime group headings missing.'
     foreach ($package in $full.Packages) {
-        $position = $text.IndexOf($package.AssetName)
+        $pattern = $package.AssetName -replace '([_-])(x64|x86|arm64)(?=\.zip$)', '${1}{Arch}'
+        $position = $text.IndexOf($pattern)
         if ($package.SelfContained) {
             Assert ($position -gt $contained -and $position -lt $standard) 'Self-contained package in wrong group.'
         } else { Assert ($position -gt $standard) 'Standard package in wrong group.' }
     }
     foreach ($file in (Get-ChildItem -LiteralPath $full.Output -Filter '*.zip')) {
-        Assert ([regex]::Matches($text, [regex]::Escape($file.Name)).Count -eq 1) "ZIP not explained exactly once: $($file.Name)"
+        $pattern = $file.Name -replace '([_-])(x64|x86|arm64)(?=(_setup)?\.zip$)', '${1}{Arch}'
+        Assert ([regex]::Matches($text, [regex]::Escape($pattern)).Count -eq 1) "ZIP pattern not explained exactly once: $pattern"
     }
-    Assert ($text.Contains('Explorer_1.0.2.0_arm64_setup.zip')) 'Independent Explorer version missing.'
+    Assert ($text.Contains('Explorer_1.0.2.0_{Arch}_setup.zip')) 'Independent Explorer version missing.'
+    Assert ([regex]::Matches($text, '(?m)^- `').Count -eq 8) 'Architecture-only variants were not grouped.'
+    Assert ($text.Contains('{Arch}: x64, x86, arm64.')) 'Architecture legend missing.'
     Assert ($text.Contains('Legacy transition updaters')) 'Legacy explanation missing.'
     Assert ($text.Contains('standalone LogViewer')) 'LogViewer explanation missing.'
     Assert ($text.Contains('offline firmware hash references')) 'Firmware explanation missing.'
@@ -87,6 +91,26 @@ try {
     $future = Fixture 'runtime11' $false 11
     Run-Guide $future
     Assert ([IO.File]::ReadAllText($future.Notes).Contains('requires .NET 11 Desktop Runtime')) 'Runtime version hard-coded.'
+    $script:checks++
+
+    $beta = Fixture 'avalonia'
+    foreach ($app in @('NxFileViewerFork', 'NxFileViewerFork.LogViewer')) {
+        foreach ($rid in @('x64', 'x86', 'arm64', 'linux-x64', 'linux-arm64', 'osx-x64', 'osx-arm64')) {
+            foreach ($variant in @('', '_self-contained')) {
+                [IO.File]::WriteAllBytes((Join-Path $beta.Output "${app}_Avalonia_v$($beta.Version)${variant}_${rid}.zip"), [byte[]]@())
+            }
+        }
+    }
+    Run-Guide $beta
+    $betaText = [IO.File]::ReadAllText($beta.Notes)
+    Assert ($betaText.Contains('Avalonia beta: Windows, Linux and macOS')) 'Avalonia platform guide missing.'
+    foreach ($file in (Get-ChildItem -LiteralPath $beta.Output -Filter '*_Avalonia_*.zip')) {
+        $pattern = $file.Name -replace '([_-])(x64|x86|arm64)(?=\.zip$)', '${1}{Arch}'
+        Assert ([regex]::Matches($betaText, [regex]::Escape($pattern)).Count -eq 1) "Avalonia ZIP pattern not explained exactly once: $pattern"
+    }
+    Assert ($betaText.Contains('All Avalonia packages (viewer and LogViewer, on every operating system) are early beta versions. Not all features are implemented or tested yet.')) 'Early-beta notice missing.'
+    Assert ([regex]::Matches($betaText, '(?m)^- `').Count -eq 20) 'Avalonia architecture variants were not grouped.'
+    Assert ($betaText.Contains('_linux-{Arch}.zip') -and $betaText.Contains('_osx-{Arch}.zip')) 'Operating systems were merged.'
     $script:checks++
 
     $missing = Fixture 'missing'

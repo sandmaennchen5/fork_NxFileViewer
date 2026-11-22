@@ -351,6 +351,8 @@ public class AppSettings : NotifyPropertyChangedBase, IAppSettings
     }
     public bool UsageStatisticsChoiceConfirmed { get; set; } = DefaultSettings.Get<bool>("Settings", "UsageStatisticsChoiceConfirmed");
 
+    public string UsageStatisticsChoiceVersion { get; set; } = "";
+
     private bool _sendAnonymousUsageStatistics = DefaultSettings.Get<bool>("Settings", "SendAnonymousUsageStatistics");
     public bool SendAnonymousUsageStatistics
     {

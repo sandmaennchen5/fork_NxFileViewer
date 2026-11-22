@@ -19,9 +19,16 @@ function feedbackSchema(PDO $db): void {
         created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
         CREATE INDEX IF NOT EXISTS feedback_due ON feedback_queue(status,next_attempt);
         CREATE INDEX IF NOT EXISTS feedback_created ON feedback_queue(created_at)");
+    $db->exec(databaseSql($db,
+        "CREATE TABLE IF NOT EXISTS feedback_system_details (ticket TEXT PRIMARY KEY, details TEXT NOT NULL)",
+        "CREATE TABLE IF NOT EXISTS feedback_system_details (".databaseTables()['feedback_system_details'].") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin"));
 }
 function feedbackFind(PDO $db,string $ticket): ?array {
     return feedbackQuery($db,'SELECT * FROM feedback_queue WHERE ticket=?',[$ticket])->fetch(PDO::FETCH_ASSOC)?:null;
+}
+function feedbackSystemDetails(PDO $db,string $ticket): ?string {
+    $details=feedbackQuery($db,'SELECT details FROM feedback_system_details WHERE ticket=?',[$ticket])->fetchColumn();
+    return $details===false?null:$details;
 }
 function feedbackMarker(string $ticket): string {return '<!-- nx-feedback:'.$ticket.' -->';}
 function feedbackCredential(array $config,string $token): string {
@@ -33,11 +40,13 @@ function feedbackUnlock(array $config,string $encrypted): string {
     $token=openssl_decrypt(substr($raw,28),'aes-256-gcm',adminCryptoKey($config,'feedback-queue'),OPENSSL_RAW_DATA,substr($raw,0,12),substr($raw,12,16));
     if($token===false)throw new RuntimeException('Credential unavailable');return $token;
 }
-function feedbackStore(PDO $db,string $ticket,string $requestKey,string $mode,string $title,string $body,?array $profile,string $name,?array $log): array {
+function feedbackStore(PDO $db,string $ticket,string $requestKey,string $mode,string $title,string $body,?array $profile,string $name,?array $log,?string $systemDetails=null): array {
     $db->beginTransaction();
     try{
         feedbackQuery($db,'INSERT INTO feedback_queue (ticket,request_key,mode,title,body,internal_id,support_id,display_name,status,next_attempt,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
             [$ticket,$requestKey,$mode,$title,$body,$profile['internalId']??null,$profile['supportId']??'',$name,$mode==='github'?'awaiting_auth':'queued',time(),time(),time()]);
+        if($systemDetails!==null)
+            feedbackQuery($db,'INSERT INTO feedback_system_details (ticket,details) VALUES (?,?)',[$ticket,$systemDetails]);
         privateLogSave($db,$ticket,$log);$db->commit();return feedbackFind($db,$ticket);
     }catch(Throwable $error){if($db->inTransaction())$db->rollBack();throw $error;}
 }

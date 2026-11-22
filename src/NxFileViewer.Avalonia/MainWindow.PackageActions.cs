@@ -18,10 +18,10 @@ public partial class MainWindow
         if (_batchCancellation != null || (sender as Button)?.Tag is not string action) return;
         if (action is "Compress" or "Decompress" ? !_preferences.NszActive : !_preferences.PackageOperationsActive)
         { StatusText.Text = action is "Compress" or "Decompress" ? _text.Features_PluginsDisabled : _text.Features_PackageOperationsDisabled; return; }
-        var rows = FilteredBatchRows().Where(row => !row.HasError && row.Package?.Type is "NSP" or "NSZ" or "XCI" or "XCZ").ToArray();
+        var rows = FilteredBatchRows().DistinctBy(row => row.Path).Where(row => !Emignatik.NxFileViewer.Services.Mtp.MtpDirectSource.IsDirect(row.Path)).Where(row => !row.HasError && row.Package?.Type is "NSP" or "NSZ" or "XCI" or "XCZ").ToArray();
         rows = action switch { "Compress" => rows.Where(row => row.FileType is "NSP" or "XCI").ToArray(), "Decompress" => rows.Where(row => row.FileType is "NSZ" or "XCZ").ToArray(), _ => rows };
         if (rows.Length == 0) return;
-        if (!File.Exists(_keysPath) || !File.Exists(action is "Compress" or "Decompress" && _preferences.CompressionEngine == 1 ? _preferences.NszCliPath : RustBackendPath.Text)) { StatusText.Text = !File.Exists(_keysPath) ? _text.Nsz_KeysMissing : _text.Package_Missing; return; }
+        if (!File.Exists(_keysPath) || !(action is "Compress" or "Decompress" ? File.Exists(_preferences.CompressionEngine is 1 or 3 ? _preferences.NszCliPath : RustBackendPath.Text) || _preferences.CompressionEngine is 2 or 3 && File.Exists(_preferences.CompressionEngine == 2 ? _preferences.NszCliPath : RustBackendPath.Text) : File.Exists(RustBackendPath.Text))) { StatusText.Text = !File.Exists(_keysPath) ? _text.Nsz_KeysMissing : _text.Package_Missing; return; }
         var outputMode = _preferences.OutputModes?.GetValueOrDefault(action, 1) ?? 1;
         var initialFolder = outputMode == 2 ? _preferences.CustomOutputFolder : Path.GetDirectoryName(rows[0].DisplayPath.Split(" :: ")[0]);
         var suggested = !string.IsNullOrWhiteSpace(initialFolder) && Directory.Exists(initialFolder) ? await StorageProvider.TryGetFolderFromPathAsync(new Uri(Path.GetFullPath(initialFolder))) : null;
@@ -29,8 +29,8 @@ public partial class MainWindow
         if (folders.FirstOrDefault()?.TryGetLocalPath() is not { } destination || _closed) return;
         if (outputMode == 1) destination = Path.Combine(destination, action);
         using var cancellation = new CancellationTokenSource(); _batchCancellation = cancellation; SetBatchBusy(true);
-        var executable = Path.GetFullPath(action is "Compress" or "Decompress" && _preferences.CompressionEngine == 1 ? _preferences.NszCliPath! : RustBackendPath.Text!); var keys = Path.GetFullPath(_keysPath!); var preferences = _preferences;
-        var progress = new Progress<string>(message => { if (!_closed) { StatusText.Text = message; LogSession("INFO", message, action is "Compress" or "Decompress" && preferences.CompressionEngine == 1 ? "NSZ" : "PACKAGE"); } });
+        var executable = Path.GetFullPath(string.IsNullOrWhiteSpace(RustBackendPath.Text) ? Path.Combine(AppContext.BaseDirectory, "nscb_rust.exe") : RustBackendPath.Text); var keys = Path.GetFullPath(_keysPath!); var preferences = _preferences;
+        var progress = new Progress<string>(message => { if (!_closed) { StatusText.Text = message; LogSession("INFO", message, action is "Compress" or "Decompress" && preferences.CompressionEngine is 1 or 3 ? "NSZ" : "PACKAGE"); } });
         try
         {
             var groups = action == "Merge" ? new[] { rows.Select(row => row.Path).ToArray() } : rows.Select(row => new[] { row.Path }).ToArray();
@@ -126,17 +126,38 @@ public partial class MainWindow
     }
     private static void ConvertWithRust(string source, string output, string executable, string keys, NszOperation operation, ViewerPreferences preferences, IProgress<string> progress, CancellationToken token)
     {
-        using var alias = new NszInputAlias(source, output, keys, token);
-        var useNsz = preferences.CompressionEngine == 1;
-        var engine = useNsz ? Path.GetFullPath(preferences.NszCliPath ?? throw new FileNotFoundException("NSZ CLI")) : executable;
-        var args = useNsz ? NszCommandArguments.BuildArguments(alias.SourceArgument, ".", alias.KeysArgument, operation, preferences.CompressionLevel, (NszCompressionMode)preferences.CompressionMode, preferences.CompressionBlockSize, true) : NszCommandArguments.BuildRustArguments(alias.SourceArgument, ".", alias.KeysArgument, preferences.CompressionLevel, operation);
-        NszProcess.Run(engine, args, output, token, update => progress.Report(update.Details));
-        alias.RestoreOutputName(operation);
-        if (Path.GetExtension(source).ToLowerInvariant() is ".xci" or ".xcz")
+        var primaryNsz = preferences.CompressionEngine is 1 or 3;
+        var attempts = preferences.CompressionEngine is 2 or 3 ? new[] { primaryNsz, !primaryNsz } : new[] { primaryNsz };
+        for (var index = 0; index < attempts.Length; index++)
         {
-            var target = Path.Combine(output, Path.GetFileNameWithoutExtension(source) + (operation == NszOperation.Compress ? ".xcz" : ".xci"));
-            XciPartitionIntegrity.PreserveStagedPrefix(source, target, token);
-            if (operation == NszOperation.Decompress) { XciPartitionIntegrity.CorrectStagedLayout(source, target, token); XciPartitionIntegrity.NormalizeStagedGamecardHeader(target, token); }
+            token.ThrowIfCancellationRequested();
+            var attempt = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(output))!, ".nxfv-engine-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(attempt);
+            try
+            {
+                var engine = attempts[index] ? preferences.NszCliPath : executable;
+                if (string.IsNullOrWhiteSpace(engine) || !File.Exists(engine)) throw new FileNotFoundException("Compression engine not installed.", engine);
+                {
+                    using var alias = new NszInputAlias(source, attempt, keys, token);
+                    var args = attempts[index] ? NszCommandArguments.BuildArguments(alias.SourceArgument, ".", alias.KeysArgument, operation, preferences.CompressionLevel, (NszCompressionMode)preferences.CompressionMode, preferences.CompressionBlockSize, true) : NszCommandArguments.BuildRustArguments(alias.SourceArgument, ".", alias.KeysArgument, preferences.CompressionLevel, operation);
+                    NszProcess.Run(Path.GetFullPath(engine), args, attempt, token, update => progress.Report(update.Details));
+                    alias.RestoreOutputName(operation);
+                }
+                if (Path.GetExtension(source).ToLowerInvariant() is ".xci" or ".xcz")
+                {
+                    var target = Path.Combine(attempt, Path.GetFileNameWithoutExtension(source) + (operation == NszOperation.Compress ? ".xcz" : ".xci"));
+                    XciPartitionIntegrity.PreserveStagedPrefix(source, target, token);
+                    if (operation == NszOperation.Decompress) { XciPartitionIntegrity.CorrectStagedLayout(source, target, token); XciPartitionIntegrity.NormalizeStagedGamecardHeader(target, token); }
+                }
+                var files = Directory.GetFiles(attempt);
+                if (files.Length != 1) throw new InvalidDataException("Unexpected compression output count.");
+                token.ThrowIfCancellationRequested();
+                File.Move(files[0], Path.Combine(output, Path.GetFileName(files[0])), false);
+                return;
+            }
+            catch (Exception ex) when (index + 1 < attempts.Length && !token.IsCancellationRequested && ex is IOException or System.ComponentModel.Win32Exception)
+            { progress.Report(ex.Message + " · Backup: " + (attempts[index + 1] ? "nicoboss/nsz" : "nscb_rust")); }
+            finally { if (Directory.Exists(attempt)) Directory.Delete(attempt, true); }
         }
     }
 }

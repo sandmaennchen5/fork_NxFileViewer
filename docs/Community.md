@@ -1,4 +1,4 @@
-# Feedback, polls and usage statistics
+# Feedback, polls and system reports
 
 [Documentation index](README.md) · [Logging](Logging.md) · [Application updates](Application-updates.md)
 
@@ -13,6 +13,8 @@ reproduce it, or explain the desired feature. The published issue is public: rem
 personal information from its title and description.
 
 Choose GitHub authorization in the browser or report without a GitHub account.
+Submitting a report from the app requires a reachable reporting service. Reports with or without GitHub sign-in include system details in the protected admin archive, independently of the system reports setting. You can also create an issue manually on GitHub outside the app.
+
 An optional name for unsigned reports is public. The app shows its stable public
 **Support ID**; you can copy it or search your GitHub issues by that ID. Both report
 methods include it. Browser authorization confirms each report; the app does not
@@ -67,22 +69,24 @@ The app uses its stable installation-derived identity; browsers use a separate
 session identity, so they do not share a vote or refusal. Changing language does
 not change either identity.
 
-## Usage statistics
+## System reports
 
 The first-start explanation appears when no valid choice is saved. It describes
-what is collected and its purpose. Reporting is enabled by default: **Keep enabled**,
-closing the dialog, Esc and expiry of the visible ten-second countdown all save the
+which system details are collected for compatibility testing and update planning.
+The statistics show which operating systems, architectures, .NET runtimes and
+app versions are in use. The app does not track time spent using it. Reporting is enabled by default: **Keep enabled**,
+closing the dialog, Esc and expiry of the visible 30-second countdown all save the
 enabled choice. **Disable** saves a disabled choice. The setting remains editable
-under Settings → Program; a saved choice is not replaced on later starts.
+under Settings → Program through **Disable system report**. If reporting is disabled, the first launch after an upgrade shows the dialog again. Closing it, pressing Esc or letting the countdown expire keeps reporting disabled.
 
 At startup, enabled reporting sends an installation-derived identity, app/build
 version, OS/platform, process and OS architecture, WPF/Avalonia identifier, runtime
-distribution/version and runtime ID. It sends at most once per UTC day and immediately
-after a build-version change. An offline service does not prevent normal startup.
+distribution/version and runtime ID. It sends every 90 days and at the first startup
+after an upgrade or a change in the reported system details. An offline service does not prevent normal startup.
 The WPF client currently uses a locally derived Windows-installation identity;
 no raw Windows ID is uploaded. The stable identity is technically pseudonymous and
 can be linked internally to support reports. Names, file paths/content and session
-logs are not part of usage reporting.
+logs are not part of system reporting.
 
 The service aggregates active identities over a configurable period (for example
 30, 60, 90 or 120 days). Public badges and charts show totals, distributions and

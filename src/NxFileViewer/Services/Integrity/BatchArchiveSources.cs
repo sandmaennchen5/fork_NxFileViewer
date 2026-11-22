@@ -12,10 +12,10 @@ public static class BatchArchiveSources
 {
     public sealed record Source(string Path, string DisplayPath);
     public static bool IsPackage(string path) => new[] { ".nsp", ".nsz", ".xci", ".xcz", ".nca", ".ncz", ".nro" }.Contains(Path.GetExtension(path).ToLowerInvariant());
-    public static IEnumerable<Source> Enumerate(string source, bool recursive, bool includeArchives, string cacheDirectory, CancellationToken token)
+    public static IEnumerable<Source> Enumerate(string source, bool recursive, bool includeArchives, string cacheDirectory, CancellationToken token, IEnumerable<string>? inputPaths = null)
     {
         var cacheRoot = Path.GetFullPath(cacheDirectory).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
-        var paths = Directory.Exists(source) ? Directory.EnumerateFiles(source, "*", new EnumerationOptions { RecurseSubdirectories = recursive, IgnoreInaccessible = true }) : new[] { source };
+        var paths = inputPaths ?? (Directory.Exists(source) ? Directory.EnumerateFiles(source, "*", new EnumerationOptions { RecurseSubdirectories = recursive, IgnoreInaccessible = true }) : new[] { source });
         foreach (var path in paths)
         {
             token.ThrowIfCancellationRequested();

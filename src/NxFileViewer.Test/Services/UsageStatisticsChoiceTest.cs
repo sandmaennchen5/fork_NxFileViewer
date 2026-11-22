@@ -40,6 +40,27 @@ public sealed class UsageStatisticsChoiceTest
         Assert.Equal(enabled, reopened.SendAnonymousUsageStatistics);
     }
 
+    [Theory]
+    [InlineData(false, true, "4.1.1-beta4", "4.1.1-beta4", true)]
+    [InlineData(true, true, "4.1.1-beta4", "4.1.1-beta5", false)]
+    [InlineData(true, false, "", "4.1.1-beta4", true)]
+    [InlineData(true, false, "4.1.1-beta4+old", "4.1.1-beta4+new", false)]
+    [InlineData(true, false, "4.1.1-beta4", "4.1.1-beta5", true)]
+    [InlineData(true, false, "4.1.1-beta5", "4.1.1-beta4", false)]
+    public void DisabledSystemReportsAreOfferedAgainAfterAnUpgrade(
+        bool confirmed, bool enabled, string choiceVersion, string currentVersion, bool expected)
+    {
+        var saved = JsonSerializer.Serialize(new AppSettings
+        {
+            UsageStatisticsChoiceConfirmed = confirmed,
+            SendAnonymousUsageStatistics = enabled,
+            UsageStatisticsChoiceVersion = choiceVersion
+        });
+        var reopened = JsonSerializer.Deserialize<AppSettings>(saved)!;
+
+        Assert.Equal(expected, AppSettingsManager.ShouldConfirmSystemReport(reopened, currentVersion));
+    }
+
     [Fact]
     public void AutomaticallySavedDefaultsStillRequireConfirmation()
     {

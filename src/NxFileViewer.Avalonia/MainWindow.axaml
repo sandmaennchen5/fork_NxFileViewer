@@ -1,4 +1,3 @@
-<?xml version="1.0" encoding="utf-8"?>
 <Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="NxFileViewer.Avalonia.MainWindow" Title="NxFileViewer Fork · Avalonia" Icon="/Icons/Icon.ico" Width="1400" Height="850" MinWidth="1000" MinHeight="600" DragDrop.AllowDrop="True">
   <Window.Styles>
     <StyleInclude Source="/WorkspaceStyles.axaml" />
@@ -45,7 +44,12 @@
                   <TextBlock Text="{Binding RenamingTool_WindowTitle}" VerticalAlignment="Center" />
                 </StackPanel>
               </Button>
-<Button Classes="home-navigation" Tag="NandTab" Click="NavigateWorkspace"><StackPanel Orientation="Horizontal" Spacing="12"><Image x:Name="HomeNandIcon" Width="24" Height="20"/><TextBlock Text="NAND" VerticalAlignment="Center"/></StackPanel></Button>
+              <Button Classes="home-navigation" Tag="NandTab" Click="NavigateWorkspace">
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                  <Image x:Name="HomeNandIcon" Width="24" Height="20" />
+                  <TextBlock Text="NAND" VerticalAlignment="Center" />
+                </StackPanel>
+              </Button>
               <Button Classes="home-navigation" Tag="SettingsTab" Click="NavigateWorkspace">
                 <StackPanel Orientation="Horizontal" Spacing="12">
                   <Image Source="/Icons/settings_16x16.png" Width="20" Height="20" />
@@ -72,14 +76,20 @@
                 <WrapPanel HorizontalAlignment="Center">
                   <Button x:Name="HomeNandLaunch" Classes="plugin-launch" Tag="NAND" Click="LaunchPlugin" ToolTip.Tip="{Binding Home_NandLaunchTip}">
                     <StackPanel Spacing="4">
-                      <StackPanel Orientation="Horizontal" Spacing="8"><Image x:Name="NandPluginIcon" Width="26" Height="23"/><TextBlock Text="NxNandManager" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/></StackPanel>
+                      <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Image x:Name="NandPluginIcon" Width="26" Height="23" />
+                        <TextBlock Text="NxNandManager" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center" />
+                      </StackPanel>
                       <TextBlock Text="{Binding Home_NandDescription}" TextWrapping="Wrap" FontSize="12" />
                       <TextBlock Text="{Binding Home_LaunchExternal}" FontWeight="SemiBold" />
                     </StackPanel>
                   </Button>
                   <Button x:Name="HomeNszLaunch" Classes="plugin-launch" Tag="NSZ" Click="LaunchPlugin" ToolTip.Tip="{Binding Home_NszLaunchTip}">
                     <StackPanel Spacing="4">
-                      <StackPanel Orientation="Horizontal" Spacing="8"><Image x:Name="NszPluginIcon" Width="24" Height="26"/><TextBlock Text="NSZ" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/></StackPanel>
+                      <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Image x:Name="NszPluginIcon" Width="24" Height="26" />
+                        <TextBlock Text="NSZ" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center" />
+                      </StackPanel>
                       <TextBlock Text="{Binding Home_NszDescription}" TextWrapping="Wrap" FontSize="12" />
                       <TextBlock Text="{Binding Home_LaunchExternal}" FontWeight="SemiBold" />
                     </StackPanel>
@@ -119,13 +129,14 @@
                 <TextBlock Text="{Binding MenuItem_Open}" VerticalAlignment="Center" />
               </StackPanel>
             </Button>
+            <Button x:Name="FileMtpButton" Content="{Binding Mtp_Title}" Click="OpenMtp" Margin="0,0,8,0" ToolTip.Tip="{Binding Mtp_Tip}"/><Button x:Name="MtpCancelButton" Content="{Binding CancelAction}" Click="CancelMtp" IsVisible="False" Margin="0,0,8,0"/>
             <Button Click="OpenLastClicked" x:Name="OpenLastButton" IsEnabled="False" ToolTip.Tip="Ctrl+Shift+O" Margin="0,0,8,0">
               <StackPanel Orientation="Horizontal" Spacing="7">
                 <Image Source="/Icons/reload_last_16x16.png" Width="16" Height="16" />
                 <TextBlock Text="{Binding MenuItem_OpenLast}" VerticalAlignment="Center" />
               </StackPanel>
             </Button>
-            <Button Click="CloseClicked" ToolTip.Tip="Ctrl+Shift+C" Margin="0,0,8,0">
+            <Button x:Name="FileCloseButton" IsEnabled="False" Click="CloseClicked" ToolTip.Tip="Ctrl+Shift+C" Margin="0,0,8,0">
               <StackPanel Orientation="Horizontal" Spacing="7">
                 <Image Source="/Icons/close_16x16.png" Width="16" Height="16" />
                 <TextBlock Text="{Binding MenuItem_Close}" VerticalAlignment="Center" />
@@ -152,15 +163,30 @@
                           <TextBox Classes="overview-value" x:Name="OverviewType" IsReadOnly="True" />
                         </StackPanel>
                         <StackPanel Grid.Column="1" Grid.Row="0" Grid.ColumnSpan="1" Margin="0,0,4,4">
-                          <StackPanel Orientation="Horizontal" ><TextBlock Classes="overview-label" Text="{Binding PackageStructure_Title}"  ToolTip.Tip="{Binding ToolTip_PackageStructure}"/><Border Classes="help-tip" ToolTip.Tip="{Binding ToolTip_PackageStructure}"><TextBlock Text="?" HorizontalAlignment="Center" FontWeight="Bold"/></Border></StackPanel>
+                          <StackPanel Orientation="Horizontal">
+                            <TextBlock Classes="overview-label" Text="{Binding PackageStructure_Title}" ToolTip.Tip="{Binding ToolTip_PackageStructure}" />
+                            <Border Classes="help-tip" ToolTip.Tip="{Binding ToolTip_PackageStructure}">
+                              <TextBlock Text="?" HorizontalAlignment="Center" FontWeight="Bold" />
+                            </Border>
+                          </StackPanel>
                           <TextBox Classes="overview-value" x:Name="OverviewStructure" IsReadOnly="True" />
                         </StackPanel>
                         <StackPanel Grid.Column="2" Grid.Row="0" Grid.ColumnSpan="1" Margin="0,0,4,4">
-                          <StackPanel Orientation="Horizontal" ><TextBlock Classes="overview-label" Text="{Binding Signature_Title}"  ToolTip.Tip="{Binding ToolTip_NcaSignature}"/><Border Classes="help-tip" ToolTip.Tip="{Binding ToolTip_NcaSignature}"><TextBlock Text="?" HorizontalAlignment="Center" FontWeight="Bold"/></Border></StackPanel>
+                          <StackPanel Orientation="Horizontal">
+                            <TextBlock Classes="overview-label" Text="{Binding Signature_Title}" ToolTip.Tip="{Binding ToolTip_NcaSignature}" />
+                            <Border Classes="help-tip" ToolTip.Tip="{Binding ToolTip_NcaSignature}">
+                              <TextBlock Text="?" HorizontalAlignment="Center" FontWeight="Bold" />
+                            </Border>
+                          </StackPanel>
                           <TextBox Classes="overview-value" x:Name="OverviewSignature" IsReadOnly="True" />
                         </StackPanel>
                         <StackPanel Grid.Column="3" Grid.Row="0" Grid.ColumnSpan="1" Margin="0,0,4,4">
-                          <StackPanel Orientation="Horizontal" ><TextBlock Classes="overview-label" Text="{Binding Title_FileInfo_Integrity}"  ToolTip.Tip="{Binding ToolTip_NcasIntegrity}"/><Border Classes="help-tip" ToolTip.Tip="{Binding ToolTip_NcasIntegrity}"><TextBlock Text="?" HorizontalAlignment="Center" FontWeight="Bold"/></Border></StackPanel>
+                          <StackPanel Orientation="Horizontal">
+                            <TextBlock Classes="overview-label" Text="{Binding Title_FileInfo_Integrity}" ToolTip.Tip="{Binding ToolTip_NcasIntegrity}" />
+                            <Border Classes="help-tip" ToolTip.Tip="{Binding ToolTip_NcasIntegrity}">
+                              <TextBlock Text="?" HorizontalAlignment="Center" FontWeight="Bold" />
+                            </Border>
+                          </StackPanel>
                           <TextBox Classes="overview-value" x:Name="OverviewIntegrity" IsReadOnly="True" />
                         </StackPanel>
                         <StackPanel Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="1" Margin="0,0,4,4">
@@ -227,15 +253,30 @@
                       <TextBlock Text="{Binding Security_Title}" FontWeight="Bold" Margin="0,0,0,4" />
                       <Grid ColumnDefinitions="*,*,*">
                         <StackPanel Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="1" Margin="0,0,4,4">
-                          <StackPanel Orientation="Horizontal" ><TextBlock Classes="overview-label" Text="{Binding Security_Level}"  ToolTip.Tip="{Binding ToolTip_Permission}"/><Border Classes="help-tip" ToolTip.Tip="{Binding ToolTip_Permission}"><TextBlock Text="?" HorizontalAlignment="Center" FontWeight="Bold"/></Border></StackPanel>
+                          <StackPanel Orientation="Horizontal">
+                            <TextBlock Classes="overview-label" Text="{Binding Security_Level}" ToolTip.Tip="{Binding ToolTip_Permission}" />
+                            <Border Classes="help-tip" ToolTip.Tip="{Binding ToolTip_Permission}">
+                              <TextBlock Text="?" HorizontalAlignment="Center" FontWeight="Bold" />
+                            </Border>
+                          </StackPanel>
                           <TextBox Classes="overview-value" x:Name="OverviewSecurity" IsReadOnly="True" />
                         </StackPanel>
                         <StackPanel Grid.Column="1" Grid.Row="0" Grid.ColumnSpan="1" Margin="0,0,4,4">
-                          <StackPanel Orientation="Horizontal" ><TextBlock Classes="overview-label" Text="{Binding Security_FileSystemPermissions}"  ToolTip.Tip="{Binding ToolTip_Permission}"/><Border Classes="help-tip" ToolTip.Tip="{Binding ToolTip_Permission}"><TextBlock Text="?" HorizontalAlignment="Center" FontWeight="Bold"/></Border></StackPanel>
+                          <StackPanel Orientation="Horizontal">
+                            <TextBlock Classes="overview-label" Text="{Binding Security_FileSystemPermissions}" ToolTip.Tip="{Binding ToolTip_Permission}" />
+                            <Border Classes="help-tip" ToolTip.Tip="{Binding ToolTip_Permission}">
+                              <TextBlock Text="?" HorizontalAlignment="Center" FontWeight="Bold" />
+                            </Border>
+                          </StackPanel>
                           <TextBox Classes="overview-value" x:Name="OverviewPermissions" IsReadOnly="True" />
                         </StackPanel>
                         <StackPanel Grid.Column="2" Grid.Row="0" Grid.ColumnSpan="1" Margin="0,0,4,4">
-                          <StackPanel Orientation="Horizontal" ><TextBlock Classes="overview-label" Text="{Binding Security_AcidSignature}"  ToolTip.Tip="{Binding ToolTip_AcidSignature}"/><Border Classes="help-tip" ToolTip.Tip="{Binding ToolTip_AcidSignature}"><TextBlock Text="?" HorizontalAlignment="Center" FontWeight="Bold"/></Border></StackPanel>
+                          <StackPanel Orientation="Horizontal">
+                            <TextBlock Classes="overview-label" Text="{Binding Security_AcidSignature}" ToolTip.Tip="{Binding ToolTip_AcidSignature}" />
+                            <Border Classes="help-tip" ToolTip.Tip="{Binding ToolTip_AcidSignature}">
+                              <TextBlock Text="?" HorizontalAlignment="Center" FontWeight="Bold" />
+                            </Border>
+                          </StackPanel>
                           <TextBox Classes="overview-value" x:Name="OverviewAcid" IsReadOnly="True" />
                         </StackPanel>
                       </Grid>
@@ -249,7 +290,12 @@
                           <TextBlock Classes="overview-label" Text="{Binding DisplayVersion}" />
                           <TextBox Classes="overview-value" x:Name="OverviewDisplayVersion" IsReadOnly="True" />
                         </StackPanel>
-                        <StackPanel Orientation="Horizontal" Grid.Row="1"><TextBlock  Text="{Binding AvailableLanguages}" Classes="overview-label"  ToolTip.Tip="{Binding ToolTip_AvailableLanguages}"/><Border Classes="help-tip" ToolTip.Tip="{Binding ToolTip_AvailableLanguages}"><TextBlock Text="?" HorizontalAlignment="Center" FontWeight="Bold"/></Border></StackPanel>
+                        <StackPanel Orientation="Horizontal" Grid.Row="1">
+                          <TextBlock Text="{Binding AvailableLanguages}" Classes="overview-label" ToolTip.Tip="{Binding ToolTip_AvailableLanguages}" />
+                          <Border Classes="help-tip" ToolTip.Tip="{Binding ToolTip_AvailableLanguages}">
+                            <TextBlock Text="?" HorizontalAlignment="Center" FontWeight="Bold" />
+                          </Border>
+                        </StackPanel>
                         <ListBox x:Name="OverviewLanguages" Grid.Row="2" Margin="0,0,8,0" MinHeight="180" MaxHeight="300" SelectionChanged="OverviewLanguageSelected" DisplayMemberBinding="{Binding Name}" />
                         <StackPanel Grid.Row="1" Grid.RowSpan="2" Grid.Column="1">
                           <StackPanel Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="1" Margin="0,0,4,4">
@@ -271,11 +317,13 @@
             <TabItem Header="{Binding TabContent}">
               <Grid x:Name="ContentBody" Margin="8" RowDefinitions="*,5,*">
                 <TreeView x:Name="Entries" SelectionChanged="EntrySelected" PointerPressed="EntryPointerPressed">
-<TreeView.ContextMenu><ContextMenu>
-<MenuItem Header="{Binding ContextMenu_SaveFileItem}" Click="ExtractSelectedEntry" />
-<MenuItem Header="{Binding ContextMenu_SaveDirectoryItem}" Click="ExtractAllEntries" />
-<MenuItem Header="NCA / NCZ" Click="BrowseNcaContents" />
-</ContextMenu></TreeView.ContextMenu>
+                  <TreeView.ContextMenu>
+                    <ContextMenu>
+                      <MenuItem Header="{Binding ContextMenu_SaveFileItem}" Click="ExtractSelectedEntry" />
+                      <MenuItem Header="{Binding ContextMenu_SaveDirectoryItem}" Click="ExtractAllEntries" />
+                      <MenuItem Header="NCA / NCZ" Click="BrowseNcaContents" />
+                    </ContextMenu>
+                  </TreeView.ContextMenu>
                   <TreeView.Styles>
                     <Style Selector="TreeViewItem">
                       <Setter Property="IsExpanded" Value="{Binding IsRoot}" />
@@ -294,10 +342,13 @@
                 <ScrollViewer Margin="12" Grid.Row="2">
                   <StackPanel Spacing="8">
                     <TextBlock Text="Eigenschaften" FontWeight="Bold" />
-<DataGrid x:Name="EntryProperties" IsReadOnly="True" AutoGenerateColumns="False" HeadersVisibility="None" MinHeight="140" MaxHeight="300">
-<DataGrid.Columns><DataGridTextColumn Binding="{Binding Name}" Width="200"/><DataGridTextColumn Binding="{Binding Value}" Width="*"/></DataGrid.Columns>
-</DataGrid>
-<TextBlock x:Name="FileNameText" FontSize="12" TextWrapping="Wrap" />
+                    <DataGrid x:Name="EntryProperties" IsReadOnly="True" AutoGenerateColumns="False" HeadersVisibility="None" MinHeight="140" MaxHeight="300">
+                      <DataGrid.Columns>
+                        <DataGridTextColumn Binding="{Binding Name}" Width="200" />
+                        <DataGridTextColumn Binding="{Binding Value}" Width="*" />
+                      </DataGrid.Columns>
+                    </DataGrid>
+                    <TextBlock x:Name="FileNameText" FontSize="12" TextWrapping="Wrap" />
                     <TextBlock x:Name="FileInfoText" TextWrapping="Wrap" />
                     <TextBlock x:Name="EntryInfoText" TextWrapping="Wrap" />
                     <StackPanel Orientation="Horizontal" Spacing="8">
@@ -332,43 +383,100 @@
             <TextBlock Text="{Binding BatchIntegrity_Title}" VerticalAlignment="Center" />
           </StackPanel>
         </TabItem.Header>
-        <TabControl>
-          <TabItem Header="{Binding Batch_Scan}">
-            <Grid RowDefinitions="Auto,Auto,*,Auto,Auto" Margin="10" RowSpacing="8">
-              <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8"><TextBox x:Name="BatchInputPath" Watermark="{Binding BatchIntegrity_Path}" TextChanged="BatchPathChanged" ToolTip.Tip="{Binding BatchIntegrity_SelectDirectory}"/><Button Grid.Column="1" Content="{Binding BatchIntegrity_Browse}" Click="ChooseBatchFolder"/><Button Grid.Column="2" Content="{Binding Firmware_BrowseZip}" Click="ChooseBatchArchive"/></Grid>
-              <StackPanel Grid.Row="1" Spacing="4"><WrapPanel><TextBox x:Name="BatchSearch" Watermark="{Binding BatchTable_Search}" Width="220" TextChanged="BatchFilterChanged" Margin="0,0,8,0"/><ComboBox ToolTip.Tip="{Binding BatchIntegrity_FileType}" x:Name="BatchTypeFilter" Width="110" SelectionChanged="BatchChoiceChanged" Margin="0,0,8,0"/><ComboBox ToolTip.Tip="{Binding Title_FileInfo_Integrity}" x:Name="BatchIntegrityFilter" Width="150" SelectionChanged="BatchChoiceChanged" Margin="0,0,8,0"/><Button Content="{Binding BatchTable_ResetFiltersAndSort}" Click="ResetBatchFilters" Margin="0,0,8,0"/><Button Content="{Binding BatchTable_Columns}" Click="ChooseBatchColumns" Margin="0,0,8,0"/><Button Content="{Binding BatchTable_ResetColumns}" Click="ResetBatchColumns"/></WrapPanel><WrapPanel><CheckBox x:Name="BatchRecursive" Content="{Binding BatchIntegrity_IncludeSubdirectories}" IsChecked="True" Margin="0,0,14,0"/><CheckBox x:Name="BatchIncludeArchives" Content="{Binding Batch_IncludeArchives}" IsChecked="True" Margin="0,0,14,0"/><CheckBox x:Name="BatchErrorsOnly" Content="{Binding BatchIntegrity_ShowOnlyErrors}" IsCheckedChanged="BatchFilterChanged" Margin="0,0,14,0"/><CheckBox x:Name="BatchAlphabetical" Content="{Binding Batch_GameSortAlphabetical}" IsCheckedChanged="BatchFilterChanged"/></WrapPanel></StackPanel>
-<Grid Grid.Row="2" ColumnDefinitions="3*,5,2*">
-<DataGrid x:Name="BatchResults" IsReadOnly="True" AutoGenerateColumns="False" DoubleTapped="OpenBatchResult" SelectionChanged="BatchSelectionChanged" CanUserReorderColumns="True" CanUserResizeColumns="True" GridLinesVisibility="All">
-<DataGrid.Columns>
-<DataGridTextColumn Header="Datei" Binding="{Binding FileName}" Width="280"/>
-<DataGridTextColumn Header="Dateityp" Binding="{Binding FileType}" Width="75"/>
-<DataGridTextColumn Header="Paketstruktur" Binding="{Binding Structure}" Width="110"/>
-<DataGridTextColumn Header="NCA-Signatur" Binding="{Binding Signature}" Width="110"/>
-<DataGridTextColumn Header="Integrität" Binding="{Binding Integrity}" Width="110"/>
-<DataGridTextColumn Header="Dateigröße" Binding="{Binding Size}" Width="100"/>
-<DataGridTextColumn Header="Titel" Binding="{Binding Title}" Width="200"/>
-<DataGridTextColumn Header="TitelID" Binding="{Binding TitleId}" Width="150"/>
-<DataGridTextColumn Header="{Binding CnmtOverview_TitleVersion}" Binding="{Binding Version}" Width="80"/><DataGridTextColumn Header="{Binding BatchNaming_Title}" Binding="{Binding Naming}" Width="120"/><DataGridTextColumn Header="{Binding BatchIntegrity_Error}" Binding="{Binding Error}" Width="220"/>
-</DataGrid.Columns></DataGrid>
-<GridSplitter Grid.Column="1" ResizeDirection="Columns" HorizontalAlignment="Stretch"/>
-<ScrollViewer Grid.Column="2"><StackPanel Margin="8" Spacing="8"><TextBlock Text="Übersicht" FontWeight="Bold"/><TextBox x:Name="BatchDetailPath" IsReadOnly="True"/><DataGrid x:Name="BatchDetails" IsReadOnly="True" AutoGenerateColumns="False" HeadersVisibility="None" MinHeight="300"><DataGrid.Columns><DataGridTextColumn Binding="{Binding Name}" Width="140"/><DataGridTextColumn Binding="{Binding Value}" Width="*"/></DataGrid.Columns></DataGrid><Image x:Name="BatchDetailIcon" Width="160" Height="160"/></StackPanel></ScrollViewer>
-</Grid>
-              <WrapPanel Grid.Row="3"><Button x:Name="BatchStartButton" Content="{Binding Batch_Scan}" Click="StartBatch" IsEnabled="False" Margin="0,0,8,4"/><Button x:Name="BatchHashButton" Content="{Binding Batch_ScanAndVerify}" Click="StartBatch" IsEnabled="False" Margin="0,0,8,4"/><Button x:Name="BatchVerifyAllButton" Content="{Binding Batch_VerifyAll}" Click="VerifyBatchRows" Margin="0,0,8,4"/><Button Content="{Binding Nsz_CompressValid}" Tag="Compress" Click="RunBatchPackageAction" Margin="0,0,8,4"/><Button Content="{Binding Nsz_DecompressValid}" Tag="Decompress" Click="RunBatchPackageAction" Margin="0,0,8,4"/><Button Content="{Binding Batch_SplitAllPackages}" Tag="Split" Click="RunBatchPackageAction" Margin="0,0,8,4"/><Button Content="{Binding Batch_MergeAllPackages}" Tag="Merge" Click="RunBatchPackageAction" Margin="0,0,8,4"/><Button Content="{Binding Package_ConvertNsp}" Tag="Nsp" Click="RunBatchPackageAction" Margin="0,0,8,4"/><Button Content="{Binding Package_ConvertXci}" Tag="Xci" Click="RunBatchPackageAction" Margin="0,0,8,4"/><Button x:Name="BatchExportButton" Content="{Binding BatchIntegrity_Export}" Click="ExportBatch" IsEnabled="False" Margin="0,0,8,4"/><Button Content="{Binding BatchNaming_Check}" Click="CheckBatchNames" Margin="0,0,8,4"/><Button Content="{Binding BatchNaming_RenameAll}" Click="RenameBatchNames" Margin="0,0,8,4"/><Button Content="{Binding BatchIntegrity_MoveValid}" Click="MoveValidBatch" Margin="0,0,8,4"/><Button x:Name="BatchCancelButton" Content="{Binding CancelAction}" Click="CancelBatch" IsEnabled="False" Margin="0,0,8,4"/></WrapPanel>
-              <Grid Grid.Row="4" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8"><TextBlock Text="{Binding BatchHistory_Title}" VerticalAlignment="Center"/><ComboBox x:Name="BatchHistoryChoice" MinWidth="420" Grid.Column="1"/><Button Grid.Column="2" Content="{Binding BatchHistory_Resume}" Click="ResumeBatchHistory"/></Grid><TextBlock x:Name="BatchStatus" Grid.Row="4" IsVisible="False"/><TextBlock x:Name="BatchFolderText" IsVisible="False"/>
-            </Grid>
-          </TabItem>
-          <TabItem x:Name="FirmwareTab" Header="{Binding Firmware_Title}">
-            <Grid RowDefinitions="Auto,Auto,*" RowSpacing="8" Margin="12">
-              <StackPanel x:Name="FirmwareActions" Orientation="Horizontal" Spacing="8">
-                <Button Content="{Binding BatchIntegrity_SelectDirectory}" Click="ChooseFirmwareFolder" />
-                <Button Content="{Binding Firmware_BrowseZip}" Click="ChooseFirmwareArchive" />
-                <Button Content="NCA…" ToolTip.Tip="{Binding Firmware_NcaMatches}" Click="ChooseFirmwareNca" />
-              </StackPanel>
-              <Button x:Name="FirmwareCancel" Grid.Row="1" Content="{Binding CancelAction}" IsEnabled="False" Click="CancelFirmware" />
-              <TextBox x:Name="FirmwareResult" Grid.Row="2" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" ScrollViewer.VerticalScrollBarVisibility="Auto" />
-            </Grid>
-          </TabItem>
-        </TabControl>
+        <Grid RowDefinitions="Auto,Auto,*,Auto,Auto" Margin="10" RowSpacing="8">
+          <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
+            <TextBox x:Name="BatchInputPath" Watermark="{Binding BatchIntegrity_Path}" TextChanged="BatchPathChanged" ToolTip.Tip="{Binding BatchIntegrity_SelectDirectory}" />
+            <Button Grid.Column="1" Content="{Binding BatchIntegrity_Browse}" Click="ChooseBatchFolder" />
+            <Button Grid.Column="2" Content="{Binding Firmware_BrowseZip}" Click="ChooseBatchArchive" /><Button x:Name="BatchMtpButton" Grid.Column="3" Content="{Binding Mtp_Title}" Click="OpenMtp" Tag="Batch" ToolTip.Tip="{Binding Mtp_Tip}"/>
+          </Grid>
+          <StackPanel Grid.Row="1" Spacing="4">
+            <WrapPanel>
+              <TextBox x:Name="BatchSearch" Watermark="{Binding BatchTable_Search}" Width="220" TextChanged="BatchFilterChanged" Margin="0,0,8,0" />
+              <ComboBox ToolTip.Tip="{Binding BatchIntegrity_FileType}" x:Name="BatchTypeFilter" Width="110" SelectionChanged="BatchChoiceChanged" Margin="0,0,8,0" />
+              <ComboBox ToolTip.Tip="{Binding Title_FileInfo_Integrity}" x:Name="BatchIntegrityFilter" Width="150" SelectionChanged="BatchChoiceChanged" Margin="0,0,8,0" />
+              <ComboBox x:Name="BatchNamingFilter" Width="150" SelectionChanged="BatchChoiceChanged" Margin="0,0,8,0" ToolTip.Tip="{Binding BatchNaming_Title}" />
+              <Button Content="{Binding BatchTable_ResetFiltersAndSort}" Click="ResetBatchFilters" Margin="0,0,8,0" />
+              <Button Content="{Binding BatchTable_Columns}" Click="ChooseBatchColumns" Margin="0,0,8,0" />
+              <Button Content="{Binding BatchTable_ResetColumns}" Click="ResetBatchColumns" />
+            </WrapPanel>
+            <WrapPanel>
+              <CheckBox x:Name="BatchRecursive" Content="{Binding BatchIntegrity_IncludeSubdirectories}" IsChecked="True" Margin="0,0,14,0" />
+              <CheckBox x:Name="BatchIncludeArchives" Content="{Binding Batch_IncludeArchives}" IsChecked="True" Margin="0,0,14,0" />
+              <CheckBox x:Name="BatchErrorsOnly" Content="{Binding BatchIntegrity_ShowOnlyErrors}" IsCheckedChanged="BatchFilterChanged" Margin="0,0,14,0" />
+              <CheckBox x:Name="BatchSeparatePackages" Content="{Binding BatchPackages_Display}" IsCheckedChanged="BatchFilterChanged" Margin="0,0,14,0"/>
+              <CheckBox x:Name="BatchAlphabetical" Content="{Binding Batch_GameSortAlphabetical}" IsCheckedChanged="BatchFilterChanged" />
+            </WrapPanel>
+          </StackPanel>
+          <Grid Grid.Row="2" ColumnDefinitions="3*,5,2*">
+            <DataGrid x:Name="BatchResults" IsReadOnly="True" AutoGenerateColumns="False" DoubleTapped="OpenBatchResult" SelectionChanged="BatchSelectionChanged" CanUserReorderColumns="True" CanUserResizeColumns="True" GridLinesVisibility="All">
+              <DataGrid.Columns>
+                <DataGridTextColumn Header="Datei" Binding="{Binding FileName}" Width="280" />
+                <DataGridTextColumn Header="Dateityp" Binding="{Binding FileType}" Width="75" />
+                <DataGridTextColumn Header="Paketstruktur" Binding="{Binding Structure}" Width="110" />
+                <DataGridTextColumn Header="NCA-Signatur" Binding="{Binding Signature}" Width="110" />
+                <DataGridTextColumn Header="Integrität" Binding="{Binding Integrity}" Width="110" />
+                <DataGridTextColumn Header="Dateigröße" Binding="{Binding Size}" Width="100" />
+                <DataGridTextColumn Header="Titel" Binding="{Binding Title}" Width="200" />
+                <DataGridTextColumn Header="TitelID" Binding="{Binding TitleId}" Width="150" />
+                <DataGridTextColumn Header="{Binding CnmtOverview_TitleVersion}" Binding="{Binding Version}" Width="80" />
+                <DataGridTextColumn Header="{Binding BatchNaming_Title}" Binding="{Binding Naming}" Width="120" />
+                <DataGridTextColumn Header="{Binding BatchIntegrity_Error}" Binding="{Binding Error}" Width="220" />
+              </DataGrid.Columns>
+            </DataGrid>
+            <GridSplitter Grid.Column="1" ResizeDirection="Columns" HorizontalAlignment="Stretch" />
+            <TabControl Grid.Column="2">
+              <TabItem Header="{Binding TabOverview}">
+                <ScrollViewer>
+                  <StackPanel Margin="8" Spacing="8">
+                    <TextBlock Text="Übersicht" FontWeight="Bold" />
+                    <TextBox x:Name="BatchDetailPath" IsReadOnly="True" />
+                    <DataGrid x:Name="BatchDetails" IsReadOnly="True" AutoGenerateColumns="False" HeadersVisibility="None" MinHeight="300">
+                      <DataGrid.Columns>
+                        <DataGridTextColumn Binding="{Binding Name}" Width="140" />
+                        <DataGridTextColumn Binding="{Binding Value}" Width="*" />
+                      </DataGrid.Columns>
+                    </DataGrid>
+                    <Image x:Name="BatchDetailIcon" Width="160" Height="160" />
+                  </StackPanel>
+                </ScrollViewer>
+              </TabItem>
+              <TabItem x:Name="FirmwareTab" Header="{Binding Firmware_Title}">
+                <Grid RowDefinitions="Auto,Auto,*" RowSpacing="8" Margin="12">
+                  <StackPanel x:Name="FirmwareActions" Orientation="Horizontal" Spacing="8">
+                    <Button Content="{Binding BatchIntegrity_SelectDirectory}" Click="ChooseFirmwareFolder" />
+                    <Button Content="{Binding Firmware_BrowseZip}" Click="ChooseFirmwareArchive" />
+                    <Button Content="NCA…" ToolTip.Tip="{Binding Firmware_NcaMatches}" Click="ChooseFirmwareNca" />
+                  </StackPanel>
+                  <Button x:Name="FirmwareCancel" Grid.Row="1" Content="{Binding CancelAction}" IsEnabled="False" Click="CancelFirmware" />
+                  <TextBox x:Name="FirmwareResult" Grid.Row="2" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" ScrollViewer.VerticalScrollBarVisibility="Auto" />
+                </Grid>
+              </TabItem>
+            </TabControl>
+          </Grid>
+          <WrapPanel x:Name="BatchActionsPanel" Grid.Row="3">
+            <Button x:Name="BatchStartButton" Content="{Binding Batch_Scan}" Click="StartBatch" IsEnabled="False" Margin="0,0,8,4" />
+            <Button x:Name="BatchHashButton" Content="{Binding Batch_ScanAndVerify}" Click="StartBatch" IsEnabled="False" Margin="0,0,8,4" />
+            <Button x:Name="BatchVerifyAllButton" Content="{Binding Batch_VerifyAll}" Click="VerifyBatchRows" Margin="0,0,8,4" />
+            <Button Content="{Binding Nsz_CompressValid}" Tag="Compress" Click="RunBatchPackageAction" Margin="0,0,8,4" />
+            <Button Content="{Binding Nsz_DecompressValid}" Tag="Decompress" Click="RunBatchPackageAction" Margin="0,0,8,4" />
+            <Button Content="{Binding Batch_SplitAllPackages}" Tag="Split" Click="RunBatchPackageAction" Margin="0,0,8,4" />
+            <Button Content="{Binding Batch_MergeAllPackages}" Tag="Merge" Click="RunBatchPackageAction" Margin="0,0,8,4" />
+            <Button Content="{Binding Package_ConvertNsp}" Tag="Nsp" Click="RunBatchPackageAction" Margin="0,0,8,4" />
+            <Button Content="{Binding Package_ConvertXci}" Tag="Xci" Click="RunBatchPackageAction" Margin="0,0,8,4" />
+            <Button x:Name="BatchExportButton" Content="{Binding BatchIntegrity_Export}" Click="ExportBatch" IsEnabled="False" Margin="0,0,8,4" />
+            <Button Content="{Binding BatchNaming_Check}" Click="CheckBatchNames" Margin="0,0,8,4" />
+            <Button Content="{Binding BatchNaming_RenameAll}" Click="RenameBatchNames" Margin="0,0,8,4" />
+            <Button Content="{Binding BatchIntegrity_MoveValid}" Click="MoveValidBatch" Margin="0,0,8,4" />
+            <Button x:Name="BatchCancelButton" Content="{Binding CancelAction}" Click="CancelBatch" IsEnabled="False" Margin="0,0,8,4" />
+          </WrapPanel>
+          <Grid Grid.Row="4" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+            <TextBlock Text="{Binding BatchHistory_Title}" VerticalAlignment="Center" />
+            <ComboBox x:Name="BatchHistoryChoice" MinWidth="420" Grid.Column="1" />
+            <Button Grid.Column="2" Content="{Binding BatchHistory_Resume}" Click="ResumeBatchHistory" />
+          </Grid>
+          <TextBlock x:Name="BatchStatus" Grid.Row="4" IsVisible="False" />
+          <TextBlock x:Name="BatchFolderText" IsVisible="False" />
+        </Grid>
       </TabItem>
       <TabItem x:Name="RenameTab">
         <TabItem.Header>
@@ -377,45 +485,102 @@
             <TextBlock Text="{Binding RenamingTool_WindowTitle}" VerticalAlignment="Center" />
           </StackPanel>
         </TabItem.Header>
-        <TabControl>
-          <TabItem Header="{Binding RenamingTool_WindowTitle}">
-            <Grid RowDefinitions="Auto,*,Auto" Margin="8" RowSpacing="8">
-              <StackPanel Spacing="6">
-                <Border Classes="overview-group"><StackPanel Spacing="4"><TextBlock Text="Eingabe" FontWeight="Bold"/><TextBlock Classes="overview-label" Text="Eingabepfad"/><Grid ColumnDefinitions="*,Auto"><TextBox x:Name="RenameInputPath"/><Button Grid.Column="1" Content="…" Click="ChooseRenameFolder"/></Grid><TextBlock Classes="overview-label" Text="Zielordner (leer = bisheriger Ordner)"/><TextBox x:Name="RenameOutputPath"/><TextBlock Classes="overview-label" Text="Filter"/><StackPanel Orientation="Horizontal" Spacing="8"><TextBox x:Name="RenameFilter" Text="*.nsp;*.nsz;*.xci;*.xcz" Width="240"/><CheckBox x:Name="RenameRecursive" Content="Unterverzeichnisse einbeziehen" IsChecked="True"/></StackPanel></StackPanel></Border>
-                <Button Content="{Binding RenamingTool_GroupBoxNamingSettings}" Tag="NamingSettingsTab" Click="NavigateWorkspace"/>
-                <StackPanel Orientation="Horizontal" Spacing="8"><CheckBox x:Name="RenameSimulation" Content="Simulation" IsChecked="True"/>
-                <Button x:Name="RenameBatchPreviewButton" Content="Vorschau" Click="PreviewRenameBatch" />
-                <Button x:Name="RenameBatchCancelButton" Content="{Binding CancelAction}" IsEnabled="False" Click="CancelRenameBatch"/><Button x:Name="RenameBatchApplyButton" Content="{Binding RenamingTool_Button_Rename}" IsEnabled="False" Click="ApplyRenameBatch" />
-              </StackPanel></StackPanel>
-<DataGrid x:Name="RenameBatchRows" Grid.Row="1" IsReadOnly="True" AutoGenerateColumns="False" GridLinesVisibility="All" CanUserResizeColumns="True"><DataGrid.Columns><DataGridTextColumn Header="Alter Name" Binding="{Binding Source}" Width="2*"/><DataGridTextColumn Header="Neuer Name" Binding="{Binding Destination}" Width="2*"/><DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="120"/><DataGridTextColumn Header="Fehler" Binding="{Binding Error}" Width="220"/></DataGrid.Columns></DataGrid>
-              <TextBlock x:Name="RenameBatchStatus" Grid.Row="2" TextWrapping="Wrap" />
-            </Grid>
-          </TabItem>
-          <TabItem Header="Einzeldatei">
-            <ScrollViewer>
-              <StackPanel Margin="16" Spacing="8" MaxWidth="750" HorizontalAlignment="Left">
-                <Button Content="{Binding MenuItem_Open}" Click="ChooseRenameFile" />
-                <TextBlock Text="{Binding RenamingTool_OldName}" />
-                <TextBlock x:Name="RenameSourceText" TextWrapping="Wrap" />
-                <TextBlock Text="{Binding RenamingTool_Patterns}" />
-                <ComboBox x:Name="RenamePresetChoice" MinWidth="500" SelectionChanged="RenamePresetSelected" />
-                <TextBox x:Name="RenamePattern" MinWidth="500" Watermark="{}{Title} [{TitleId:U}][v{VerNum}].{Ext:L}" ToolTip.Tip="{Binding RenamingTool_Patterns}" />
-                <Button Content="{Binding RenamingTool_StatusSimulation}" Click="SuggestRename" />
-                <TextBlock Text="{Binding RenamingTool_NewName}" />
-                <TextBox x:Name="RenameTargetName" MinWidth="500" TextChanged="RenameNameChanged" />
-                <TextBlock x:Name="RenamePreview" TextWrapping="Wrap" />
-                <Button x:Name="RenameApply" Content="{Binding RenamingTool_Button_Rename}" IsEnabled="False" Click="ApplyRename" />
-                <TextBlock x:Name="RenameStatus" TextWrapping="Wrap" />
+        <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="8" RowSpacing="8">
+          <StackPanel Spacing="6">
+            <Border Classes="overview-group">
+              <StackPanel Spacing="4">
+                <TextBlock Text="Eingabe" FontWeight="Bold" />
+                <TextBlock Classes="overview-label" Text="Eingabepfad" />
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBox x:Name="RenameInputPath" TextChanged="RenameInputChanged" />
+                  <Button Grid.Column="1" Content="…" Click="ChooseRenameFolder" />
+                </Grid>
+                <TextBlock Classes="overview-label" Text="Zielordner (leer = bisheriger Ordner)" />
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBox x:Name="RenameOutputPath" />
+                  <Button Grid.Column="1" Content="…" Click="ChooseRenameDestination" />
+                </Grid>
+                <TextBlock Classes="overview-label" Text="Filter" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBox x:Name="RenameFilter" Text="*.nsp;*.nsz;*.xci;*.xcz" Width="240" />
+                  <CheckBox x:Name="RenameRecursive" Content="Unterverzeichnisse einbeziehen" IsChecked="True" />
+                  <CheckBox x:Name="RenameAutoClose" Content="{Binding RenamingTool_AutoCloseOpenedFile}" IsChecked="True" Margin="10,0,0,0" />
+                </StackPanel>
               </StackPanel>
-            </ScrollViewer>
-          </TabItem>
-        </TabControl>
+            </Border>
+            <Button Content="{Binding RenamingTool_GroupBoxNamingSettings}" Tag="NamingSettingsTab" Click="NavigateWorkspace" />
+          </StackPanel>
+          <DataGrid x:Name="RenameBatchRows" Grid.Row="1" IsReadOnly="True" AutoGenerateColumns="False" GridLinesVisibility="All" CanUserResizeColumns="True">
+            <DataGrid.Columns>
+              <DataGridTextColumn Header="Alter Name" Binding="{Binding Source}" Width="2*" />
+              <DataGridTextColumn Header="Neuer Name" Binding="{Binding Destination}" Width="2*" />
+              <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="120" />
+              <DataGridTextColumn Header="Fehler" Binding="{Binding Error}" Width="220" />
+            </DataGrid.Columns>
+          </DataGrid>
+          <TextBlock x:Name="RenameBatchStatus" Grid.Row="3" TextWrapping="Wrap" />
+          <ScrollViewer IsVisible="False">
+            <StackPanel Margin="16" Spacing="8" MaxWidth="750" HorizontalAlignment="Left">
+              <Button Content="{Binding MenuItem_Open}" Click="ChooseRenameFile" />
+              <TextBlock Text="{Binding RenamingTool_OldName}" />
+              <TextBlock x:Name="RenameSourceText" TextWrapping="Wrap" />
+              <TextBlock Text="{Binding RenamingTool_Patterns}" />
+              <ComboBox x:Name="RenamePresetChoice" MinWidth="500" SelectionChanged="RenamePresetSelected" />
+              <TextBox x:Name="RenamePattern" MinWidth="500" Watermark="{}{Title} [{TitleId:U}][v{VerNum}].{Ext:L}" ToolTip.Tip="{Binding RenamingTool_Patterns}" />
+              <Button Content="{Binding RenamingTool_StatusSimulation}" Click="SuggestRename" />
+              <TextBlock Text="{Binding RenamingTool_NewName}" />
+              <TextBox x:Name="RenameTargetName" MinWidth="500" TextChanged="RenameNameChanged" />
+              <TextBlock x:Name="RenamePreview" TextWrapping="Wrap" />
+              <Button x:Name="RenameApply" Content="{Binding RenamingTool_Button_Rename}" IsEnabled="False" Click="ApplyRename" />
+              <TextBlock x:Name="RenameStatus" TextWrapping="Wrap" />
+            </StackPanel>
+          </ScrollViewer>
+          <StackPanel Orientation="Horizontal" Spacing="8" Grid.Row="2" HorizontalAlignment="Center">
+            <CheckBox x:Name="RenameSimulation" Content="Simulation" IsChecked="True" />
+            <Button x:Name="RenameBatchPreviewButton" Content="{Binding RenamingTool_Button_Rename}" Click="RunRenameBatch" />
+            <Button x:Name="RenameBatchCancelButton" Content="{Binding CancelAction}" IsEnabled="False" Click="CancelRenameBatch" />
+            <Button x:Name="RenameBatchApplyButton" Content="{Binding RenamingTool_Button_Rename}" IsEnabled="False" Click="ApplyRenameBatch" IsVisible="False" />
+          </StackPanel>
+        </Grid>
       </TabItem>
-<TabItem x:Name="NandTab"><TabItem.Header><StackPanel Orientation="Horizontal" Spacing="7"><Image x:Name="NandTabIcon" Width="20" Height="16"/><TextBlock Text="NAND"/></StackPanel></TabItem.Header><Grid Margin="12" RowDefinitions="Auto,Auto,*" RowSpacing="10">
-<TextBlock Text="{Binding Nand_Tip}" TextWrapping="Wrap"/>
-<WrapPanel Grid.Row="1"><Button Content="{Binding Nand_Open}" Click="OpenNand" Margin="0,0,8,0"/><Button Content="{Binding Nand_Info}" Click="ReadNand" Margin="0,0,8,0"/><Button Content="NxNandManager ↗" Tag="NAND" Click="LaunchPlugin" Margin="0,0,8,0"/><ComboBox x:Name="NandPartitions" MinWidth="180" DisplayMemberBinding="{Binding Name}" SelectionChanged="NandPartitionSelected"/><Button Content="{Binding Nand_ExplorerUp}" Click="NandUp" Margin="8,0"/><Button Content="{Binding Nand_ExportFile}" Click="ExportNandFile"/></WrapPanel>
-<TabControl Grid.Row="2"><TabItem Header="{Binding Nand_Info}"><TextBox x:Name="NandInformation" IsReadOnly="True" AcceptsReturn="True" FontFamily="Consolas"/></TabItem><TabItem Header="{Binding Nand_Explorer}"><Grid RowDefinitions="Auto,*"><TextBox x:Name="NandLocation" IsReadOnly="True"/><DataGrid x:Name="NandFiles" Grid.Row="1" IsReadOnly="True" AutoGenerateColumns="False" DoubleTapped="OpenNandFolder"><DataGrid.Columns><DataGridTextColumn Header="Datei" Binding="{Binding Name}" Width="2*"/><DataGridTextColumn Header="Typ" Binding="{Binding Type}" Width="120"/><DataGridTextColumn Header="Dateigröße" Binding="{Binding Size}" Width="120"/></DataGrid.Columns></DataGrid></Grid></TabItem></TabControl>
-</Grid></TabItem>
+      <TabItem x:Name="NandTab">
+        <TabItem.Header>
+          <StackPanel Orientation="Horizontal" Spacing="7">
+            <Image x:Name="NandTabIcon" Width="20" Height="16" />
+            <TextBlock Text="NAND" />
+          </StackPanel>
+        </TabItem.Header>
+        <Grid Margin="12" RowDefinitions="Auto,Auto,*" RowSpacing="10">
+          <TextBlock Text="{Binding Nand_Tip}" TextWrapping="Wrap" />
+          <WrapPanel Grid.Row="1">
+            <Button Content="{Binding Nand_Open}" Click="OpenNand" Margin="0,0,8,0" />
+            <Button x:Name="NandInfoButton" IsEnabled="False" Content="{Binding Nand_Info}" Click="ReadNand" Margin="0,0,8,0" />
+            <Button Content="{Binding Nand_OpenDrive}" Click="OpenNandDrive" Margin="0,0,8,0" />
+            <ComboBox x:Name="NandPartitions" MinWidth="180" DisplayMemberBinding="{Binding Name}" SelectionChanged="NandPartitionSelected" />
+            <Button x:Name="NandUpButton" IsEnabled="False" Content="{Binding Nand_ExplorerUp}" Click="NandUp" Margin="8,0" />
+            <Button x:Name="NandExportFileButton" IsEnabled="False" Content="{Binding Nand_ExportFile}" Click="ExportNandFile" />
+            <Button x:Name="NandExportPartitionButton" IsEnabled="False" Content="{Binding Nand_Export}" Click="ExportNandPartition" Margin="8,0"/>
+            <Button x:Name="NandCancelButton" IsEnabled="False" Content="{Binding CancelAction}" Click="CancelNand"/>
+          </WrapPanel>
+          <TabControl Grid.Row="2">
+            <TabItem Header="{Binding Nand_Info}">
+              <TextBox x:Name="NandInformation" IsReadOnly="True" AcceptsReturn="True" FontFamily="Consolas" />
+            </TabItem>
+            <TabItem Header="{Binding Nand_Explorer}">
+              <Grid RowDefinitions="Auto,*">
+                <TextBox x:Name="NandLocation" IsReadOnly="True" />
+                <DataGrid SelectionChanged="NandSelectionChanged" x:Name="NandFiles" Grid.Row="1" IsReadOnly="True" AutoGenerateColumns="False" DoubleTapped="OpenNandFolder">
+                  <DataGrid.Columns>
+                    <DataGridTextColumn Header="Datei" Binding="{Binding Name}" Width="2*" />
+                    <DataGridTextColumn Header="Typ" Binding="{Binding Type}" Width="120" />
+                    <DataGridTextColumn Header="Dateigröße" Binding="{Binding Size}" Width="120" />
+                  </DataGrid.Columns>
+                </DataGrid>
+              </Grid>
+            </TabItem>
+          </TabControl>
+        </Grid>
+      </TabItem>
       <TabItem x:Name="SettingsTab">
         <TabItem.Header>
           <StackPanel Orientation="Horizontal" Spacing="7">
@@ -427,44 +592,112 @@
           <TabControl x:Name="SettingsPages">
             <TabItem Header="{Binding Settings_Program}">
               <ScrollViewer>
-                <StackPanel Margin="16" Spacing="8" HorizontalAlignment="Stretch">
-                  <TextBlock Text="{Binding Settings_GroupGeneral}" FontWeight="Bold"/><TextBlock Classes="overview-label" Text="{Binding SettingsView_Title_Language}" />
-                  <ComboBox x:Name="LanguageChoice" MinWidth="220">
-                    <ComboBoxItem Content="Auto" Tag="" />
-                    <ComboBoxItem Content="Deutsch" Tag="de" />
-                    <ComboBoxItem Content="English" Tag="en" />
-                    <ComboBoxItem Content="Français" Tag="fr" />
-                    <ComboBoxItem Content="Español" Tag="es" />
-                  </ComboBox>
-                  <TextBlock Text="{Binding SettingsView_Title_Theme}" />
-                  <ComboBox x:Name="ThemeChoice" MinWidth="220">
-                    <ComboBoxItem Content="Auto" Tag="" />
-                    <ComboBoxItem Content="Light" Tag="Light" />
-                    <ComboBoxItem Content="Dark" Tag="Dark" />
-                  </ComboBox>
+                <StackPanel x:Name="ProgramSettingsHost" Margin="8,4" Spacing="4" MaxWidth="1100" HorizontalAlignment="Left">
+                  <Border Classes="overview-group">
+                    <StackPanel Spacing="8">
+                      <TextBlock Text="{Binding Settings_GroupGeneral}" FontWeight="Bold" />
+                      <Grid ColumnDefinitions="*,*">
+                        <StackPanel>
+                          <TextBlock Classes="overview-label" Text="{Binding SettingsView_Title_Language}" />
+                          <ComboBox x:Name="LanguageChoice" MinWidth="220">
+                            <ComboBoxItem Content="Auto" Tag="" />
+                            <ComboBoxItem Content="Deutsch" Tag="de" />
+                            <ComboBoxItem Content="English" Tag="en" />
+                            <ComboBoxItem Content="Français" Tag="fr" />
+                            <ComboBoxItem Content="Español" Tag="es" />
+                          </ComboBox>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1">
+                          <TextBlock Text="{Binding SettingsView_Title_Theme}" />
+                          <ComboBox x:Name="ThemeChoice" MinWidth="220">
+                            <ComboBoxItem Content="Auto" Tag="" />
+                            <ComboBoxItem Content="Light" Tag="Light" />
+                            <ComboBoxItem Content="Dark" Tag="Dark" />
+                          </ComboBox>
+                        </StackPanel>
+                      </Grid>
+                    </StackPanel>
+                  </Border>
                   <TextBlock Text="{Binding SettingsView_TitleDbRepository}" />
                   <ComboBox x:Name="TitleDbRepositoryChoice" MinWidth="220" DropDownOpened="TitleDbRepositoryOpened" />
                   <Button x:Name="RefreshTitleDbButton" Content="{Binding DataUpdate_Titles}" Click="RefreshTitleDb" />
                   <TextBlock x:Name="TitleDbStatus" TextWrapping="Wrap" />
-                  <Border Classes="overview-group"><StackPanel Spacing="8"><TextBlock Text="{Binding Settings_AutoVerifyTitle}" FontWeight="Bold"/><CheckBox x:Name="VerifyOnOpenSetting" Content="{Binding Settings_AutoVerifyProgram}" ToolTip.Tip="{Binding Settings_AutoVerifyProgramTip}"/><CheckBox x:Name="AutoVerifyBatchDropSetting" Content="{Binding Settings_AutoVerifyBatchDrop}" ToolTip.Tip="{Binding Settings_AutoVerifyBatchDropTip}"/></StackPanel></Border>
-<Border Classes="overview-group"><StackPanel Spacing="8"><TextBlock Text="{Binding Settings_GroupHistory}" FontWeight="Bold"/><CheckBox x:Name="HistoryEnabledSetting" Content="{Binding BatchHistory_Enable}"/><TextBlock Text="{Binding BatchHistory_Limit}"/><NumericUpDown x:Name="HistoryLimitSetting" Minimum="1" Maximum="100" Value="5" Width="130" HorizontalAlignment="Left" ToolTip.Tip="{Binding BatchHistory_RetentionTip}"/></StackPanel></Border>
-<Border Classes="overview-group"><StackPanel Spacing="8"><TextBlock Text="{Binding BatchIntegrity_Export}" FontWeight="Bold"/><CheckBox x:Name="ExportVisibleSetting" Content="{Binding BatchExport_VisibleOnly}"/></StackPanel></Border>
-<Border Classes="overview-group"><StackPanel Spacing="8"><TextBlock Text="{Binding Settings_GroupLogging}" FontWeight="Bold"/><TextBlock Text="{Binding SettingsView_LogLevel}"/><ComboBox x:Name="LogLevelSetting" MinWidth="220" ToolTip.Tip="{Binding SettingsView_ToolTip_LogLevel}"><ComboBoxItem Content="INFO" Tag="INFO"/><ComboBoxItem Content="WARN" Tag="WARN"/><ComboBoxItem Content="ERROR" Tag="ERROR"/></ComboBox><TextBlock Text="{Binding SettingsView_LogFileRetention}"/><NumericUpDown x:Name="LogRetentionSetting" Minimum="1" Maximum="100" Value="14" Width="130" HorizontalAlignment="Left"/></StackPanel></Border>
+                  <Border Classes="overview-group">
+                    <StackPanel Spacing="8">
+                      <TextBlock Text="{Binding Settings_AutoVerifyTitle}" FontWeight="Bold" />
+                      <CheckBox x:Name="VerifyOnOpenSetting" Content="{Binding Settings_AutoVerifyProgram}" ToolTip.Tip="{Binding Settings_AutoVerifyProgramTip}" />
+                      <CheckBox x:Name="AutoVerifyBatchDropSetting" Content="{Binding Settings_AutoVerifyBatchDrop}" ToolTip.Tip="{Binding Settings_AutoVerifyBatchDropTip}" />
+                    </StackPanel>
+                  </Border>
+                  <Border Classes="overview-group">
+                    <StackPanel Spacing="8">
+                      <TextBlock Text="{Binding Settings_GroupHistory}" FontWeight="Bold" />
+                      <CheckBox x:Name="HistoryEnabledSetting" Content="{Binding BatchHistory_Enable}" />
+                      <TextBlock Text="{Binding BatchHistory_Limit}" />
+                      <NumericUpDown x:Name="HistoryLimitSetting" Minimum="1" Maximum="100" Value="5" Width="130" HorizontalAlignment="Left" ToolTip.Tip="{Binding BatchHistory_RetentionTip}" />
+                    </StackPanel>
+                  </Border>
+                  <Border Classes="overview-group">
+                    <StackPanel Spacing="8">
+                      <TextBlock Text="{Binding BatchIntegrity_Export}" FontWeight="Bold" />
+                      <CheckBox x:Name="ExportVisibleSetting" Content="{Binding BatchExport_VisibleOnly}" />
+                    </StackPanel>
+                  </Border>
+                  <Border Classes="overview-group">
+                    <StackPanel Spacing="8">
+                      <TextBlock Text="{Binding Settings_GroupLogging}" FontWeight="Bold" />
+                      <TextBlock Text="{Binding SettingsView_LogLevel}" />
+                      <ComboBox x:Name="LogLevelSetting" MinWidth="220" ToolTip.Tip="{Binding SettingsView_ToolTip_LogLevel}">
+                        <ComboBoxItem Content="TRACE" Tag="TRACE" /><ComboBoxItem Content="DEBUG" Tag="DEBUG" /><ComboBoxItem Content="INFO" Tag="INFO" />
+                        <ComboBoxItem Content="WARN" Tag="WARN" />
+                        <ComboBoxItem Content="ERROR" Tag="ERROR" /><ComboBoxItem Content="CRITICAL" Tag="CRITICAL" /><ComboBoxItem Content="{Binding PluginLog_Off}" Tag="OFF" />
+                      </ComboBox>
+                      <TextBlock Text="{Binding SettingsView_LogFileRetention}" />
+                      <NumericUpDown x:Name="LogRetentionSetting" Minimum="1" Maximum="100" Value="14" Width="130" HorizontalAlignment="Left" />
+                    </StackPanel>
+                  </Border>
                 </StackPanel>
               </ScrollViewer>
             </TabItem>
             <TabItem Header="{Binding SettingsView_GroupBoxKeys}">
-              <ScrollViewer><StackPanel Margin="16" Spacing="12"><Border Classes="overview-group"><StackPanel Spacing="8"><CheckBox x:Name="InjectTicketsSetting" Content="{Binding SettingsView_CheckBox_InjectTicketKeys}"/><TextBlock Text="prod.keys" FontWeight="Bold" ToolTip.Tip="{Binding SettingsView_ToolTip_ProdKeys}"/><Button Content="{Binding BrowseKeysFile_ProdTitle}" Click="LoadKeysClicked" ToolTip.Tip="{Binding SettingsView_ToolTip_BrowseKeys}"/><TextBlock x:Name="SettingsKeysPath" TextWrapping="Wrap"/><Button Content="{Binding MenuItem_ReloadKeys}" Click="ValidateKeys"/><TextBlock x:Name="KeyValidationText" TextWrapping="Wrap"/></StackPanel></Border><Border Classes="overview-group"><StackPanel Spacing="8"><TextBlock Text="title.keys" FontWeight="Bold" ToolTip.Tip="{Binding SettingsView_ToolTip_TitleKeys}"/><TextBox x:Name="TitleKeysPath" IsReadOnly="True"/><WrapPanel><Button Content="…" Click="ChooseTitleKeys" Margin="0,0,8,0"/><Button Content="{Binding MenuItem_ReloadKeys}" Click="ValidateKeys"/></WrapPanel><TextBlock x:Name="TitleKeyValidationText" TextWrapping="Wrap"/></StackPanel></Border></StackPanel></ScrollViewer>
+              <ScrollViewer>
+                <StackPanel Margin="16" Spacing="12">
+                  <Border Classes="overview-group">
+                    <StackPanel Spacing="8">
+                      <CheckBox x:Name="InjectTicketsSetting" Content="{Binding SettingsView_CheckBox_InjectTicketKeys}" />
+                      <TextBlock Text="prod.keys" FontWeight="Bold" ToolTip.Tip="{Binding SettingsView_ToolTip_ProdKeys}" />
+                      <Button Content="{Binding BrowseKeysFile_ProdTitle}" Click="LoadKeysClicked" ToolTip.Tip="{Binding SettingsView_ToolTip_BrowseKeys}" />
+                      <TextBlock x:Name="SettingsKeysPath" TextWrapping="Wrap" />
+                      <Button Content="{Binding MenuItem_ReloadKeys}" Click="ValidateKeys" />
+                      <TextBlock x:Name="KeyValidationText" TextWrapping="Wrap" />
+                    </StackPanel>
+                  </Border>
+                  <Border Classes="overview-group">
+                    <StackPanel Spacing="8">
+                      <TextBlock Text="title.keys" FontWeight="Bold" ToolTip.Tip="{Binding SettingsView_ToolTip_TitleKeys}" />
+                      <TextBox x:Name="TitleKeysPath" IsReadOnly="True" />
+                      <WrapPanel>
+                        <Button Content="…" Click="ChooseTitleKeys" Margin="0,0,8,0" />
+                        <Button Content="{Binding MenuItem_ReloadKeys}" Click="ValidateKeys" />
+                      </WrapPanel>
+                      <TextBlock x:Name="TitleKeyValidationText" TextWrapping="Wrap" />
+                    </StackPanel>
+                  </Border>
+                </StackPanel>
+              </ScrollViewer>
             </TabItem>
             <TabItem x:Name="NamingSettingsTab" Header="{Binding RenamingTool_GroupBoxNamingSettings}">
-              <ScrollViewer><StackPanel x:Name="NamingSettingsHost" Margin="16" Spacing="12"/></ScrollViewer>
+              <ScrollViewer>
+                <StackPanel x:Name="NamingSettingsHost" Margin="12" Spacing="4" />
+              </ScrollViewer>
             </TabItem>
-
             <TabItem x:Name="UpdatesTab" Header="{Binding DataUpdate_Title}">
               <Grid RowDefinitions="Auto,Auto,*" Margin="10" RowSpacing="8">
                 <Border Classes="overview-group">
                   <StackPanel>
-                    <TextBlock Text="{Binding Update_Title}" FontWeight="Bold" /><CheckBox x:Name="AutoUpdateSetting" Content="{Binding Update_Auto}"/><CheckBox x:Name="PreReleaseSetting" Content="{Binding Update_IncludePrereleases}"/>
+                    <TextBlock Text="{Binding Update_Title}" FontWeight="Bold" />
+                    <CheckBox x:Name="AutoUpdateSetting" Content="{Binding Update_Auto}" />
+                    <CheckBox x:Name="PreReleaseSetting" Content="{Binding Update_IncludePrereleases}" />
                     <WrapPanel Margin="0,8">
                       <Button x:Name="UpdateCheckButton" Content="{Binding Update_Check}" Click="CheckUpdates" Margin="0,0,8,0" />
                       <Button x:Name="UpdateCancelButton" Content="{Binding CancelAction}" Click="CancelUpdateCheck" IsEnabled="False" />
@@ -491,45 +724,154 @@
               </Grid>
             </TabItem>
             <TabItem x:Name="PluginsTab" Header="{Binding Workspace_Plugins}">
-<Grid RowDefinitions="*,Auto"><TabControl><TabItem Header="Allgemein"><ScrollViewer><StackPanel x:Name="PluginGeneralHost" Margin="16" Spacing="8"/></ScrollViewer></TabItem><TabItem Header="Komprimieren / Dekomprimieren"><ScrollViewer><StackPanel Margin="16" Spacing="8"><Border Classes="overview-group"><StackPanel Spacing="8"><TextBlock Text="{Binding Package_Engine}"/><ComboBox x:Name="CompressionEngineSetting" MinWidth="220" SelectionChanged="CompressionEngineChanged"><ComboBoxItem Content="nscb_rust"/><ComboBoxItem Content="nicoboss/nsz"/></ComboBox><TextBlock Text="NSZ CLI"/><TextBox x:Name="NszCliPath"/><TextBlock Text="{Binding Nsz_Level}"/><NumericUpDown x:Name="CompressionLevelSetting" Minimum="1" Maximum="22" Value="18" Width="140" HorizontalAlignment="Left"/><TextBlock Text="{Binding Nsz_Mode}"/><ComboBox x:Name="CompressionModeSetting" MinWidth="220" ToolTip.Tip="{Binding Nsz_ModeTip}"><ComboBoxItem Content="{Binding Nsz_ModeAuto}"/><ComboBoxItem Content="{Binding Nsz_ModeSolid}"/><ComboBoxItem Content="{Binding Nsz_ModeBlock}"/></ComboBox><TextBlock Text="{Binding Nsz_BlockSize}"/><NumericUpDown x:Name="CompressionBlockSetting" Minimum="14" Maximum="32" Value="20" Width="140" HorizontalAlignment="Left"/></StackPanel></Border><TextBlock Text="NSZ GUI" />
-                  <TextBox x:Name="NszGuiPath" MinWidth="650" />
-                  <StackPanel Orientation="Horizontal" Spacing="8">
-                    <Button Content="…" Tag="NSZ" Click="BrowsePlugin" />
-                    <Button Content="{Binding MenuItem_Open}" Tag="NSZ" Click="LaunchPlugin" />
-                  </StackPanel>
-                  </StackPanel></ScrollViewer></TabItem><TabItem Header="nscbrust"><ScrollViewer><StackPanel Margin="16" Spacing="8"><TextBlock Text="Rust Desktop" />
-                  <TextBox x:Name="RustDesktopPath" />
-                  <StackPanel Orientation="Horizontal" Spacing="8">
-                    <Button Content="…" Tag="Rust" Click="BrowsePlugin" />
-                    <Button Content="{Binding MenuItem_Open}" Tag="Rust" Click="LaunchPlugin" />
-                  </StackPanel>
-                  <TextBlock Text="Rust Backend" />
-                  <TextBox x:Name="RustBackendPath" />
-                  <Button Content="…" Tag="Backend" Click="BrowsePlugin" />
-                  </StackPanel></ScrollViewer></TabItem><TabItem Header="Zusammenführen / Inhalte aufteilen / Umwandeln (experimentell)"><ScrollViewer><StackPanel Margin="16" Spacing="8"><TextBlock Text="Kronos GUI" />
-                  <TextBox x:Name="KronosGuiPath" />
-                  <StackPanel Orientation="Horizontal" Spacing="8">
-                    <Button Content="…" Tag="Kronos" Click="BrowsePlugin" />
-                    <Button Content="{Binding MenuItem_Open}" Tag="Kronos" Click="LaunchPlugin" />
-                  </StackPanel>
-                  </StackPanel></ScrollViewer></TabItem><TabItem Header="NxNandManager"><ScrollViewer><StackPanel Margin="16" Spacing="8"><TextBlock Text="NAND GUI" />
-                  <TextBox x:Name="NandGuiPath" />
-                  <StackPanel Orientation="Horizontal" Spacing="8">
-                    <Button Content="…" Tag="NAND" Click="BrowsePlugin" />
-                    <Button Content="{Binding MenuItem_Open}" Tag="NAND" Click="LaunchPlugin" />
-                  </StackPanel>
-                  </StackPanel></ScrollViewer></TabItem></TabControl><TextBlock x:Name="PluginStatus" Grid.Row="1" TextWrapping="Wrap"/></Grid>
+              <Grid RowDefinitions="*,Auto">
+                <TabControl>
+                  <TabItem Header="Allgemein">
+                    <ScrollViewer>
+                      <StackPanel x:Name="PluginGeneralHost" Margin="16" Spacing="8" />
+                    </ScrollViewer>
+                  </TabItem>
+                  <TabItem Header="Komprimieren / Dekomprimieren">
+                    <ScrollViewer>
+                      <StackPanel Margin="16" Spacing="8">
+                        <Border Classes="overview-group">
+                          <StackPanel Spacing="8">
+                            <TextBlock Text="{Binding Package_Engine}" />
+                            <ComboBox x:Name="CompressionEngineSetting" MinWidth="220" SelectionChanged="CompressionEngineChanged">
+                              <ComboBoxItem Content="cxfcxf / nscb_rust" />
+                              <ComboBoxItem Content="nicoboss/nsz" /><ComboBoxItem Content="cxfcxf / nscb_rust (Backup nicoboss/nsz)"/><ComboBoxItem Content="nicoboss/nsz (Backup cxfcxf / nscb_rust)"/>
+                            </ComboBox>
+                            <TextBlock Text="NSZ CLI" />
+                            <TextBox x:Name="NszCliPath" />
+                            <TextBlock Text="{Binding Nsz_Level}" />
+                            <TextBox x:Name="CompressionLevelSetting" Text="18" />
+                            <TextBlock Text="{Binding Nsz_Mode}" />
+                            <ComboBox x:Name="CompressionModeSetting" SelectionChanged="CompressionEngineChanged" MinWidth="220" ToolTip.Tip="{Binding Nsz_ModeTip}">
+                              <ComboBoxItem Content="{Binding Nsz_ModeAuto}" />
+                              <ComboBoxItem Content="{Binding Nsz_ModeSolid}" />
+                              <ComboBoxItem Content="{Binding Nsz_ModeBlock}" />
+                            </ComboBox>
+                            <TextBlock Text="{Binding Nsz_BlockSize}" />
+                            <ComboBox x:Name="CompressionBlockSetting" />
+                          </StackPanel>
+                        </Border>
+                        <TextBlock Text="NSZ GUI" />
+                        <TextBox x:Name="NszGuiPath" MinWidth="650" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                          <Button Content="…" Tag="NSZ" Click="BrowsePlugin" />
+                          <Button Content="{Binding MenuItem_Open}" Tag="NSZ" Click="LaunchPlugin" />
+                        </StackPanel>
+                      </StackPanel>
+                    </ScrollViewer>
+                  </TabItem>
+                  <TabItem Header="nscbrust">
+                    <ScrollViewer>
+                      <StackPanel Margin="16" Spacing="8">
+                        <TextBlock Text="Rust Desktop" />
+                        <TextBox x:Name="RustDesktopPath" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                          <Button Content="…" Tag="Rust" Click="BrowsePlugin" />
+                          <Button Content="{Binding MenuItem_Open}" Tag="Rust" Click="LaunchPlugin" />
+                        </StackPanel>
+                        <TextBlock Text="Rust Backend" />
+                        <TextBox x:Name="RustBackendPath" />
+                        <Button Content="…" Tag="Backend" Click="BrowsePlugin" />
+                      </StackPanel>
+                    </ScrollViewer>
+                  </TabItem>
+                  <TabItem x:Name="PackagePluginSettingsTab" Header="Zusammenführen / Inhalte aufteilen / Umwandeln (experimentell)">
+                    <ScrollViewer>
+                      <StackPanel Margin="16" Spacing="8">
+                        <TextBlock Text="Kronos GUI" />
+                        <TextBox x:Name="KronosGuiPath" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                          <Button Content="…" Tag="Kronos" Click="BrowsePlugin" />
+                          <Button Content="{Binding MenuItem_Open}" Tag="Kronos" Click="LaunchPlugin" />
+                        </StackPanel>
+                      </StackPanel>
+                    </ScrollViewer>
+                  </TabItem>
+                  <TabItem Header="NxNandManager">
+                    <ScrollViewer>
+                      <StackPanel Margin="16" Spacing="8">
+                        <TextBlock Text="NAND GUI" />
+                        <TextBox x:Name="NandGuiPath" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                          <Button Content="…" Tag="NAND" Click="BrowsePlugin" />
+                          <Button Content="{Binding MenuItem_Open}" Tag="NAND" Click="LaunchPlugin" />
+                        </StackPanel>
+                      </StackPanel>
+                    </ScrollViewer>
+                  </TabItem>
+                </TabControl>
+                <TextBlock x:Name="PluginStatus" Grid.Row="1" TextWrapping="Wrap" />
+              </Grid>
             </TabItem>
-<TabItem Header="{Binding Features_Title}"><ScrollViewer><StackPanel Margin="16" Spacing="12"><Border Classes="overview-group"><StackPanel Spacing="12"><TextBlock Text="{Binding Features_Title}" FontWeight="Bold"/><CheckBox x:Name="NszActiveSetting" Content="{Binding Features_NszPlugin}"/><CheckBox x:Name="PackageOperationsActiveSetting" Content="{Binding Features_PackageOperations}"/><CheckBox x:Name="NandActiveSetting" Content="{Binding Features_Nand}"/><CheckBox x:Name="FirmwareActiveSetting" Content="{Binding Features_Firmware}"/><Border Classes="overview-group"><StackPanel Spacing="8"><TextBlock Text="{Binding Features_DirectStarts}" FontWeight="Bold"/><CheckBox x:Name="NszDirectSetting" Content="{Binding Features_NszGui}"/><CheckBox x:Name="NandDirectSetting" Content="{Binding Features_NandGui}"/><CheckBox x:Name="RustDirectSetting" Content="{Binding Features_RustDesktopGui}"/><CheckBox x:Name="KronosDirectSetting" Content="{Binding Features_KronosGui}"/></StackPanel></Border></StackPanel></Border></StackPanel></ScrollViewer></TabItem>
+            <TabItem Header="{Binding Features_Title}">
+              <ScrollViewer>
+                <StackPanel Margin="16" Spacing="12">
+                  <Border Classes="overview-group">
+                    <StackPanel Spacing="12">
+                      <TextBlock Text="{Binding Features_Title}" FontWeight="Bold" />
+                      <CheckBox x:Name="NszActiveSetting" Content="{Binding Features_NszPlugin}" />
+                      <CheckBox x:Name="PackageOperationsActiveSetting" Content="{Binding Features_PackageOperations}" />
+                      <CheckBox x:Name="NandActiveSetting" Content="{Binding Features_Nand}" />
+                      <CheckBox x:Name="FirmwareActiveSetting" Content="{Binding Features_Firmware}" />
+                      <Border Classes="overview-group">
+                        <StackPanel Spacing="8">
+                          <TextBlock Text="{Binding Features_DirectStarts}" FontWeight="Bold" />
+                          <CheckBox x:Name="NszDirectSetting" Content="{Binding Features_NszGui}" />
+                          <CheckBox x:Name="NandDirectSetting" Content="{Binding Features_NandGui}" />
+                          <CheckBox x:Name="RustDirectSetting" Content="{Binding Features_RustDesktopGui}" />
+                          <CheckBox x:Name="KronosDirectSetting" Content="{Binding Features_KronosGui}" />
+                        </StackPanel>
+                      </Border>
+                    </StackPanel>
+                  </Border>
+                </StackPanel>
+              </ScrollViewer>
+            </TabItem>
           </TabControl>
           <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8" Margin="8">
-            <Button Content="{Binding SettingsView_Button_Reset}" Click="ResetSettings" Margin="0,0,120,0"/><Button Content="{Binding SettingsView_Button_Apply}" Click="SavePreferences" />
+            <Button Content="{Binding SettingsView_Button_Reset}" Click="ResetSettings" Margin="0,0,120,0" />
+            <Button Content="{Binding SettingsView_Button_Apply}" Click="SavePreferences" />
             <Button Content="{Binding SettingsView_Button_Cancel}" Click="CancelSettings" />
           </StackPanel>
           <TextBlock x:Name="SettingsStatus" TextWrapping="Wrap" Grid.Row="1" />
         </Grid>
       </TabItem>
-<TabItem x:Name="LogTab" Header="Log"><Grid Margin="10" RowDefinitions="Auto,*" RowSpacing="8"><StackPanel Orientation="Horizontal" Spacing="14"><CheckBox x:Name="LogInfo" Content="&#9679; INFO" IsChecked="True" IsCheckedChanged="LogFilterChanged"/><CheckBox x:Name="LogWarn" Content="&#9650; WARN" IsChecked="True" IsCheckedChanged="LogFilterChanged"/><CheckBox x:Name="LogError" Content="&#9632; ERROR" IsChecked="True" IsCheckedChanged="LogFilterChanged"/></StackPanel><ListBox x:Name="SessionLog" Grid.Row="1"><ListBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Text}" Foreground="{Binding Brush}" FontFamily="Consolas" TextWrapping="Wrap" Margin="4,2"/></DataTemplate></ListBox.ItemTemplate></ListBox></Grid></TabItem>
+      <TabItem x:Name="LogTab">
+        <TabItem.Header>
+          <StackPanel Orientation="Horizontal" Spacing="7">
+            <Image Source="/Icons/FileDirectoryEntryItem.png" Width="16" Height="16" />
+            <TextBlock Text="Log" />
+          </StackPanel>
+        </TabItem.Header>
+        <Grid Margin="10" RowDefinitions="Auto,*" RowSpacing="8">
+          <StackPanel Orientation="Horizontal" Spacing="14">
+            <TextBlock Text="● INFO" Foreground="LightSkyBlue" />
+            <TextBlock Text="▲ WARN" Foreground="Orange" />
+            <TextBlock Text="■ ERROR" Foreground="Salmon" />
+            <CheckBox IsVisible="False" x:Name="LogInfo" Content="● INFO" IsChecked="True" IsCheckedChanged="LogFilterChanged" />
+            <CheckBox IsVisible="False" x:Name="LogWarn" Content="▲ WARN" IsChecked="True" IsCheckedChanged="LogFilterChanged" />
+            <CheckBox IsVisible="False" x:Name="LogError" Content="■ ERROR" IsChecked="True" IsCheckedChanged="LogFilterChanged" />
+          </StackPanel>
+          <ListBox x:Name="SessionLog" Grid.Row="1">
+            <ListBox.ContextMenu>
+              <ContextMenu>
+                <MenuItem Header="Kopieren" Click="CopySelectedLog" />
+              </ContextMenu>
+            </ListBox.ContextMenu>
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <Border Background="{Binding Background}" BorderBrush="{Binding Brush}" BorderThickness="3,0,0,0" Padding="8,4">
+                  <SelectableTextBlock Text="{Binding Text}" Foreground="{Binding Brush}" FontFamily="Consolas" TextWrapping="Wrap" />
+                </Border>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Grid>
+      </TabItem>
       <TabItem x:Name="InfoTab">
         <TabItem.Header>
           <StackPanel Orientation="Horizontal" Spacing="7">
@@ -538,13 +880,29 @@
           </StackPanel>
         </TabItem.Header>
         <ScrollViewer VerticalScrollBarVisibility="Auto">
-          <StackPanel Margin="24" MaxWidth="900" HorizontalAlignment="Left">
+          <StackPanel Margin="24" MaxWidth="1100" HorizontalAlignment="Left">
             <Image Source="/Icons/Icon.ico" Width="72" Height="72" HorizontalAlignment="Left" Margin="0,0,0,16" />
             <TextBlock x:Name="ProgramVersionText" FontSize="28" Margin="0,0,0,16" />
-            <StackPanel Orientation="Horizontal" Spacing="12"><TextBlock x:Name="ProgramArchitectureText" FontWeight="Bold" Margin="0,0,0,8"/><TextBlock x:Name="ProgramRuntimeText" Margin="0,0,0,8"/></StackPanel><TextBlock Text="{Binding Info_Description}" TextWrapping="Wrap" Margin="0,0,0,12"/>
-<Button Content="GitHub: sandmaennchen5/fork_NxFileViewer" Tag="https://github.com/sandmaennchen5/fork_NxFileViewer" Click="OpenInfoLink" HorizontalAlignment="Left" Margin="0,0,0,8"/>
-<WrapPanel Margin="0,0,0,16"><Button Content="Fehler / Funktionswunsch melden" Tag="https://github.com/sandmaennchen5/fork_NxFileViewer/issues/new/choose" Click="OpenInfoLink" Margin="0,0,8,0"/><Button x:Name="PollsInfoButton" Content="Umfragen" Click="OpenInfoLink" Margin="0,0,8,0"/><Button Content="Discord" Tag="https://discord.gg/tjvhd3jw3d" Click="OpenInfoLink"/></WrapPanel>
-<TextBlock Text="Support-ID" Margin="0,0,0,6"/><TextBox x:Name="SupportIdentityText" IsReadOnly="True"/><WrapPanel Margin="0,6,0,0"><Button x:Name="RefreshSupportButton" Content="Support-ID aktualisieren" Click="RefreshSupportIdentity" Margin="0,0,8,0"/><Button x:Name="CopySupportButton" Content="Kopieren" Click="CopySupportIdentity" Margin="0,0,8,0"/><Button x:Name="SearchSupportButton" Content="Meine Meldungen suchen" Click="SearchSupportIdentity"/></WrapPanel><TextBlock Text="Öffentlich in deinen Meldungen sichtbar." Margin="0,6,0,12"/><TextBlock Text="{Binding Info_Credits}" FontWeight="Bold" Margin="0,12" />
+            <StackPanel Orientation="Horizontal" Spacing="12">
+              <TextBlock x:Name="ProgramArchitectureText" FontWeight="Bold" Margin="0,0,0,8" />
+              <TextBlock x:Name="ProgramRuntimeText" Margin="0,0,0,8" />
+            </StackPanel>
+            <TextBlock Text="{Binding Info_Description}" TextWrapping="Wrap" Margin="0,0,0,12" />
+            <Button Content="GitHub: sandmaennchen5/fork_NxFileViewer" Tag="https://github.com/sandmaennchen5/fork_NxFileViewer" Click="OpenInfoLink" HorizontalAlignment="Left" Margin="0,0,0,8" />
+            <WrapPanel Margin="0,0,0,16">
+              <Button Content="Fehler / Funktionswunsch melden" Click="OpenFeedback" Margin="0,0,8,0" />
+              <Button x:Name="PollsInfoButton" Content="Umfragen" Click="OpenPolls" Margin="0,0,8,0" />
+              <Button Content="Discord" Tag="https://discord.gg/tjvhd3jw3d" Click="OpenInfoLink" />
+            </WrapPanel>
+            <TextBlock Text="Support-ID" Margin="0,0,0,6" />
+            <TextBox x:Name="SupportIdentityText" IsReadOnly="True" />
+            <WrapPanel Margin="0,6,0,0">
+              <Button x:Name="RefreshSupportButton" Content="Support-ID aktualisieren" Click="RefreshSupportIdentity" Margin="0,0,8,0" />
+              <Button x:Name="CopySupportButton" Content="Kopieren" Click="CopySupportIdentity" Margin="0,0,8,0" />
+              <Button x:Name="SearchSupportButton" Content="Meine Meldungen suchen" Click="SearchSupportIdentity" />
+            </WrapPanel>
+            <TextBlock x:Name="SupportIdentityStatus" Text="Öffentlich in deinen Meldungen sichtbar." TextWrapping="Wrap" Margin="0,6,0,12" />
+            <TextBlock Text="{Binding Info_Credits}" FontWeight="Bold" Margin="0,12" />
             <TextBlock x:Name="CreditsText" TextWrapping="Wrap" />
             <TextBlock Text="{Binding Info_Licenses}" FontWeight="Bold" Margin="0,12" />
             <Expander Header="LICENSE">

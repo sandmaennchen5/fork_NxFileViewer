@@ -19,7 +19,7 @@ public partial class MainWindow
     private readonly TitleDbCatalog _titleDb = new(ApplicationDataPaths.TitleDb(AppContext.BaseDirectory));
     private ConcurrentDictionary<(string Region, string Repository), IReadOnlyDictionary<string, OnlineTitleInfo>> _localTitleDbs = new();
     private string? _titleDbRepository;
-    private string TitleDbRegion => _text.CultureName.StartsWith("de", StringComparison.OrdinalIgnoreCase) ? "DE.de" : "US.en";
+    private string TitleDbRegion => string.IsNullOrWhiteSpace(_preferences.SharedSettings.TitleDbRegion) ? "US.en" : _preferences.SharedSettings.TitleDbRegion;
 
     private void InitializeTitleDbChoice(ViewerPreferences preferences)
     {

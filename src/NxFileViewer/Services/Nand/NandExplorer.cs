@@ -338,5 +338,18 @@ public sealed class NandExplorer : IDisposable
         }
         throw new InvalidDataException("Truncated FAT file chain.");
     }
+    public void ExportPartition(NandExplorerPartition partition, Stream destination)
+    {
+        if (partition.Offset < 0 || partition.Size < 0 || partition.Offset > _length || partition.Size > _length - partition.Offset)
+            throw new InvalidDataException("NAND partition exceeds source bounds.");
+        long copied = 0;
+        while (copied < partition.Size)
+        {
+            _token.ThrowIfCancellationRequested();
+            var count = (int)Math.Min(1024 * 1024, partition.Size - copied);
+            destination.Write(ReadRaw(partition.Offset + copied, count));
+            copied += count;
+        }
+    }
     public void Dispose() { foreach (var part in _parts) part.Stream.Dispose(); _parts.Clear(); }
 }

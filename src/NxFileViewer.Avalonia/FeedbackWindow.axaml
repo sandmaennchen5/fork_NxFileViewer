@@ -1,0 +1,34 @@
+<Window x:Class="NxFileViewer.Avalonia.FeedbackWindow"
+        xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Width="560" SizeToContent="Height" CanResize="False" WindowStartupLocation="CenterOwner">
+    <ScrollViewer ScrollViewer.VerticalScrollBarVisibility="Auto">
+    <StackPanel Margin="20">
+        <TextBlock x:Name="Notice" TextWrapping="Wrap" Margin="0,0,0,14"/>
+        <TextBlock x:Name="SupportIdText" TextWrapping="Wrap" Margin="0,0,0,10"/>
+        <TextBlock x:Name="GitHubStatus" TextWrapping="Wrap" Margin="0,0,0,10"/>
+        <Label x:Name="DisplayNameLabel"/>
+        <TextBox x:Name="DisplayName" MaxLength="40"/>
+        <TextBlock x:Name="DisplayNameHint" TextWrapping="Wrap" Margin="0,4,0,10"/>
+        <Label x:Name="TitleLabel"/>
+        <TextBox x:Name="IssueTitle" MaxLength="160"/>
+        <Label x:Name="DescriptionLabel"/>
+        <TextBox x:Name="Description" Height="160" MaxLength="6000" AcceptsReturn="True"
+                 TextWrapping="Wrap" ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+        <CheckBox x:Name="PrivateLog" Margin="0,12,0,0"/>
+        <TextBlock x:Name="PrivateLogHint" TextWrapping="Wrap" Margin="0,4,0,0"/>
+        <CheckBox x:Name="IncludeLog" Margin="0,12,0,0" Click="IncludeLog_Click"/>
+        <StackPanel x:Name="LogPreview" IsVisible="False" Margin="0,8,0,0">
+            <Label x:Name="LogPreviewLabel"/>
+            <TextBox x:Name="LogExcerpt" Height="108" MaxLength="4096" AcceptsReturn="True"
+                     TextWrapping="Wrap" ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+        </StackPanel>
+        <WrapPanel Margin="0,14,0,0">
+            <Button x:Name="WithGitHub" Click="WithGitHub_Click" Padding="9,4" Margin="0,0,8,0"/>
+            <Button x:Name="WithoutGitHub" Click="WithoutGitHub_Click" Padding="9,4"/>
+        </WrapPanel>
+        <TextBlock x:Name="Status" TextWrapping="Wrap" Margin="0,12,0,0"/>
+        <Button x:Name="IssueLink" IsVisible="False" HorizontalAlignment="Left" Click="IssueLink_Click"/>
+    </StackPanel>
+    </ScrollViewer>
+</Window>

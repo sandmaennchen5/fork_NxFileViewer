@@ -43,11 +43,21 @@ public partial class SettingsWindow : UserControl
 
     private void RefreshCommunityText()
     {
-        var statisticsGerman = Emignatik.NxFileViewer.Localization.CommunityLanguage.IsGerman;
-        UsageStatisticsOption.Content = statisticsGerman ? "Anonyme Nutzungsstatistik senden" : "Send anonymous usage statistics";
-        UsageStatisticsHint.Text = statisticsGerman
-            ? "Sendet beim Start höchstens täglich Kennung, Version und Systemdetails, zusätzlich nach einem Versionswechsel. Die feste Kennung ist intern mit deinen Support-Meldungen verknüpfbar."
-            : "Sends identity, version and system details at startup at most daily, plus after a version change. The stable identity can be linked internally to your support reports.";
+        var language = Emignatik.NxFileViewer.Localization.CommunityLanguage.SelectedLanguage;
+        UsageStatisticsOption.Content = language switch
+        {
+            "de" => "Systembericht deaktivieren",
+            "fr" => "Désactiver le rapport système",
+            "es" => "Desactivar el informe del sistema",
+            _ => "Disable system report"
+        };
+        UsageStatisticsHint.Text = language switch
+        {
+            "de" => "Sendet beim Start Programmversion und Systemdetails alle 90 Tage sowie nach einem Upgrade oder einer Änderung der Systemdaten. Zeigt, welche Betriebssysteme und Systemumgebungen verwendet werden. Die App erfasst keine Nutzungsdauer.",
+            "fr" => "Au démarrage, envoie la version de l’application et les données système tous les 90 jours, après une mise à niveau ou si ces données changent. Indique les systèmes d’exploitation et les configurations utilisés. L’application ne mesure pas le temps d’utilisation.",
+            "es" => "Al iniciar, envía la versión de la aplicación y los datos del sistema cada 90 días, tras actualizar a una versión superior o si cambian esos datos. Indica qué sistemas operativos y configuraciones se usan. La aplicación no mide el tiempo de uso.",
+            _ => "Sends the app version and system details at startup every 90 days and after an upgrade or a change in system details. Shows which operating systems and system configurations are in use. The app does not track time spent using it."
+        };
     }
 
     private void RefreshKeyLocations() => (DataContext as SettingsWindowViewModel)?.RefreshKeyLocations();

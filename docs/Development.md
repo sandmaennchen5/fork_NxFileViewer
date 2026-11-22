@@ -80,12 +80,12 @@ These modes write EXEs into versioned output subfolders. They create no ZIPs,
 release descriptors, firmware archives or Explorer packages. Without `WithRuntime`,
 the target machine needs .NET 10 Desktop Runtime for the selected architecture.
 
-## beta4 development version and local test copies
+## beta5 development version and local test copies
 
 The viewer, WPF/Avalonia LogViewers, Avalonia viewer and transition project use
-`4.1.1-beta4` for direct builds. Publish/release commands still take their version
+`4.1.1-beta5` for direct builds. Publish/release commands still take their version
 from the main viewer project or an explicit `-Version`; the Explorer package keeps
-its independent version. Tag `v4.1.1-beta4` or `4.1.1-beta4` creates a prerelease when
+its independent version. Tag `v4.1.1-beta5` or `4.1.1-beta5` creates a prerelease when
 published through the release workflow. Preparing local files does not create a tag
 or publish a release.
 
@@ -93,7 +93,18 @@ The local `PublishTest.ps1` helper has project-selection and copy settings near 
 start. `$CopyExecutables` accepts several project/name pairs, and `$TestDirectory`
 sets the destination. Keep destination names distinct for WPF/Avalonia outputs and
 close running test executables before replacement. This helper is not the release
-packaging matrix. See [experimental Avalonia builds](Avalonia.md).
+packaging matrix. See [first converted Avalonia applications (early beta)](Avalonia.md).
+
+## Local publishing from network drives
+
+The publish scripts support Windows PowerShell 5.1 and PowerShell 7 on Windows.
+Windows packaging uses `Compress-Archive`; Linux/macOS Avalonia packaging uses
+native `zip` to retain executable permissions.
+
+Local Release builds skip the SDK's optional Git-metadata queries because reading
+Git refs on SMB shares or mapped drives can fail with an invalid-parameter error.
+This does not modify the repository. CI retains source-control metadata, and an
+explicit `-p:EnableSourceControlManagerQueries=true` overrides the local default.
 
 ## Editable defaults and native components
 

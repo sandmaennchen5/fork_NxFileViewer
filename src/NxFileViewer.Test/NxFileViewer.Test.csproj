@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0-windows7.0</TargetFramework>
@@ -23,6 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="..\NxFileViewer.Avalonia\SupportIdentityState.cs" Link="Avalonia\SupportIdentityState.cs" />
     <Compile Include="..\NxFileViewer.Transition\LegacyDataMigration.cs" Link="Transition\LegacyDataMigration.cs" />
     <Compile Include="..\NxFileViewer.Transition\TransitionRelease.cs" Link="Transition\TransitionRelease.cs" />
     <ProjectReference Include="..\NxFileViewer\NxFileViewer.csproj" />

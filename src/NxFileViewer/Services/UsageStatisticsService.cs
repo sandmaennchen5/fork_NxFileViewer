@@ -1,5 +1,9 @@
 using System;
 using System.IO;
+using System.Globalization;
+using System.Security.Cryptography;
+using System.Text.RegularExpressions;
+using Emignatik.NxFileViewer.Services.Updates;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Reflection;
@@ -9,31 +13,37 @@ using Emignatik.NxFileViewer.Logging;
 
 namespace Emignatik.NxFileViewer.Services;
 
-internal static class UsageStatisticsService
+internal static partial class UsageStatisticsService
 {
+    private const int ReportIntervalDays = 30;
+
     private static readonly HttpClient Client = new(new HttpClientHandler { AllowAutoRedirect = false })
     {
         Timeout = TimeSpan.FromSeconds(10)
     };
 
-    internal static async Task SendStartupAsync()
+    internal static string BuildVersion { get; } = typeof(UsageStatisticsService).Assembly
+        .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+        ?? typeof(UsageStatisticsService).Assembly.GetName().Version?.ToString() ?? "unknown";
+
+    internal static async Task SendStartupAsync(Settings.IAppSettings settings)
     {
-        if (!App.Features.UsageStatisticsChoiceConfirmed || !App.Features.SendAnonymousUsageStatistics) return;
+        if (!settings.UsageStatisticsChoiceConfirmed || !settings.SendAnonymousUsageStatistics) return;
         try
         {
-            var report = CommunityPollService.Endpoint(App.Features.ReportEndpoint);
+            var report = CommunityPollService.Endpoint(settings.ReportEndpoint);
             if (report is null) return;
-            var participant = SupportIdentityService.Participant();
-            var buildVersion = typeof(UsageStatisticsService).Assembly
-                .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
-                ?? typeof(UsageStatisticsService).Assembly.GetName().Version?.ToString() ?? "unknown";
+            var participant = SupportIdentityClient.Participant();
+            var buildVersion = BuildVersion;
             var directory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "NxFileViewerFork");
-            var day = DateTime.UtcNow.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+            var day = DateTime.UtcNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
             var endpoint = new Uri(report, "usage.php").AbsoluteUri;
-            var payload = new { participant, version = buildVersion.Split('+')[0], buildVersion, environment = SessionEnvironment.Capture() };
-            await SendOnceAsync(directory, new UsageState(day, buildVersion, endpoint, participant), async () =>
+            var environment = SessionEnvironment.Capture();
+            var fingerprint = Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(environment)));
+            var payload = new { participant, version = buildVersion.Split('+')[0], buildVersion, environment };
+            await SendOnceAsync(directory, new UsageState(day, buildVersion, endpoint, participant, fingerprint), async () =>
             {
-                if (!App.Features.UsageStatisticsChoiceConfirmed || !App.Features.SendAnonymousUsageStatistics) return;
+                if (!settings.UsageStatisticsChoiceConfirmed || !settings.SendAnonymousUsageStatistics) return;
                 using var response = await Client.PostAsJsonAsync(endpoint, payload);
                 response.EnsureSuccessStatusCode();
             });
@@ -58,7 +68,14 @@ internal static class UsageStatisticsService
                 previous = JsonSerializer.Deserialize<UsageState>(await File.ReadAllTextAsync(statePath));
         }
         catch (JsonException) { }
-        if (previous == attempt) return;
+        if (previous is not null &&
+            previous.Endpoint == attempt.Endpoint && previous.Participant == attempt.Participant &&
+            previous.EnvironmentFingerprint == attempt.EnvironmentFingerprint &&
+            DateOnly.TryParseExact(previous.Day, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var lastDay) &&
+            DateOnly.TryParseExact(attempt.Day, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var today) &&
+            today.DayNumber - lastDay.DayNumber < ReportIntervalDays &&
+            !IsUpgrade(previous.BuildVersion, attempt.BuildVersion))
+            return;
 
         var temporary = Path.Combine(directory, "usage-statistics-" + Guid.NewGuid().ToString("N") + ".tmp");
         try
@@ -74,5 +91,13 @@ internal static class UsageStatisticsService
         await send();
     }
 
-    private sealed record UsageState(string Day, string BuildVersion, string Endpoint, string Participant);
+    internal static bool IsUpgrade(string previous, string current)
+    {
+        // Published previews use beta4, beta5, etc. Compare the suffix as a number.
+        static string Normalize(string? version) => Regex.Replace(version ?? "", @"-beta(?=\d+(?:\+|$))", "-beta.");
+        return ViewerVersion.TryParse(Normalize(previous), out var before) &&
+            ViewerVersion.TryParse(Normalize(current), out var after) && after.CompareTo(before) > 0;
+    }
+
+    private sealed record UsageState(string Day, string BuildVersion, string Endpoint, string Participant, string? EnvironmentFingerprint);
 }

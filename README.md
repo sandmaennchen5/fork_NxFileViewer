@@ -15,7 +15,9 @@ Browse, verify and manage Nintendo Switch packages in a Windows desktop applicat
 
 Firmware references, the standalone LogViewer and Explorer setup packages are separate downloads. See [installation and updates](docs/Application-updates.md).
 
-The current development prerelease is **4.1.1-beta4**. See the [changes since beta3](CHANGELOG.md#411-beta4---2026-11-21).
+The current development prerelease is **4.1.1-beta5**. See the [changes since beta4](CHANGELOG.md#411-beta5---2026-11-22).
+
+Beta releases also include the **first converted Avalonia viewer and LogViewer applications** for Windows, Linux and macOS. These are early beta versions: the conversion is in progress, and not all functions are implemented or tested. See [Avalonia beta builds](docs/Avalonia.md).
 
 ## Features
 
@@ -71,7 +73,7 @@ Detailed workflows, configuration and limitations are in the **[documentation](d
 
 ## Feedback and community
 
-Report bugs or feature requests, find your Support ID and participate in polls under **Info**. See [feedback, polls and usage statistics](docs/Community.md) for public/private log choices, reminders, optional reporting and companion-service requirements.
+Report bugs or feature requests, find your Support ID and participate in polls under **Info**. See [feedback, polls and system reports](docs/Community.md) for public/private log choices, reminders, optional reporting and companion-service requirements.
 
 ## Development and credits
 

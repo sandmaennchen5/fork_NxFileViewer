@@ -33,6 +33,7 @@ public partial class MainWindow
         HomeKronosLaunch.IsVisible = _preferences.KronosDirectStart && File.Exists(KronosGuiPath.Text);
         HomePluginPanel.IsVisible = HomeNandLaunch.IsVisible || HomeNszLaunch.IsVisible ||
             HomeRustLaunch.IsVisible || HomeKronosLaunch.IsVisible;
+        FileCloseButton.IsEnabled = _openedPath != null;
         OpenLastButton.IsEnabled = _lastOpenedPath != null && File.Exists(_lastOpenedPath);
     }
 

@@ -72,14 +72,20 @@
     </Style>
     <Style Selector="TextBox">
         <Setter Property="CornerRadius" Value="0"/>
-        <Setter Property="MinHeight" Value="24"/>
+        <Setter Property="MinHeight" Value="18"/>
+        <Setter Property="Padding" Value="2,0"/>
         <Setter Property="Background" Value="{DynamicResource TextBox.Static.Background}"/>
         <Setter Property="Foreground" Value="{DynamicResource TextBox.Static.Foreground}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource TextBox.Static.Border}"/>
     </Style>
     <Style Selector="ComboBox">
         <Setter Property="CornerRadius" Value="0"/>
-        <Setter Property="MinHeight" Value="24"/>
+        <Setter Property="MinHeight" Value="22"/>
+        <Setter Property="Padding" Value="4,1"/>
+        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        <Setter Property="Background" Value="{DynamicResource Control.Static.Background}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Control.Static.Foreground}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Control.Static.Border}"/>
     </Style>
     <Style Selector="ListBox">
         <Setter Property="Background" Value="{DynamicResource Surface.Static.Background}"/>
@@ -136,4 +142,6 @@
 <Style Selector="CheckBox:checked"><Setter Property="Foreground" Value="{DynamicResource Title2.Foreground}"/></Style>
 <Style Selector="Border.help-tip"><Setter Property="Width" Value="16"/><Setter Property="Height" Value="16"/><Setter Property="CornerRadius" Value="8"/><Setter Property="Margin" Value="6,0,0,0"/><Setter Property="Background" Value="{DynamicResource Control.Static.Border}"/></Style>
 <Style Selector="ToolTip"><Setter Property="MaxWidth" Value="620"/><Setter Property="ContentTemplate"><DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap" MaxWidth="580"/></DataTemplate></Setter></Style>
+<Style Selector="MenuItem"><Setter Property="MinHeight" Value="20"/><Setter Property="Padding" Value="4,1"/><Setter Property="FontSize" Value="12"/></Style>
+<Style Selector="ContextMenu"><Setter Property="Padding" Value="2"/><Setter Property="CornerRadius" Value="0"/></Style>
 </Styles>

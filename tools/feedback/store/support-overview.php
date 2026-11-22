@@ -19,8 +19,8 @@ function supportOverview(PDO $db, int $days, ?int $now = null): array {
 function supportIdOverviewRows(PDO $db, string $search, string $filter, int $days, int $page, ?int $now = null): array {
     if (strlen($search) > 200 || $page < 1 || $page > 1000000) throw new InvalidArgumentException('Invalid search');
     $cutoff = ($now ?? time()) - $days * 86400;
-    $where = '(LOWER(p.support_id) LIKE LOWER(?) OR LOWER(p.internal_id) LIKE LOWER(?) OR LOWER(p.display_name) LIKE LOWER(?))';
-    $args = array_fill(0, 3, '%' . $search . '%');
+    $where = '(LOWER(p.support_id) LIKE LOWER(?) OR LOWER(p.display_name) LIKE LOWER(?))';
+    $args = array_fill(0, 2, '%' . $search . '%');
     switch ($filter) {
         case 'all': break;
         case 'reported': $where .= ' AND u.internal_id IS NOT NULL'; break;
@@ -31,10 +31,10 @@ function supportIdOverviewRows(PDO $db, string $search, string $filter, int $day
     }
     $join = ' FROM support_profiles p LEFT JOIN usage_statistics u ON u.internal_id = p.internal_id ';
     $total = (int)supportQuery($db, 'SELECT COUNT(*)' . $join . 'WHERE ' . $where, $args)->fetchColumn();
-    $statement = $db->prepare('SELECT p.internal_id, p.support_id, p.display_name, p.created_at, p.updated_at,
+    $statement = $db->prepare('SELECT p.support_id, p.display_name, p.created_at, p.updated_at,
         u.version, u.platform, u.process_architecture, u.ui_framework, u.last_seen,
         (SELECT COUNT(*) FROM support_issues i WHERE i.internal_id = p.internal_id) AS issue_count'
-        . $join . 'WHERE ' . $where . ' ORDER BY p.updated_at DESC, p.internal_id ASC LIMIT ? OFFSET ?');
+        . $join . 'WHERE ' . $where . ' ORDER BY p.updated_at DESC, p.support_id ASC LIMIT ? OFFSET ?');
     foreach ($args as $index => $value) $statement->bindValue($index + 1, $value);
     $statement->bindValue(count($args) + 1, 100, PDO::PARAM_INT);
     $statement->bindValue(count($args) + 2, ($page - 1) * 100, PDO::PARAM_INT);

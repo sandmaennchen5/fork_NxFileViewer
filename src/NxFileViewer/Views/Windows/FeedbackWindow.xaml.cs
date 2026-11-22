@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.ComponentModel;
 using System.IO;
@@ -68,11 +68,11 @@ public partial class FeedbackWindow : Window
 
         if (_endpoint is null)
         {
-            WithGitHub.Content = Text("Auf GitHub melden", "Report on GitHub");
+            WithGitHub.IsEnabled = false;
             WithoutGitHub.IsEnabled = false;
             PrivateLog.IsEnabled = false;
             if (Status.Text.Length == 0)
-                Status.Text = Text("Der Meldedienst ist noch nicht eingerichtet.", "The reporting service has not been configured yet.");
+                Status.Text = Text("Zum Senden aus der App muss der Meldedienst eingerichtet sein.", "The reporting service must be configured to submit reports from the app.");
         }
         Closed += (_, _) => _lifetime.Cancel();
     }
@@ -129,7 +129,7 @@ public partial class FeedbackWindow : Window
 
     private async Task SubmitAsync(string mode)
     {
-        if (_submitted) return;
+        if (_submitted || _endpoint is null) return;
         var title = IssueTitle.Text.Trim();
         var description = Description.Text.Trim();
         if (title.Length == 0 || description.Length == 0)
@@ -160,7 +160,8 @@ public partial class FeedbackWindow : Window
         var assemblyVersion = assembly.GetName().Version;
         var version = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
             ?? assemblyVersion?.ToString();
-        var body = $"{description}\n\nNxFileViewer Version: {version}; Assembly: {assemblyVersion}.";
+        var body = description;
+        var systemDetails = $"NxFileViewer: {version}\n{SessionEnvironment.Describe()}";
         var log = _logAnonymizer.Anonymize(LogExcerpt.Text).TrimEnd();
         LogExcerpt.Text = log;
         if (IncludeLog.IsChecked == true && log.Length > 0)
@@ -169,8 +170,8 @@ public partial class FeedbackWindow : Window
             body += $"\n\n### {Text("Sitzungslog (Auszug)", "Session log (excerpt)")}\n\n    {codeBlock}";
         }
 
-        var submission = JsonSerializer.SerializeToUtf8Bytes(new { mode, title, body, displayName, participant });
-        if (_endpoint is not null && (submission.Length > 32768 || Encoding.UTF8.GetByteCount(body) > 24000))
+        var submission = JsonSerializer.SerializeToUtf8Bytes(new { mode, title, body, displayName, participant, systemDetails });
+        if (submission.Length > 32768 || Encoding.UTF8.GetByteCount(body) > 24000)
         {
             Status.Text = Text("Die Meldung ist zu lang. Kürze die Beschreibung oder den Log-Auszug.",
                 "The report is too long. Shorten the description or the log excerpt.");
@@ -184,21 +185,9 @@ public partial class FeedbackWindow : Window
         IssueTitle.IsReadOnly = Description.IsReadOnly = LogExcerpt.IsReadOnly = true;
         var cancellation = _lifetime.Token;
         string? savedReceipt = null;
+        var systemDetailsConfirmed = true;
         try
         {
-            if (_endpoint is null)
-            {
-                var draftUrl = $"{Repository}/issues/new?title={Uri.EscapeDataString(title)}&body={Uri.EscapeDataString(body)}";
-                if (draftUrl.Length > 8000)
-                {
-                    Status.Text = Text("Der GitHub-Link ist zu lang. Kürze die Beschreibung oder den Log-Auszug.",
-                        "The GitHub link is too long. Shorten the description or the log excerpt.");
-                    return;
-                }
-                OpenBrowser(draftUrl);
-                return;
-            }
-
             Status.Text = Text("Meldung wird vorbereitet …", "Preparing report …");
             PrivateLogPayload? privateLog = null;
             if (includePrivateLog)
@@ -223,7 +212,7 @@ public partial class FeedbackWindow : Window
                 _submissionId = Guid.NewGuid().ToString("N");
                 _submissionFingerprint = fingerprint;
             }
-            var payload = new { mode, title, body, displayName, participant, privateLog, submissionId = _submissionId };
+            var payload = new { mode, title, body, displayName, participant, systemDetails, privateLog, submissionId = _submissionId };
             if (JsonSerializer.SerializeToUtf8Bytes(payload).Length > 8 * 1024 * 1024)
             {
                 Status.Text = Text("Die Meldung mit Original-Log ist zu groß.", "The report with the original log is too large.");
@@ -232,6 +221,8 @@ public partial class FeedbackWindow : Window
             Status.Text = Text("Meldung wird gesendet …", "Sending report …");
             using var response = await PostAsync(payload, cancellation);
             var result = response.RootElement;
+            systemDetailsConfirmed = result.TryGetProperty("systemDetailsStored", out var detailsStored) &&
+                detailsStored.ValueKind == JsonValueKind.True;
             if (result.TryGetProperty("receipt", out var receiptValue)) savedReceipt = receiptValue.GetString();
             var privateLogConfirmed = !includePrivateLog ||
                 (result.TryGetProperty("privateLogStored", out var stored) && stored.ValueKind == JsonValueKind.True);
@@ -301,10 +292,13 @@ public partial class FeedbackWindow : Window
         }
         finally
         {
+            if (_submitted && !systemDetailsConfirmed)
+                Status.Text += Text(" Der Meldedienst hat die Speicherung der Systemdaten nicht bestätigt.",
+                    " The reporting service did not confirm that it stored the system details.");
             WithGitHub.IsEnabled = !_submitted;
-            WithoutGitHub.IsEnabled = !_submitted && _endpoint is not null;
+            WithoutGitHub.IsEnabled = !_submitted;
             IncludeLog.IsEnabled = !_submitted;
-            PrivateLog.IsEnabled = !_submitted && _endpoint is not null;
+            PrivateLog.IsEnabled = !_submitted;
             DisplayName.IsReadOnly = _submitted;
             if (mode == "github" && !_submitted)
                 GitHubStatus.Text = Text("GitHub: Bestätigung konnte nicht abgeschlossen werden.",

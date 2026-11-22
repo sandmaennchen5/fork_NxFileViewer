@@ -63,6 +63,10 @@ try{
 <p><?=webT('Meldungskennung: ')?><code><?=adminEscape($selected['ticket'])?></code></p>
 <?php if($selected['number']):?><p><a href="https://github.com/<?=FEEDBACK_REPOSITORY?>/issues/<?=(int)$selected['number']?>">GitHub-Issue #<?=(int)$selected['number']?></a></p><?php endif ?>
 <pre><?=adminEscape($selected['body'])?></pre>
+<?php $systemDetails=feedbackSystemDetails($db,$selected['ticket']);if($systemDetails!==null):?>
+<h3><?=webT('Systemdaten (privat)')?></h3>
+<pre><?=adminEscape($systemDetails)?></pre>
+<?php endif ?>
 <?php $hasLog=feedbackQuery($db,'SELECT 1 FROM private_issue_logs WHERE ticket=?',[$selected['ticket']])->fetchColumn();if($hasLog):?>
 <?php if(adminCan('download_logs')):?><p><a href="/admin/support/log?report=<?=adminEscape($selected['ticket'])?><?=webT('">Original-Log herunterladen')?></a></p><?php endif ?>
 <?php if(adminCan('delete_logs')):?><form method="post"><?=adminCsrf()?><input type="hidden" name="ticket" value="<?=adminEscape($selected['ticket'])?>"><button name="action" value="delete-report-log"><?=webT('Privates Log löschen')?></button></form><?php endif ?>

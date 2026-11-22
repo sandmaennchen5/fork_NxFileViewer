@@ -20,7 +20,7 @@ internal sealed class App : Application
             var window = new MainWindow();
             desktop.MainWindow = window;
             if (desktop.Args is { Length: > 0 } args)
-                window.Opened += async (_, _) => await window.OpenFileAsync(args[0]);
+                window.Opened += async (_, _) => await window.OpenFileAsync(args[0], fromWindows: true);
         }
         base.OnFrameworkInitializationCompleted();
     }

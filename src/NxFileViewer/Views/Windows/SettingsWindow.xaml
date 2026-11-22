@@ -75,7 +75,7 @@
                                 </StackPanel>
                             </UniformGrid>
                             <Separator Margin="0,12,0,8"/>
-                            <CheckBox x:Name="UsageStatisticsOption" IsChecked="{Binding EditedSettings.SendAnonymousUsageStatistics}" Margin="0,0,0,4"/>
+                            <CheckBox x:Name="UsageStatisticsOption" IsChecked="{Binding EditedSettings.SendAnonymousUsageStatistics, Converter={StaticResource BoolInverterConverter}, Mode=TwoWay}" Margin="0,0,0,4"/>
                             <TextBlock x:Name="UsageStatisticsHint" TextWrapping="Wrap" Margin="0,0,0,12"/>
                         </StackPanel>
                     </GroupBox>

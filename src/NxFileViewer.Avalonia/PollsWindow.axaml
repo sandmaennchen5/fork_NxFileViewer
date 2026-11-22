@@ -1,0 +1,15 @@
+<Window x:Class="NxFileViewer.Avalonia.PollsWindow"
+ xmlns="https://github.com/avaloniaui"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ Width="640" Height="600" MinWidth="400" MinHeight="350"
+ Foreground="{DynamicResource Control.Static.Foreground}" WindowStartupLocation="CenterOwner">
+ <DockPanel Margin="20">
+  <StackPanel DockPanel.Dock="Top">
+   <WrapPanel>
+    <Button x:Name="RefreshButton" Click="Refresh_Click" Padding="10,4" Margin="0,0,8,8"/>
+   </WrapPanel>
+   <TextBlock x:Name="Status" TextWrapping="Wrap" Margin="0,0,0,12"/>
+  </StackPanel>
+  <ScrollViewer ScrollViewer.VerticalScrollBarVisibility="Auto"><StackPanel x:Name="PollList"/></ScrollViewer>
+ </DockPanel>
+</Window>

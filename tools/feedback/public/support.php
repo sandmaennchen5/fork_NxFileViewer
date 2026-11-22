@@ -63,14 +63,14 @@ if (!empty($_SESSION['poll_admin'])) {
         foreach ($cache['issues'] as $issue) foreach ($issue['labels'] as $name) $labels[$name] = $name;
         natcasesort($labels);
         $pattern = '%' . $search . '%';
-        $query = supportQuery($db, 'SELECT p.internal_id, p.support_id, p.display_name AS current_name,
+        $query = supportQuery($db, 'SELECT p.support_id, p.display_name AS current_name,
             i.issue_number, i.display_name AS reported_name, i.created_at, l.original_size AS private_log_size
             FROM support_profiles p LEFT JOIN support_issues i ON i.internal_id = p.internal_id
             LEFT JOIN private_issue_logs l ON l.issue_number = i.issue_number
-            WHERE LOWER(p.support_id) LIKE LOWER(?) OR LOWER(p.internal_id) LIKE LOWER(?) OR LOWER(p.display_name) LIKE LOWER(?)
+            WHERE LOWER(p.support_id) LIKE LOWER(?) OR LOWER(p.display_name) LIKE LOWER(?)
                 OR LOWER(i.display_name) LIKE LOWER(?) OR CAST(i.issue_number AS CHAR) = ?
             ORDER BY p.updated_at DESC, i.created_at DESC',
-            [$pattern, $pattern, $pattern, $pattern, $search]);
+            [$pattern, $pattern, $pattern, $search]);
         while ($row = $query->fetch(PDO::FETCH_ASSOC)) {
             $issue = $cache['issues'][$row['issue_number'] ?? 0] ?? null;
             if (!supportIssueMatches($issue, $state, $reason, $label)) continue;
@@ -109,15 +109,15 @@ Die Support-Zuordnung, das GitHub-Issue und dort veröffentlichte Log-Auszüge b
 ')?><?= $cache['updated'] ? webT('Letzter erfolgreicher Abgleich: ') . gmdate('Y-m-d H:i:s', (int)$cache['updated']) . ' UTC.' : webT('Noch kein erfolgreicher GitHub-Abgleich.') ?></p>
 <?php if (isset($cache['warning'])): ?><p role="status"><?= supportEscape(webT($cache['warning'])) ?></p><?php endif ?>
 <form method="get" class="filters">
-<label><?=webT('Support-ID, interne Kennung, Name oder Issue-Nummer')?><br><input name="q" maxlength="200" value="<?= supportEscape($search) ?>"></label>
+<label><?=webT('Support-ID, Name oder Issue-Nummer')?><br><input name="q" maxlength="200" value="<?= supportEscape($search) ?>"></label>
 <label><?=webT('GitHub-Status')?><br><select name="state"><?php foreach ($states as $value => $text): ?><option value="<?= supportEscape($value) ?>" <?= $state === $value ? 'selected' : '' ?>><?= supportEscape($text) ?></option><?php endforeach ?></select></label>
 <label><?=webT('Schließungsgrund')?><br><select name="reason"><?php foreach ($reasons as $value => $text): ?><option value="<?= supportEscape($value) ?>" <?= $reason === $value ? 'selected' : '' ?>><?= supportEscape($text) ?></option><?php endforeach ?></select></label>
 <label><?=webT('GitHub-Label')?><br><select name="label"><option value=""><?=webT('Alle')?></option><?php if ($label !== '' && !isset($labels[$label])) $labels[$label] = $label; foreach ($labels as $name): ?><option value="<?= supportEscape($name) ?>" <?= $label === $name ? 'selected' : '' ?>><?= supportEscape($name) ?></option><?php endforeach ?></select></label>
 <button><?=webT('Filtern')?></button><a href="/admin/support"><?=webT('Zurücksetzen')?></a></form>
 <p><?= supportEscape(webT($error)) ?></p>
-<div class="table-scroll"><table><thead><tr><th><?=webT('Support-ID / interne Kennung')?></th><th><?=webT('Aktueller Anzeigename')?></th><th>Issue</th><th><?=webT('GitHub-Status / Labels')?></th><th><?=webT('Name bei Meldung')?></th><th><?=webT('Zeitpunkt (UTC)')?></th><th><?=webT('Privates Sitzungslog')?></th></tr></thead><tbody>
+<div class="table-scroll"><table><thead><tr><th>Support-ID</th><th><?=webT('Aktueller Anzeigename')?></th><th>Issue</th><th><?=webT('GitHub-Status / Labels')?></th><th><?=webT('Name bei Meldung')?></th><th><?=webT('Zeitpunkt (UTC)')?></th><th><?=webT('Privates Sitzungslog')?></th></tr></thead><tbody>
 <?php foreach ($rows as $row): $issue = $row['github']; ?>
-<tr><td><?= supportEscape($row['support_id']) ?><br><code><?= supportEscape($row['internal_id']) ?></code></td>
+<tr><td><?= supportEscape($row['support_id']) ?></td>
 <td><?= supportEscape($row['current_name']) ?></td>
 <td><?php if ($row['issue_number'] !== null): ?><a href="https://github.com/sandmaennchen5/fork_NxFileViewer/issues/<?= (int)$row['issue_number'] ?>">#<?= (int)$row['issue_number'] ?></a><br><?= supportEscape($issue['title'] ?? '') ?><?php endif ?></td>
 <td><?php if ($row['issue_number'] !== null): ?><?= supportEscape($states[$issue['state'] ?? 'unknown'] ?? webT('Unbekannt')) ?>

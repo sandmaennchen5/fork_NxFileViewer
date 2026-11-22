@@ -22,6 +22,7 @@ public static class NandDriveDiscovery
         .Where(name => Regex.IsMatch(name, @"^PhysicalDrive[0-9]+$", RegexOptions.IgnoreCase))
         .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(name => ulong.Parse(name[13..]))
         .Select(name => @"\\.\" + name).ToArray();
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
     public static IReadOnlyList<NandDriveChoice> List()
     {
         var choices = new Dictionary<string, NandDriveChoice>(StringComparer.OrdinalIgnoreCase);
@@ -63,5 +64,6 @@ public static class NandDriveDiscovery
         }
         return choices.Values.ToArray();
     }
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
     private static void Release(object? value) { if (value != null && Marshal.IsComObject(value)) Marshal.ReleaseComObject(value); }
 }

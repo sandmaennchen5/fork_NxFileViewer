@@ -21,10 +21,11 @@ public static class MtpSta
     {
         var completion = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
         var thread = new Thread(() => { try { completion.SetResult(action()); } catch (Exception ex) { completion.SetException(ex); } }) { IsBackground = true };
-        thread.SetApartmentState(ApartmentState.STA); thread.Start(); return completion.Task;
+        if (OperatingSystem.IsWindows()) thread.SetApartmentState(ApartmentState.STA); thread.Start(); return completion.Task;
     }
 }
 // Shell exposes MTP objects as virtual items; source access only binds read streams.
+[System.Runtime.Versioning.SupportedOSPlatform("windows")]
 public sealed class ShellMtpBackend : IMtpBackend
 {
     private const string Computer = "::{20D04FE0-3AEA-1069-A2D8-08002B30309D}";
