@@ -17,6 +17,15 @@ Changes since the 4.1.1-beta4 prerelease.
 
 ### Changed
 
+- Replace the separate local test-publish entry script with the Test Win profile; retain the WPF/Avalonia packaging regression tests against the shared backend.
+- Provide Standard, WPF, Avalonia and Test Win as built-in publish profiles. Keep firmware hashes in Standard only, and restrict automatic test copying to the Windows x64/no-.NET Test Win profile.
+- Make the publish start profile independently selectable in the GUI for runs without `-Profile`, without changing it when saving another profile. Load switched profiles immediately, including keyboard selection.
+- Replace the separate WPF/Avalonia publish entry scripts with predefined WPF and Avalonia profiles in the unified publisher. Retain their build/output/copy choices, preserve customized profiles and share one application-packaging backend across local and CI builds.
+- Add named publish-selection profiles, GUI profile loading/saving, a remembered active profile and `-Profile` command-line selection. Preserve older flat configurations as the Standard profile.
+- Open the publish GUI by default and automatically build the loaded/default selection after ten seconds without input. Any keyboard/click/edit interaction cancels the countdown; keep `-NoGui`, explicit selectors and CI mode available for unattended runs.
+- Add a `Publish.ps1 -Gui` selection menu, validated `publish.ps1.conf` preferences and `-Wpf`/`-Avalonia` application groups. Use `-GitHub` for deterministic unattended Build artifacts, independently of local preferences and the separate tag-release workflow.
+- Let publish profiles output only executables and optionally copy a selected architecture/runtime variant to a test folder. Write aligned TXT size reports in MB with executable, unpacked-package and ZIP sizes.
+- Retain individual WPF EXE selectors and targeted Avalonia application/platform/runtime choices in `Publish.ps1`. Upload the complete WPF/Avalonia artifact set from Build through `-GitHub`, while keeping tag-release builds separate and avoiding duplicate packages.
 - Send enabled system reports every 90 days and after an application upgrade or a change in the reported system details. Explain the collected data in the selected language, use a visible 30-second confirmation countdown and preserve the current choice when the dialog closes. Offer disabled reporting again after an upgrade while keeping it disabled unless explicitly enabled.
 - Include application/build and system details in the protected report archive for reports submitted with or without GitHub sign-in, independently of the automatic system-report setting. Warn when the companion service does not confirm storage; in-app submissions require a configured reporting service.
 - Group release ZIP explanations by application, operating system and runtime variant. List architecture-only variants once with the `{Arch}` placeholder and the available architectures, and identify every Avalonia package as an early, incompletely tested beta.
@@ -24,6 +33,8 @@ Changes since the 4.1.1-beta4 prerelease.
 
 ### Fixed
 
+- Keep publish-GUI configuration helpers available across PowerShell event-callback scopes, fixing profile loading/saving, manual builds and automatic builds that reported missing helper functions.
+- Speed up default-settings validation on network drives by reading known enum sources directly and caching each type, rather than repeatedly scanning the whole project and build-output directories.
 - Use Windows ZIP packaging in both Windows PowerShell 5.1 and PowerShell 7 instead of requiring a Unix `zip` command on Windows.
 - Prevent optional SDK Git-metadata queries from interrupting local Release builds on SMB shares or mapped network drives. CI source-control metadata and explicit build overrides remain enabled.
 

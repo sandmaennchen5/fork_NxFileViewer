@@ -24,3 +24,5 @@ Thumbs.db
 *.sql.gz
 github-issues-cache.*
 .github-cache-*
+# Local publish menu preferences
+/publish.ps1.conf

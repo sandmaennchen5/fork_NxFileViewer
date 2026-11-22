@@ -1,4 +1,5 @@
-# Exercise the real packaging loop without downloading runtimes or compiling applications.
+# Regression test for tools/Publish-Applications.ps1 (Avalonia).
+# Exercise packaging, copies and size reports without downloading runtimes or compiling apps.
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $root = Join-Path ([IO.Path]::GetTempPath()) ('nxfv-avalonia-publish-' + [guid]::NewGuid().ToString('N'))
@@ -11,13 +12,16 @@ function dotnet {
     $contained = $arguments[[Array]::IndexOf($arguments, '--self-contained') + 1]
     if ('-p:Version=4.1.1-beta9' -notin $arguments) { throw 'Release version was not passed to dotnet.' }
     New-Item -ItemType Directory -Path $output -Force | Out-Null
-    [IO.File]::WriteAllText((Join-Path $output 'application.txt'), "$rid / $contained")
+    $project = $arguments[1]
+    $assemblyName = (Select-Xml -LiteralPath $project -XPath '/Project/PropertyGroup/AssemblyName').Node.InnerText
+    $exe = $assemblyName + $(if ($rid.StartsWith('win-')) { '.exe' } else { '' })
+    [IO.File]::WriteAllText((Join-Path $output $exe), "$rid / $contained")
     $global:avaloniaPublishTestCalls.Add([pscustomobject]@{Rid=$rid;Contained=[bool]$contained})
     $global:LASTEXITCODE = 0
 }
 try {
     $rids = @('win-x64', 'win-x86', 'win-arm64', 'linux-x64', 'linux-arm64', 'osx-x64', 'osx-arm64')
-    & (Join-Path $PSScriptRoot '../../PublishAvalonia.ps1') -Version '4.1.1-beta9' -OutputDirectory $root -RuntimeIdentifiers $rids -SkipFirmwareHashes
+    & (Join-Path $PSScriptRoot '../../tools/Publish-Applications.ps1') -Framework Avalonia -Version '4.1.1-beta9' -OutputDirectory $root -SkipFirmwareHashes -AllTargets -NoCopy
     if ($global:avaloniaPublishTestCalls.Count -ne 28) { throw 'Expected two applications and two distributions for each runtime.' }
     foreach ($rid in $rids) {
         if (@($global:avaloniaPublishTestCalls | Where-Object Rid -eq $rid).Count -ne 4) { throw "Missing builds for $rid." }
@@ -32,7 +36,23 @@ try {
             }
         }
     }
-    if (@(Get-ChildItem -LiteralPath $root -Force).Count -ne 28) { throw 'Unexpected output or uncleaned staging directory.' }
+    if (@(Get-ChildItem -LiteralPath $root -Force).Count -ne 29) { throw 'Unexpected output or uncleaned staging directory.' }
+    $report = Join-Path $root 'publish-sizes-Avalonia-v4.1.1-beta9.txt'
+    $reportLines = @(Get-Content -LiteralPath $report)
+    if ($reportLines.Count -ne 30) { throw 'Size report must list every package.' }
+    foreach ($line in $reportLines | Select-Object -Skip 2) {
+        $columns = $line -split "`t"
+        $zipBytes = (Get-Item -LiteralPath (Join-Path $root ($columns[0].TrimEnd() + '.zip'))).Length
+        $expectedMB = ([decimal]$zipBytes / 1000000).ToString('0.00',[Globalization.CultureInfo]::GetCultureInfo('de-DE'))
+        if ($columns[3].Trim() -ne $expectedMB) { throw 'Reported ZIP MB size differs from the actual file.' }
+    }
+    $exeOutput = Join-Path $root 'exe-mode'
+    $copyOutput = Join-Path $root 'copies'
+    & (Join-Path $PSScriptRoot '../../tools/Publish-Applications.ps1') -Framework Avalonia -Version '4.1.1-beta9' -OutputDirectory $exeOutput -RuntimeIdentifiers win-x64 -ExecutableOnly -CopyTo $copyOutput -SkipFirmwareHashes
+    if (@(Get-ChildItem -LiteralPath $exeOutput -Filter '*.zip').Count) { throw 'Executable-only mode created ZIPs.' }
+    if (@(Get-ChildItem -LiteralPath $copyOutput -File).Count -ne 2) { throw 'Both selected executables must be copied.' }
+    $exeReport = @(Get-Content -LiteralPath (Join-Path $exeOutput 'publish-sizes-Avalonia-v4.1.1-beta9.txt'))
+    if ($exeReport.Count -ne 6 -or @($exeReport | Select-Object -Skip 2 | Where-Object { ($_ -split "`t")[3] -ne '-' }).Count) { throw 'Executable-only report should have four variants and no ZIP sizes.' }
     Write-Host 'Avalonia packaging passed: 7 runtimes, 28 packages, release version and staging cleanup.'
 }
 finally {

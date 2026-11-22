@@ -27,26 +27,31 @@ dotnet build src/NxFileViewer.Avalonia/NxFileViewer.Avalonia.csproj -c Release
 dotnet build src/NxFileViewer.LogViewer.Avalonia/NxFileViewer.LogViewer.Avalonia.csproj -c Release
 ```
 
-The local `PublishTest.ps1` helper can select WPF/Avalonia projects and copy several
-finished executables into a configured test folder with distinct destination names.
-The regular `Publish.ps1` Windows release matrix remains independent of Avalonia.
-For tags such as `v4.1.1-beta5`, the Release workflow additionally uses
-`PublishAvalonia.ps1` on native Windows, Linux and macOS runners:
+Use `./Publish.ps1 -Profile 'Test Win'` for Windows x64 test executables, without
+.NET or ZIPs, copied to the configured test folder with distinct WPF/Avalonia names.
+The predefined **Avalonia** profile is the entry point for all Avalonia packages:
+
+```powershell
+./Publish.ps1 -Profile Avalonia        # GUI with this profile and 10-second countdown
+./Publish.ps1 -NoGui -Profile Avalonia # Build immediately
+```
+
+Select architectures, .NET variants, ZIP/program-file output and optional test copies
+in the GUI, then save the profile. The default Avalonia preset includes:
 
 - Windows: x64, x86 and ARM64.
 - Linux: x64 and ARM64.
 - macOS: Intel x64 and Apple Silicon ARM64.
 
-Both applications are packaged with and without .NET (28 additional ZIPs). Windows
-ZIPs retain the `_x64`, `_x86` and `_arm64` suffixes; Linux and macOS use
-`_linux-x64`, `_linux-arm64`, `_osx-x64` and `_osx-arm64`. Native ZIP packaging
-preserves executable permissions on Linux/macOS. The macOS packages are unsigned
-executable ZIPs, not signed `.app` installers.
+Both applications are packaged with and without .NET (28 ZIPs). Windows ZIPs retain
+`_x64`, `_x86` and `_arm64`; Linux/macOS use `_linux-x64`, `_linux-arm64`, `_osx-x64`
+and `_osx-arm64`. Native Unix ZIP packaging preserves executable permissions.
+The macOS packages are unsigned executable ZIPs, not signed `.app` installers.
 
-The release waits for all three platform builds and verifies every expected ZIP
-before publishing. Stable tags skip the Avalonia matrix. To build selected runtimes
-locally, for example on Linux:
+Beta-tag releases build on native Windows/Linux/macOS runners using the common
+internal publisher, wait for every platform and verify expected ZIPs before release
+publication. Stable tags retain WPF releases. For a targeted headless build:
 
 ```powershell
-./PublishAvalonia.ps1 -Version 4.1.1-beta5 -RuntimeIdentifiers linux-x64,linux-arm64
+./Publish.ps1 -AvaloniaViewer -AvaloniaRuntimeIdentifiers linux-x64,linux-arm64 -WithDotNet
 ```

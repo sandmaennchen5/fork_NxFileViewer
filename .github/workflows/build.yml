@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    name: Build (win-x64 / win-x86 / win-arm64)
+    name: Build WPF and Avalonia (all platforms)
     runs-on: windows-latest
 
     steps:
@@ -20,9 +20,13 @@ jobs:
         with:
           global-json-file: src/global.json
 
+      - name: Test default settings validation
+        shell: powershell
+        run: ./.github/scripts/Test-DefaultSettingsValidation.ps1
+
       - name: Publish
         shell: pwsh
-        run: ./Publish.ps1
+        run: ./Publish.ps1 -GitHub
 
       - name: Upload application x64
         uses: actions/upload-artifact@v7
@@ -190,6 +194,14 @@ jobs:
         with:
           path: |
             Publish/nxfileviewer-update.json
+          archive: false
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload Avalonia packages (Windows, Linux, macOS)
+        uses: actions/upload-artifact@v7
+        with:
+          path: Publish/*_Avalonia_v*.zip
           archive: false
           if-no-files-found: error
           retention-days: 7

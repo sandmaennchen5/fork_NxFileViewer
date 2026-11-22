@@ -70,7 +70,7 @@ jobs:
           RELEASE_RUNTIMES: ${{ matrix.runtimes }}
         run: |
           $runtimes = @($env:RELEASE_RUNTIMES | ConvertFrom-Json)
-          ./PublishAvalonia.ps1 -Version $env:RELEASE_VERSION -OutputDirectory Publish-Avalonia -RuntimeIdentifiers $runtimes -SkipFirmwareHashes
+          ./tools/Publish-Applications.ps1 -Framework Avalonia -Version $env:RELEASE_VERSION -OutputDirectory Publish-Avalonia -RuntimeIdentifiers $runtimes -SkipFirmwareHashes -AllTargets -NoCopy
       - name: Upload Avalonia packages
         uses: actions/upload-artifact@v4
         with:
@@ -95,6 +95,15 @@ jobs:
       - name: Checkout tag
         uses: actions/checkout@v7
 
+      - name: Test publish configuration
+        shell: powershell
+        run: ./.github/scripts/Test-PublishConfiguration.ps1
+      - name: Test targeted publish selection
+        shell: powershell
+        run: ./.github/scripts/Test-PublishSelection.ps1
+      - name: Test WPF packaging
+        shell: powershell
+        run: ./.github/scripts/Test-PublishWPF.ps1
       - name: Test Avalonia packaging
         shell: pwsh
         run: ./.github/scripts/Test-PublishAvalonia.ps1
@@ -118,7 +127,7 @@ jobs:
         shell: pwsh
         env:
           RELEASE_VERSION: ${{ needs.validate.outputs.version }}
-        run: ./Publish.ps1 -Version $env:RELEASE_VERSION -OutputDirectory Publish-Release
+        run: ./Publish.ps1 -Version $env:RELEASE_VERSION -OutputDirectory Publish-Release -ReleasePackages -SkipAvalonia
 
       - name: Download Avalonia beta packages
         if: needs.validate.outputs.prerelease == 'true'

@@ -1,7 +1,9 @@
 <#
-    Builds application and standalone LogViewer ZIPs, firmware hashes, and optional Explorer MSIX packages (x64/ARM64).
-    By default Explorer MSIX packages use a persistent local signing certificate.
+    Default: show GUI using publish.ps1.conf/defaults; auto-build after 10 seconds without input.
+    -Gui edits/saves the configuration. -GitHub builds all CI release artifacts.
+    -ReleasePackages preserves the full release/update/Explorer packaging flow.
 #>
+[CmdletBinding(PositionalBinding = $false)]
 param(
     [string]$OutputDirectory = "Publish",
     [string]$Version,
@@ -32,15 +34,86 @@ param(
     [switch]$TransitionX86WithRuntime,
     [switch]$LogViewerOnly,
     [switch]$SkipLogViewer,
-    [switch]$IncludeLegacyTransition = $true
+    [switch]$IncludeLegacyTransition = $true,
+    [switch]$SkipAvalonia,
+    [switch]$AvaloniaOnly,
+    [switch]$AvaloniaViewer,
+    [switch]$AvaloniaLogViewer,
+    [ValidateSet('win-x64', 'win-x86', 'win-arm64', 'linux-x64', 'linux-arm64', 'osx-x64', 'osx-arm64')]
+    [string[]]$AvaloniaRuntimeIdentifiers = @(),
+    [switch]$WithDotNet,
+    [switch]$WithoutDotNet,
+    [switch]$Gui,
+    [switch]$NoGui,
+    [switch]$GitHub,
+    [switch]$Wpf,
+    [switch]$Avalonia,
+    [switch]$All,
+    [switch]$ReleasePackages,
+    [string]$ConfigFile,
+    [string]$Profile,
+    [Parameter(ValueFromRemainingArguments = $true)]
+    [string[]]$AdditionalSwitches = @()
 )
 
 $ErrorActionPreference = "Stop"
+# PowerShell normally uses one dash; also accept double-dash switch spellings.
+foreach ($argument in $AdditionalSwitches) {
+    if ($argument -notmatch '^--(?<name>[A-Za-z][A-Za-z0-9]*)$') { throw "Unknown argument: $argument" }
+    $switchName = $Matches['name']
+    $parameter = $MyInvocation.MyCommand.Parameters[$switchName]
+    if ($null -eq $parameter -or $parameter.ParameterType -ne [System.Management.Automation.SwitchParameter]) { throw "Unknown switch: $argument" }
+    Set-Variable -Name $switchName -Value ([switch]$true)
+    $PSBoundParameters[$switchName] = [switch]$true
+}
 $SelectedExeVariants = @(
     'ViewerX64','ViewerX86','ViewerArm64','ViewerX64WithRuntime','ViewerX86WithRuntime','ViewerArm64WithRuntime',
     'LogViewerX64','LogViewerX86','LogViewerArm64','LogViewerX64WithRuntime','LogViewerX86WithRuntime','LogViewerArm64WithRuntime',
     'TransitionX64','TransitionX86','TransitionX64WithRuntime','TransitionX86WithRuntime'
 ) | Where-Object { $PSBoundParameters.ContainsKey($_) -and $PSBoundParameters[$_] }
+# Config/menu orchestration is separate from the established full release builder below.
+$individualSelection = $SelectedExeVariants -or $LogViewerOnly -or $AvaloniaOnly -or $AvaloniaViewer -or $AvaloniaLogViewer
+if (($Gui -or $GitHub) -and ($individualSelection -or $Wpf -or $Avalonia -or $All -or $ReleasePackages)) { throw 'Use -Gui or -GitHub without application/release selectors.' }
+if ($Gui -and ($GitHub -or $NoGui)) { throw 'Choose -Gui, -NoGui or -GitHub.' }
+if (($Gui -or $GitHub) -and ($SkipAvalonia -or $SkipLogViewer -or $AvaloniaRuntimeIdentifiers.Count -or $WithDotNet -or $WithoutDotNet)) { throw 'Use -Gui or -GitHub without additional target/runtime filters.' }
+if (($Wpf -or $Avalonia -or $All) -and $SkipAvalonia) { throw 'Use -Wpf instead of combining application groups with -SkipAvalonia.' }
+if ($individualSelection -and ($Wpf -or $Avalonia -or $All)) { throw 'Do not combine application groups and individual selectors.' }
+if ($GitHub -and ($ConfigFile -or $Profile)) { throw '-GitHub does not load local configuration files or profiles.' }
+if ($Profile -and ($individualSelection -or $ReleasePackages -or $SkipAvalonia)) { throw 'Use -Profile with the configured/menu modes or application groups.' }
+if (!$GitHub -and !$ReleasePackages -and !$individualSelection -and !$SkipAvalonia) {
+    . (Join-Path $PSScriptRoot 'tools/Publish-Configuration.ps1')
+    if (!$ConfigFile) { $ConfigFile = Join-Path $PSScriptRoot 'publish.ps1.conf' }
+    $config = Read-PublishConfiguration $ConfigFile $Profile
+    if ($All) { $config = New-PublishConfiguration }
+    if ($Wpf -and !$Avalonia) { $config.Applications=@('WpfViewer','WpfLogViewer') }
+    elseif ($Avalonia -and !$Wpf) { $config.Applications=@('AvaloniaViewer','AvaloniaLogViewer') }
+    elseif ($Wpf -and $Avalonia) { $config.Applications=@('WpfViewer','WpfLogViewer','AvaloniaViewer','AvaloniaLogViewer') }
+    if ($SkipLogViewer) { $config.Applications=@($config.Applications | Where-Object { $_ -notlike '*LogViewer' }) }
+    if ($PSBoundParameters.ContainsKey('OutputDirectory')) { $config.OutputDirectory=$OutputDirectory }
+    if ($AvaloniaRuntimeIdentifiers.Count) { $config.RuntimeIdentifiers=$AvaloniaRuntimeIdentifiers }
+    if ($WithDotNet -or $WithoutDotNet) { $config.WithDotNet=[bool]$WithDotNet; $config.WithoutDotNet=[bool]$WithoutDotNet }
+    $showMenu = $Gui -or (!$NoGui -and !$Wpf -and !$Avalonia -and !$All -and !$SkipLogViewer -and !$AvaloniaRuntimeIdentifiers.Count -and !$WithDotNet -and !$WithoutDotNet)
+    if ($showMenu) { $config = Show-PublishConfigurationMenu $config $ConfigFile $Profile; if ($null -eq $config) { return } }
+    Invoke-PublishConfiguration $config $PSScriptRoot $Version
+    return
+}
+$AvaloniaSelection = $AvaloniaOnly -or $AvaloniaViewer -or $AvaloniaLogViewer
+if ($SkipAvalonia -and $AvaloniaSelection) { throw 'Do not combine -SkipAvalonia with an Avalonia-only selection.' }
+if ($AvaloniaSelection -and ($SelectedExeVariants -or $LogViewerOnly -or $SkipLogViewer)) { throw 'Do not combine Avalonia-only choices with WPF-only selections.' }
+if (!$AvaloniaSelection -and ($AvaloniaRuntimeIdentifiers.Count -or $WithDotNet -or $WithoutDotNet)) { throw 'Use Avalonia target/runtime filters with -AvaloniaOnly, -AvaloniaViewer or -AvaloniaLogViewer.' }
+function Publish-AvaloniaSelection {
+    $options = @{ OutputDirectory = $OutputDirectory; SkipFirmwareHashes = $true; AllTargets = $true; NoCopy = $true }
+    if ($Version) { $options.Version = $Version }
+    if ($AvaloniaRuntimeIdentifiers.Count) { $options.RuntimeIdentifiers = $AvaloniaRuntimeIdentifiers }
+    if ($AvaloniaViewer -and !$AvaloniaLogViewer) { $options.Applications = @('Viewer') }
+    elseif ($AvaloniaLogViewer -and !$AvaloniaViewer) { $options.Applications = @('LogViewer') }
+    elseif ($SkipLogViewer) { $options.Applications = @('Viewer') }
+    if ($WithDotNet -or $WithoutDotNet) {
+        $options.RuntimeVariants = @($(if ($WithoutDotNet) { $false }); $(if ($WithDotNet) { $true }))
+    }
+    & (Join-Path $PSScriptRoot 'tools/Publish-Applications.ps1') -Framework Avalonia @options
+}
+if ($AvaloniaSelection) { Publish-AvaloniaSelection; return }
 if ($SelectedExeVariants -and ($LogViewerOnly -or $SkipLogViewer)) {
     throw 'Do not combine individual EXE selections with -LogViewerOnly or -SkipLogViewer.'
 }
@@ -329,3 +402,8 @@ finally {
         Remove-Item -LiteralPath $ResolvedStaging -Recurse -Force
     }
 }
+
+# Individual WPF EXE switches and -LogViewerOnly return above. The full build
+# also includes Avalonia; the tag-release workflow passes -SkipAvalonia because
+# its native OS jobs already build those packages separately for beta tags.
+if (!$SkipAvalonia) { Publish-AvaloniaSelection }

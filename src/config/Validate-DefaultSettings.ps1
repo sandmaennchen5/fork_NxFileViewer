@@ -2,7 +2,10 @@ param([string]$Path = (Join-Path $PSScriptRoot 'default-settings.json'))
 $ErrorActionPreference = 'Stop'
 $c = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json
 if (($c.SchemaVersion -isnot [int] -and $c.SchemaVersion -isnot [long]) -or $c.SchemaVersion -ne 1) { throw 'Unsupported default settings schema.' }
-$source = Get-Content (Join-Path $PSScriptRoot '../NxFileViewer/Settings/AppSettings.cs') -Raw
+$source = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../NxFileViewer/Settings/AppSettings.cs') -Raw -Encoding UTF8
+# Resolve enum sources directly, and read each type only once. Recursive project
+# searches also walk bin/obj and are particularly expensive on SMB shares.
+$enumValues = @{}
 $matches = [regex]::Matches($source, 'DefaultSettings.Get<([^>]+)>\("([^"]+)", "([^"]+)"\)')
 foreach ($section in @('Settings','RenamingOptions')) {
     $expected = @($matches | Where-Object { $_.Groups[2].Value -eq $section } | ForEach-Object { $_.Groups[3].Value })
@@ -30,12 +33,17 @@ foreach ($m in $matches) {
             $allowed = switch ($type) {
                 'LogLevel' { @('Trace','Debug','Information','Warning','Error','Critical','None') }
                 default {
-                    $file = Get-ChildItem (Join-Path $PSScriptRoot '../NxFileViewer') -Recurse -Filter "$type.cs" | Select-Object -First 1
-                    if (!$file) { throw "Enum definition missing: $type" }
-                    $enum = Get-Content $file.FullName -Raw
-                    $enum=[regex]::Replace($enum, '(?m)//[^\r\n]*', '')
-                    $body=[regex]::Match($enum, '(?s)enum\s+'+[regex]::Escape($type)+'\s*\{(.*?)\}').Groups[1].Value
-                    @([regex]::Matches($body, '(?:^|,)\s*(\w+)') | ForEach-Object { $_.Groups[1].Value })
+                    if (!$enumValues.ContainsKey($type)) {
+                        $relativePath = if ($type -eq 'AppTheme') { 'Styling/Theme/AppTheme.cs' } else { "Settings/$type.cs" }
+                        $enumPath = Join-Path (Join-Path $PSScriptRoot '../NxFileViewer') $relativePath
+                        if (!(Test-Path -LiteralPath $enumPath -PathType Leaf)) { throw "Enum definition missing: $type ($relativePath)" }
+                        $enum = Get-Content -LiteralPath $enumPath -Raw -Encoding UTF8
+                        $enum=[regex]::Replace($enum, '(?m)//[^\r\n]*', '')
+                        $body=[regex]::Match($enum, '(?s)enum\s+'+[regex]::Escape($type)+'\s*\{(.*?)\}').Groups[1].Value
+                        $enumValues[$type] = @([regex]::Matches($body, '(?:^|,)\s*(\w+)') | ForEach-Object { $_.Groups[1].Value })
+                        if (!$enumValues[$type].Count) { throw "Enum definition is empty or invalid: $type" }
+                    }
+                    $enumValues[$type]
                 }
             }
             if ($value -isnot [string] -or $value -cnotin $allowed) { throw "Invalid value for $name. Expected: $($allowed -join ', ')" }
