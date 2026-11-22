@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <AssemblyName>NxFileViewerFork.Avalonia</AssemblyName>
     <ApplicationIcon>../NxFileViewer/Styling/Icons/Icon.ico</ApplicationIcon>
-    <AvaloniaVersion>11.3.21</AvaloniaVersion>
+    <AvaloniaVersion>12.1.6</AvaloniaVersion>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../NxFileViewer/Services/UsageStatisticsService.cs;../NxFileViewer/Settings/SystemReportChoice.cs" Link="Shared/%(Filename)%(Extension)" />

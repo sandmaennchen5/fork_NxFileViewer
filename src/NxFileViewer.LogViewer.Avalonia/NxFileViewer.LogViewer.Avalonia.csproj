@@ -7,7 +7,7 @@
     <AssemblyName>NxFileViewerFork.LogViewer.Avalonia</AssemblyName>
     <RootNamespace>NxFileViewer.LogViewer</RootNamespace>
     <ApplicationIcon>../NxFileViewer/Styling/Icons/Icon.ico</ApplicationIcon>
-    <AvaloniaVersion>11.3.21</AvaloniaVersion>
+    <AvaloniaVersion>12.1.6</AvaloniaVersion>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Avalonia.Desktop" Version="$(AvaloniaVersion)" />
