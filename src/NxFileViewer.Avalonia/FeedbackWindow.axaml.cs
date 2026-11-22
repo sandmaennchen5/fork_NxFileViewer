@@ -31,6 +31,11 @@ public partial class FeedbackWindow : Window
     private readonly bool _german;
     private Uri? _issue;
     private bool _submitted;
+    private bool _sending;
+    private bool _signInCanceledByUser;
+    private CancellationTokenSource? _signInCancellation;
+    private string? _signInTicket;
+    private DateTime _signInExpires;
     private readonly LogAnonymizer _logAnonymizer = new();
 
     public FeedbackWindow() : this(true, new AppSettings { ReportEndpoint = "" }, "") { }
@@ -47,16 +52,19 @@ public partial class FeedbackWindow : Window
         Notice.Text = Text(
             "Hier kannst du Fehler und Funktionswünsche melden. Der Bericht wird öffentlich auf GitHub veröffentlicht. Entferne persönliche Angaben aus dem Text.",
             "Use this form for bugs and feature requests. The report will be public on GitHub. Remove personal information from the text.");
-        GitHubStatus.Text = Text("GitHub: Anmeldung wird beim Senden im Browser bestätigt.",
-            "GitHub: Sign-in is confirmed in the browser when sending.");
+        GitHubStatus.Text = Text("GitHub: Bitte zuerst anmelden. Dabei wird noch keine Meldung gesendet.",
+            "GitHub: Sign in first. This does not send a report.");
         DisplayNameLabel.Content = Text("Anzeigename ohne GitHub (optional)", "Display name without GitHub (optional)");
         DisplayNameHint.Text = Text("Wird öffentlich im Issue angezeigt. Buchstaben, Zahlen, Leerzeichen, Punkt, _ und - sind erlaubt.",
             "Shown publicly in the issue. Letters, numbers, spaces, dots, _ and - are allowed.");
         DisplayName.Text = _settings.ReportDisplayName;
         TitleLabel.Content = Text("Titel", "Title");
         DescriptionLabel.Content = Text("Beschreibung (Fehler oder Funktionswunsch)", "Description (bug or feature request)");
-        WithGitHub.Content = Text("Mit GitHub melden", "Report with GitHub");
-        WithoutGitHub.Content = Text("Ohne GitHub-Konto melden", "Report without a GitHub account");
+        SignInGitHub.Content = Text("Mit GitHub anmelden", "Sign in with GitHub");
+        WithGitHub.Content = Text("Auf GitHub melden (mit Anmeldung)", "Report on GitHub (signed in)");
+        GitHubAccountDescription.Text = Text("Melden mit deinem GitHub-Account", "Report with your GitHub account");
+        WithGitHub.IsEnabled = false;
+        WithoutGitHub.Content = Text("Auf GitHub melden (ohne Anmeldung)", "Report on GitHub (without signing in)");
         IncludeLog.Content = Text("Bereinigten Log-Auszug öffentlich im GitHub-Issue teilen", "Share a sanitized log excerpt in the public GitHub issue");
         PrivateLog.Content = Text("Original-Sitzungslog privat an den Betreiber senden", "Send the original session log privately to the maintainer");
         PrivateLogHint.Text = Text(
@@ -74,6 +82,7 @@ public partial class FeedbackWindow : Window
 
         if (_endpoint is null)
         {
+            SignInGitHub.IsEnabled = false;
             WithGitHub.IsEnabled = false;
             WithoutGitHub.IsEnabled = false;
             PrivateLog.IsEnabled = false;
@@ -90,7 +99,12 @@ public partial class FeedbackWindow : Window
                 await SupportIdentityState.RefreshAsync(_settings, _lifetime.Token);
                 if (!_lifetime.IsCancellationRequested) SupportIdText.Text = "Support-ID: " + SupportIdentityState.Cached(_settings);
             }
-            catch (Exception error) when (error is IOException or UnauthorizedAccessException or HttpRequestException or OperationCanceledException or JsonException) { }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException or HttpRequestException or OperationCanceledException or JsonException)
+            {
+                if (!_lifetime.IsCancellationRequested)
+                    SupportIdText.Text = "Support-ID: " + SupportIdentityState.Cached(_settings) + "\n" +
+                        Text("Abruf fehlgeschlagen: ", "Could not load ID: ") + error.GetBaseException().Message;
+            }
         };
     }
 
@@ -99,9 +113,91 @@ public partial class FeedbackWindow : Window
     internal static void OpenBrowser(string url) =>
         Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
 
+    private async void SignInGitHub_Click(object sender, RoutedEventArgs e)
+    {
+        if (_submitted || _sending || _endpoint is null) return;
+        _signInCanceledByUser = false;
+        Status.Text = "";
+        GitHubUser.Text = "";
+        _signInTicket = null;
+        SignInGitHub.IsEnabled = WithGitHub.IsEnabled = false;
+        try
+        {
+            using var deadline = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+            _signInCancellation = deadline;
+            deadline.CancelAfter(TimeSpan.FromMinutes(10));
+            using var response = await PostAsync(new { mode = "signin" }, deadline.Token);
+            var result = response.RootElement;
+            var authorization = result.GetProperty("authorization").GetString();
+            var ticket = result.GetProperty("ticket").GetString();
+            if (ticket is null || !System.Text.RegularExpressions.Regex.IsMatch(ticket, "\\A[a-f0-9]{64}\\z") ||
+                !Uri.TryCreate(authorization, UriKind.Absolute, out var url) ||
+                url.GetLeftPart(UriPartial.Path) != "https://github.com/login/oauth/authorize" || url.UserInfo.Length != 0)
+                throw new JsonException();
+            OpenBrowser(url.AbsoluteUri);
+            GitHubStatus.Text = Text("GitHub: Anmeldung im Browser bestätigen …", "GitHub: Confirm sign-in in your browser …");
+            while (true)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(3), deadline.Token);
+                using var status = await PostAsync(new { mode = "signin_status", ticket }, deadline.Token);
+                deadline.Token.ThrowIfCancellationRequested();
+                var state = status.RootElement.GetProperty("status").GetString();
+                if (state is "pending" or "processing") continue;
+                if (state != "authorized") throw new InvalidOperationException();
+                // Older service versions confirm authorization without returning a login name.
+                var login = status.RootElement.TryGetProperty("login", out var loginValue) && loginValue.ValueKind == JsonValueKind.String
+                    ? loginValue.GetString() : null;
+                GitHubUser.Text = !string.IsNullOrWhiteSpace(login) ? "GitHub User: " + login
+                    : Text("GitHub User: angemeldet (Name nicht verfügbar)", "GitHub User: signed in (name unavailable)");
+                if (string.IsNullOrWhiteSpace(login))
+                    Status.Text = Text("Die Anmeldung ist bestätigt. Für die Anzeige des Benutzernamens bitte den Meldedienst aktualisieren.",
+                        "Sign-in is confirmed. Update the reporting service to display the account name.");
+                _signInTicket = ticket;
+                _signInExpires = DateTime.UtcNow.AddMinutes(9);
+                GitHubStatus.Text = Text("GitHub: Anmeldung erfolgreich. Du kannst die Meldung jetzt senden.",
+                    "GitHub: Sign-in successful. You can now send the report.");
+                break;
+            }
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested || _signInCanceledByUser) { }
+        catch (HttpRequestException error) when (error.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.NotFound or HttpStatusCode.MethodNotAllowed)
+        {
+            GitHubStatus.Text = Text("GitHub: Der Meldedienst unterstützt diese Anmeldung noch nicht.",
+                "GitHub: The reporting service does not support this sign-in yet.");
+            Status.Text = Text("Bitte die aktuelle tools/feedback/public/report.php auf dem Server bereitstellen. Es wurde keine Meldung gesendet.",
+                "Deploy the current tools/feedback/public/report.php to the server. No report was sent.");
+        }
+        catch (HttpRequestException error) when (error.StatusCode == HttpStatusCode.TooManyRequests)
+        {
+            GitHubStatus.Text = Text("GitHub: Zu viele Anmeldeversuche. Bitte später erneut versuchen.",
+                "GitHub: Too many sign-in attempts. Please try again later.");
+            Status.Text = Text("Es wurde keine Meldung gesendet.", "No report was sent.");
+        }
+
+        catch (Exception error) when (error is HttpRequestException or IOException or OperationCanceledException or JsonException or
+                                      InvalidOperationException or System.Collections.Generic.KeyNotFoundException or Win32Exception)
+        {
+            GitHubStatus.Text = Text("GitHub: Anmeldung fehlgeschlagen oder abgelaufen. Bitte erneut anmelden.",
+                "GitHub: Sign-in failed or expired. Please sign in again.");
+            Status.Text = Text("Es wurde keine Meldung gesendet. Prüfe die Verbindung und bestätige die Anmeldung im Browser.",
+                "No report was sent. Check your connection and confirm sign-in in your browser.");
+        }
+        finally
+        {
+            _signInCancellation = null;
+            SignInGitHub.IsEnabled = WithoutGitHub.IsEnabled = !_submitted && !_sending;
+            WithGitHub.IsEnabled = !_submitted && !_sending && _signInTicket is not null && DateTime.UtcNow < _signInExpires;
+        }
+    }
+
     private async void WithGitHub_Click(object sender, RoutedEventArgs e) => await SubmitAsync("github");
 
-    private async void WithoutGitHub_Click(object sender, RoutedEventArgs e) => await SubmitAsync("anonymous");
+    private async void WithoutGitHub_Click(object sender, RoutedEventArgs e)
+    {
+        _signInCanceledByUser = true;
+        _signInCancellation?.Cancel();
+        await SubmitAsync("anonymous");
+    }
 
     private void IssueLink_Click(object sender, RoutedEventArgs e)
     {
@@ -146,7 +242,15 @@ public partial class FeedbackWindow : Window
 
     private async Task SubmitAsync(string mode)
     {
-        if (_submitted || _endpoint is null) return;
+        if (_submitted || _sending || _endpoint is null) return;
+        if (mode == "github" && (_signInTicket is null || DateTime.UtcNow >= _signInExpires))
+        {
+            _signInTicket = null;
+            GitHubUser.Text = "";
+            WithGitHub.IsEnabled = false;
+            GitHubStatus.Text = Text("GitHub: Bitte zuerst anmelden.", "GitHub: Please sign in first.");
+            return;
+        }
         var title = (IssueTitle.Text ?? "").Trim();
         var description = (Description.Text ?? "").Trim();
         if (title.Length == 0 || description.Length == 0)
@@ -173,12 +277,7 @@ public partial class FeedbackWindow : Window
             return;
         }
 
-        var assembly = typeof(FeedbackWindow).Assembly;
-        var assemblyVersion = assembly.GetName().Version;
-        var version = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
-            ?? assemblyVersion?.ToString();
         var body = description;
-        var systemDetails = $"NxFileViewer: {version}\n{SessionEnvironment.Describe()}";
         var log = _logAnonymizer.Anonymize(LogExcerpt.Text ?? "").TrimEnd();
         LogExcerpt.Text = log;
         if (IncludeLog.IsChecked == true && log.Length > 0)
@@ -187,7 +286,7 @@ public partial class FeedbackWindow : Window
             body += $"\n\n### {Text("Sitzungslog (Auszug)", "Session log (excerpt)")}\n\n    {codeBlock}";
         }
 
-        var submission = JsonSerializer.SerializeToUtf8Bytes(new { mode, title, body, displayName, participant, systemDetails });
+        var submission = JsonSerializer.SerializeToUtf8Bytes(new { mode, title, body, displayName, participant });
         if (submission.Length > 32768 || Encoding.UTF8.GetByteCount(body) > 24000)
         {
             Status.Text = Text("Die Meldung ist zu lang. Kürze die Beschreibung oder den Log-Auszug.",
@@ -195,14 +294,14 @@ public partial class FeedbackWindow : Window
             return;
         }
         var includePrivateLog = PrivateLog.IsChecked == true;
-        WithGitHub.IsEnabled = WithoutGitHub.IsEnabled = false;
+        _sending = true;
+        SignInGitHub.IsEnabled = WithGitHub.IsEnabled = WithoutGitHub.IsEnabled = false;
         PrivateLog.IsEnabled = false;
         IncludeLog.IsEnabled = false;
         DisplayName.IsReadOnly = true;
         IssueTitle.IsReadOnly = Description.IsReadOnly = LogExcerpt.IsReadOnly = true;
         var cancellation = _lifetime.Token;
         string? savedReceipt = null;
-        var systemDetailsConfirmed = true;
         try
         {
             Status.Text = Text("Meldung wird vorbereitet …", "Preparing report …");
@@ -229,7 +328,7 @@ public partial class FeedbackWindow : Window
                 _submissionId = Guid.NewGuid().ToString("N");
                 _submissionFingerprint = fingerprint;
             }
-            var payload = new { mode, title, body, displayName, participant, systemDetails, privateLog, submissionId = _submissionId };
+            var payload = new { mode, title, body, displayName, participant, privateLog, submissionId = _submissionId, signinTicket = mode == "github" ? _signInTicket : null };
             if (JsonSerializer.SerializeToUtf8Bytes(payload).Length > 8 * 1024 * 1024)
             {
                 Status.Text = Text("Die Meldung mit Original-Log ist zu groß.", "The report with the original log is too large.");
@@ -238,8 +337,6 @@ public partial class FeedbackWindow : Window
             Status.Text = Text("Meldung wird gesendet …", "Sending report …");
             using var response = await PostAsync(payload, cancellation);
             var result = response.RootElement;
-            systemDetailsConfirmed = result.TryGetProperty("systemDetailsStored", out var detailsStored) &&
-                detailsStored.ValueKind == JsonValueKind.True;
             if (result.TryGetProperty("receipt", out var receiptValue)) savedReceipt = receiptValue.GetString();
             var privateLogConfirmed = !includePrivateLog ||
                 (result.TryGetProperty("privateLogStored", out var stored) && stored.ValueKind == JsonValueKind.True);
@@ -250,45 +347,20 @@ public partial class FeedbackWindow : Window
                 return;
             }
             if (ShowStoredReport(result)) return;
-            if (mode == "github")
-            {
-                var authorization = result.GetProperty("authorization").GetString();
-                if (!Uri.TryCreate(authorization, UriKind.Absolute, out var url) ||
-                    url.GetLeftPart(UriPartial.Path) != "https://github.com/login/oauth/authorize" ||
-                    url.UserInfo.Length != 0)
-                    throw new JsonException();
+            ShowIssue(result);
+            if (!privateLogConfirmed)
+                Status.Text += Text(" Der private Log-Upload wurde nicht bestätigt. Bitte den Webdienst aktualisieren.",
+                    " Private log storage was not confirmed. Update the web service.");
 
-                var ticket = result.GetProperty("ticket").GetString();
-                OpenBrowser(url.AbsoluteUri);
-                GitHubStatus.Text = Text("GitHub: Bestätigung im Browser ausstehend.",
-                    "GitHub: Waiting for confirmation in the browser.");
-                Status.Text = Text("Bestätige die Meldung im Browser.", "Confirm the report in your browser.");
-                using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
-                deadline.CancelAfter(TimeSpan.FromMinutes(10));
-                while (true)
-                {
-                    await Task.Delay(TimeSpan.FromSeconds(3), deadline.Token);
-                    using var status = await PostAsync(new { mode = "status", ticket }, deadline.Token);
-                    if (status.RootElement.GetProperty("status").GetString() == "pending")
-                        continue;
-                    if (ShowStoredReport(status.RootElement)) break;
-                    GitHubStatus.Text = Text("GitHub: Meldung autorisiert.", "GitHub: Report authorized.");
-                    if (status.RootElement.TryGetProperty("login", out var login) && login.ValueKind == JsonValueKind.String)
-                        GitHubStatus.Text = Text($"GitHub: Als @{login.GetString()} für diese Meldung bestätigt.",
-                            $"GitHub: Confirmed as @{login.GetString()} for this report.");
-                    ShowIssue(status.RootElement);
-                    break;
-                }
-            }
-            else
-            {
-                ShowIssue(result);
-                if (!privateLogConfirmed)
-                    Status.Text += Text(" Der private Log-Upload wurde nicht bestätigt. Bitte den Webdienst aktualisieren.",
-                        " Private log storage was not confirmed. Update the web service.");
-            }
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
+        catch (HttpRequestException error) when (mode == "github" && error.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            _signInTicket = null;
+            GitHubUser.Text = "";
+            GitHubStatus.Text = Text("GitHub: Anmeldung abgelaufen. Bitte erneut anmelden.", "GitHub: Sign-in expired. Please sign in again.");
+            Status.Text = Text("Die Meldung wurde nicht angenommen.", "The report was not accepted.");
+        }
         catch (HttpRequestException error) when (error.StatusCode == HttpStatusCode.TooManyRequests)
         {
             Status.Text = Text("Zu viele Meldungen. Versuche es später erneut.", "Too many reports. Try again later.");
@@ -309,17 +381,14 @@ public partial class FeedbackWindow : Window
         }
         finally
         {
-            if (_submitted && !systemDetailsConfirmed)
-                Status.Text += Text(" Der Meldedienst hat die Speicherung der Systemdaten nicht bestätigt.",
-                    " The reporting service did not confirm that it stored the system details.");
-            WithGitHub.IsEnabled = !_submitted;
+            _sending = false;
+            SignInGitHub.IsEnabled = !_submitted;
+            WithGitHub.IsEnabled = !_submitted && _signInTicket is not null && DateTime.UtcNow < _signInExpires;
             WithoutGitHub.IsEnabled = !_submitted;
             IncludeLog.IsEnabled = !_submitted;
             PrivateLog.IsEnabled = !_submitted;
             DisplayName.IsReadOnly = _submitted;
-            if (mode == "github" && !_submitted)
-                GitHubStatus.Text = Text("GitHub: Bestätigung konnte nicht abgeschlossen werden.",
-                    "GitHub: Confirmation could not be completed.");
+
             IssueTitle.IsReadOnly = Description.IsReadOnly = LogExcerpt.IsReadOnly = _submitted;
         }
     }

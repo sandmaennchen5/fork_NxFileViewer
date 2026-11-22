@@ -1,12 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <Version>4.1.1-beta5</Version>
+    <Version>4.1.1</Version>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <AssemblyName>NxFileViewerFork.Avalonia</AssemblyName>
     <ApplicationIcon>../NxFileViewer/Styling/Icons/Icon.ico</ApplicationIcon>
-    <AvaloniaVersion>11.3.21</AvaloniaVersion>
+    <!-- Preserve the reflection bindings used by the converted views. -->
+    <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
+    <AvaloniaVersion>12.1.6</AvaloniaVersion>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../NxFileViewer/Services/UsageStatisticsService.cs;../NxFileViewer/Settings/SystemReportChoice.cs" Link="Shared/%(Filename)%(Extension)" />
@@ -17,11 +19,11 @@
     <Compile Include="../NxFileViewer/Services/FileRenaming/NamingPresets.cs;../NxFileViewer/Services/FileRenaming/NamingPatternsParser.cs;../NxFileViewer/Services/FileRenaming/INamingPatternsParser.cs;../NxFileViewer/Services/FileRenaming/Models/**/*.cs;../NxFileViewer/Services/FileRenaming/Exceptions/*.cs;../NxFileViewer/Tools/DelimitedTextParsing/*.cs;../NxFileViewer/Services/ExternalSources.cs;../NxFileViewer/Services/Updates/ViewerUpdateMetadata.cs;../NxFileViewer/Services/Updates/ViewerUpdateSource.cs" Link="Shared/%(Filename)%(Extension)" />
     <Compile Include="../NxFileViewer/Services/Nsz/NszCommandArguments.cs;../NxFileViewer/Services/Nsz/NszProcess.cs;../NxFileViewer/Services/Nsz/NszProgressUpdate.cs;../NxFileViewer/Services/Nsz/NszInputAlias.cs;../NxFileViewer/Services/Nsz/XciPartitionIntegrity.cs;../NxFileViewer/Services/Nsz/XciGamecardLayout.cs;../NxFileViewer/Services/PackageOperations/PackageCommandArguments.cs;../NxFileViewer/Services/BackgroundTask/IProgressReporter.cs;../NxFileViewer/Settings/NszCompressionMode.cs;../NxFileViewer/Settings/PackageEngine.cs" Link="Shared/%(Filename)%(Extension)" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.11" />
-    <PackageReference Include="Avalonia.Controls.DataGrid" Version="11.3.0" />
+    <PackageReference Include="Avalonia.Controls.DataGrid" Version="12.1.2" />
     <PackageReference Include="Avalonia.Desktop" Version="$(AvaloniaVersion)" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="$(AvaloniaVersion)" />
     <PackageReference Include="LibHac" Version="0.19.0" />
-    <PackageReference Include="SharpCompress" Version="0.50.3" />
+    <PackageReference Include="SharpCompress" Version="0.50.11" />
     <ProjectReference Include="../LibHac.NSZ/LibHac.NSZ.csproj" />
     <Compile Include="../NxFileViewer/FileLoading/IPackageTypeAnalyzer.cs" Link="Shared/IPackageTypeAnalyzer.cs" />
     <Compile Include="../NxFileViewer/FileLoading/PackageSignature.cs" Link="Shared/PackageSignature.cs" />
@@ -55,6 +57,7 @@
     <Compile Include="../NxFileViewer/Services/Updates/PluginVersionStorage.cs;../NxFileViewer/Services/PackageOperations/PackageEnginePaths.cs" Link="Shared/%(Filename)%(Extension)" />
     <Compile Include="../NxFileViewer/Services/Nand/NandDriveDiscovery.cs;../NxFileViewer/Services/Nand/NandDetection.cs;../NxFileViewer/Services/Nand/NandExplorer.cs;../NxFileViewer/Services/Nand/NandPartitionCatalog.cs" Link="Shared/%(Filename)%(Extension)" />
     <Compile Include="../NxFileViewer/Services/OnlineServices/TitleDbCatalog.Local.cs;../NxFileViewer/Services/OnlineServices/OnlineTitleInfo.cs;../NxFileViewer/Services/OnlineServices/IOnlineTitleInfo.cs;../NxFileViewer/Services/OnlineServices/OptionalRatingConverter.cs" Link="Shared/%(Filename)%(Extension)" />
+    <AssemblyMetadata Include="ViewerSingleFile" Value="$(PublishSingleFile)" />
     <AssemblyMetadata Include="ViewerSelfContained" Value="$(SelfContained)" />
     <EmbeddedResource Include="../NxFileViewer/Styling/Theme/LightTheme.xaml" LogicalName="Viewer.Theme.Light" />
     <EmbeddedResource Include="../NxFileViewer/Styling/Theme/DarkTheme.xaml" LogicalName="Viewer.Theme.Dark" />

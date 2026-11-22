@@ -74,25 +74,27 @@ not change either identity.
 The first-start explanation appears when no valid choice is saved. It describes
 which system details are collected for compatibility testing and update planning.
 The statistics show which operating systems, architectures, .NET runtimes and
-app versions are in use. The app does not track time spent using it. Reporting is enabled by default: **Keep enabled**,
-closing the dialog, Esc and expiry of the visible 30-second countdown all save the
-enabled choice. **Disable** saves a disabled choice. The setting remains editable
-under Settings → Program through **Disable system report**. If reporting is disabled, the first launch after an upgrade shows the dialog again. Closing it, pressing Esc or letting the countdown expire keeps reporting disabled.
-
-At startup, enabled reporting sends an installation-derived identity, app/build
-version, OS/platform, process and OS architecture, WPF/Avalonia identifier, runtime
-distribution/version and runtime ID. It sends every 90 days and at the first startup
-after an upgrade or a change in the reported system details. An offline service does not prevent normal startup.
-The WPF client currently uses a locally derived Windows-installation identity;
-no raw Windows ID is uploaded. The stable identity is technically pseudonymous and
-can be linked internally to support reports. Names, file paths/content and session
-logs are not part of system reporting.
+app versions are in use. The app does not track time spent using it. The initial
+dialog waits for an explicit **Enable** or **Disable** response, without a timer.
+Closing or pressing Esc does not select an answer. Once a choice is saved, the
+dialog does not appear again, including after updates. The optional report setting
+remains editable under Settings → Program through **Disable system report**.
+When system reports are enabled, an additional report is sent at the first startup
+after seven days. Changing the option is reflected in the next report. Failed
+reports are retried on a subsequent startup; reporting does not prevent startup.
+Windows uses its existing installation identity, Linux uses its machine ID and a
+persistent user identity is available as a fallback (also for macOS). Only a hash
+is transmitted. The stable identity links reports to the same Support ID.
+Names, file paths/content and session logs are not part of statistics. New issue
+submissions contain the participant identity instead of repeating system details;
+the admin archive shows the latest system record linked through that Support ID.
 
 The service aggregates active identities over a configurable period (for example
 30, 60, 90 or 120 days). Public badges and charts show totals, distributions and
 history. Individual Support IDs, names, reports, private logs and usage mappings
-remain behind admin authentication. No report is not proof that a user disabled
-statistics: the app may simply have been offline or unused.
+remain behind admin authentication. The admin UI distinguishes standard reports, additional system reports and the
+reported preference. Missing reports may mean the app was offline or unused;
+preferences of older clients are shown as unknown.
 
 ## Companion administration and deployment
 

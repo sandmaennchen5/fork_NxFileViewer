@@ -64,11 +64,9 @@ foreach ($package in $explorer) {
 }
 $escaped = [regex]::Escape($Version)
 $zipFiles = @(Get-ChildItem -LiteralPath $PackageDirectory -Filter '*.zip' -File)
-$logViewer = @($zipFiles | Where-Object { $_.Name -cmatch ('^[A-Za-z0-9._-]+\.LogViewer_v' + $escaped + '(?:_self-contained)?_(?:x64|x86|arm64)\.zip$') } | Sort-Object Name)
 $transition = @($zipFiles | Where-Object { $_.Name -cmatch ('^NxFileViewer_v' + $escaped + '(?:_self-contained)?_(?:x64|x86|arm64)\.zip$') -and !$names.Contains($_.Name) } | Sort-Object Name)
 $firmware = @($zipFiles | Where-Object { $_.Name -cmatch ('^[A-Za-z0-9._-]+_v' + $escaped + '_firmware-hashes\.zip$') } | Sort-Object Name)
-$avalonia = @($zipFiles | Where-Object { $_.Name -cmatch ('^NxFileViewerFork(?:\.LogViewer)?_Avalonia_v' + $escaped + '(?:_self-contained)?_(?:x64|x86|arm64|linux-(?:x64|arm64)|osx-(?:x64|arm64))\.zip$') } | Sort-Object Name)
-$logRuntime = if ($logViewer.Count) { Get-RuntimeVersion 'src/NxFileViewer.LogViewer/NxFileViewer.LogViewer.csproj' } else { $null }
+$avalonia = @($zipFiles | Where-Object { $_.Name -cmatch ('^NxFileViewerFork_Avalonia_v' + $escaped + '(?:_self-contained)?_(?:x64|x86|arm64|linux-(?:x64|arm64)|osx-(?:x64|arm64))\.zip$') } | Sort-Object Name)
 $lines = [Collections.Generic.List[string]]::new()
 $lines.Add('<!-- nxfileviewer-release-asset-guide -->')
 $lines.Add('#### Which ZIP file do I need?')
@@ -96,9 +94,9 @@ if ($standard.Count) {
 if ($avalonia.Count) {
     $lines.Add('##### Avalonia beta: Windows, Linux and macOS')
     $lines.Add('')
-    $lines.Add('**All Avalonia packages (viewer and LogViewer, on every operating system) are early beta versions. Not all features are implemented or tested yet.**')
+    $lines.Add('**All Avalonia viewer packages (on every operating system) are early beta versions. Not all features are implemented or tested yet.**')
     $lines.Add('')
-    $lines.Add('These are the first converted Avalonia applications; the conversion is still in progress. ZIPs with linux- are for Linux, osx- for macOS; bare x64/x86/arm64 suffixes are for Windows. Choose the architecture of your system. LogViewer packages are optional standalone log viewers.')
+    $lines.Add('These are the first converted Avalonia applications; the conversion is still in progress. ZIPs with linux- are for Linux, osx- for macOS; bare x64/x86/arm64 suffixes are for Windows. Choose the architecture of your system.')
     $lines.Add('')
     $lines.Add('Self-contained ZIPs include .NET. The other Avalonia ZIPs require the matching .NET runtime (Desktop Runtime on Windows). On Linux and macOS, extract with executable permissions preserved and start the Avalonia executable; these ZIPs are not signed macOS app installers.')
     $lines.Add('')
@@ -111,14 +109,6 @@ if ($explorer.Count) {
     $lines.Add('The modern context menu can also be installed through the program settings. Use these setup ZIPs for offline installation and choose the Windows architecture (x64 or ARM64). They do not contain the viewer itself.')
     $lines.Add('')
     foreach ($line in (Asset-Lines @($explorer.AssetName))) { $lines.Add($line) }
-    $lines.Add('')
-}
-if ($logViewer.Count) {
-    $lines.Add('##### Optional: standalone LogViewer')
-    $lines.Add('')
-    $lines.Add("Only needed to view saved diagnostic logs independently. Self-contained ZIPs include .NET $logRuntime; the other LogViewer ZIPs require .NET $logRuntime Desktop Runtime.")
-    $lines.Add('')
-    foreach ($line in (Asset-Lines @($logViewer.Name))) { $lines.Add($line) }
     $lines.Add('')
 }
 if ($firmware.Count) {

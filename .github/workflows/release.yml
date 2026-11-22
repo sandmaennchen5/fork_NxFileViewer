@@ -63,6 +63,12 @@ jobs:
         uses: actions/setup-dotnet@v6
         with:
           global-json-file: src/global.json
+      - name: Validate Linux launch scripts
+        if: matrix.platform == 'Linux'
+        shell: bash
+        run: |
+          sh -n tools/linux/start.sh.in
+          sh -n tools/linux/install-shortcut.sh.in
       - name: Build Avalonia packages
         shell: pwsh
         env:
@@ -70,12 +76,14 @@ jobs:
           RELEASE_RUNTIMES: ${{ matrix.runtimes }}
         run: |
           $runtimes = @($env:RELEASE_RUNTIMES | ConvertFrom-Json)
-          ./tools/Publish-Applications.ps1 -Framework Avalonia -Version $env:RELEASE_VERSION -OutputDirectory Publish-Avalonia -RuntimeIdentifiers $runtimes -SkipFirmwareHashes -AllTargets -NoCopy
+          ./tools/Publish-Applications.ps1 -Framework Avalonia -Applications Viewer -Version $env:RELEASE_VERSION -OutputDirectory Publish-Avalonia -RuntimeIdentifiers $runtimes -SkipFirmwareHashes -AllTargets -NoCopy
       - name: Upload Avalonia packages
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-avalonia-${{ matrix.platform }}
-          path: Publish-Avalonia/*.zip
+          path: |
+            Publish-Avalonia/*.zip
+            Publish-Avalonia/*.avalonia.json
           if-no-files-found: error
           retention-days: 1
 
@@ -127,11 +135,11 @@ jobs:
         shell: pwsh
         env:
           RELEASE_VERSION: ${{ needs.validate.outputs.version }}
-        run: ./Publish.ps1 -Version $env:RELEASE_VERSION -OutputDirectory Publish-Release -ReleasePackages -SkipAvalonia
+        run: ./Publish.ps1 -Version $env:RELEASE_VERSION -OutputDirectory Publish-Release -ReleasePackages -SkipAvalonia -SkipLogViewer
 
       - name: Download Avalonia beta packages
         if: needs.validate.outputs.prerelease == 'true'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: release-avalonia-*
           path: Publish-Release
@@ -143,12 +151,17 @@ jobs:
         env:
           RELEASE_VERSION: ${{ needs.validate.outputs.version }}
         run: |
-          foreach ($app in @('NxFileViewerFork', 'NxFileViewerFork.LogViewer')) {
+          foreach ($app in @('NxFileViewerFork')) {
               foreach ($platform in @('x64', 'x86', 'arm64', 'linux-x64', 'linux-arm64', 'osx-x64', 'osx-arm64')) {
                   foreach ($variant in @('', '_self-contained')) {
                       $name = "${app}_Avalonia_v$($env:RELEASE_VERSION)${variant}_${platform}.zip"
                       if (!(Test-Path -LiteralPath (Join-Path Publish-Release $name) -PathType Leaf)) {
                           throw "Missing Avalonia beta package: $name"
+                      }
+                      $markerPath = Join-Path Publish-Release ($name + '.avalonia.json')
+                      $marker = Get-Content -LiteralPath $markerPath -Raw | ConvertFrom-Json
+                      if ($marker.Framework -ne 'Avalonia' -or $marker.AssetName -ne $name -or $marker.Sha256 -ne (Get-FileHash -LiteralPath (Join-Path Publish-Release $name) -Algorithm SHA256).Hash) {
+                          throw "Invalid Avalonia update checksum metadata: $name"
                       }
                   }
               }
@@ -164,10 +177,7 @@ jobs:
                   throw 'Missing or invalid ARM64 viewer package.'
               }
           }
-          $logs = @(Get-ChildItem -Path 'Publish-Release/NxFileViewerFork.LogViewer_v*_arm64.zip' -File)
-          if ($logs.Count -ne 2 -or @($logs | Where-Object Name -like '*_self-contained_arm64.zip').Count -ne 1) {
-              throw 'Expected both ARM64 LogViewer distributions.'
-          }
+
 
       - name: Append ZIP download guide
         shell: pwsh
@@ -183,10 +193,12 @@ jobs:
           RELEASE_PRERELEASE: ${{ needs.validate.outputs.prerelease }}
         run: |
           $ErrorActionPreference = 'Stop'
-          $packages = @(Get-ChildItem -LiteralPath Publish-Release -Filter '*.zip' -File | ForEach-Object FullName)
+          $packages = @(Get-ChildItem -LiteralPath Publish-Release -Filter '*.zip' -File | Where-Object Name -NotLike '*LogViewer*' | ForEach-Object FullName)
           if ($packages.Count -eq 0) { throw 'No release ZIPs were built.' }
           $descriptor = Get-Item -LiteralPath 'Publish-Release/nxfileviewer-update.json'
           $packages += $descriptor.FullName
+          & ./.github/scripts/New-ReleasePackageIndex.ps1 -PackageDirectory Publish-Release
+          $packages += (Get-Item -LiteralPath 'Publish-Release/nxfileviewer-packages.json').FullName
           # Upload every package before making the release visible to updaters.
           gh release create $env:RELEASE_TAG --verify-tag --draft --notes-file "$env:RUNNER_TEMP/release-notes.md" --title "NxFileViewer Fork $env:RELEASE_VERSION" "--prerelease=$env:RELEASE_PRERELEASE" @packages
           if ($LASTEXITCODE -ne 0) { throw 'Creating the draft release or uploading packages failed.' }

@@ -43,11 +43,11 @@ public sealed class UsageStatisticsChoiceTest
     [Theory]
     [InlineData(false, true, "4.1.1-beta4", "4.1.1-beta4", true)]
     [InlineData(true, true, "4.1.1-beta4", "4.1.1-beta5", false)]
-    [InlineData(true, false, "", "4.1.1-beta4", true)]
+    [InlineData(true, false, "", "4.1.1-beta4", false)]
     [InlineData(true, false, "4.1.1-beta4+old", "4.1.1-beta4+new", false)]
-    [InlineData(true, false, "4.1.1-beta4", "4.1.1-beta5", true)]
+    [InlineData(true, false, "4.1.1-beta4", "4.1.1-beta5", false)]
     [InlineData(true, false, "4.1.1-beta5", "4.1.1-beta4", false)]
-    public void DisabledSystemReportsAreOfferedAgainAfterAnUpgrade(
+    public void StoredSystemReportChoicesAreNotAskedAgainAfterUpdates(
         bool confirmed, bool enabled, string choiceVersion, string currentVersion, bool expected)
     {
         var saved = JsonSerializer.Serialize(new AppSettings

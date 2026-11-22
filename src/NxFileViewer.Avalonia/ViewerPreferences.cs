@@ -25,7 +25,7 @@ internal sealed record ViewerPreferences(string Language = "", string Theme = ""
     public string LogMinimumLevel { get; init; } = "INFO";
     public int LogFileRetention { get; init; } = DefaultSettings.Get<int>("Settings", "LogFileRetentionCount");
     public bool CheckUpdatesOnStart { get; init; } = DefaultSettings.Get<bool>("Settings", "CheckViewerUpdatesOnStartup");
-    public bool IncludePreReleases { get; init; } = DefaultSettings.Get<bool>("Settings", "IncludeViewerPrereleases");
+    public bool IncludePreReleases { get; init; } = true;
     public int CompressionEngine { get; init; }
     public string? NszCliPath { get; init; }
     public int CompressionLevel { get; init; } = 18;
@@ -42,6 +42,7 @@ internal sealed record ViewerPreferences(string Language = "", string Theme = ""
     public bool VerifyOnOpen { get; init; }
     public bool NandActive { get; init; } = true;
     public bool FirmwareActive { get; init; } = true;
+    public SavedWindowPlacement? WindowPlacement { get; init; }
     public AppSettings SharedSettings { get; init; } = new();
     private static string FilePath => Path.Combine(AppContext.BaseDirectory, "NxFileViewerFork.Avalonia.settings.json");
 
@@ -56,6 +57,9 @@ internal sealed record ViewerPreferences(string Language = "", string Theme = ""
         {
             var existing = JsonSerializer.Deserialize<ViewerPreferences>(File.ReadAllText(FilePath)) ?? new();
             using var document = JsonDocument.Parse(File.ReadAllText(FilePath));
+            if (document.RootElement.TryGetProperty(nameof(SharedSettings), out var savedShared))
+                existing.SharedSettings.UsageStatisticsChoiceConfirmed = SystemReportChoice.IsUsageStatisticsChoiceConfirmed(savedShared);
+
             return document.RootElement.TryGetProperty(nameof(SharedSettings), out _) || !File.Exists(sharedPath) ? existing : FromShared(shared) with { NszGuiPath = existing.NszGuiPath };
         }
         return FromShared(shared);
@@ -82,7 +86,7 @@ internal sealed record ViewerPreferences(string Language = "", string Theme = ""
         ExportVisibleColumnsOnly = settings.BatchExportVisibleColumnsOnly,
         LogFileRetention = settings.LogFileRetentionCount,
         CheckUpdatesOnStart = settings.CheckViewerUpdatesOnStartup,
-        IncludePreReleases = settings.IncludeViewerPrereleases,
+        IncludePreReleases = true,
         CompressionEngine = settings.NszCompressionEngine switch { NszCompressionEngine.Rust => 0, NszCompressionEngine.Nsz => 1, NszCompressionEngine.RustWithNszBackup => 2, _ => 3 },
         CompressionLevel = settings.NszCompressionLevel,
         CompressionMode = (int)settings.NszCompressionMode,
@@ -150,3 +154,5 @@ internal sealed record ViewerPreferences(string Language = "", string Theme = ""
         }
     }
 }
+
+internal sealed record SavedWindowPlacement(int Left, int Top, double Width, double Height, bool IsMaximized);

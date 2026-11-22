@@ -21,6 +21,8 @@ try {
     require_once dirname(__DIR__) . '/store/support-overview.php';
     $db = databaseOpen($config);
     supportSchema($db);
+        require_once dirname(__DIR__).'/store/feedback-queue.php';
+        feedbackSchema($db);feedbackRepairDisplayNames($db);
     usageSchema($db);
     $days = usagePeriodDays($config);
     $search = $_GET['q'] ?? '';
@@ -51,7 +53,7 @@ try {
 <div class="card"><?=webT('Noch keine Statistikmeldung')?><strong><?= $overview['without_usage'] ?></strong></div>
 </div>
 <p><?=webT('Jede Support-ID zählt einmal, unabhängig von der Anzahl ihrer Issues. Es sind nur serverseitig registrierte IDs erfasst, keine vollständige Zahl aller Programminstallationen.')?></p>
-<p><?=webT('Eine fehlende Statistikmeldung bedeutet nicht automatisch „deaktiviert“: Das Programm kann länger nicht gestartet worden oder offline sein. Die tatsächliche Einstellung wird nicht gemeldet.')?></p>
+<p><?=webT('Standardreports werden bei Erststart, App-Updates und Architektur- oder .NET-Paketwechseln gemeldet. Aktivierte Systemberichte werden zusätzlich alle 7 Tage beim Start gesendet. Ältere Clients melden die Einstellung nicht.')?></p>
 <?php if ($overview['unmapped_usage'] > 0): ?><p><?= $overview['unmapped_usage'] ?><?=webT(' ältere Statistikkennungen haben noch keine registrierte öffentliche Support-ID. Sie zählen hier nicht als Support-ID. Bei ihrer nächsten Statistikmeldung wird die Zuordnung ergänzt.')?></p><?php endif ?>
 <form method="get">
 <label><?=webT('Support-ID oder Name')?><br><input name="q" maxlength="200" value="<?= supportIdEscape($search) ?>"></label>
@@ -63,8 +65,8 @@ try {
 <tr><td><a href="/admin/support?q=<?= rawurlencode($row['support_id']) ?>"><?= supportIdEscape($row['support_id']) ?></a></td>
 <td><?= supportIdEscape($row['display_name']) ?></td><td><?= gmdate('Y-m-d H:i:s',(int)$row['created_at']) ?></td><td><?= gmdate('Y-m-d H:i:s',(int)$row['updated_at']) ?></td>
 <td><?= (int)$row['issue_count'] ?></td>
-<td><?php if ($row['last_seen'] === null): ?><?=webT('Noch keine Meldung')?><?php else: ?><?= (int)$row['last_seen'] >= $cutoff ? strtr(webT('Meldung in {days} Tagen'),['{days}'=>(string)$days]) : webT('Keine aktuelle Meldung') ?><br><?= gmdate('Y-m-d H:i:s',(int)$row['last_seen']) ?> UTC<?php endif ?></td>
-<td><?= supportIdEscape(implode(' · ',array_filter([$row['version'],$row['platform'],$row['process_architecture'],$row['ui_framework']],fn($s)=>$s!==null && $s!==''))) ?></td></tr>
+<td><?=supportIdEscape(usageModeLabel($row['report_type'],$row['system_reports_enabled']===null?null:(int)$row['system_reports_enabled']))?><br><?php if ($row['last_seen'] === null): ?><?=webT('Noch keine Meldung')?><?php else: ?><?= (int)$row['last_seen'] >= $cutoff ? strtr(webT('Meldung in {days} Tagen'),['{days}'=>(string)$days]) : webT('Keine aktuelle Meldung') ?><br><?= gmdate('Y-m-d H:i:s',(int)$row['last_seen']) ?> UTC<?php endif ?></td>
+<td><?= supportIdEscape(implode(' · ',array_filter([$row['version'],$row['platform'],$row['process_architecture'],$row['ui_framework'],$row['os_description'],$row['distribution'],$row['runtime_version']],fn($s)=>$s!==null && $s!==''))) ?></td></tr>
 <?php endforeach ?></tbody></table></div>
 <?php if (!$result['rows']): ?><p><?=webT('Keine passenden Support-IDs.')?></p><?php endif ?>
 <p><?php if ($page>1): ?><a href="?<?= supportIdEscape(http_build_query(['q'=>$search,'usage'=>$filter,'page'=>$page-1])) ?><?=webT('">Vorherige Seite')?></a><?php endif ?>

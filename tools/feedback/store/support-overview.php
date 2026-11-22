@@ -29,10 +29,11 @@ function supportIdOverviewRows(PDO $db, string $search, string $filter, int $day
         case 'inactive': $where .= ' AND u.last_seen < ?'; $args[] = $cutoff; break;
         default: throw new InvalidArgumentException('Invalid statistics filter');
     }
-    $join = ' FROM support_profiles p LEFT JOIN usage_statistics u ON u.internal_id = p.internal_id ';
+    $join = ' FROM support_profiles p LEFT JOIN usage_statistics u ON u.internal_id = p.internal_id LEFT JOIN usage_report_modes m ON m.internal_id=p.internal_id ';
     $total = (int)supportQuery($db, 'SELECT COUNT(*)' . $join . 'WHERE ' . $where, $args)->fetchColumn();
     $statement = $db->prepare('SELECT p.support_id, p.display_name, p.created_at, p.updated_at,
-        u.version, u.platform, u.process_architecture, u.ui_framework, u.last_seen,
+        u.version, u.platform, u.process_architecture, u.ui_framework, u.last_seen, u.os_description, u.distribution, u.runtime_version,
+        m.report_type,m.system_reports_enabled,m.standard_last_seen,m.system_last_seen,
         (SELECT COUNT(*) FROM support_issues i WHERE i.internal_id = p.internal_id) AS issue_count'
         . $join . 'WHERE ' . $where . ' ORDER BY p.updated_at DESC, p.support_id ASC LIMIT ? OFFSET ?');
     foreach ($args as $index => $value) $statement->bindValue($index + 1, $value);

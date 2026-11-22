@@ -49,6 +49,27 @@ function handleCallback(PDO $db,array $config): never {
     $state=$_GET['state']??'';
     if(!is_string($state)||!preg_match('/\A[a-f0-9]{64}\z/',$state))browserReply('Invalid authorization request.',400);
     $hash=hash('sha256',$state);
+    // A sign-in request is separate from any report or log upload.
+    $session=execute($db,'SELECT * FROM github_signins WHERE state=?',[$hash])->fetch(PDO::FETCH_ASSOC);
+    if($session){
+        $claim=execute($db,"UPDATE github_signins SET status='processing' WHERE state=? AND status='pending' AND expires>?",[$hash,time()]);
+        if($claim->rowCount()!==1)browserReply('This sign-in request expired or was already used.',400);
+        try{
+            $code=$_GET['code']??'';
+            if(!is_string($code)||$code===''||strlen($code)>256)throw new RuntimeException('Authorization canceled');
+            $user=github('https://github.com/login/oauth/access_token',['client_id'=>$config['client_id'],'client_secret'=>$config['client_secret'],'code'=>$code,'code_verifier'=>$session['verifier'],'redirect_uri'=>$config['callback_url'],'repository_id'=>$config['repository_id']]);
+            if(!is_string($user['access_token']??null)||$user['access_token']==='')throw new RuntimeException('Authorization failed');
+            $profile=github('https://api.github.com/user',[],$user['access_token'],'GET');
+            $login=$profile['login']??null;
+            if(!is_string($login)||!preg_match('/\A[a-zA-Z0-9-]{1,39}\z/',$login))throw new RuntimeException('GitHub account unavailable');
+            $expires=time()+min(600,max(0,(int)($user['expires_in']??3600)-30));
+            execute($db,"UPDATE github_signins SET credential=?,expires=?,login=?,status='authorized',verifier='' WHERE ticket=?",[feedbackCredential($config,$user['access_token']),$expires,$login,$session['ticket']]);
+            browserReply('GitHub sign-in successful. Return to NxFileViewer and click Report with GitHub account to send your report. Nothing has been sent yet.');
+        }catch(Throwable $error){
+            execute($db,"UPDATE github_signins SET status='failed',verifier='',credential=NULL WHERE ticket=?",[$session['ticket']]);
+            browserReply('GitHub sign-in could not be completed. Return to NxFileViewer and try again. Nothing has been sent.',400);
+        }
+    }
     $claim=execute($db,"UPDATE reports SET status='processing' WHERE state=? AND status='pending' AND expires>?",[$hash,time()]);
     if($claim->rowCount()!==1)browserReply('This authorization request has expired or was already used. Your saved report remains available to the maintainer.',400);
     $oauth=execute($db,'SELECT ticket,verifier FROM reports WHERE state=?',[$hash])->fetch(PDO::FETCH_ASSOC);
@@ -92,6 +113,17 @@ try {
         bucket TEXT PRIMARY KEY, count INTEGER, expires INTEGER
     )');
     execute($db, 'DELETE FROM reports WHERE expires <= ?', [time()]);
+    $db->exec(databaseSql($db,
+        "CREATE TABLE IF NOT EXISTS github_signins (ticket TEXT PRIMARY KEY,state TEXT UNIQUE,verifier TEXT,status TEXT,credential TEXT NULL,expires INTEGER)",
+        "CREATE TABLE IF NOT EXISTS github_signins (ticket CHAR(64) CHARACTER SET ascii COLLATE ascii_bin PRIMARY KEY,state CHAR(64) CHARACTER SET ascii COLLATE ascii_bin UNIQUE,verifier VARCHAR(128),status VARCHAR(16),credential TEXT NULL,expires BIGINT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin"));
+    // Upgrade existing sign-in sessions without replacing their table.
+    $columns=$db->query(databaseIsMariaDb($db)?'SHOW COLUMNS FROM github_signins':'PRAGMA table_info(github_signins)')->fetchAll(PDO::FETCH_ASSOC);
+    if(!in_array('login',array_column($columns,databaseIsMariaDb($db)?'Field':'name'),true)){
+        try{$db->exec("ALTER TABLE github_signins ADD COLUMN login VARCHAR(39) NOT NULL DEFAULT ''");}
+        catch(PDOException $error){$db->query('SELECT login FROM github_signins LIMIT 0');}
+    }
+    execute($db,'DELETE FROM github_signins WHERE expires<=?',[time()]);
+
 
     $method = $_SERVER['REQUEST_METHOD'] ?? '';
     if ($method === 'GET') {
@@ -107,6 +139,23 @@ try {
     }
     $input = json_decode($raw, true);
     $mode = $input['mode'] ?? '';
+    if($mode==='signin_status'){
+        $ticket=$input['ticket']??'';
+        if(!is_string($ticket)||!preg_match('/\A[a-f0-9]{64}\z/',$ticket))reply(['error'=>'ticket'],400);
+        $session=execute($db,'SELECT status,login FROM github_signins WHERE ticket=? AND expires>?',[hash('sha256',$ticket),time()])->fetch(PDO::FETCH_ASSOC);
+        reply(['status'=>$session['status']??'expired','login'=>($session['status']??'')==='authorized'?$session['login']:null]);
+    }
+    if($mode==='signin'){
+        // Bound unauthenticated sign-in requests independently of report quotas.
+        $bucket='signin:'.hash_hmac('sha256',intdiv(time(),3600).':'.($_SERVER['REMOTE_ADDR']??''),$config['client_secret']);
+        execute($db,'DELETE FROM rate_limit WHERE expires<=?',[time()]);
+        execute($db,databaseSql($db,'INSERT INTO rate_limit (bucket,count,expires) VALUES (?,1,?) ON CONFLICT(bucket) DO UPDATE SET count=count+1','INSERT INTO rate_limit (bucket,count,expires) VALUES (?,1,?) ON DUPLICATE KEY UPDATE count=count+1'),[$bucket,time()+3600]);
+        if((int)execute($db,'SELECT count FROM rate_limit WHERE bucket=?',[$bucket])->fetchColumn()>20)reply(['error'=>'rate_limit'],429);
+        $ticket=randomToken();$state=randomToken();$verifier=randomToken();
+        execute($db,"INSERT INTO github_signins (ticket,state,verifier,status,expires) VALUES (?,?,?,'pending',?)",[hash('sha256',$ticket),hash('sha256',$state),$verifier,time()+650]);
+        $authorization='https://github.com/login/oauth/authorize?'.http_build_query(['client_id'=>$config['client_id'],'redirect_uri'=>$config['callback_url'],'state'=>$state,'code_challenge'=>base64Url(hash('sha256',$verifier,true)),'code_challenge_method'=>'S256'],encoding_type:PHP_QUERY_RFC3986);
+        reply(['authorization'=>$authorization,'ticket'=>$ticket],202);
+    }
     if ($mode === 'status') {
         $ticket = $input['ticket'] ?? '';
         if (!is_string($ticket) || !preg_match('/\A[a-f0-9]{64}\z/', $ticket)) {
@@ -143,6 +192,13 @@ try {
         reply(['supportId' => $profile['supportId']]);
     }
 
+    $signin=null;
+    if($mode==='github'&&array_key_exists('signinTicket',$input)){
+        $signinTicket=$input['signinTicket'];
+        if(!is_string($signinTicket)||!preg_match('/\A[a-f0-9]{64}\z/',$signinTicket))reply(['error'=>'signin_required'],401);
+        $signin=execute($db,"SELECT credential,expires FROM github_signins WHERE ticket=? AND status='authorized' AND expires>?",[hash('sha256',$signinTicket),time()+30])->fetch(PDO::FETCH_ASSOC);
+        if(!$signin||$signin['credential']===null)reply(['error'=>'signin_required'],401);
+    }
     $title = $input['title'] ?? null;
     $body = $input['body'] ?? null;
     $displayName = $input['displayName'] ?? '';
@@ -180,7 +236,11 @@ try {
     if($existing){
         if($existing['mode']!==$mode||$existing['title']!==$title||$existing['body']!==feedbackBody($mode,$body,$displayName,$existing['support_id']))reply(['error'=>'submission_conflict'],409);
         $stored=(bool)execute($db,'SELECT 1 FROM private_issue_logs WHERE ticket=?',[$hashedTicket])->fetchColumn();
-        if($mode==='github'&&in_array($existing['status'],['awaiting_auth','needs_auth'],true))authorizationReply($db,$config,$existing,$ticket,$stored);
+        if($mode==='github'&&in_array($existing['status'],['awaiting_auth','needs_auth'],true)){
+            if($signin===null)authorizationReply($db,$config,$existing,$ticket,$stored);
+            execute($db,"UPDATE feedback_queue SET credential=?,credential_expires=?,status='queued',next_attempt=?,updated_at=? WHERE ticket=? AND status IN ('awaiting_auth','needs_auth')",[$signin['credential'],$signin['expires'],time(),time(),$hashedTicket]);
+            $existing=feedbackDeliver($db,$config,$hashedTicket);
+        }
         reply(feedbackPublic($existing)+['ticket'=>$ticket,'privateLogStored'=>$stored,'systemDetailsStored'=>feedbackSystemDetails($db,$hashedTicket)!==null],$existing['status']==='created'?200:202);
     }
 
@@ -208,7 +268,9 @@ try {
     catch(PDOException $error){
         $report=feedbackFind($db,$hashedTicket);if(!$report)throw $error;
     }
-    if($mode==='github')authorizationReply($db,$config,$report,$ticket,$privateLog!==null);
+    if($mode==='github'&&$signin!==null){
+        execute($db,"UPDATE feedback_queue SET credential=?,credential_expires=?,status='queued',next_attempt=?,updated_at=? WHERE ticket=? AND status IN ('awaiting_auth','needs_auth')",[$signin['credential'],$signin['expires'],time(),time(),$hashedTicket]);
+    }elseif($mode==='github')authorizationReply($db,$config,$report,$ticket,$privateLog!==null);
     $report=feedbackDeliver($db,$config,$hashedTicket);
     reply(feedbackPublic($report)+['ticket'=>$ticket,'privateLogStored'=>$privateLog!==null,'systemDetailsStored'=>feedbackSystemDetails($db,$hashedTicket)!==null],$report['status']==='created'?201:202);
 } catch (Throwable $error) {

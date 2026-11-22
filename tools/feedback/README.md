@@ -814,3 +814,25 @@ ungültige Bearbeitungen, App-Sichtbarkeit und Ergebnis-Maskierung, optionale
 Erinnerungen, Nichtteilnahme und Rücknahme sowie private Freitext-Antworten.
 Der HTTP-Test prüft dieselben Abläufe mit Berechtigungen und Ausgabemaskierung.
 Die App-Tests prüfen außerdem die Erinnerungslogik und Themewechsel der Auswahltexte.
+
+### Separate GitHub sign-in
+
+The WPF and Avalonia feedback dialogs use `mode=signin` and poll `mode=signin_status` before enabling submission. Sign-in stores only a short-lived, encrypted OAuth credential; it does not store a report or logs and never creates an issue. The explicit `mode=github` submission supplies `signinTicket`, which is checked before accepting the report. Deploy the updated `public/report.php` alongside the app update. The service creates the `github_signins` table for SQLite or MariaDB automatically. Legacy clients retain their existing report-first OAuth flow.
+
+The signed-in account name comes from GitHub `GET /user` and is returned by `signin_status` only after successful authorization. For this update, deploy both `public/report.php` and `store/github.php`; the service adds the `github_signins.login` column automatically.
+
+### Anzeigenamen und Archiv entfernen
+
+Bei Meldungen ohne Anmeldung bleibt der frei gewählte Anzeigename sowohl im Support-Profil als auch unter „Name bei Meldung“ erhalten. Der GitHub-Botname bleibt ausschließlich als tatsächlicher GitHub-Autor im Archiv stehen. Die Adminansichten reparieren früher überschriebene Namen aus noch vorhandenen Meldungen.
+
+In der Detailansicht des Meldungsarchivs kann eine Meldung nach Bestätigung endgültig entfernt werden. Dafür ist `manage_reports` erforderlich; bei vorhandenem privaten Log zusätzlich `delete_logs`. Entfernt werden der Archivbericht, private Systemdaten, private Logs und die zugehörige alte Berichtsauthorisierung. Laufende Übertragungen lassen sich nicht entfernen. GitHub-Issues und die Support-Zuordnung bleiben erhalten.
+
+Für diese Änderung bereitstellen: `store/feedback-queue.php`, `store/web-translations.php`, `public/admin-reports.php`, `public/support.php` und `public/support-ids.php`.
+
+### Standardreports und optionale Systemberichte
+
+Neue Clients senden `reportType=standard` beim Erststart, bei App-/Buildänderung, Architektur- oder .NET-Auslieferungswechsel, unabhängig von der Option für Systemberichte. Aktivierte Systemberichte senden zusätzlich `reportType=system` beim ersten Start nach sieben Tagen. `systemReportsEnabled` enthält den gemeldeten Schalterzustand. Ältere Clients bleiben kompatibel; ihre Berichtsart wird als älterer Bericht und die Einstellung als unbekannt angezeigt. Die neue Tabelle `usage_report_modes` ergänzt die vorhandenen Statistikdaten und wird automatisch angelegt.
+
+Im Adminbereich zeigen Statistik und Support-ID-Übersicht die Berichtsart und Einstellung. Das Meldungsarchiv verknüpft den aktuellen Systemstand über die interne Zuordnung der Support-ID. Neue Clients schicken deshalb keine separaten `systemDetails` mehr mit Fehlerberichten; ältere archivierte Systemdaten bleiben erhalten.
+
+Dafür aktualisieren: `public/usage.php`, `public/statistics.php`, `public/support-ids.php`, `public/admin-reports.php`, `store/usage.php`, `store/database.php`, `store/support-overview.php`, `store/web-translations.php`.

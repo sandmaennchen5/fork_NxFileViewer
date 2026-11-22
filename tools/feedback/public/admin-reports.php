@@ -5,7 +5,10 @@ if(!defined('NX_ADMIN_SECTION')||NX_ADMIN_SECTION!=='meldungen'){http_response_c
 adminRequirePermission('view_support');
 require_once dirname(__DIR__).'/store/feedback-queue.php';
 require_once dirname(__DIR__).'/store/github-status.php';
-feedbackSchema($db);privateLogSchema($db);supportSchema($db);
+require_once dirname(__DIR__).'/store/usage.php';
+usageSchema($db);
+feedbackSchema($db);privateLogSchema($db);supportSchema($db);feedbackRepairDisplayNames($db);
+databaseSqliteSchema($db,'CREATE TABLE IF NOT EXISTS reports (ticket TEXT PRIMARY KEY,state TEXT UNIQUE,verifier TEXT,status TEXT,expires INTEGER)');
 $labels=['awaiting_auth'=>webT('Wartet auf GitHub-Anmeldung'),'needs_auth'=>webT('GitHub-Anmeldung erforderlich'),'queued'=>webT('Wartet auf Übertragung'),'preparing'=>webT('Übertragung wird vorbereitet'),'sending'=>webT('Wird an GitHub gesendet'),'created'=>webT('Erfolgreich übertragen'),'review'=>webT('Erstellung unklar – prüfen'),'blocked'=>webT('Übertragung fehlgeschlagen')];
 $error='';$notice='';$selected=null;
 try{
@@ -17,7 +20,12 @@ try{
    adminRequirePermission('delete_logs');feedbackQuery($db,'DELETE FROM private_issue_logs WHERE ticket=?',[$ticket]);$notice=webT('Privates Log gelöscht.');
   }else{
    adminRequirePermission('manage_reports');
-   if($action==='retry-report'){
+   if($action==='delete-report'){
+    if(($_POST['confirm_delete']??'')!=='yes')throw new DomainException(webT('Bitte das Entfernen der Meldung bestätigen.'));
+    if(feedbackQuery($db,'SELECT 1 FROM private_issue_logs WHERE ticket=?',[$ticket])->fetchColumn())adminRequirePermission('delete_logs');
+    if(!feedbackDeleteArchived($db,$ticket))throw new DomainException(webT('Eine laufende Übertragung kann nicht entfernt werden. Bitte später erneut versuchen.'));
+    $notice=webT('Meldung und private Anhänge aus dem Archiv entfernt. Das GitHub-Issue bleibt unverändert.');
+   }elseif($action==='retry-report'){
     if(!in_array($report['status'],['queued','review','blocked'],true))throw new DomainException(webT('Diese Meldung kann aktuell nicht erneut gesendet werden.'));
     if($report['status']==='review'&&($_POST['confirm_duplicate']??'')!=='yes')throw new DomainException(webT('Vorher GitHub prüfen und das mögliche Duplikat bestätigen.'));
     if($report['mode']==='github'&&($report['credential']===null||(int)$report['credential_expires']<=time()+30))throw new DomainException(webT('Der Benutzer muss GitHub erneut autorisieren. Veröffentlichung ohne sein Konto erfolgt nicht.'));
@@ -63,6 +71,11 @@ try{
 <p><?=webT('Meldungskennung: ')?><code><?=adminEscape($selected['ticket'])?></code></p>
 <?php if($selected['number']):?><p><a href="https://github.com/<?=FEEDBACK_REPOSITORY?>/issues/<?=(int)$selected['number']?>">GitHub-Issue #<?=(int)$selected['number']?></a></p><?php endif ?>
 <pre><?=adminEscape($selected['body'])?></pre>
+<?php $system=feedbackQuery($db,'SELECT u.*,m.report_type,m.system_reports_enabled FROM usage_statistics u LEFT JOIN usage_report_modes m ON m.internal_id=u.internal_id WHERE u.internal_id=?',[$selected['internal_id']])->fetch(PDO::FETCH_ASSOC);if($system):?>
+<h3><?=webT('Aktueller Systemstand über Support-ID')?></h3>
+<p><?=adminEscape(usageModeLabel($system['report_type'],$system['system_reports_enabled']===null?null:(int)$system['system_reports_enabled']))?> · <?=gmdate('Y-m-d H:i:s',(int)$system['last_seen'])?> UTC</p>
+<pre><?=adminEscape(implode("\n",array_map(fn($key)=>$key.': '.$system[$key],['version','build_version','platform','os_description','process_architecture','os_architecture','ui_framework','distribution','runtime_version','runtime_identifier'])))?></pre>
+<?php endif ?>
 <?php $systemDetails=feedbackSystemDetails($db,$selected['ticket']);if($systemDetails!==null):?>
 <h3><?=webT('Systemdaten (privat)')?></h3>
 <pre><?=adminEscape($systemDetails)?></pre>
@@ -78,6 +91,11 @@ try{
 <?php endif ?>
 <?php if(adminCan('manage_reports')&&in_array($selected['status'],['review','blocked'],true)):?>
 <form method="post"><?=adminCsrf()?><input type="hidden" name="ticket" value="<?=adminEscape($selected['ticket'])?>"><label><?=webT('Bereits angelegtes GitHub-Issue ')?><input type="number" min="1" name="number" required></label><button name="action" value="link-report"><?=webT('Prüfen und zuordnen')?></button></form>
+<?php endif ?>
+<?php if(adminCan('manage_reports')&&(!$hasLog||adminCan('delete_logs'))&&!in_array($selected['status'],['preparing','sending'],true)):?>
+<form method="post"><?=adminCsrf()?><input type="hidden" name="ticket" value="<?=adminEscape($selected['ticket'])?>">
+<label><input type="checkbox" name="confirm_delete" value="yes" required><?=webT('Gespeicherte Meldung und private Anhänge endgültig entfernen. Das GitHub-Issue bleibt erhalten.')?></label>
+<button name="action" value="delete-report"><?=webT('Aus Meldungsarchiv entfernen')?></button></form>
 <?php endif ?></article><?php endif ?>
 <form method="get"><label>Status <select name="status"><option value=""><?=webT('Alle')?></option><?php foreach($labels as $key=>$text):?><option value="<?=$key?>" <?=($filter??'')===$key?'selected':''?>><?=adminEscape($text)?></option><?php endforeach ?></select></label><label><?=webT('Suche <input name="q" value="')?><?=adminEscape($search??'')?>"></label><button><?=webT('Filtern')?></button></form>
 <p><?=(int)($count??0)?><?=webT(' Meldungen')?></p><table><tr><th><?=webT('Eingang (UTC)')?></th><th><?=webT('Titel')?></th><th>Status</th><th>Support-ID</th></tr>

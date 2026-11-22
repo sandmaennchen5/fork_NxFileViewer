@@ -65,15 +65,15 @@ try {
             Assert ($position -gt $contained -and $position -lt $standard) 'Self-contained package in wrong group.'
         } else { Assert ($position -gt $standard) 'Standard package in wrong group.' }
     }
-    foreach ($file in (Get-ChildItem -LiteralPath $full.Output -Filter '*.zip')) {
+    foreach ($file in (Get-ChildItem -LiteralPath $full.Output -Filter '*.zip' | Where-Object Name -NotLike '*LogViewer*')) {
         $pattern = $file.Name -replace '([_-])(x64|x86|arm64)(?=(_setup)?\.zip$)', '${1}{Arch}'
         Assert ([regex]::Matches($text, [regex]::Escape($pattern)).Count -eq 1) "ZIP pattern not explained exactly once: $pattern"
     }
     Assert ($text.Contains('Explorer_1.0.2.0_{Arch}_setup.zip')) 'Independent Explorer version missing.'
-    Assert ([regex]::Matches($text, '(?m)^- `').Count -eq 8) 'Architecture-only variants were not grouped.'
+    Assert ([regex]::Matches($text, '(?m)^- `').Count -eq 6) 'Architecture-only variants were not grouped.'
     Assert ($text.Contains('{Arch}: x64, x86, arm64.')) 'Architecture legend missing.'
     Assert ($text.Contains('Legacy transition updaters')) 'Legacy explanation missing.'
-    Assert ($text.Contains('standalone LogViewer')) 'LogViewer explanation missing.'
+    Assert (!$text.Contains('LogViewer')) 'Excluded LogViewer assets were advertised.'
     Assert ($text.Contains('offline firmware hash references')) 'Firmware explanation missing.'
     $script:checks++
 
@@ -104,12 +104,13 @@ try {
     Run-Guide $beta
     $betaText = [IO.File]::ReadAllText($beta.Notes)
     Assert ($betaText.Contains('Avalonia beta: Windows, Linux and macOS')) 'Avalonia platform guide missing.'
-    foreach ($file in (Get-ChildItem -LiteralPath $beta.Output -Filter '*_Avalonia_*.zip')) {
+    foreach ($file in (Get-ChildItem -LiteralPath $beta.Output -Filter '*_Avalonia_*.zip' | Where-Object Name -NotLike '*LogViewer*')) {
         $pattern = $file.Name -replace '([_-])(x64|x86|arm64)(?=\.zip$)', '${1}{Arch}'
         Assert ([regex]::Matches($betaText, [regex]::Escape($pattern)).Count -eq 1) "Avalonia ZIP pattern not explained exactly once: $pattern"
     }
-    Assert ($betaText.Contains('All Avalonia packages (viewer and LogViewer, on every operating system) are early beta versions. Not all features are implemented or tested yet.')) 'Early-beta notice missing.'
-    Assert ([regex]::Matches($betaText, '(?m)^- `').Count -eq 20) 'Avalonia architecture variants were not grouped.'
+    Assert ($betaText.Contains('All Avalonia viewer packages (on every operating system) are early beta versions. Not all features are implemented or tested yet.')) 'Early-beta notice missing.'
+    Assert ([regex]::Matches($betaText, '(?m)^- `').Count -eq 12) 'Avalonia architecture variants were not grouped.'
+    Assert (!$betaText.Contains('LogViewer')) 'Excluded Avalonia LogViewer assets were advertised.'
     Assert ($betaText.Contains('_linux-{Arch}.zip') -and $betaText.Contains('_osx-{Arch}.zip')) 'Operating systems were merged.'
     $script:checks++
 

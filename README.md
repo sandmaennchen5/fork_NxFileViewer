@@ -13,11 +13,11 @@ Browse, verify and manage Nintendo Switch packages in a Windows desktop applicat
 3. Start `NxFileViewerFork.exe` from a writable folder and configure your keys under **Settings → Keys**.
 4. Open a file, drop files/folders into Batch, or use the optional Explorer menu.
 
-Firmware references, the standalone LogViewer and Explorer setup packages are separate downloads. See [installation and updates](docs/Application-updates.md).
+Firmware references and Explorer setup packages are separate downloads. The standalone LogViewer remains available through local builds and Build artifacts. See [installation and updates](docs/Application-updates.md).
 
-The current development prerelease is **4.1.1-beta5**. See the [changes since beta4](CHANGELOG.md#411-beta5---2026-11-22).
+The application version is **4.1.1**. See the [combined 4.1.1 release notes](CHANGELOG.md#411---2026-11-23).
 
-Beta releases also include the **first converted Avalonia viewer and LogViewer applications** for Windows, Linux and macOS. These are early beta versions: the conversion is in progress, and not all functions are implemented or tested. See [Avalonia beta builds](docs/Avalonia.md).
+Prereleases also include the **first converted Avalonia viewer application** for Windows, Linux and macOS. These are early beta versions: the conversion is in progress, and not all functions are implemented or tested. See [Avalonia beta builds](docs/Avalonia.md).
 
 ## Features
 

@@ -7,6 +7,11 @@ $global:avaloniaPublishTestCalls = [Collections.Generic.List[object]]::new()
 function dotnet {
     $arguments = @($args)
     if ($arguments[0] -ne 'publish') { throw 'Unexpected dotnet command.' }
+    $artifactsIndex = [Array]::IndexOf($arguments, '--artifacts-path')
+    if ($artifactsIndex -lt 0) { throw 'Publishing must isolate restore assets from normal builds.' }
+    $artifacts = [string]$arguments[$artifactsIndex + 1]
+    if (![IO.Path]::IsPathRooted($artifacts) -or $artifacts -notmatch '\.publish-applications-[0-9a-f]{32}[\\/]artifacts$') { throw 'Expected a per-run artifacts directory inside staging.' }
+
     $rid = $arguments[[Array]::IndexOf($arguments, '-r') + 1]
     $output = $arguments[[Array]::IndexOf($arguments, '-o') + 1]
     $contained = $arguments[[Array]::IndexOf($arguments, '--self-contained') + 1]
@@ -31,12 +36,12 @@ try {
                 $zip = Join-Path $root "${app}_Avalonia_v4.1.1-beta9${variant}_${suffix}.zip"
                 if (!(Test-Path -LiteralPath $zip)) { throw "Missing package $zip." }
                 $archive = [IO.Compression.ZipFile]::OpenRead($zip)
-                try { if ($archive.Entries.Count -ne 1) { throw "Unexpected package contents: $zip" } }
+                try { if ($archive.Entries.Count -ne $(if($rid.StartsWith('linux-')){4}else{2})) { throw "Unexpected package contents: $zip" }; if($rid.StartsWith('linux-')) { foreach($entry in $archive.Entries | Where-Object { $_.FullName.EndsWith('.sh') -or $_.FullName -like 'NxFileViewerFork*' }) { if((($entry.ExternalAttributes -shr 16) -band 511) -ne 493) { throw 'Linux executable permissions missing.' } } } }
                 finally { $archive.Dispose() }
             }
         }
     }
-    if (@(Get-ChildItem -LiteralPath $root -Force).Count -ne 29) { throw 'Unexpected output or uncleaned staging directory.' }
+    if (@(Get-ChildItem -LiteralPath $root -Force).Count -ne 57) { throw 'Unexpected output or uncleaned staging directory.' }
     $report = Join-Path $root 'publish-sizes-Avalonia-v4.1.1-beta9.txt'
     $reportLines = @(Get-Content -LiteralPath $report)
     if ($reportLines.Count -ne 30) { throw 'Size report must list every package.' }

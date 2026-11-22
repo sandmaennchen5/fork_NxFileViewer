@@ -21,6 +21,10 @@ try {
     $participant = $input['participant'] ?? '';
     if (!is_string($participant) || !preg_match('/\A[a-f0-9]{64}\z/', $participant))
         usageReply(['error' => 'participant'], 400);
+    $reportType=$input['reportType']??'legacy';
+    $enabled=$input['systemReportsEnabled']??null;
+    if(!in_array($reportType,['standard','system','legacy'],true)||($enabled!==null&&!is_bool($enabled))||
+        ($reportType!=='legacy'&&$enabled===null)||($reportType==='system'&&$enabled!==true))usageReply(['error'=>'report_type'],400);
     $environment = $input['environment'] ?? null;
     if (!is_array($environment)) usageReply(['error' => 'environment'], 400);
     $values = [];
@@ -61,6 +65,7 @@ try {
         runtime_version=VALUES(runtime_version), runtime_identifier=VALUES(runtime_identifier), last_seen=VALUES(last_seen)'));
     $s->execute(array_merge([$internal], $values, [$now]));
     usageRecordDay($db, $internal, $values, $now);
+    usageRecordMode($db,$internal,$reportType,$enabled,$now);
     $db->commit();
     usageReply(['ok' => true], 200);
 } catch (Throwable $e) {

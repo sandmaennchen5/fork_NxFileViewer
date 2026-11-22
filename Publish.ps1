@@ -195,7 +195,7 @@ foreach ($migration in $PackageIdentity.Migrations) {
 $PackageIdentity | Add-Member -NotePropertyName Version -NotePropertyValue $AppVersion -Force
 $PackageIdentity | Add-Member -NotePropertyName Executable -NotePropertyValue $ExecutableName -Force
 $PackageIdentityJson = $PackageIdentity | ConvertTo-Json -Depth 16
-$ReleasePackages = @()
+$ApplicationReleasePackages = @()
 if (!$ExplorerPackageVersion) {
     $ExplorerPackageVersion = (Select-Xml -LiteralPath $ProjectPath -XPath '//Project/PropertyGroup/ExplorerPackageVersion').Node.InnerText
 }
@@ -207,7 +207,7 @@ if (!$ExplorerPackageVersion) {
     if ($revision -gt 65535) { throw 'Explorer package revision exceeds the MSIX limit.' }
     $ExplorerPackageVersion = "$major.$minor.$patch.$revision"
 }
-$OutDirRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot $OutputDirectory))
+$OutDirRoot = if ([IO.Path]::IsPathRooted($OutputDirectory)) { [IO.Path]::GetFullPath($OutputDirectory) } else { [IO.Path]::GetFullPath((Join-Path $PSScriptRoot $OutputDirectory)) }
 New-Item -ItemType Directory -Path $OutDirRoot -Force | Out-Null
 # Isolated staging leaves existing extracted releases and user keys untouched.
 $StagingRoot = Join-Path $OutDirRoot (".publish-" + [Guid]::NewGuid().ToString("N"))
@@ -238,7 +238,7 @@ try {
             }
             $selectedStaging = Join-Path $StagingRoot $selection
             Write-Host "Publishing $selection"
-            dotnet publish $selectedProject -p:Version=$AppVersion -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=$withRuntime -c Release --self-contained $withRuntime -r "win-$architecture" -o $selectedStaging
+            dotnet publish $selectedProject --artifacts-path (Join-Path $StagingRoot "artifacts") -p:Version=$AppVersion -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=$withRuntime -c Release --self-contained $withRuntime -r "win-$architecture" -o $selectedStaging
             if ($LASTEXITCODE -ne 0) { throw "Publishing $selection failed ($LASTEXITCODE)." }
             $exe = Join-Path $selectedStaging $builtExe
             if (!(Test-Path -LiteralPath $exe -PathType Leaf)) { throw "Published executable missing: $builtExe" }
@@ -257,7 +257,7 @@ try {
                 $ViewerReleaseName = "NxFileViewerFork.LogViewer_v${AppVersion}${ViewerVariant}_${ViewerArchitecture}"
                 $ViewerReleaseDir = Join-Path $StagingRoot $ViewerReleaseName
                 Write-Host "Publishing $ViewerReleaseName"
-                dotnet publish $LogViewerProject -p:Version=$AppVersion -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=$ViewerWithRuntime -c Release --self-contained $ViewerWithRuntime -r "win-$ViewerArchitecture" -o $ViewerReleaseDir
+                dotnet publish $LogViewerProject --artifacts-path (Join-Path $StagingRoot "artifacts") -p:Version=$AppVersion -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=$ViewerWithRuntime -c Release --self-contained $ViewerWithRuntime -r "win-$ViewerArchitecture" -o $ViewerReleaseDir
                 if ($LASTEXITCODE -ne 0) { throw "LogViewer publishing failed ($LASTEXITCODE)." }
                 if (!(Test-Path -LiteralPath (Join-Path $ViewerReleaseDir 'NxFileViewerFork.LogViewer.exe'))) { throw 'Published LogViewer executable missing.' }
                 Compress-Archive -LiteralPath @(Get-ChildItem -LiteralPath $ViewerReleaseDir -Force | ForEach-Object FullName) -DestinationPath (Join-Path $OutDirRoot "$ViewerReleaseName.zip") -Force
@@ -271,7 +271,7 @@ try {
             $ReleaseName = "${AppName}_v${AppVersion}${Variant}_${Architecture}"
             $ReleaseDir = Join-Path $StagingRoot $ReleaseName
             Write-Host "Publishing $ReleaseName"
-            dotnet publish $ProjectPath -p:Version=$AppVersion -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=$WithRuntime -c Release --self-contained $WithRuntime -r "win-$Architecture" -o $ReleaseDir
+            dotnet publish $ProjectPath --artifacts-path (Join-Path $StagingRoot "artifacts") -p:Version=$AppVersion -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=$WithRuntime -c Release --self-contained $WithRuntime -r "win-$Architecture" -o $ReleaseDir
             if ($LASTEXITCODE -ne 0) { throw "Publishing $Architecture failed ($LASTEXITCODE)." }
             if (Test-Path -LiteralPath (Join-Path $ReleaseDir "Plugins/fwhashes")) {
                 throw "Firmware hashes must not be included in application archives."
@@ -289,11 +289,11 @@ try {
                 throw 'Application package must contain only the main executable, nxfileviewer-package.json and LICENSE.txt.'
             }
             Compress-Archive -LiteralPath @($applicationFiles | ForEach-Object { Join-Path $ReleaseDir $_ }) -DestinationPath (Join-Path $OutDirRoot "$ReleaseName.zip") -Force
-            $ReleasePackages += [pscustomobject]@{ Architecture=$Architecture; SelfContained=[bool]$WithRuntime; AssetName="$ReleaseName.zip"; Sha256=(Get-FileHash -LiteralPath (Join-Path $OutDirRoot "$ReleaseName.zip") -Algorithm SHA256).Hash }
+            $ApplicationReleasePackages += [pscustomobject]@{ Architecture=$Architecture; SelfContained=[bool]$WithRuntime; AssetName="$ReleaseName.zip"; Sha256=(Get-FileHash -LiteralPath (Join-Path $OutDirRoot "$ReleaseName.zip") -Algorithm SHA256).Hash }
             if ($IncludeLegacyTransition -and $Architecture -ne 'arm64') {
                 $transitionProject = Join-Path $PSScriptRoot 'src/NxFileViewer.Transition/NxFileViewer.Transition.csproj'
                 $transitionDir = Join-Path $StagingRoot ("transition${Variant}_${Architecture}")
-                dotnet publish $transitionProject -p:Version=$AppVersion -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=$WithRuntime -c Release --self-contained $WithRuntime -r "win-$Architecture" -o $transitionDir
+                dotnet publish $transitionProject --artifacts-path (Join-Path $StagingRoot "artifacts") -p:Version=$AppVersion -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=$WithRuntime -c Release --self-contained $WithRuntime -r "win-$Architecture" -o $transitionDir
                 if ($LASTEXITCODE -ne 0) { throw 'Transition publishing failed.' }
                 $transitionFiles = @(Get-ChildItem -LiteralPath $transitionDir -File)
                 if ($transitionFiles.Count -ne 1 -or $transitionFiles[0].Name -ne 'NxFileViewer.exe') { throw 'Legacy transition must contain exactly one NxFileViewer.exe.' }
@@ -302,7 +302,7 @@ try {
         }
     }
 
-    $ReleaseDescriptor = [ordered]@{ SchemaVersion=1; ApplicationId='NxFileViewerFork'; Version=$AppVersion; Prerelease=$AppVersion.Contains('-'); Packages=@($ReleasePackages | Where-Object Architecture -ne 'arm64'); Arm64Packages=@($ReleasePackages | Where-Object Architecture -eq 'arm64') }
+    $ReleaseDescriptor = [ordered]@{ SchemaVersion=1; ApplicationId='NxFileViewerFork'; Version=$AppVersion; Prerelease=$AppVersion.Contains('-'); Packages=@($ApplicationReleasePackages | Where-Object Architecture -ne 'arm64'); Arm64Packages=@($ApplicationReleasePackages | Where-Object Architecture -eq 'arm64') }
 
     # The add-on extracts to Plugins/fwhashes next to either architecture's executable.
     $HashRoot = Join-Path $StagingRoot "firmware-hashes"

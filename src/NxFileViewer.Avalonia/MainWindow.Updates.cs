@@ -13,13 +13,21 @@ using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Emignatik.NxFileViewer.Services.Updates;
+using NxFileViewer.Avalonia.Updates;
 
 namespace NxFileViewer.Avalonia;
 
 public partial class MainWindow
 {
-    private sealed record UpdateRow(string Name, string Installed, string Latest, string Status, string ReleaseUrl);
+    private sealed record UpdateRow(string Name, string Installed, string Latest, string Status, string ReleaseUrl)
+    {
+        public AvaloniaRelease? ApplicationRelease { get; init; }
+        public string InstallText { get; init; } = "";
+        public bool CanInstall => ApplicationRelease != null;
+    }
+    private static string CurrentUpdateRuntime => (OperatingSystem.IsWindows() ? "win-" : OperatingSystem.IsLinux() ? "linux-" : OperatingSystem.IsMacOS() ? "osx-" : throw new PlatformNotSupportedException()) + RuntimeInformation.ProcessArchitecture.ToString().ToLowerInvariant();
     private CancellationTokenSource? _updateCancellation;
+    private bool _applicationUpdatePending;
 
     private static JsonDocument ReadUpdateConfiguration(string resource)
     {
@@ -72,26 +80,24 @@ public partial class MainWindow
                     await using var body = await response.Content.ReadAsStreamAsync(cancellation.Token);
                     using var json = await JsonDocument.ParseAsync(body, cancellationToken: cancellation.Token);
                     var releases = component.IsApplication ? json.RootElement.EnumerateArray().ToArray() : new[] { json.RootElement };
-                    var architecture = RuntimeInformation.ProcessArchitecture.ToString().ToLowerInvariant();
-                    var release = releases.FirstOrDefault(item => !item.GetProperty("draft").GetBoolean() && (_preferences.IncludePreReleases || !item.GetProperty("prerelease").GetBoolean()) &&
-                        (!component.IsApplication || item.GetProperty("assets").EnumerateArray().Any(asset =>
-                        {
-                            var name = asset.GetProperty("name").GetString()!;
-                            return name.Contains("Avalonia", StringComparison.OrdinalIgnoreCase) &&
-                                !name.Contains("LogViewer", StringComparison.OrdinalIgnoreCase) &&
-                                name.EndsWith("_" + architecture + ".zip", StringComparison.OrdinalIgnoreCase);
-                        })));
+                    var release = releases.OrderByDescending(item => AvaloniaAppUpdater.ParseVersion(item.GetProperty("tag_name").GetString() ?? "")).FirstOrDefault(item => !item.GetProperty("draft").GetBoolean() && (_preferences.IncludePreReleases || !item.GetProperty("prerelease").GetBoolean()) &&
+                        (!component.IsApplication || AvaloniaAppUpdater.SelectRelease(item, component.Repository, CurrentUpdateRuntime, ViewerDistribution.IsSelfContained) != null));
                     if (release.ValueKind == JsonValueKind.Undefined)
                     {
                         rows.Add(new UpdateRow(component.Name, installed, "—", _text.Update_Current, releasePage));
                         continue;
                     }
                     var latest = release.GetProperty("tag_name").GetString()!;
-                    var newer = ViewerVersion.TryParse(installed, out var before) && ViewerVersion.TryParse(latest, out var after)
-                        ? after.CompareTo(before) > 0 : !string.Equals(installed.TrimStart('v'), latest.TrimStart('v'), StringComparison.OrdinalIgnoreCase);
+                    var newer = component.IsApplication ? AvaloniaAppUpdater.IsNewer(installed, latest)
+                        : ViewerVersion.TryParse(installed, out var before) && ViewerVersion.TryParse(latest, out var after)
+                            ? after.CompareTo(before) > 0 : !string.Equals(installed.TrimStart('v'), latest.TrimStart('v'), StringComparison.OrdinalIgnoreCase);
                     var status = installed == _text.Component_NotInstalled ? _text.Component_NotInstalled :
                         newer ? string.Format(_text.Update_Available, latest) : _text.Update_Current;
-                    rows.Add(new UpdateRow(component.Name, installed, latest, status, releasePage));
+                    rows.Add(new UpdateRow(component.Name, installed, latest, status, releasePage)
+                    {
+                        ApplicationRelease = component.IsApplication && newer ? AvaloniaAppUpdater.SelectRelease(release, component.Repository, CurrentUpdateRuntime, ViewerDistribution.IsSelfContained) : null,
+                        InstallText = _text.Update_Install
+                    });
                 }
                 catch (Exception ex) when (ex is HttpRequestException or JsonException or IOException)
                 {
@@ -117,6 +123,49 @@ public partial class MainWindow
                 UpdateCheckButton.IsEnabled = true;
                 UpdateCancelButton.IsEnabled = false;
             }
+        }
+    }
+
+    private async void InstallApplicationUpdate(object? sender, RoutedEventArgs e)
+    {
+        if (_updateCancellation != null || (sender as Button)?.DataContext is not UpdateRow { ApplicationRelease: { } release }) return;
+        if (_batchCancellation != null || _extractionCancellation != null || _firmwareCancellation != null || _mtpCancellation != null ||
+            _nandCancellation != null || _ncaContentsCancellation != null || _renameBatchCancellation != null || _fileVerificationCancellation != null)
+        {
+            UpdateStatus.Text = _text.CultureName.StartsWith("de") ? "Bitte laufende Aufgaben vor dem Update abschließen." : "Finish running tasks before updating.";
+            return;
+        }
+        if (!typeof(MainWindow).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>().Any(value => value.Key == "ViewerSingleFile" && bool.TryParse(value.Value, out var single) && single))
+        {
+            UpdateStatus.Text = _text.CultureName.StartsWith("de") ? "Automatische Updates benötigen die veröffentlichte Einzeldatei-Version." : "Automatic updates require the published single-file application.";
+            return;
+        }
+        using var cancellation = new CancellationTokenSource();
+        _updateCancellation = cancellation;
+        _applicationUpdatePending = true;
+        UpdateCheckButton.IsEnabled = false; UpdateCancelButton.IsEnabled = true;
+        // Prevent new file operations while preparing the restart.
+        HomeTab.IsEnabled = FileTab.IsEnabled = BatchTab.IsEnabled = RenameTab.IsEnabled = NandTab.IsEnabled = false;
+        try
+        {
+            UpdateStatus.Text = _text.Update_Downloading;
+            using var client = new HttpClient { Timeout = TimeSpan.FromMinutes(15) };
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("NxFileViewerFork-Avalonia-Updater/1.0");
+            var stage = await AvaloniaAppUpdater.DownloadAsync(client, release, AppContext.BaseDirectory, CurrentUpdateRuntime, ViewerDistribution.IsSelfContained, cancellation.Token);
+            cancellation.Token.ThrowIfCancellationRequested();
+            var job = AvaloniaAppUpdater.CreateJob(stage, Environment.ProcessPath ?? throw new IOException("Executable path unavailable."));
+            UpdateStatus.Text = _text.Update_Installing;
+            AvaloniaAppUpdater.StartWorker(job);
+            if (global::Avalonia.Application.Current?.ApplicationLifetime is global::Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop) desktop.Shutdown();
+        }
+        catch (OperationCanceledException) { UpdateStatus.Text = _text.Update_Cancelled; }
+        catch (Exception error) when (error is HttpRequestException or IOException or UnauthorizedAccessException or JsonException or InvalidOperationException or System.ComponentModel.Win32Exception)
+        { UpdateStatus.Text = error.Message; }
+        finally
+        {
+            _applicationUpdatePending = false;
+            _updateCancellation = null;
+            if (!_closed) { UpdateCheckButton.IsEnabled = true; UpdateCancelButton.IsEnabled = false; HomeTab.IsEnabled = FileTab.IsEnabled = BatchTab.IsEnabled = RenameTab.IsEnabled = NandTab.IsEnabled = true; }
         }
     }
 

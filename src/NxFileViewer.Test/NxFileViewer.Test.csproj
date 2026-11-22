@@ -23,6 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="../NxFileViewer.Avalonia/Updates/AvaloniaAppUpdater.cs" Link="Avalonia/AvaloniaAppUpdater.cs" />
     <Compile Include="..\NxFileViewer.Avalonia\SupportIdentityState.cs" Link="Avalonia\SupportIdentityState.cs" />
     <Compile Include="..\NxFileViewer.Transition\LegacyDataMigration.cs" Link="Transition\LegacyDataMigration.cs" />
     <Compile Include="..\NxFileViewer.Transition\TransitionRelease.cs" Link="Transition\TransitionRelease.cs" />

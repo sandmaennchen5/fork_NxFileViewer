@@ -24,6 +24,11 @@ jobs:
         shell: powershell
         run: ./.github/scripts/Test-DefaultSettingsValidation.ps1
 
+      - name: Test Avalonia updater
+        shell: pwsh
+        working-directory: src
+        run: dotnet run --project NxFileViewer.Test/NxFileViewer.Test.csproj -c Release -- -class '*AvaloniaUpdaterTest'
+
       - name: Publish
         shell: pwsh
         run: ./Publish.ps1 -GitHub
@@ -201,7 +206,9 @@ jobs:
       - name: Upload Avalonia packages (Windows, Linux, macOS)
         uses: actions/upload-artifact@v7
         with:
-          path: Publish/*_Avalonia_v*.zip
+          path: |
+            Publish/*_Avalonia_v*.zip
+            Publish/*.avalonia.json
           archive: false
           if-no-files-found: error
           retention-days: 7

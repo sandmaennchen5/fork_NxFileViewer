@@ -77,6 +77,30 @@ function Write-PackageZip([string]$directory, [string]$zip) {
         } finally { Pop-Location }
     }
 }
+function Set-ZipUnixCreator([string]$zip,[string[]]$executableNames) {
+    # Compress-Archive on Windows sets the ZIP creator to DOS. Unix readers can
+    # ignore the high permission bits unless these entries identify a Unix host.
+    $stream = [IO.File]::Open($zip,[IO.FileMode]::Open,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None)
+    $reader = [IO.BinaryReader]::new($stream,[Text.Encoding]::UTF8,$true)
+    try {
+        $stream.Position = $stream.Length - 22
+        $end = $reader.ReadBytes(22)
+        if ([BitConverter]::ToUInt32($end,0) -ne 0x06054b50 -or [BitConverter]::ToUInt16($end,20) -ne 0) { throw 'Unexpected ZIP end record.' }
+        $count = [BitConverter]::ToUInt16($end,10)
+        [long]$position = [BitConverter]::ToUInt32($end,16)
+        for($index=0;$index -lt $count;$index++) {
+            $stream.Position = $position
+            $header = $reader.ReadBytes(46)
+            if($header.Length -ne 46 -or [BitConverter]::ToUInt32($header,0) -ne 0x02014b50){throw 'Invalid ZIP central directory.'}
+            $nameLength=[BitConverter]::ToUInt16($header,28)
+            $extraLength=[BitConverter]::ToUInt16($header,30)
+            $commentLength=[BitConverter]::ToUInt16($header,32)
+            $entryName=[Text.Encoding]::UTF8.GetString($reader.ReadBytes($nameLength))
+            if($entryName -in $executableNames){$stream.Position=$position+5;$stream.WriteByte(3)}
+            $position += 46 + $nameLength + $extraLength + $commentLength
+        }
+    }finally{$reader.Dispose();$stream.Dispose()}
+}
 $stage = (New-Item -ItemType Directory -Path (Join-Path $output ('.publish-applications-' + [guid]::NewGuid().ToString('N')))).FullName
 Push-Location -LiteralPath (Join-Path $RepositoryRoot 'src')
 try {
@@ -92,7 +116,8 @@ try {
             $frameworkSuffix = if ($Framework -eq 'Avalonia') { '_Avalonia' } else { '' }
             $name = "$($app.Name)${frameworkSuffix}_v${Version}${suffix}_$architecture"
             $publish = Join-Path $stage $name
-            dotnet publish $project -c Release -r $rid --self-contained $withRuntime "-p:Version=$Version" -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true "-p:EnableCompressionInSingleFile=$withRuntime" -o $publish
+            # Isolate restore assets from IDE builds and other publish runs.
+            dotnet publish $project --artifacts-path (Join-Path $stage "artifacts") -c Release -r $rid --self-contained $withRuntime "-p:Version=$Version" -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true "-p:EnableCompressionInSingleFile=$withRuntime" -o $publish
             if ($LASTEXITCODE -ne 0) { throw "Publishing $name failed ($LASTEXITCODE)." }
             if ($app.Project -eq 'NxFileViewer') {
                 $identity = Get-Content -LiteralPath (Join-Path $RepositoryRoot 'src/config/package-manifest.json') -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -104,11 +129,39 @@ try {
             $executableName = $assemblyName + $(if ($rid.StartsWith('win-')) { '.exe' } else { '' })
             $executable = Join-Path $publish $executableName
             if (!(Test-Path -LiteralPath $executable -PathType Leaf)) { throw "Published executable missing: $executable" }
+            if ($Framework -eq 'Avalonia') {
+                $marker = [ordered]@{ SchemaVersion=1; Framework='Avalonia'; Version=$Version; RuntimeIdentifier=$rid; SelfContained=[bool]$withRuntime; Executable=$executableName }
+                [IO.File]::WriteAllText((Join-Path $publish 'nxfileviewer-avalonia.json'), ($marker | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
+                if ($rid.StartsWith('linux-')) {
+                    foreach ($scriptName in @('start.sh','install-shortcut.sh')) {
+                        $template = [IO.File]::ReadAllText((Join-Path $PSScriptRoot "linux/$scriptName.in"))
+                        $template = $template.Replace('@@EXECUTABLE@@',$executableName).Replace('@@NAME@@',$app.Name + ' Avalonia').Replace("`r`n","`n")
+                        $scriptPath = Join-Path $publish $scriptName
+                        [IO.File]::WriteAllText($scriptPath,$template,[Text.UTF8Encoding]::new($false))
+                    }
+                    if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) {
+                        & chmod +x $executable (Join-Path $publish 'start.sh') (Join-Path $publish 'install-shortcut.sh')
+                        if ($LASTEXITCODE -ne 0) { throw 'Could not set Linux executable permissions.' }
+                    }
+                }
+            }
             $zip = $null
             $reportDirectory = $publish
             if ($CreateZipArchives) {
                 $zip = Join-Path $output "$name.zip"
                 Write-PackageZip $publish $zip
+                if ($Framework -eq 'Avalonia') {
+                    if ($rid.StartsWith('linux-')) {
+                        # Preserve executable bits even when the Linux ZIP is built on Windows.
+                        Add-Type -AssemblyName System.IO.Compression.FileSystem
+                        $archive = [IO.Compression.ZipFile]::Open($zip,[IO.Compression.ZipArchiveMode]::Update)
+                        try { foreach ($entry in $archive.Entries) { if ($entry.FullName -in @($executableName,'start.sh','install-shortcut.sh')) { $entry.ExternalAttributes = -2115174400 } } }
+                        finally { $archive.Dispose() }
+                        Set-ZipUnixCreator $zip @($executableName,'start.sh','install-shortcut.sh')
+                    }
+                    $updateMarker = [ordered]@{ Framework='Avalonia'; AssetName=[IO.Path]::GetFileName($zip); Sha256=(Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash }
+                    [IO.File]::WriteAllText(($zip + '.avalonia.json'),($updateMarker | ConvertTo-Json),[Text.UTF8Encoding]::new($false))
+                }
                 Write-Host "ZIP: $zip"
             } else {
                 $exeDirectory = Join-Path $output $name

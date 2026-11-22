@@ -3,6 +3,7 @@ $ErrorActionPreference = 'Stop'
 $root = Join-Path ([IO.Path]::GetTempPath()) ('nxfv-publish-selection-' + [guid]::NewGuid().ToString('N'))
 $global:publishSelectionCalls = [Collections.Generic.List[object]]::new()
 function dotnet {
+    if ($global:publishSelectionStartupProbe) { throw 'Publish startup reached dotnet.' }
     $arguments = @($args)
     $rid = $arguments[[Array]::IndexOf($arguments, '-r') + 1]
     $output = $arguments[[Array]::IndexOf($arguments, '-o') + 1]
@@ -24,6 +25,21 @@ try {
         $calls[1].Project -notlike '*NxFileViewer.LogViewer.Avalonia.csproj' -or
         $calls[1].Rid -ne 'osx-arm64' -or $calls[1].Contained) { throw 'Targeted Avalonia dispatch failed.' }
     if (@(Get-ChildItem -LiteralPath $root -Filter '*.zip').Count -ne 2) { throw 'Targeted mode built extra packages.' }
+    # Exercise CI and release initialization, including typed switch variables.
+    $global:publishSelectionStartupProbe = $true
+    try {
+        foreach ($mode in @('GitHub', 'ReleasePackages')) {
+            $reachedPublish = $false
+            $startupOptions = @{ OutputDirectory = (Join-Path $root $mode); Version = '4.1.1-beta9' }
+            $startupOptions[$mode] = $true
+            try { & $script @startupOptions }
+            catch {
+                if ($_.Exception.Message -ne 'Publish startup reached dotnet.') { throw }
+                $reachedPublish = $true
+            }
+            if (!$reachedPublish) { throw "$mode did not reach publishing." }
+        }
+    } finally { $global:publishSelectionStartupProbe = $false }
     $tokens=$null; $errors=$null
     $ast = [System.Management.Automation.Language.Parser]::ParseInput((Get-Content -LiteralPath $script -Raw), [ref]$tokens, [ref]$errors)
     if ($errors.Count) { throw ($errors | Out-String) }
@@ -59,6 +75,7 @@ try {
     Write-Host 'Publish selection passed: targeted apps, OS/architecture, .NET variants, -ViewerX64 and --ViewerX64.'
 }
 finally {
+    Remove-Variable -Name publishSelectionStartupProbe -Scope Global -ErrorAction SilentlyContinue
     Remove-Variable -Name publishSelectionCalls -Scope Global -ErrorAction SilentlyContinue
     $resolved = [IO.Path]::GetFullPath($root)
     if ([IO.Path]::GetDirectoryName($resolved) -eq [IO.Path]::GetTempPath().TrimEnd([IO.Path]::DirectorySeparatorChar) -and

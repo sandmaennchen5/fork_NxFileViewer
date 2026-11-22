@@ -6,96 +6,30 @@ Changes specific to the separately deployed web service are recorded in `tools/f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [4.1.1-beta5] - 2026-11-22
+## [Unreleased]
 
-Changes since the 4.1.1-beta4 prerelease.
+Avalonia applications are the first converted versions and remain early beta software. The conversion is in progress; not all functions are implemented or tested, and full WPF feature parity is not yet available.
 
-### Added
-
-- Provide the first converted Avalonia applications: the viewer and standalone LogViewer. These are early beta versions; the conversion is still in progress, not all functions are implemented or tested, and full WPF feature parity is not yet available.
-- Include these early Avalonia beta applications in beta-tag releases for Windows (x64, x86, ARM64), Linux (x64, ARM64) and macOS (Intel x64, Apple Silicon ARM64), with standard and self-contained packages. Stable releases retain the Windows WPF packages.
-
-### Changed
-
-- Replace the separate local test-publish entry script with the Test Win profile; retain the WPF/Avalonia packaging regression tests against the shared backend.
-- Provide Standard, WPF, Avalonia and Test Win as built-in publish profiles. Keep firmware hashes in Standard only, and restrict automatic test copying to the Windows x64/no-.NET Test Win profile.
-- Make the publish start profile independently selectable in the GUI for runs without `-Profile`, without changing it when saving another profile. Load switched profiles immediately, including keyboard selection.
-- Replace the separate WPF/Avalonia publish entry scripts with predefined WPF and Avalonia profiles in the unified publisher. Retain their build/output/copy choices, preserve customized profiles and share one application-packaging backend across local and CI builds.
-- Add named publish-selection profiles, GUI profile loading/saving, a remembered active profile and `-Profile` command-line selection. Preserve older flat configurations as the Standard profile.
-- Open the publish GUI by default and automatically build the loaded/default selection after ten seconds without input. Any keyboard/click/edit interaction cancels the countdown; keep `-NoGui`, explicit selectors and CI mode available for unattended runs.
-- Add a `Publish.ps1 -Gui` selection menu, validated `publish.ps1.conf` preferences and `-Wpf`/`-Avalonia` application groups. Use `-GitHub` for deterministic unattended Build artifacts, independently of local preferences and the separate tag-release workflow.
-- Let publish profiles output only executables and optionally copy a selected architecture/runtime variant to a test folder. Write aligned TXT size reports in MB with executable, unpacked-package and ZIP sizes.
-- Retain individual WPF EXE selectors and targeted Avalonia application/platform/runtime choices in `Publish.ps1`. Upload the complete WPF/Avalonia artifact set from Build through `-GitHub`, while keeping tag-release builds separate and avoiding duplicate packages.
-- Send enabled system reports every 90 days and after an application upgrade or a change in the reported system details. Explain the collected data in the selected language, use a visible 30-second confirmation countdown and preserve the current choice when the dialog closes. Offer disabled reporting again after an upgrade while keeping it disabled unless explicitly enabled.
-- Include application/build and system details in the protected report archive for reports submitted with or without GitHub sign-in, independently of the automatic system-report setting. Warn when the companion service does not confirm storage; in-app submissions require a configured reporting service.
-- Group release ZIP explanations by application, operating system and runtime variant. List architecture-only variants once with the `{Arch}` placeholder and the available architectures, and identify every Avalonia package as an early, incompletely tested beta.
-- Build Avalonia beta packages on Windows, Linux and macOS runners, preserve executable permissions in Unix ZIPs, and require all expected packages before publishing the release.
-
-### Fixed
-
-- Keep publish-GUI configuration helpers available across PowerShell event-callback scopes, fixing profile loading/saving, manual builds and automatic builds that reported missing helper functions.
-- Speed up default-settings validation on network drives by reading known enum sources directly and caching each type, rather than repeatedly scanning the whole project and build-output directories.
-- Use Windows ZIP packaging in both Windows PowerShell 5.1 and PowerShell 7 instead of requiring a Unix `zip` command on Windows.
-- Prevent optional SDK Git-metadata queries from interrupting local Release builds on SMB shares or mapped network drives. CI source-control metadata and explicit build overrides remain enabled.
-
-## [4.1.1-beta4] - 2026-11-21
+## [4.1.1] - 2026-11-23
 
 ### Added
 
 - Choose between the blawar, luketanti and borntohonk TitleDB catalogs in Settings. blawar remains the default. The source list shows the latest catalog date for the selected region when available and keeps the last known date in the updater cache.
-
-## [4.1.1-beta3] - 2026-11-20
-
-Changes since the 4.1.1-beta2 prerelease.
-
-### Added
-
 - Add a stable public Support ID, copy/search actions and an optional display name for reports without GitHub. Include the Support ID in reports submitted with either sign-in method.
 - Extend reporting to bugs and feature requests, with independently selectable anonymized public log excerpts and unchanged private session-log uploads. Show receipt/status feedback when the companion service accepts a report before GitHub issue creation.
 - Add German/English in-app polls with shared votes, optional startup reminders, persistent **Not participating** and undo actions, and private free-text responses for suggestions. Respect server-configured participation, result visibility and reminder settings.
-- Add optional usage reporting with a first-start explanation, settings control, daily/build-change limits and non-blocking offline handling.
-- Publish Windows ARM64 WPF viewer and LogViewer packages, with standard and self-contained variants, including update-manifest, workflow and download-badge support.
-- Add experimental Avalonia viewer and LogViewer projects. The viewer includes package inspection, batch SHA-256 checks, local firmware comparison, language/theme preferences and rename preview/application; this is not full WPF feature parity.
+- Add Windows ARM64 WPF viewer packages, with standard and self-contained variants, including update-manifest, workflow and download-badge support.
 - Add separate Discord release/prerelease webhook notifications after release publication.
-
-### Changed
-
-- Use the informational application version, including its prerelease suffix, in reports. Include OS/platform, process/OS architecture, UI framework, runtime distribution and RID in session headers.
-- Let x86 installations detect newer x64-only releases. Offer an explicitly confirmed switch on x64 Windows, report the Windows requirement on x86 Windows, and retain the selected runtime distribution and preview channel.
-- Keep the startup update summary focused on available updates, omitting routine saved-response notices.
-- Make NSCB Desktop's optional external GUI role distinct from the nscb_rust engine. Expose separate safe cleanup actions for NSZ download caches and old Kronos GUI sessions.
-- Add configurable test-publish project selection and copying of multiple executables with independent destination names. Keep WPF/Avalonia test executables distinct.
-- Explain usage reporting in the selected app language. Closing the first-start prompt, pressing Esc or allowing its visible ten-second countdown to expire keeps reporting enabled; **Disable** explicitly turns it off.
-- Share package-signature detection, package metadata and firmware-comparison logic between the WPF and Avalonia frontends.
-
-### Fixed
-
-- Restore old-version cleanup for application and managed-plugin layouts while protecting active installations, keys, locked files and pending/failed recovery data.
-- Correct dark-theme labels in reporting/polls and localize the added community/settings interfaces. Remove the poll window's web-overview button.
-- Correct test publishing to locate and rename the actual Avalonia output executables.
-- Restore transition-updater compilation with the shared GitHub response-notice API.
-- Read complete package signatures even when a stream returns short reads, preserving NSP/NSZ, XCI/XCZ and NRO detection.
-
-## [4.1.1-beta2] - 2026-11-17
-
-### Added
-
-- Add experimental NUP support for individual files and batch scans under Settings → Optional Features. Show base games, updates and DLC in the package overview with available metadata and icons.
+- Add experimental NUP support for individual files and batch scans under Settings â†’ Optional Features. Show base games, updates and DLC in the package overview with available metadata and icons.
 - Browse NUP contents under `base/`, `updates/<version>/` and `dlc/<title-id>/<index>/`, with the ExeFS and RomFS trees present in each package.
 - Verify the SHA-256 hashes of raw and Zstandard-compressed NUP files using the existing integrity commands in individual and batch views.
 - Register `.nup` for Windows Open with and add individual and batch open and verify actions to the Explorer context menu when NUP support is enabled. The Explorer package version is 1.0.5.0.
 - Add an issue-reporting dialog with an optional, editable log excerpt. The configured feedback service supports reports with or without a GitHub account, and the GitHub issue form is available as a fallback when the service is not configured.
 - Offer **Switch to 64-bit** in the Update Center on x64 Windows. The updater can install a compatible x64 package of the current version or a newer eligible release and retain the installed runtime distribution.
-
-## [4.1.1-beta1] - 2026-10-28
-
-### Added
-
 - Include an installed modern Explorer MSIX in general update checks and the Start update summary, comparing its independent package version and skipping Explorer release requests when the package is absent.
-
 - Add batch-wide Split and Merge actions for mixed NSP/NSZ/XCI/XCZ inputs. Preserve the source container family or choose NSP/XCI; merge by base game ID or across games. Offer temporary splitting of mixed-game containers when matching additional content is available.
 - Add primary/backup engine selections for compression/decompression (nscb_rust and nicoboss/nsz) and package operations (nscb_rust and Kronos). Retry a failed process or invalid output once with the selected backup in an isolated workspace.
-- Add output choices beside the source, in an action subdirectory, or in a custom typed/browsed directory. Configure defaults per action under Plugins → General. Successful package and compression summaries can open the generated files in Batch.
+- Add output choices beside the source, in an action subdirectory, or in a custom typed/browsed directory. Configure defaults per action under Plugins â†’ General. Successful package and compression summaries can open the generated files in Batch.
 - Add independent alphabetical sorting by base game title, keeping base content, updates and DLC together. Temporarily lock column sorting and restore the previous user sorting when disabled.
 - Add configurable direct launches for NSZ, NxNandManager, NSCB Desktop and Kronos, with the selected keys. Install NSCB Desktop alongside nscb_rust; launch Kronos through its interactive NSCB.bat/NSCB.exe starter and private Python runtime.
 - Centralize master-key CRC32 fingerprints and firmware mappings in src/config/master-keys.json, embedded at build time and validated before publishing.
@@ -104,16 +38,35 @@ Changes since the 4.1.1-beta2 prerelease.
 
 ### Changed
 
+- Include executable Linux launch scripts and a menu/desktop shortcut installer, also available from the viewer Info page. Preserve Unix executable bits when packaging on Windows.
+- Link issue reports to the latest stored system record through Support ID instead of sending duplicate system details with each new issue.
+- Accept confirmed GitHub sign-in from older reporting services that do not return the account name; show the missing name separately instead of blocking report submission.
+- Enable Support IDs on Linux using a hashed machine ID and a persistent user identity fallback; provide a persistent identity for macOS while preserving Windows identities.
+- Keep reporting without GitHub sign-in available during pending or failed sign-in; cancel the pending sign-in when choosing that action and guard against duplicate submissions.
+- Show the confirmed GitHub account name after sign-in and distinguish signed-in and unsigned report actions in the feedback dialog.
+- Separate GitHub sign-in from report submission: only enable the report button after confirmed sign-in, and send reports/logs only after the explicit send action.
+- Update SharpCompress to 0.50.11 in the WPF and Avalonia viewers.
+- Let x86 installations detect newer x64-only releases. Offer an explicitly confirmed switch on x64 Windows, report the Windows requirement on x86 Windows, and retain the selected runtime distribution and preview channel.
+- Keep the startup update summary focused on available updates, omitting routine saved-response notices.
+- Make NSCB Desktop's optional external GUI role distinct from the nscb_rust engine. Expose separate safe cleanup actions for NSZ download caches and old Kronos GUI sessions.
+- Share package-signature detection, package metadata and firmware-comparison logic between the WPF and Avalonia frontends.
 - Target .NET 10 across the application, log viewer, transition, packaging tools and tests. Standard ZIPs require .NET 10 Desktop Runtime; self-contained ZIPs include it.
 - Unify managed plugin storage: active.json contains current/previous paths; each version retains its metadata in installation.json. Automatically migrate legacy states, preserve migration backups and support rollback and old-version cleanup for NSZ, NxNandManager, nscb_rust, Kronos and NSCB Desktop.
 - Display installed release versions or a short Kronos commit in Updates. Preserve full commits and available executable/source digests in installation metadata.
 - Group plugin settings into General, Compress / Decompress, experimental Merge / Split / Convert, and NxNandManager. Apply the compression feature switch to both engines; offer initial installation beside paths and keep update/rollback/cleanup actions under Updates.
-- Keep Show multipackages separately (:1, :2, …) independent of game-family sorting. Persist normal column sorting and document checkbox defaults and UI locations in default-settings.json.
+- Keep Show multipackages separately (:1, :2, â€¦) independent of game-family sorting. Persist normal column sorting and document checkbox defaults and UI locations in default-settings.json.
 - Extend classic and modern Explorer package actions to compressed and mixed selections. Explorer extension 1.0.4.0 dynamically hides disabled optional actions; subsequent saved feature changes require no new MSIX.
 - Publish validated Merge/Split results directly into the selected directory instead of GUID-named result folders, while retaining private staging and recovery data when publication fails.
 
 ### Fixed
 
+- Speed up default-settings validation on network drives by reading known enum sources directly and caching each type, rather than repeatedly scanning the whole project and build-output directories.
+- Use Windows ZIP packaging in both Windows PowerShell 5.1 and PowerShell 7 instead of requiring a Unix `zip` command on Windows.
+- Prevent optional SDK Git-metadata queries from interrupting local Release builds on SMB shares or mapped network drives. CI source-control metadata and explicit build overrides remain enabled.
+- Restore old-version cleanup for application and managed-plugin layouts while protecting active installations, keys, locked files and pending/failed recovery data.
+- Correct dark-theme labels in reporting/polls and localize the added community/settings interfaces. Remove the poll window's web-overview button.
+- Restore transition-updater compilation with the shared GitHub response-notice API.
+- Read complete package signatures even when a stream returns short reads, preserving NSP/NSZ, XCI/XCZ and NRO detection.
 - Avoid recursive NCA ID formatting with newer Span overload resolution by converting byte spans directly to hexadecimal.
 - Honor the selected compression engine for decompression and Explorer actions, including backup selection. Keep source and output integrity checks enabled; remove the automatic stable-plugin-update checkbox before conversion and retain manual updates and on-demand initial installation.
 - Restore managed plugin paths after moving the application directory without replacing explicitly selected manual executables.
@@ -139,7 +92,6 @@ Changes since the 4.1.1-beta2 prerelease.
 - Add Open in Explorer as the first batch context-menu action, selecting the source file or outer archive when available.
 - Add current-user Windows file associations for NSP/NSZ/XCI/XCZ/NRO through an embedded native launcher, preserving existing defaults and refreshing installed launchers when needed.
 - Add application rollback with confirmation and restart. Offer confirmed cleanup of old managed plugin versions and successful application-update directories while protecting active/custom files, keys, linked or locked directories and pending/failed updates.
-- Add a standalone LogViewer with file groups, multiline exceptions, text/severity/RAM filters, virtualized rendering and reload. Publish separate x64/x86 standard and self-contained ZIPs; support Publish.ps1 -LogViewerOnly.
 - Add offline Credits and license texts to Info, including library versions and verified per-file icon provenance. Existing artwork remains unchanged; individual third-party icon authors/licenses remain unverified.
 
 ### Changed
@@ -151,7 +103,7 @@ Changes since the 4.1.1-beta2 prerelease.
 - Distinguish external NxNandManager/NSZ GUI launches on Start and supply active keys through an isolated temporary environment, respecting the NAND BIS-key override.
 - Sort combined package values independently of package order by default, with an option to retain source order. Sort versions numerically and show all contained content types and the highest known permission risk without treating missing program metadata as safe.
 - Require confirmation before resetting batch filters/sorting or column layout. Improve overview field order, column help, Integrity/ACID explanations, and monitor-aware resizable themed help windows.
-- Make merge, split and NSP/XCI conversion experimental opt-in features, disabled by default and enabled in Settings → Features after restart.
+- Make merge, split and NSP/XCI conversion experimental opt-in features, disabled by default and enabled in Settings â†’ Features after restart.
 - Use integrated Trace as the sole switch for passive RAM/GC and batch CSV diagnostics. Write new CSVs to Logs/Diagnostics in the application folder; leave previous AppData captures in place.
 - Remove the legacy memory-diagnostic launcher, comparison experiments, unused preview/navigation bookkeeping, the unused renaming-page logger and redundant fields, wrappers and Win32 declarations. Move the remaining test-only logger into the test project.
 
@@ -178,7 +130,7 @@ Changes since the 4.1.1-beta2 prerelease.
 - Add an optional NxNandManager plugin with verified managed downloads, manual updates and rollback, custom EXE/BIS-key settings, and a NAND workspace for dump information and partition export. It can reuse BIS keys from the viewer's active prod.keys; CLI work is cancellable, and staged exports preserve encryption and never overwrite existing files.
 - Recognize NAND signatures and named encrypted-partition candidates in individual/batch mode and ZIP/7z archives, retaining split-dump siblings during extraction. Show NAND details and exclude these entries from NCA verification and game-package actions.
 - Support ZIP/7z archives in individual and batch mode, including nested archives up to eight levels and mixed game/firmware contents. Individual mode offers an entry selector and retains extraction/content models until close or reopen. Batch types and CSV identify archive origin; archive members are excluded from conversion, move and rename actions.
-- Verify firmware folders and archives by NCA size and SHA-256 without keys. Identify firmware versions and renamed/shared individual NCAs; report missing, changed, additional, duplicate and incorrectly named files without changing sources. Renamed files show actual → expected names instead of being counted as both missing and extra.
+- Verify firmware folders and archives by NCA size and SHA-256 without keys. Identify firmware versions and renamed/shared individual NCAs; report missing, changed, additional, duplicate and incorrectly named files without changing sources. Renamed files show actual â†’ expected names instead of being counted as both missing and extra.
 - Fetch current firmware references from GitHub for detected or explicitly selected firmware, with local offline fallback. Explicit offline updates retain the previous reference folder as a backup; ordinary game scans make no firmware-reference request.
 - Add a central update check for NxFileViewer, installed managed plugins, regional/fallback TitleDB catalogs and firmware hash references. Forced TitleDB refresh validates catalogs before replacement and clears cached title responses; local refresh dates and local/online firmware versions are displayed.
 - Add optional automatic startup checks and verified application download/install/restart, with SHA-256, full product-version and architecture checks, backup and early-start recovery. Preserve keys, settings and plugins. Published pre-releases require explicit opt-in; stable-only remains the default.
@@ -188,7 +140,7 @@ Changes since the 4.1.1-beta2 prerelease.
 - Parse main.npdm and display permission levels, raw filesystem masks, authorized services and ACID signature state. Classifications consider filesystem service access and are shown for base titles and updates. Localized tooltips explain structure, permissions and separate NCA header signature results following Nx Game Info.
 - Extend the title overview with base title ID, required master-key revision/key generation, minimum application version for DLC and NCA distribution type.
 - Add selectable batch overview columns, sorting/reordering, combined search/type/integrity/naming filters and reset controls. CSV exports the filtered, sorted results with metadata and naming diagnostics; column choices persist during the current session.
-- Save the last five batch sessions and resume interrupted work using source fingerprints; history can be disabled in Settings → Program. Historical game overviews show persisted metadata even when package/archive sources are unavailable.
+- Save the last five batch sessions and resume interrupted work using source fingerprints; history can be disabled in Settings â†’ Program. Historical game overviews show persisted metadata even when package/archive sources are unavailable.
 - Add renaming and batch naming result tables, naming checks, proposed paths/status/error columns, an optional target directory and relative pattern subfolders without overwriting occupied targets. Individual checks show a status dialog; individual renaming requires Yes/Cancel confirmation.
 - Add NSZ Automatic/Solid/Block modes and block sizes from 16 KiB to 4 GiB. Conversion verifies source and output, uses the viewer's active prod.keys, offers replacement/numbering/cancellation for existing output, and optionally deletes sources only after successful verification.
 - Validate prod.keys and title.keys for malformed lines, missing master-key revisions, known master-key CRC32 values through master_key_16, and structurally valid Rights ID/title-key pairs. Estimate the newest supported content firmware and report revisions that cannot yet be validated or mapped.
@@ -196,16 +148,16 @@ Changes since the 4.1.1-beta2 prerelease.
 - Add anonymous FTP support and editable Sphaira FTP presets to the HTTP/HTTPS key downloader, with a shared IP/hostname and {IP} URL templates. Downloads can target custom paths or the program folder and compare existing/incoming validation before replacement.
 - Optionally save missing ticket keys to title.keys without duplicates or overwriting conflicts; disabled by default.
 - Offer Tinfoil, regional GitHub TitleDB with offline cache, NLib API and custom title metadata sources, with independently selectable title websites.
-- Write immediately flushed UTF-8 session logs with exception details, redacted key values and configurable retention of 1–100 launches (default 5).
+- Write immediately flushed UTF-8 session logs with exception details, redacted key values and configurable retention of 1â€“100 launches (default 5).
 
 ### Changed
 
 - Consolidate navigation into one window with Start, File check, Batch check, Renaming, NAND, Settings, Log and Info tabs. Retain results and drafts while switching pages; Settings Apply/Cancel no longer closes a separate window.
 - Place NAND after Renaming and add a Start shortcut with a RAM-style icon. The second Start button row opens installed NxNandManager/NSZ GUI builds without downloading them. Start lists only available updates; Settings shows one complete update-check result.
-- Organize Settings into Program, Naming settings, Updates and Plugins sections. Keep plugin/general drafts independent; installation/update/rollback actions are under Settings → Updates. Group the three key/ticket checkboxes beside the download controls.
+- Organize Settings into Program, Naming settings, Updates and Plugins sections. Keep plugin/general drafts independent; installation/update/rollback actions are under Settings â†’ Updates. Group the three key/ticket checkboxes beside the download controls.
 - Restrict navigation to the active page and Log during background work, support cancelling unfinished single-file loads, and make Log follow new messages automatically. Start maximized on first launch while respecting saved placement.
 - Combine batch scanning/verification and per-row actions; arrange filter checkboxes and action buttons consistently. Automatically select the appropriate Overview/Firmware/NAND details tab, while allowing manual tab selection. Add horizontal scrolling with Shift + mouse wheel and full-text cell/header tooltips.
-- Move naming options to Settings → Naming settings, keep pattern/replacement sections visible, and remove the renaming output divider. Restore tinfoil.media presets with availability hints while preserving custom URLs.
+- Move naming options to Settings â†’ Naming settings, keep pattern/replacement sections visible, and remove the renaming output divider. Restore tinfoil.media presets with availability hints while preserving custom URLs.
 - Copy active key files to .switch with replacement confirmation and validation comparisons, retaining source files. Remove empty program subdirectories on exit while preserving files, links and private test/development directories.
 - Cache reconstructed compressed sizes and use queue-based tree traversal to avoid repeated scans and quadratic list shifting. Update README and supporting documentation for the final interface and release variants.
 

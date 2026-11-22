@@ -60,6 +60,7 @@ function databaseTables(): array {
             platform VARCHAR(64) NOT NULL, process_architecture VARCHAR(32) NOT NULL,
             ui_framework VARCHAR(64) NOT NULL, distribution VARCHAR(128) NOT NULL, last_seen BIGINT NOT NULL,
             PRIMARY KEY(internal_id, day), INDEX usage_daily_seen(last_seen)",
+        'usage_report_modes' => "internal_id $id PRIMARY KEY, report_type VARCHAR(16) NOT NULL, system_reports_enabled TINYINT NULL, standard_last_seen BIGINT NULL, system_last_seen BIGINT NULL",
         'usage_history_state' => 'singleton TINYINT PRIMARY KEY, start_day DATE NOT NULL',
     ];
 }

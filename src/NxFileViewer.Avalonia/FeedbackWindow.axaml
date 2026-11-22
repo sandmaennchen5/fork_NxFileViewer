@@ -6,7 +6,6 @@
     <StackPanel Margin="20">
         <TextBlock x:Name="Notice" TextWrapping="Wrap" Margin="0,0,0,14"/>
         <TextBlock x:Name="SupportIdText" TextWrapping="Wrap" Margin="0,0,0,10"/>
-        <TextBlock x:Name="GitHubStatus" TextWrapping="Wrap" Margin="0,0,0,10"/>
         <Label x:Name="DisplayNameLabel"/>
         <TextBox x:Name="DisplayName" MaxLength="40"/>
         <TextBlock x:Name="DisplayNameHint" TextWrapping="Wrap" Margin="0,4,0,10"/>
@@ -23,10 +22,14 @@
             <TextBox x:Name="LogExcerpt" Height="108" MaxLength="4096" AcceptsReturn="True"
                      TextWrapping="Wrap" ScrollViewer.VerticalScrollBarVisibility="Auto"/>
         </StackPanel>
-        <WrapPanel Margin="0,14,0,0">
-            <Button x:Name="WithGitHub" Click="WithGitHub_Click" Padding="9,4" Margin="0,0,8,0"/>
-            <Button x:Name="WithoutGitHub" Click="WithoutGitHub_Click" Padding="9,4"/>
+        <Button x:Name="WithoutGitHub" Click="WithoutGitHub_Click" HorizontalAlignment="Left" Padding="9,4" Margin="0,14,0,0"/>
+        <TextBlock x:Name="GitHubAccountDescription" TextWrapping="Wrap" Margin="0,32,0,0"/>
+        <TextBlock x:Name="GitHubUser" TextWrapping="Wrap" Margin="0,4,0,0"/>
+        <WrapPanel Margin="0,8,0,0">
+            <Button x:Name="SignInGitHub" Click="SignInGitHub_Click" Padding="9,4" Margin="0,0,8,0"/>
+            <Button x:Name="WithGitHub" IsEnabled="False" Click="WithGitHub_Click" Padding="9,4"/>
         </WrapPanel>
+        <TextBlock x:Name="GitHubStatus" TextWrapping="Wrap" Margin="0,0,0,10"/>
         <TextBlock x:Name="Status" TextWrapping="Wrap" Margin="0,12,0,0"/>
         <Button x:Name="IssueLink" IsVisible="False" HorizontalAlignment="Left" Click="IssueLink_Click"/>
     </StackPanel>

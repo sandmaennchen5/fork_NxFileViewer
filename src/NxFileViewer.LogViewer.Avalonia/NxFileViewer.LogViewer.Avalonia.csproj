@@ -1,13 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <Version>4.1.1-beta5</Version>
+    <Version>4.1.1</Version>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <AssemblyName>NxFileViewerFork.LogViewer.Avalonia</AssemblyName>
     <RootNamespace>NxFileViewer.LogViewer</RootNamespace>
     <ApplicationIcon>../NxFileViewer/Styling/Icons/Icon.ico</ApplicationIcon>
-    <AvaloniaVersion>11.3.21</AvaloniaVersion>
+    <!-- Preserve the reflection bindings used by the converted views. -->
+    <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
+    <AvaloniaVersion>12.1.6</AvaloniaVersion>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Avalonia.Desktop" Version="$(AvaloniaVersion)" />

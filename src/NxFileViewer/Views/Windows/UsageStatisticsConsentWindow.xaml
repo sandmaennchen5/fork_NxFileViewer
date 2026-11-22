@@ -1,4 +1,4 @@
-﻿<Window x:Class="Emignatik.NxFileViewer.Views.Windows.UsageStatisticsConsentWindow"
+<Window x:Class="Emignatik.NxFileViewer.Views.Windows.UsageStatisticsConsentWindow"
  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
  Width="620" SizeToContent="Height" ResizeMode="NoResize"
@@ -9,7 +9,6 @@
    <TextBlock x:Name="Heading" FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,0,14"/>
    <TextBlock x:Name="Explanation" TextWrapping="Wrap" Margin="0,0,0,16"/>
    <TextBlock x:Name="ClosingHint" TextWrapping="Wrap" Margin="0,0,0,16"/>
-   <TextBlock x:Name="CountdownText" TextWrapping="Wrap" Margin="0,0,0,16"/>
    <WrapPanel HorizontalAlignment="Right">
     <Button x:Name="KeepEnabledButton" Click="KeepEnabled_Click" IsDefault="True" Padding="14,6" Margin="0,0,8,0"/>
     <Button x:Name="DisableButton" Click="Disable_Click" Padding="14,6"/>

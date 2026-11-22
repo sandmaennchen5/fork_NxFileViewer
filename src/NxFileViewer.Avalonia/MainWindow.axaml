@@ -385,13 +385,13 @@
         </TabItem.Header>
         <Grid RowDefinitions="Auto,Auto,*,Auto,Auto" Margin="10" RowSpacing="8">
           <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
-            <TextBox x:Name="BatchInputPath" Watermark="{Binding BatchIntegrity_Path}" TextChanged="BatchPathChanged" ToolTip.Tip="{Binding BatchIntegrity_SelectDirectory}" />
+            <TextBox x:Name="BatchInputPath" PlaceholderText="{Binding BatchIntegrity_Path}" TextChanged="BatchPathChanged" ToolTip.Tip="{Binding BatchIntegrity_SelectDirectory}" />
             <Button Grid.Column="1" Content="{Binding BatchIntegrity_Browse}" Click="ChooseBatchFolder" />
             <Button Grid.Column="2" Content="{Binding Firmware_BrowseZip}" Click="ChooseBatchArchive" /><Button x:Name="BatchMtpButton" Grid.Column="3" Content="{Binding Mtp_Title}" Click="OpenMtp" Tag="Batch" ToolTip.Tip="{Binding Mtp_Tip}"/>
           </Grid>
           <StackPanel Grid.Row="1" Spacing="4">
             <WrapPanel>
-              <TextBox x:Name="BatchSearch" Watermark="{Binding BatchTable_Search}" Width="220" TextChanged="BatchFilterChanged" Margin="0,0,8,0" />
+              <TextBox x:Name="BatchSearch" PlaceholderText="{Binding BatchTable_Search}" Width="220" TextChanged="BatchFilterChanged" Margin="0,0,8,0" />
               <ComboBox ToolTip.Tip="{Binding BatchIntegrity_FileType}" x:Name="BatchTypeFilter" Width="110" SelectionChanged="BatchChoiceChanged" Margin="0,0,8,0" />
               <ComboBox ToolTip.Tip="{Binding Title_FileInfo_Integrity}" x:Name="BatchIntegrityFilter" Width="150" SelectionChanged="BatchChoiceChanged" Margin="0,0,8,0" />
               <ComboBox x:Name="BatchNamingFilter" Width="150" SelectionChanged="BatchChoiceChanged" Margin="0,0,8,0" ToolTip.Tip="{Binding BatchNaming_Title}" />
@@ -526,7 +526,7 @@
               <TextBlock x:Name="RenameSourceText" TextWrapping="Wrap" />
               <TextBlock Text="{Binding RenamingTool_Patterns}" />
               <ComboBox x:Name="RenamePresetChoice" MinWidth="500" SelectionChanged="RenamePresetSelected" />
-              <TextBox x:Name="RenamePattern" MinWidth="500" Watermark="{}{Title} [{TitleId:U}][v{VerNum}].{Ext:L}" ToolTip.Tip="{Binding RenamingTool_Patterns}" />
+              <TextBox x:Name="RenamePattern" MinWidth="500" PlaceholderText="{}{Title} [{TitleId:U}][v{VerNum}].{Ext:L}" ToolTip.Tip="{Binding RenamingTool_Patterns}" />
               <Button Content="{Binding RenamingTool_StatusSimulation}" Click="SuggestRename" />
               <TextBlock Text="{Binding RenamingTool_NewName}" />
               <TextBox x:Name="RenameTargetName" MinWidth="500" TextChanged="RenameNameChanged" />
@@ -714,6 +714,7 @@
                             <TextBlock Text="{Binding Name}" FontWeight="Bold" />
                             <TextBlock Text="{Binding Installed}" TextWrapping="Wrap" />
                             <TextBlock Text="{Binding Status}" TextWrapping="Wrap" />
+                            <Button Content="{Binding InstallText}" IsVisible="{Binding CanInstall}" Click="InstallApplicationUpdate" HorizontalAlignment="Left" />
                             <Button Content="GitHub Releases…" Click="OpenUpdateRelease" HorizontalAlignment="Left" />
                           </StackPanel>
                         </Border>
@@ -888,6 +889,8 @@
               <TextBlock x:Name="ProgramRuntimeText" Margin="0,0,0,8" />
             </StackPanel>
             <TextBlock Text="{Binding Info_Description}" TextWrapping="Wrap" Margin="0,0,0,12" />
+            <Button x:Name="LinuxShortcutButton" IsVisible="False" Content="Linux-Starter erstellen" Click="InstallLinuxShortcut" HorizontalAlignment="Left" Margin="0,0,0,8" />
+            <TextBlock x:Name="LinuxShortcutStatus" TextWrapping="Wrap" />
             <Button Content="GitHub: sandmaennchen5/fork_NxFileViewer" Tag="https://github.com/sandmaennchen5/fork_NxFileViewer" Click="OpenInfoLink" HorizontalAlignment="Left" Margin="0,0,0,8" />
             <WrapPanel Margin="0,0,0,16">
               <Button Content="Fehler / Funktionswunsch melden" Click="OpenFeedback" Margin="0,0,8,0" />

@@ -7,6 +7,11 @@ $global:wpfPublishTestCalls = [Collections.Generic.List[object]]::new()
 function dotnet {
     $arguments = @($args)
     if ($arguments[0] -ne 'publish') { throw 'Unexpected dotnet command.' }
+    $artifactsIndex = [Array]::IndexOf($arguments, '--artifacts-path')
+    if ($artifactsIndex -lt 0) { throw 'Publishing must isolate restore assets from normal builds.' }
+    $artifacts = [string]$arguments[$artifactsIndex + 1]
+    if (![IO.Path]::IsPathRooted($artifacts) -or $artifacts -notmatch '\.publish-applications-[0-9a-f]{32}[\\/]artifacts$') { throw 'Expected a per-run artifacts directory inside staging.' }
+
     $rid = $arguments[[Array]::IndexOf($arguments, '-r') + 1]
     $output = $arguments[[Array]::IndexOf($arguments, '-o') + 1]
     $contained = $arguments[[Array]::IndexOf($arguments, '--self-contained') + 1]

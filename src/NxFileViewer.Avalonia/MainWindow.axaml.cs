@@ -40,18 +40,13 @@ public partial class MainWindow : Window
         Opened += (_, _) =>
         {
             if (_preferences.CheckUpdatesOnStart) CheckUpdates(this, new RoutedEventArgs());
-            var screen = Screens.ScreenFromWindow(this);
-            if (screen == null) return;
-            Width = Math.Min(Width, screen.WorkingArea.Width / screen.Scaling - 16);
-            Height = Math.Min(Height, screen.WorkingArea.Height / screen.Scaling - 48);
-            Position = new PixelPoint(
-                screen.WorkingArea.X + Math.Max(0, (screen.WorkingArea.Width - (int)(Width * screen.Scaling)) / 2),
-                screen.WorkingArea.Y + Math.Max(0, (screen.WorkingArea.Height - (int)(Height * screen.Scaling)) / 2));
+
         };
-        Opened += async (_, _) => await ConfirmSystemReport();
         ActualThemeVariantChanged += (_, _) => WpfTheme.Apply(this);
         WpfTheme.Apply(this);
         InitializePreferences();
+        InitializeWindowPlacement();
+        Opened += async (_, _) => await ConfirmSystemReport();
         InitializeBatch();
         InitializeInfo();
         StatusText.Text = _text.Status_Ready;
@@ -81,6 +76,7 @@ public partial class MainWindow : Window
 
     internal async Task OpenFileAsync(string path, bool fromWindows = false)
     {
+        if (_applicationUpdatePending) return;
         var version = ++_openVersion;
         ResetFileVerification();
         ResetNcaContents();
@@ -202,6 +198,7 @@ public partial class MainWindow : Window
 
     private async void WindowKeyDown(object? sender, KeyEventArgs e)
     {
+        if (_applicationUpdatePending) { e.Handled = true; return; }
         if (e.Key == Key.O && e.KeyModifiers == KeyModifiers.Control)
         {
             e.Handled = true;

@@ -50,11 +50,33 @@ function feedbackStore(PDO $db,string $ticket,string $requestKey,string $mode,st
         privateLogSave($db,$ticket,$log);$db->commit();return feedbackFind($db,$ticket);
     }catch(Throwable $error){if($db->inTransaction())$db->rollBack();throw $error;}
 }
+// Recover anonymous display names previously replaced with the delivery bot login.
+function feedbackRepairDisplayNames(PDO $db): void {
+    feedbackQuery($db,"UPDATE support_issues SET display_name=(SELECT q.display_name FROM feedback_queue q WHERE q.number=support_issues.issue_number AND q.mode='anonymous' ORDER BY q.created_at DESC,q.ticket DESC LIMIT 1)
+        WHERE EXISTS (SELECT 1 FROM feedback_queue q WHERE q.number=support_issues.issue_number AND q.mode='anonymous' AND q.author<>'' AND q.author=support_issues.display_name)");
+    feedbackQuery($db,"UPDATE support_profiles SET display_name=(SELECT q.display_name FROM feedback_queue q WHERE q.internal_id=support_profiles.internal_id AND q.status='created' ORDER BY q.created_at DESC,q.ticket DESC LIMIT 1)
+        WHERE EXISTS (SELECT 1 FROM feedback_queue q WHERE q.internal_id=support_profiles.internal_id AND q.mode='anonymous' AND q.status='created' AND q.author<>'' AND q.author=support_profiles.display_name
+        AND q.ticket=(SELECT latest.ticket FROM feedback_queue latest WHERE latest.internal_id=support_profiles.internal_id AND latest.status='created' ORDER BY latest.created_at DESC,latest.ticket DESC LIMIT 1))");
+}
+
+function feedbackDeleteArchived(PDO $db,string $ticket): bool {
+    $db->beginTransaction();
+    try {
+        // Deleting the queue row first prevents a new delivery claim. In-flight sends are protected.
+        $deleted=feedbackQuery($db,"DELETE FROM feedback_queue WHERE ticket=? AND status NOT IN ('preparing','sending')",[$ticket]);
+        if($deleted->rowCount()!==1){$db->rollBack();return false;}
+        feedbackQuery($db,'DELETE FROM private_issue_logs WHERE ticket=?',[$ticket]);
+        feedbackQuery($db,'DELETE FROM feedback_system_details WHERE ticket=?',[$ticket]);
+        feedbackQuery($db,'DELETE FROM reports WHERE ticket=?',[$ticket]);
+        $db->commit();return true;
+    }catch(Throwable $error){if($db->inTransaction())$db->rollBack();throw $error;}
+}
+
 function feedbackComplete(PDO $db,array $report,int $number,string $author=''): void {
     if($number<1)throw new RuntimeException('Invalid issue number');
     $db->beginTransaction();
     try{
-        if($report['internal_id']!==null) supportRecordIssue($db,['internalId'=>$report['internal_id'],'supportId'=>$report['support_id']],$number,$author!==''?$author:$report['display_name']);
+        if($report['internal_id']!==null) supportRecordIssue($db,['internalId'=>$report['internal_id'],'supportId'=>$report['support_id']],$number,$report['mode']==='anonymous'?$report['display_name']:($author!==''?$author:$report['display_name']));
         privateLogLink($db,$report['ticket'],$number);
         feedbackQuery($db,"UPDATE feedback_queue SET status='created',number=?,author=?,credential=NULL,credential_expires=0,lease_until=0,last_error='',updated_at=? WHERE ticket=?",[$number,$author,time(),$report['ticket']]);
         $db->commit();

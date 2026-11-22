@@ -30,6 +30,8 @@ if (!empty($_SESSION['poll_admin'])) {
         require_once dirname(__DIR__) . '/store/github-status.php';
         $db = databaseOpen($config);
         supportSchema($db);
+        require_once dirname(__DIR__).'/store/feedback-queue.php';
+        feedbackSchema($db);feedbackRepairDisplayNames($db);
         privateLogSchema($db);
         foreach (['q', 'state', 'reason', 'label'] as $key) {
             $value = $_GET[$key] ?? '';

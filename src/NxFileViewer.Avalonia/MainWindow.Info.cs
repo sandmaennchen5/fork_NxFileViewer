@@ -1,3 +1,4 @@
+using Avalonia.Input.Platform;
 using System.Linq;
 using System.Diagnostics;
 using Avalonia.Controls;
@@ -12,6 +13,8 @@ public partial class MainWindow
 {
     private void InitializeInfo()
     {
+        LinuxShortcutButton.IsVisible = System.OperatingSystem.IsLinux();
+        LinuxShortcutButton.Content = _text.CultureName.StartsWith("de") ? "Linux-Starter erstellen" : "Create Linux launcher";
         var assembly = typeof(MainWindow).Assembly;
         var version = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0]
             ?? assembly.GetName().Version?.ToString();
@@ -27,6 +30,32 @@ public partial class MainWindow
         {
             if (change.Property == TabItem.IsSelectedProperty && InfoTab.IsSelected) RefreshSupportIdentity(null, new RoutedEventArgs());
         };
+    }
+
+    private async void InstallLinuxShortcut(object? sender, RoutedEventArgs e)
+    {
+        var script = Path.Combine(System.AppContext.BaseDirectory,"install-shortcut.sh");
+        if (!System.OperatingSystem.IsLinux() || !File.Exists(script))
+        {
+            LinuxShortcutStatus.Text = _text.CultureName.StartsWith("de") ? "Bitte das vollständige Linux-ZIP inklusive Starter entpacken." : "Extract the complete Linux ZIP including its launcher scripts.";
+            return;
+        }
+        LinuxShortcutButton.IsEnabled = false;
+        try
+        {
+            var start = new ProcessStartInfo("sh") { UseShellExecute=false,RedirectStandardOutput=true,RedirectStandardError=true,WorkingDirectory=System.AppContext.BaseDirectory };
+            start.ArgumentList.Add(script);
+            using var process = Process.Start(start) ?? throw new System.IO.IOException("Could not start launcher installation.");
+            var output = process.StandardOutput.ReadToEndAsync(); var error = process.StandardError.ReadToEndAsync();
+            await process.WaitForExitAsync();
+            LinuxShortcutStatus.Text = process.ExitCode == 0
+                ? (_text.CultureName.StartsWith("de") ? "Starter im Anwendungsmenü erstellt. Auf dem Desktop gegebenenfalls einmal „Starten erlauben“ wählen." : "Launcher created in the application menu. Your desktop may require Allow Launching once.")
+                : await error;
+            await output;
+        }
+        catch (System.Exception error) when (error is System.IO.IOException or System.ComponentModel.Win32Exception)
+        { LinuxShortcutStatus.Text = error.Message; }
+        finally { LinuxShortcutButton.IsEnabled = true; }
     }
 
     private async System.Threading.Tasks.Task ConfirmSystemReport()
@@ -73,7 +102,11 @@ public partial class MainWindow
         if (_supportIdentityCancellation != null || _closed) return;
         var settings = _preferences.SharedSettings;
         ShowSupportIdentity();
-        if (Emignatik.NxFileViewer.Services.SupportIdentityClient.Endpoint(settings.ReportEndpoint) == null) return;
+        if (Emignatik.NxFileViewer.Services.SupportIdentityClient.Endpoint(settings.ReportEndpoint) == null)
+        {
+            SupportIdentityStatus.Text = _text.CultureName.StartsWith("de") ? "Für die Support-ID ist kein gültiger Meldedienst eingerichtet." : "No valid reporting service is configured for the Support ID.";
+            return;
+        }
         using var cancellation = new System.Threading.CancellationTokenSource();
         _supportIdentityCancellation = cancellation;
         RefreshSupportButton.IsEnabled = false;
@@ -93,6 +126,11 @@ public partial class MainWindow
             if (!_closed) SupportIdentityStatus.Text = _text.CultureName.StartsWith("de")
                 ? "Support-ID konnte nicht geprüft werden. Eine angezeigte ID stammt aus dem letzten Abruf."
                 : "Could not verify support ID. Any displayed ID is from the last successful request.";
+            if (!_closed)
+            {
+                SupportIdentityStatus.Text += " " + ex.GetBaseException().Message;
+                LogSession("WARN", "Support identity: " + ex.GetBaseException().Message);
+            }
         }
         finally { _supportIdentityCancellation = null; if (!_closed) RefreshSupportButton.IsEnabled = true; }
     }

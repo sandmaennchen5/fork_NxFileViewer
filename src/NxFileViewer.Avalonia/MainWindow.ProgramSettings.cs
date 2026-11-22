@@ -35,10 +35,22 @@ public partial class MainWindow
     }
     private static void ProgramLabel(Panel panel, string label) => panel.Children.Add(new TextBlock { Text = label, Margin = new Thickness(0,4,0,0) });
     private EventHandler<global::Avalonia.Interactivity.RoutedEventArgs>? _programHistoryChanged;
+    private sealed class InvertedSystemReportConverter : global::Avalonia.Data.Converters.IValueConverter
+    {
+        public object Convert(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture) => value is not true;
+        public object ConvertBack(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture) => value is not true;
+    }
+
     private void AddSystemReportControls(StackPanel general)
     {
         var language = _text.CultureName.Split('-')[0];
-        var option = new CheckBox { IsChecked = !_editedSharedSettings.SendAnonymousUsageStatistics, Margin = new Thickness(0,4,0,4) };
+        var option = new CheckBox { Margin = new Thickness(0,4,0,4) };
+        option.Bind(CheckBox.IsCheckedProperty, new Binding(nameof(AppSettings.SendAnonymousUsageStatistics))
+        {
+            Source = _editedSharedSettings,
+            Mode = BindingMode.TwoWay,
+            Converter = new InvertedSystemReportConverter()
+        });
         var hint = new TextBlock { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,0,0,8) };
         option.Content = language switch
         {
@@ -49,12 +61,12 @@ public partial class MainWindow
         };
         hint.Text = language switch
         {
-            "de" => "Sendet beim Start Programmversion und Systemdetails alle 90 Tage sowie nach einem Upgrade oder einer Änderung der Systemdaten. Zeigt, welche Betriebssysteme und Systemumgebungen verwendet werden. Die App erfasst keine Nutzungsdauer.",
-            "fr" => "Au démarrage, envoie la version de l’application et les données système tous les 90 jours, après une mise à niveau ou si ces données changent. Indique les systèmes d’exploitation et les configurations utilisés. L’application ne mesure pas le temps d’utilisation.",
-            "es" => "Al iniciar, envía la versión de la aplicación y los datos del sistema cada 90 días, tras actualizar a una versión superior o si cambian esos datos. Indica qué sistemas operativos y configuraciones se usan. La aplicación no mide el tiempo de uso.",
-            _ => "Sends the app version and system details at startup every 90 days and after an upgrade or a change in system details. Shows which operating systems and system configurations are in use. The app does not track time spent using it."
+            "de" => "Aktivierte Systemberichte senden Programmversion und Systemdetails beim ersten Start nach jeweils 7 Tagen. Standardreports bei Erststart, App-Updates sowie Architektur- oder .NET-Paketwechseln werden unabhängig von dieser Option gesendet. Die App erfasst keine Nutzungsdauer.",
+            "fr" => "Les rapports système activés sont envoyés au premier démarrage après 7 jours. Les rapports standard au premier lancement, après une mise à jour ou un changement d’architecture ou de distribution .NET sont indépendants de cette option. L’application ne mesure pas le temps d’utilisation.",
+            "es" => "Los informes del sistema activados se envían al primer inicio después de 7 días. Los informes estándar al primer inicio, al actualizar la aplicación o al cambiar la arquitectura o distribución de .NET son independientes de esta opción. La aplicación no mide el tiempo de uso.",
+            _ => "Enabled system reports send app version and system details at the first startup after 7 days. Standard reports on first launch, app updates and architecture or .NET distribution changes are independent of this option. The app does not track time spent using it."
         };
-        option.IsCheckedChanged += (_, _) => { _editedSharedSettings.SendAnonymousUsageStatistics = option.IsChecked != true; _editedSharedSettings.UsageStatisticsChoiceConfirmed = true; _editedSharedSettings.UsageStatisticsChoiceVersion = Emignatik.NxFileViewer.Services.UsageStatisticsService.BuildVersion; };
+        option.IsCheckedChanged += (_, _) => { _editedSharedSettings.UsageStatisticsChoiceConfirmed = true; _editedSharedSettings.UsageStatisticsChoiceVersion = Emignatik.NxFileViewer.Services.UsageStatisticsService.BuildVersion; };
         general.Children.Add(new Separator { Margin = new Thickness(0,8) }); general.Children.Add(option); general.Children.Add(hint);
     }
     private void BuildProgramSettings()

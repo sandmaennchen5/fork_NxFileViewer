@@ -56,7 +56,7 @@ public partial class MainWindow
         if (!OperatingSystem.IsWindows()) return;
         var panel = new StackPanel { Margin = new global::Avalonia.Thickness(16), Spacing = 8 };
         var choices = new ComboBox { HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Stretch, DisplayMemberBinding = new global::Avalonia.Data.Binding(nameof(NandDriveChoice.DisplayName)) };
-        var path = new TextBox { Watermark = @"\\.\PhysicalDrive0" };
+        var path = new TextBox { PlaceholderText = @"\\.\PhysicalDrive0" };
         var open = new Button { Content = _text.Nand_OpenDrive, IsDefault = true, HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Right };
         var refresh = new Button { Content = _text.Nand_DriveRefresh, HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Left };
         var error = new TextBlock { TextWrapping = global::Avalonia.Media.TextWrapping.Wrap };

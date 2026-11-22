@@ -16,9 +16,5 @@ public static class SystemReportChoice
     }
 
     public static bool ShouldConfirmSystemReport(IAppSettings settings, string currentVersion) =>
-        !settings.UsageStatisticsChoiceConfirmed ||
-        (!settings.SendAnonymousUsageStatistics &&
-         (string.IsNullOrWhiteSpace(settings.UsageStatisticsChoiceVersion) ||
-          Services.UsageStatisticsService.IsUpgrade(settings.UsageStatisticsChoiceVersion, currentVersion)));
-
+        !settings.UsageStatisticsChoiceConfirmed;
 }

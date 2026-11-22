@@ -1,0 +1,20 @@
+#!/bin/sh
+set -eu
+app_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+chmod u+x "$app_dir/@@EXECUTABLE@@" "$app_dir/start.sh"
+data_home=${XDG_DATA_HOME:-"$HOME/.local/share"}
+mkdir -p "$data_home/applications"
+shortcut="$data_home/applications/@@EXECUTABLE@@.desktop"
+# Escape Desktop Entry reserved characters. Exec runs start.sh directly, without a shell expression.
+escaped=$(printf '%s' "$app_dir/start.sh" | sed 's/\\/\\\\/g; s/"/\\"/g; s/`/\\`/g; s/\$/\\$/g; s/%/%%/g')
+printf '%s\n' '[Desktop Entry]' 'Type=Application' 'Name=@@NAME@@' "Exec=\"$escaped\" %F" 'Terminal=false' 'Icon=applications-games' 'Categories=Utility;' > "$shortcut"
+chmod u+x "$shortcut"
+desktop="$HOME/Desktop"
+if command -v xdg-user-dir >/dev/null 2>&1; then desktop=$(xdg-user-dir DESKTOP); fi
+if [ -d "$desktop" ] && [ "$desktop" != "$HOME" ]; then
+    target="$desktop/@@EXECUTABLE@@.desktop"
+    cp -- "$shortcut" "$target"
+    chmod u+x "$target"
+    if command -v gio >/dev/null 2>&1; then gio set "$target" metadata::trusted true >/dev/null 2>&1 || true; fi
+fi
+printf '%s\n' 'Shortcut installed in the application menu. Some desktops require Allow Launching once for a desktop shortcut.'
