@@ -21,7 +21,7 @@
     <PackageReference Include="Avalonia.Desktop" Version="$(AvaloniaVersion)" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="$(AvaloniaVersion)" />
     <PackageReference Include="LibHac" Version="0.19.0" />
-    <PackageReference Include="SharpCompress" Version="0.50.3" />
+    <PackageReference Include="SharpCompress" Version="0.50.11" />
     <ProjectReference Include="../LibHac.NSZ/LibHac.NSZ.csproj" />
     <Compile Include="../NxFileViewer/FileLoading/IPackageTypeAnalyzer.cs" Link="Shared/IPackageTypeAnalyzer.cs" />
     <Compile Include="../NxFileViewer/FileLoading/PackageSignature.cs" Link="Shared/PackageSignature.cs" />
