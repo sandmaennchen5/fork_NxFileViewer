@@ -1,6 +1,21 @@
 # NxFileViewer Fork v4
 
 [![Viewer downloads](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/sandmaennchen5/fork_NxFileViewer/master/.github/downloads.json)](.github/Download-badge.md)
+##
+![Release](https://img.shields.io/github/v/release/sandmaennchen5/fork_NxFileViewer)
+![ReleaseOS](https://img.shields.io/badge/OS-Windows-success)
+![ReleaseArchitecture](https://img.shields.io/badge/Architecture-x86%20%7C%20x64-blue)
+![Release.NET 10](https://img.shields.io/badge/.NET-10-512BD4?style=flat-square&logo=dotnet)
+![ReleaseUI](https://img.shields.io/badge/UI-WPF-512BD4)
+![ReleaseDesktop App](https://img.shields.io/badge/Application-Desktop-orange)
+##
+![PreRelease](https://img.shields.io/github/v/release/sandmaennchen5/fork_NxFileViewer?include_prereleases)
+![PreReleaseOS](https://img.shields.io/badge/OS-Windows%20%7C%20Linux%20%7C%20macOS-success)
+![PreReleaseArchitecture](https://img.shields.io/badge/Architecture-x64%20%7C%20arm64-blue)
+![PreRelease.NET 10](https://img.shields.io/badge/.NET-10-512BD4?style=flat-square&logo=dotnet)
+![PreReleaseUI](https://img.shields.io/badge/UI-Avalonia-512BD4)
+![PreReleaseDesktop App](https://img.shields.io/badge/Application-Desktop-orange)
+##
 
 Browse, verify and manage Nintendo Switch packages in a Windows desktop application based on [LibHac](https://github.com/Thealexbarney/LibHac).
 
@@ -18,6 +33,17 @@ Firmware references and Explorer setup packages are separate downloads. The stan
 The application version is **4.1.1**. See the [combined 4.1.1 release notes](CHANGELOG.md#411---2026-11-23).
 
 Prereleases also include the **first converted Avalonia viewer application** for Windows, Linux and macOS. These are early beta versions: the conversion is in progress, and not all functions are implemented or tested. See [Avalonia beta builds](docs/Avalonia.md).
+
+## LINUX and MacOS
+
+For users who use or want to use Linux or MacOS, the first beta is available.
+
+It would be great if anyone could test it and diligently report any bugs.
+Since there might still be a few here.
+
+Currently, I’m rebuilding everything in Avalonia and primarily testing it on Windows in order to then remove the WPF UI.
+
+[BETA](https://github.com/sandmaennchen5/fork_NxFileViewer/releases#release-4.1.2-beta1)
 
 ## Features
 
