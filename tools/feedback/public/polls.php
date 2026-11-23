@@ -52,7 +52,7 @@ try{
  if($api)jsonResponse(['polls'=>$polls]);
  if(isset($_GET['image'])){
   if(count($polls)!==1)jsonResponse(['error'=>webT('Umfrage nicht gefunden.')],404);
-  $poll=$polls[0];$height=140+count($poll['options'])*62;$total=array_sum(array_column($poll['options'],'votes'));
+  $poll=$polls[0];usort($poll['options'], fn($a,$b) => $b['votes'] <=> $a['votes']);$height=140+count($poll['options'])*62;$total=array_sum(array_column($poll['options'],'votes'));
   $xml=fn($s)=>htmlspecialchars((string)$s,ENT_QUOTES|ENT_XML1,'UTF-8');header('Content-Type: image/svg+xml; charset=utf-8');
   echo '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="'.$height.'" viewBox="0 0 800 '.$height.'"><rect width="800" height="'.$height.'" fill="#18202b"/><defs><clipPath id="title"><rect x="24" y="0" width="752" height="65"/></clipPath><clipPath id="labels"><rect x="24" y="100" width="640" height="'.$height.'"/></clipPath></defs>';
   echo '<text x="24" y="46" fill="white" font-family="sans-serif" font-size="20" clip-path="url(#title)"><title>'.$xml($poll['question']).'</title>'.$xml($poll['question']).'</text>';

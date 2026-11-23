@@ -206,9 +206,10 @@ jobs:
       - name: Upload Avalonia packages (Windows, Linux, macOS)
         uses: actions/upload-artifact@v7
         with:
+          name: avalonia-packages
           path: |
             Publish/*_Avalonia_v*.zip
             Publish/*.avalonia.json
-          archive: false
+          archive: true
           if-no-files-found: error
           retention-days: 7

@@ -37,6 +37,7 @@ function publicUsageRows(PDO $db, string $key, string $expression, int $cutoff, 
         $grouped = array_slice($grouped, 0, 15, true);
         $grouped[webT('Weitere Einträge')] = $rest;
     }
+    arsort($grouped, SORT_NUMERIC);
     return $grouped;
 }
 $image = $_GET['chart'] ?? null;

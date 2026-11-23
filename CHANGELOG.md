@@ -8,6 +8,8 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+## [4.1.2-beta1] - 2026-11-23
+
 Avalonia applications are the first converted versions and remain early beta software. The conversion is in progress; not all functions are implemented or tested, and full WPF feature parity is not yet available.
 
 ## [4.1.1] - 2026-11-23

@@ -16,6 +16,7 @@ header('Strict-Transport-Security: max-age=31536000');
 require_once dirname(__DIR__,2).'/store/admin-accounts.php';
 function adminEscape(string $value): string {return htmlspecialchars($value,ENT_QUOTES,'UTF-8');}
 function adminNavigation(string $section): void {
+    echo '<script src="/assets/admin-tables.js" defer></script>';
     webLanguageSelector();
     echo '<nav>';
     foreach([''=>webT('Verwaltung'),'umfragen'=>webT('Umfragen'),'support'=>'Support','meldungen'=>webT('Meldungsarchiv'),'statistik'=>webT('Statistik'),'users'=>webT('Benutzer'),'account'=>webT('Mein Konto')] as $path=>$label){
