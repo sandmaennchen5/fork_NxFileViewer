@@ -84,12 +84,15 @@ jobs:
             Publish-Avalonia/*.zip
             Publish-Avalonia/*.avalonia.json
           if-no-files-found: error
-          retention-days: 1
+          overwrite: true
+          retention-days: 30
 
   release:
     name: Publish tagged release
+    outputs:
+      published: ${{ steps.publish.outputs.published }}
     needs: [validate, avalonia]
-    if: ${{ !cancelled() && needs.validate.result == 'success' && (needs.avalonia.result == 'success' || needs.avalonia.result == 'skipped') }}
+    if: ${{ !cancelled() && needs.validate.result == 'success' && (needs.avalonia.result == 'success' || needs.validate.outputs.prerelease == 'true') }}
     runs-on: windows-latest
     permissions:
       contents: write
@@ -130,70 +133,15 @@ jobs:
         with:
           global-json-file: src/global.json
 
-      - name: Build Explorer packages
-        shell: pwsh
-        env:
-          RELEASE_VERSION: ${{ needs.validate.outputs.version }}
-        run: ./Publish.ps1 -Version $env:RELEASE_VERSION -OutputDirectory Publish-Release -Extras Explorer
-
-      - name: Download Avalonia packages
+      - name: Download successful Avalonia builds
         uses: actions/download-artifact@v8
         with:
           pattern: release-avalonia-*
           path: Publish-Release
           merge-multiple: true
 
-      - name: Verify Avalonia packages
-        shell: pwsh
-        env:
-          RELEASE_VERSION: ${{ needs.validate.outputs.version }}
-        run: |
-          foreach ($platform in @('win-x64', 'win-x86', 'win-arm64', 'linux-x64', 'linux-arm64', 'osx-x64', 'osx-arm64')) {
-              foreach ($variant in @('without-net', 'with-net')) {
-                  $name = "NxFileViewerFork_v$($env:RELEASE_VERSION)_$platform-$variant.zip"
-                  if (!(Test-Path -LiteralPath (Join-Path Publish-Release $name) -PathType Leaf)) {
-                      throw "Missing Avalonia package: $name"
-                  }
-                  $markerPath = Join-Path Publish-Release ($name + '.avalonia.json')
-                  $marker = Get-Content -LiteralPath $markerPath -Raw | ConvertFrom-Json
-                  if ($marker.Framework -ne 'Avalonia' -or $marker.AssetName -ne $name -or $marker.Sha256 -ne (Get-FileHash -LiteralPath (Join-Path Publish-Release $name) -Algorithm SHA256).Hash) {
-                      throw "Invalid Avalonia update checksum metadata: $name"
-                  }
-              }
-          }
-
-      - name: Generate and verify release manifests
-        shell: pwsh
-        env:
-          RELEASE_VERSION: ${{ needs.validate.outputs.version }}
-        run: |
-          ./Publish.ps1 -Version $env:RELEASE_VERSION -OutputDirectory Publish-Release -Extras WpfMigration
-          $descriptor = Get-Content -LiteralPath Publish-Release/nxfileviewer-update.json -Raw | ConvertFrom-Json
-          $index = Get-Content -LiteralPath Publish-Release/nxfileviewer-packages.json -Raw | ConvertFrom-Json
-          $avalonia = @(Get-ChildItem -LiteralPath Publish-Release -File | Where-Object Name -Match '^NxFileViewerFork(?:\.LogViewer)?_v.*-net\.zip$')
-          if (@($descriptor.AvaloniaPackages).Count -ne $avalonia.Count) { throw 'Missing Avalonia manifest entries.' }
-          foreach ($zip in $avalonia) {
-              $item = @($descriptor.AvaloniaPackages | Where-Object AssetName -eq $zip.Name)
-              $legacy = @($index.Packages | Where-Object AssetName -eq $zip.Name)
-              if ($item.Count -ne 1 -or $legacy.Count -ne 1 -or $item[0].Sha256 -ne $legacy[0].Sha256) {
-                  throw "Avalonia metadata mismatch: $($zip.Name)"
-              }
-          }
-          if (@($descriptor.Arm64Packages).Count -ne 2) { throw 'Expected both ARM64 viewer distributions.' }
-          foreach ($package in $descriptor.Arm64Packages) {
-              if ($package.Architecture -ne 'arm64' -or !(Test-Path -LiteralPath (Join-Path Publish-Release $package.AssetName))) {
-                  throw 'Missing or invalid ARM64 viewer package.'
-              }
-          }
-
-
-      - name: Append ZIP download guide
-        shell: pwsh
-        env:
-          RELEASE_VERSION: ${{ needs.validate.outputs.version }}
-        run: ./.github/scripts/Add-ReleaseAssetGuide.ps1 -Version $env:RELEASE_VERSION -PackageDirectory Publish-Release -NotesPath (Join-Path $env:RUNNER_TEMP 'release-notes.md')
-
-      - name: Create release with packages
+      - name: Publish available packages
+        id: publish
         shell: pwsh
         env:
           RELEASE_TAG: ${{ github.ref_name }}
@@ -201,20 +149,100 @@ jobs:
           RELEASE_PRERELEASE: ${{ needs.validate.outputs.prerelease }}
         run: |
           $ErrorActionPreference = 'Stop'
-          $packages = @(Get-ChildItem -LiteralPath Publish-Release -Filter '*.zip' -File | ForEach-Object FullName)
-          if ($packages.Count -eq 0) { throw 'No release ZIPs were built.' }
-          $descriptor = Get-Item -LiteralPath 'Publish-Release/nxfileviewer-update.json'
-          $packages += $descriptor.FullName
-          $packages += (Get-Item -LiteralPath 'Publish-Release/nxfileviewer-packages.json').FullName
-          # Upload every package before making the release visible to updaters.
-          gh release create $env:RELEASE_TAG --verify-tag --draft --notes-file "$env:RUNNER_TEMP/release-notes.md" --title "NxFileViewer Fork $env:RELEASE_VERSION" "--prerelease=$env:RELEASE_PRERELEASE" @packages
-          if ($LASTEXITCODE -ne 0) { throw 'Creating the draft release or uploading packages failed.' }
-          gh release edit $env:RELEASE_TAG --draft=false "--prerelease=$env:RELEASE_PRERELEASE"
-          if ($LASTEXITCODE -ne 0) { throw 'Publishing the prepared release failed.' }
+          $releasePages = gh api --paginate --slurp "repos/$env:GH_REPO/releases?per_page=100"
+          if ($LASTEXITCODE -ne 0) { throw 'Could not check for an existing release.' }
+          $existing = foreach ($page in ($releasePages | ConvertFrom-Json -NoEnumerate)) {
+              foreach ($release in $page) {
+                  if ($release.tag_name -ceq $env:RELEASE_TAG) { $release }
+              }
+          }
+          $existingZipNames = @($existing.assets | Where-Object { $_.name -like '*.zip' } | ForEach-Object name)
+          if ($existing) {
+              if ($existing.immutable) { throw 'This release is immutable and cannot accept additional packages.' }
+              if ($existingZipNames.Count) {
+                  gh release download $env:RELEASE_TAG --dir Publish-Release --pattern '*.zip' --clobber
+                  if ($LASTEXITCODE -ne 0) { throw 'Could not retrieve the existing release packages.' }
+              }
+          }
+
+          $version = [regex]::Escape($env:RELEASE_VERSION)
+          $hasWindows = $false
+          $platformCount = 0
+          foreach ($group in @(
+              @{ Name='Windows'; Rids=@('win-x64','win-x86','win-arm64') }
+              @{ Name='Linux'; Rids=@('linux-x64','linux-arm64') }
+              @{ Name='macOS'; Rids=@('osx-x64','osx-arm64') }
+          )) {
+              $expected = @(foreach ($app in 'NxFileViewerFork','NxFileViewerFork.LogViewer') {
+                  foreach ($rid in $group.Rids) {
+                      foreach ($variant in 'without-net','with-net') {
+                          "${app}_v$($env:RELEASE_VERSION)_$rid-$variant.zip"
+                      }
+                  }
+              })
+              $available = @($expected | Where-Object { Test-Path -LiteralPath (Join-Path Publish-Release $_) -PathType Leaf })
+              if (!$available.Count -and $env:RELEASE_PRERELEASE -eq 'true') {
+                  Write-Warning "$($group.Name) build unavailable. Its packages can be added by re-running the job."
+                  continue
+              }
+              if ($available.Count -ne $expected.Count) { throw "Incomplete $($group.Name) packages." }
+              foreach ($name in $available) {
+                  if ($name -cin $existingZipNames) { continue }
+                  $path = Join-Path Publish-Release $name
+                  $marker = Get-Content -LiteralPath "$path.avalonia.json" -Raw | ConvertFrom-Json
+                  if ($marker.Framework -ne 'Avalonia' -or $marker.AssetName -cne $name -or $marker.Sha256 -ne (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash) {
+                      throw "Invalid Avalonia update checksum metadata: $name"
+                  }
+              }
+              $platformCount++
+              if ($group.Name -eq 'Windows') { $hasWindows = $true }
+          }
+          if (!$platformCount) { throw 'No platform completed successfully.' }
+
+          $extra = 'UpdateManifest'
+          if ($hasWindows) {
+              $explorer = @(Get-ChildItem -LiteralPath Publish-Release -Filter 'NxFileViewerFork.Exploder_*.zip' -File)
+              if (!($explorer.Name -like '*_win-x64.zip') -or !($explorer.Name -like '*_win-arm64.zip')) {
+                  ./Publish.ps1 -Version $env:RELEASE_VERSION -OutputDirectory Publish-Release -Extras Explorer
+              }
+              $extra = 'WpfMigration'
+          }
+          ./Publish.ps1 -Version $env:RELEASE_VERSION -OutputDirectory Publish-Release -Extras $extra
+          $descriptor = Get-Content -LiteralPath Publish-Release/nxfileviewer-update.json -Raw | ConvertFrom-Json
+          $index = Get-Content -LiteralPath Publish-Release/nxfileviewer-packages.json -Raw | ConvertFrom-Json
+          $avalonia = @(Get-ChildItem -LiteralPath Publish-Release -File | Where-Object Name -Match "^NxFileViewerFork(?:\.LogViewer)?_v${version}_(?:win|linux|osx)-.*-net\.zip$")
+          if (@($descriptor.AvaloniaPackages).Count -ne $avalonia.Count) { throw 'Missing Avalonia manifest entries.' }
+          foreach ($zip in $avalonia) {
+              $item = @($descriptor.AvaloniaPackages | Where-Object AssetName -eq $zip.Name)
+              $entry = @($index.Packages | Where-Object AssetName -eq $zip.Name)
+              if ($item.Count -ne 1 -or $entry.Count -ne 1 -or $item[0].Sha256 -ne $entry[0].Sha256) {
+                  throw "Avalonia metadata mismatch: $($zip.Name)"
+              }
+          }
+          if ($hasWindows -and @($descriptor.Arm64Packages).Count -ne 2) { throw 'Expected both ARM64 viewer distributions.' }
+
+          ./.github/scripts/Add-ReleaseAssetGuide.ps1 -Version $env:RELEASE_VERSION -PackageDirectory Publish-Release -NotesPath (Join-Path $env:RUNNER_TEMP 'release-notes.md')
+          $notes = Join-Path $env:RUNNER_TEMP 'release-notes.md'
+          $packages = @(Get-ChildItem -LiteralPath Publish-Release -Filter '*.zip' -File | Where-Object Name -CNotIn $existingZipNames | ForEach-Object FullName)
+          $metadata = @(Get-Item -LiteralPath 'Publish-Release/nxfileviewer-update.json','Publish-Release/nxfileviewer-packages.json' | ForEach-Object FullName)
+          if (!$existing) {
+              gh release create $env:RELEASE_TAG --verify-tag --draft --notes-file $notes --title "NxFileViewer Fork $env:RELEASE_VERSION" "--prerelease=$env:RELEASE_PRERELEASE" @packages @metadata
+              if ($LASTEXITCODE -ne 0) { throw 'Creating the draft release or uploading packages failed.' }
+          } else {
+              if ($packages.Count) {
+                  gh release upload $env:RELEASE_TAG @packages
+                  if ($LASTEXITCODE -ne 0) { throw 'Uploading additional packages failed.' }
+              }
+              gh release upload $env:RELEASE_TAG @metadata --clobber
+              if ($LASTEXITCODE -ne 0) { throw 'Updating release metadata failed.' }
+          }
+          gh release edit $env:RELEASE_TAG --draft=false "--prerelease=$env:RELEASE_PRERELEASE" --notes-file $notes
+          if ($LASTEXITCODE -ne 0) { throw 'Publishing or updating the release failed.' }
+          if (!$existing -or $existing.draft) { "published=true" >> $env:GITHUB_OUTPUT }
 
   notify-discord:
     needs: release
-    if: ${{ !cancelled() && needs.release.result == 'success' }}
+    if: ${{ !cancelled() && needs.release.result == 'success' && needs.release.outputs.published == 'true' }}
     uses: ./.github/workflows/discord-release.yml
     secrets:
       DISCORD_RELEASE_WEBHOOK: ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
