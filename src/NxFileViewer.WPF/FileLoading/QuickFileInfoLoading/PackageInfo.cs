@@ -1,0 +1,123 @@
+using System;
+using System.Linq;
+using System.Collections.Generic;
+using Emignatik.NxFileViewer.Utils;
+using Emignatik.NxFileViewer.Utils.LibHacExtensions;
+using LibHac.Ncm;
+using LibHac.Ns;
+using LibHac.Tools.FsSystem.NcaUtils;
+using LibHac.Tools.Ncm;
+
+namespace Emignatik.NxFileViewer.FileLoading.QuickFileInfoLoading;
+
+public class PackageInfo
+{
+    public List<Content> Contents { get; init; } = null!;
+
+    public AccuratePackageType AccuratePackageType { get; init; }
+
+    public PackageType PackageType { get; init; }
+}
+
+public enum AccuratePackageType
+{
+    NSP,
+    NSZ,
+    XCI,
+    XCZ
+}
+
+/// <summary>
+/// A Nintendo Switch package (XCI, NSP, ...) can contain a single content or multiple contents (known as SuperXCI or SuperNSP).
+/// Here a <see cref="Content"/> is a model aggregating various information based on a <see cref="Cnmt"/> metadata entry.
+/// A <see cref="Content"/> is created for each <see cref="Cnmt"/> found in a Nintendo Switch package.
+/// </summary>
+public class Content
+{
+    private readonly Cnmt _cnmt;
+
+    public Content(Cnmt cnmt)
+    {
+        _cnmt = cnmt ?? throw new ArgumentNullException(nameof(cnmt));
+    }
+
+    public ContentMetaType Type => _cnmt.Type;
+
+    public IReadOnlyList<PackageContentReference> ReferencedContents => _cnmt.ContentEntries.Select(entry => new PackageContentReference(entry.NcaId.ToStrId(), entry.Type)).ToArray();
+
+    public string TitleId => _cnmt.TitleId.ToStrId();
+
+    public string ApplicationTitleId => _cnmt.ApplicationTitleId.ToStrId();
+
+    public string PatchTitleId => _cnmt.PatchTitleId.ToStrId();
+
+    public TitleVersion MinimumApplicationVersion => _cnmt.MinimumApplicationVersion;
+
+    public NacpData? NacpData { get; set; }
+
+    public TitleVersion Version => _cnmt.TitleVersion;
+
+    public int PatchNumber => _cnmt.TitleVersion.GetPatchNumber();
+    public TitleVersion MinimumSystemVersion => _cnmt.MinimumSystemVersion;
+    public byte? KeyGeneration { get; set; }
+    public string? Distribution { get; set; }
+    public string? BuildId { get; set; }
+    public ulong? FileSystemPermissions { get; set; }
+    public string? SecurityLevel { get; set; }
+    public string? AcidSignature { get; set; }
+    public string? DetailsError { get; set; }
+
+}
+
+public class NacpData
+{
+    public NacpData(ApplicationControlProperty applicationControlProperty)
+    {
+        DisplayVersion = applicationControlProperty.DisplayVersionString.ToString();
+        IsDemo = (applicationControlProperty.AttributeFlag & ApplicationControlProperty.AttributeFlagValue.Demo) != 0;
+
+        var mask = 1;
+
+        var titles = new Title?[16];
+
+        for (var i = 0; i < 16; i++)
+        {
+
+            if ((applicationControlProperty.SupportedLanguageFlag & mask) == mask)
+            {
+                titles[i] = new Title(applicationControlProperty.Title[i]);
+            }
+            else
+            {
+                titles[i] = null;
+            }
+
+            mask <<= 1;
+        }
+
+        Titles = titles;
+    }
+
+    public string DisplayVersion { get; }
+    public bool IsDemo { get; }
+
+    public IReadOnlyList<Title?> Titles { get; }
+
+}
+
+public class Title
+{
+    public byte[]? Icon { get; set; }
+    private readonly ApplicationControlProperty.ApplicationTitle _applicationControlTitle;
+
+    public Title(ApplicationControlProperty.ApplicationTitle applicationControlTitle)
+    {
+        _applicationControlTitle = applicationControlTitle;
+    }
+
+    public string Name => _applicationControlTitle.NameString.ToString();
+
+    public string Publisher => _applicationControlTitle.PublisherString.ToString();
+}
+
+public sealed record PackageContentReference(string Id, ContentType Type);

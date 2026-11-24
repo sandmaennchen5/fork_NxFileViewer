@@ -18,7 +18,7 @@ function dotnet {
     if ('-p:Version=4.1.1-beta9' -notin $arguments) { throw 'Release version was not passed to dotnet.' }
     New-Item -ItemType Directory -Path $output -Force | Out-Null
     $project = $arguments[1]
-    $exe = if ($project -like '*NxFileViewer.LogViewer.csproj') { 'NxFileViewerFork.LogViewer.exe' } else { 'NxFileViewerFork.exe' }
+    $exe = if ($project -like '*NxFileViewer.LogViewer.WPF.csproj') { 'NxFileViewerFork.LogViewer.exe' } else { 'NxFileViewerFork.exe' }
     [IO.File]::WriteAllText((Join-Path $output $exe), "$rid / $contained")
     [IO.File]::WriteAllText((Join-Path $output 'LICENSE.txt'), 'fixture license')
     $global:wpfPublishTestCalls.Add([pscustomobject]@{Rid=$rid;Contained=[bool]$contained})
@@ -33,7 +33,9 @@ try {
         $suffix = if ($rid.StartsWith('win-')) { $rid.Substring(4) } else { $rid }
         foreach ($app in @('NxFileViewerFork', 'NxFileViewerFork.LogViewer')) {
             foreach ($variant in @('', '_self-contained')) {
-                $zip = Join-Path $root "${app}_v4.1.1-beta9${variant}_${suffix}.zip"
+                $runtime = if ($variant) { 'with-net' } else { 'without-net' }
+                $prefix = if ($app -eq 'NxFileViewerFork') { 'NxFileViewerFork.WPF' } else { 'NxFileViewerFork.WPF.LogViewer' }
+                $zip = Join-Path $root "${prefix}_v4.1.1-beta9_$rid-$runtime.zip"
                 if (!(Test-Path -LiteralPath $zip)) { throw "Missing package $zip." }
                 $archive = [IO.Compression.ZipFile]::OpenRead($zip)
                 try { if ($archive.Entries.Count -ne $(if ($app -eq 'NxFileViewerFork') { 3 } else { 2 })) { throw "Unexpected package contents: $zip" } }

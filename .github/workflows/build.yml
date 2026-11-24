@@ -37,8 +37,8 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           path: |
-            Publish/NxFileViewerFork_v*_x64.zip
-            !Publish/NxFileViewerFork_v*_self-contained_x64.zip
+            Publish/NxFileViewerFork.WPF_v*_win-x64-without-net.zip
+            !Publish/NxFileViewerFork.WPF_v*_win-x64-with-net.zip
           archive: false
           if-no-files-found: error
           retention-days: 7
@@ -47,7 +47,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           path: |
-            Publish/NxFileViewerFork_v*_self-contained_x64.zip
+            Publish/NxFileViewerFork.WPF_v*_win-x64-with-net.zip
           archive: false
           if-no-files-found: error
           retention-days: 7
@@ -56,8 +56,8 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           path: |
-            Publish/NxFileViewerFork_v*_x86.zip
-            !Publish/NxFileViewerFork_v*_self-contained_x86.zip
+            Publish/NxFileViewerFork.WPF_v*_win-x86-without-net.zip
+            !Publish/NxFileViewerFork.WPF_v*_win-x86-with-net.zip
           archive: false
           if-no-files-found: error
           retention-days: 7
@@ -66,7 +66,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           path: |
-            Publish/NxFileViewerFork_v*_self-contained_x86.zip
+            Publish/NxFileViewerFork.WPF_v*_win-x86-with-net.zip
           archive: false
           if-no-files-found: error
           retention-days: 7
@@ -75,8 +75,8 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           path: |
-            Publish/NxFileViewerFork_v*_arm64.zip
-            !Publish/NxFileViewerFork_v*_self-contained_arm64.zip
+            Publish/NxFileViewerFork.WPF_v*_win-arm64-without-net.zip
+            !Publish/NxFileViewerFork.WPF_v*_win-arm64-with-net.zip
           archive: false
           if-no-files-found: error
           retention-days: 7
@@ -85,7 +85,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           path: |
-            Publish/NxFileViewerFork_v*_self-contained_arm64.zip
+            Publish/NxFileViewerFork.WPF_v*_win-arm64-with-net.zip
           archive: false
           if-no-files-found: error
           retention-days: 7
@@ -94,8 +94,8 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           path: |
-            Publish/NxFileViewerFork.LogViewer_v*_arm64.zip
-            !Publish/NxFileViewerFork.LogViewer_v*_self-contained_arm64.zip
+            Publish/NxFileViewerFork.WPF.LogViewer_v*_win-arm64-without-net.zip
+            !Publish/NxFileViewerFork.WPF.LogViewer_v*_win-arm64-with-net.zip
           archive: false
           if-no-files-found: error
           retention-days: 7
@@ -104,7 +104,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           path: |
-            Publish/NxFileViewerFork.LogViewer_v*_self-contained_arm64.zip
+            Publish/NxFileViewerFork.WPF.LogViewer_v*_win-arm64-with-net.zip
           archive: false
           if-no-files-found: error
           retention-days: 7
@@ -151,8 +151,8 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           path: |
-            Publish/NxFileViewerFork.LogViewer_v*_x64.zip
-            !Publish/NxFileViewerFork.LogViewer_v*_self-contained_x64.zip
+            Publish/NxFileViewerFork.WPF.LogViewer_v*_win-x64-without-net.zip
+            !Publish/NxFileViewerFork.WPF.LogViewer_v*_win-x64-with-net.zip
           archive: false
           if-no-files-found: error
           retention-days: 7
@@ -161,7 +161,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           path: |
-            Publish/NxFileViewerFork.LogViewer_v*_self-contained_x64.zip
+            Publish/NxFileViewerFork.WPF.LogViewer_v*_win-x64-with-net.zip
           archive: false
           if-no-files-found: error
           retention-days: 7
@@ -170,8 +170,8 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           path: |
-            Publish/NxFileViewerFork.LogViewer_v*_x86.zip
-            !Publish/NxFileViewerFork.LogViewer_v*_self-contained_x86.zip
+            Publish/NxFileViewerFork.WPF.LogViewer_v*_win-x86-without-net.zip
+            !Publish/NxFileViewerFork.WPF.LogViewer_v*_win-x86-with-net.zip
           archive: false
           if-no-files-found: error
           retention-days: 7
@@ -180,7 +180,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           path: |
-            Publish/NxFileViewerFork.LogViewer_v*_self-contained_x86.zip
+            Publish/NxFileViewerFork.WPF.LogViewer_v*_win-x86-with-net.zip
           archive: false
           if-no-files-found: error
           retention-days: 7
@@ -208,7 +208,8 @@ jobs:
         with:
           name: avalonia-packages
           path: |
-            Publish/*_Avalonia_v*.zip
+            Publish/NxFileViewerFork_v*_*-net.zip
+            Publish/NxFileViewerFork.LogViewer_v*_*-net.zip
             Publish/*.avalonia.json
           archive: true
           if-no-files-found: error

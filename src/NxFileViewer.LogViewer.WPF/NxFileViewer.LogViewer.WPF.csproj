@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows7.0</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <AssemblyName>NxFileViewerFork.LogViewer</AssemblyName>
+    <RootNamespace>NxFileViewer.LogViewer</RootNamespace>
+    <Version>4.1.2-beta1</Version>
+    <Product>NxFileViewer Fork LogViewer</Product>
+    <Authors>sandmaennchen5</Authors>
+    <ApplicationIcon>../NxFileViewer.WPF/Styling/Icons/Icon.ico</ApplicationIcon>
+    <Platforms>AnyCPU</Platforms>
+  </PropertyGroup>
+  <ItemGroup>
+    <Resource Include="../NxFileViewer.WPF/Styling/Icons/Icon.ico" Link="Icon.ico" />
+    <None Include="../../docs/LogViewer.md" Link="LogViewer.md" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="../../LICENSE" Link="LICENSE.txt" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

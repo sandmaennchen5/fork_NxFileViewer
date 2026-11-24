@@ -8,16 +8,23 @@ param(
     [bool[]]$RuntimeVariants=@($false,$true),
     [switch]$ExecutableOnly, [string]$CopyTo, [string]$CopyRuntime='win-x64',
     [Nullable[bool]]$CopyRuntimeIncludesDotNet=$null,
-    [switch]$SkipFirmwareHashes, [switch]$AllTargets, [switch]$NoCopy
+    [switch]$SkipFirmwareHashes, [switch]$AllTargets, [switch]$NoCopy,
+    [ValidateSet('AppImage','Dmg')][string]$NativePackage,
+    [switch]$SkipAvaloniaZipMetadata,
+    [string[]]$FormatTargets=@(),
+    $TargetOutputs,
+    [hashtable]$ApplicationVersions=@{}
 )
 $ErrorActionPreference='Stop'
 $RepositoryRoot=Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot 'Publish-Configuration.ps1')
 $Framework=if($Framework -ieq 'WPF'){'WPF'}else{'Avalonia'}
 $CreateZipArchives=!$ExecutableOnly
 $CopyExecutableToTestDirectory=([bool]$CopyTo -and !$NoCopy)
 $TestDirectory=$CopyTo
 $CopyRuntimeIdentifier=$CopyRuntime
 $CopyWithDotNet=if($null -eq $CopyRuntimeIncludesDotNet){$false}else{[bool]$CopyRuntimeIncludesDotNet}
+$applicationNames = Get-PublishApplicationNames
 if($Framework -eq 'WPF'){
     $projects=@(@{Project='NxFileViewer';Name='NxFileViewerFork';Kind='Viewer'},@{Project='NxFileViewer.LogViewer';Name='NxFileViewerFork.LogViewer';Kind='LogViewer'})
     $defaultRids=@('win-x64','win-x86','win-arm64')
@@ -26,12 +33,49 @@ if($Framework -eq 'WPF'){
     $defaultRids=@('win-x64','win-x86','win-arm64','linux-x64','linux-arm64','osx-x64','osx-arm64')
 }
 $projects=@($projects | Where-Object {$_.Kind -in $Applications})
+$nativeFormatTargets = @($FormatTargets | Where-Object { $_ -match '-(appimage|dmg)$' })
+if ($nativeFormatTargets.Count) {
+    $NativePackage = if ($IsLinux) { 'AppImage' } else { 'Dmg' }
+}
+if ($NativePackage) {
+    if ($Framework -ne 'Avalonia') { throw 'Native packages require Avalonia publishing.' }
+    if ($NativePackage -eq 'AppImage') {
+        if (!$IsLinux) { throw 'AppImage packaging requires Linux.' }
+        $nativeTool = (Get-Command appimagetool -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
+        $nativeRids = @('linux-x64','linux-arm64')
+    } else {
+        if (!$IsMacOS) { throw 'DMG packaging requires macOS.' }
+        $nativeTool = '/usr/bin/hdiutil'
+        $nativeRids = @('osx-x64','osx-arm64')
+    }
+    if (!$RuntimeIdentifiers.Count) { $RuntimeIdentifiers = $nativeRids }
+    $nativeRidsToBuild = if ($nativeFormatTargets.Count) { $nativeFormatTargets -replace '-(appimage|dmg)$' } else { $RuntimeIdentifiers }
+    foreach ($rid in $nativeRidsToBuild) {
+        if ($rid -notin $nativeRids) { throw "$NativePackage packaging does not support $rid." }
+    }
+}
 if(!$RuntimeIdentifiers.Count){$RuntimeIdentifiers=$defaultRids}
 foreach($rid in $RuntimeIdentifiers){if($rid -notin $defaultRids){throw "Unsupported $Framework target: $rid"}}
-$targets=@(foreach($rid in @($RuntimeIdentifiers | Select-Object -Unique)){foreach($variant in @($RuntimeVariants | Select-Object -Unique)){[pscustomobject]@{Rid=$rid;WithRuntime=[bool]$variant}}})
+
+$targets = @(foreach ($rid in ($RuntimeIdentifiers | Select-Object -Unique)) {
+    foreach ($variant in ($RuntimeVariants | Select-Object -Unique)) {
+        $target = [pscustomobject]@{ Rid=$rid; WithRuntime=[bool]$variant; Binary='Off'; Native='Off' }
+        if ($null -ne $TargetOutputs) {
+            $variantName = if ($variant) { 'WithDotNet' } else { 'WithoutDotNet' }
+            if ($rid -in $FormatTargets -and $TargetOutputs.$rid.$variantName) {
+                $target.Binary = $TargetOutputs.$rid.$variantName
+            }
+            $nativeKey = "$rid-$NativePackage"
+            if ($nativeKey -in $nativeFormatTargets -and $TargetOutputs.$nativeKey.$variantName) {
+                $target.Native = $TargetOutputs.$nativeKey.$variantName
+            }
+            if ($target.Binary -eq 'Off' -and $target.Native -eq 'Off') { continue }
+        }
+        $target
+    }
+})
 $CopyExecutables=@(foreach($app in $projects){
     $exe=if($app.Project -like '*LogViewer*'){'NxFileViewerFork.LogViewer'}else{'NxFileViewerFork'}
-    if($Framework -eq 'Avalonia'){$exe+='.Avalonia'}
     $exe+=$(if($CopyRuntimeIdentifier -like 'win-*'){'.exe'}else{''})
     @{Project=$app.Project;Name=$exe}
 })
@@ -45,7 +89,7 @@ if ($CopyExecutableToTestDirectory) {
     $copyNames = @($CopyExecutables | Where-Object { $_.Project -in $projects.Project } | ForEach-Object {
         if (![string]::IsNullOrEmpty($_.Name)) { $_.Name }
         else {
-            $copyProject = Join-Path $RepositoryRoot "src/$($_.Project)/$($_.Project).csproj"
+            $copyProject = Join-Path $RepositoryRoot (Get-ViewerProjectPath $_.Project)
             $copyAssembly = (Select-Xml -LiteralPath $copyProject -XPath '/Project/PropertyGroup/AssemblyName').Node.InnerText
             if (!$copyAssembly) { $copyAssembly = $_.Project }
             $copyAssembly + $(if ($CopyRuntimeIdentifier.StartsWith('win-')) { '.exe' } else { '' })
@@ -54,8 +98,10 @@ if ($CopyExecutableToTestDirectory) {
     if (@($copyNames | Select-Object -Unique).Count -ne $copyNames.Count) { throw 'Copy destination names must be distinct.' }
 }
 & (Join-Path $RepositoryRoot 'src/config/Validate-ExternalSources.ps1')
+$useProjectVersion = !$Version
 if (!$Version) {
-    $viewer = Join-Path $RepositoryRoot 'src/NxFileViewer/NxFileViewer.csproj'
+    $viewerProject = if ($Framework -eq 'Avalonia') { 'NxFileViewer.Avalonia' } else { 'NxFileViewer' }
+    $viewer = Join-Path $RepositoryRoot (Get-ViewerProjectPath $viewerProject)
     $Version = (Select-Xml -LiteralPath $viewer -XPath '/Project/PropertyGroup/Version').Node.InnerText
 }
 if ($Version -notmatch '^\d+\.\d+\.\d+(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$') {
@@ -104,33 +150,41 @@ function Set-ZipUnixCreator([string]$zip,[string[]]$executableNames) {
 $stage = (New-Item -ItemType Directory -Path (Join-Path $output ('.publish-applications-' + [guid]::NewGuid().ToString('N')))).FullName
 Push-Location -LiteralPath (Join-Path $RepositoryRoot 'src')
 try {
+    $publishedVersions = [Collections.Generic.List[string]]::new()
     foreach ($app in $projects) {
-        $project = Join-Path $RepositoryRoot "src/$($app.Project)/$($app.Project).csproj"
+        $project = Join-Path $RepositoryRoot (Get-ViewerProjectPath $app.Project)
+        $appVersion = if ($ApplicationVersions.ContainsKey($app.Project)) { $ApplicationVersions[$app.Project] } elseif ($useProjectVersion) {
+            (Select-Xml -LiteralPath $project -XPath '/Project/PropertyGroup/Version').Node.InnerText
+        } else { $Version }
+        if ($appVersion -notmatch '^\d+\.\d+\.\d+(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$') { throw "Invalid version for $($app.Project): $appVersion" }
+        if ($appVersion -notin $publishedVersions) { $publishedVersions.Add($appVersion) }
         $assemblyName = (Select-Xml -LiteralPath $project -XPath '/Project/PropertyGroup/AssemblyName' | Select-Object -Last 1).Node.InnerText
         if (!$assemblyName) { $assemblyName = $app.Project }
         foreach ($target in $targets) {
             $rid = $target.Rid
             $withRuntime = $target.WithRuntime
-            $architecture = if ($rid.StartsWith('win-')) { $rid.Substring(4) } else { $rid }
-            $suffix = if ($withRuntime) { '_self-contained' } else { '' }
             $frameworkSuffix = if ($Framework -eq 'Avalonia') { '_Avalonia' } else { '' }
-            $name = "$($app.Name)${frameworkSuffix}_v${Version}${suffix}_$architecture"
+            $dotnetVariant = if ($withRuntime) { 'with-net' } else { 'without-net' }
+            $prefix = $applicationNames[$Framework+$app.Kind]
+            $name = "${prefix}_v${appVersion}_$rid-$dotnetVariant"
             $publish = Join-Path $stage $name
             # Isolate restore assets from IDE builds and other publish runs.
-            dotnet publish $project --artifacts-path (Join-Path $stage "artifacts") -c Release -r $rid --self-contained $withRuntime "-p:Version=$Version" -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true "-p:EnableCompressionInSingleFile=$withRuntime" -o $publish
+            dotnet publish $project --artifacts-path (Join-Path $stage "artifacts") -c Release -r $rid --self-contained $withRuntime "-p:Version=$appVersion" -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true "-p:EnableCompressionInSingleFile=$withRuntime" -o $publish
             if ($LASTEXITCODE -ne 0) { throw "Publishing $name failed ($LASTEXITCODE)." }
-            if ($app.Project -eq 'NxFileViewer') {
+            if ($app.Project -eq 'NxFileViewer' -or ($app.Project -eq 'NxFileViewer.Avalonia' -and $rid.StartsWith('win-'))) {
                 $identity = Get-Content -LiteralPath (Join-Path $RepositoryRoot 'src/config/package-manifest.json') -Raw -Encoding UTF8 | ConvertFrom-Json
                 if ($identity.SchemaVersion -ne 1 -or $identity.ApplicationId -cne 'NxFileViewerFork') { throw 'Invalid package manifest identity.' }
-                $identity | Add-Member -NotePropertyName Version -NotePropertyValue $Version -Force
-                $identity | Add-Member -NotePropertyName Executable -NotePropertyValue 'NxFileViewerFork.exe' -Force
+                $identity | Add-Member -NotePropertyName Version -NotePropertyValue $appVersion -Force
+                $identity | Add-Member -NotePropertyName Executable -NotePropertyValue ($assemblyName + '.exe') -Force
                 [IO.File]::WriteAllText((Join-Path $publish 'nxfileviewer-package.json'), ($identity | ConvertTo-Json -Depth 16), [Text.UTF8Encoding]::new($false))
             }
             $executableName = $assemblyName + $(if ($rid.StartsWith('win-')) { '.exe' } else { '' })
             $executable = Join-Path $publish $executableName
             if (!(Test-Path -LiteralPath $executable -PathType Leaf)) { throw "Published executable missing: $executable" }
             if ($Framework -eq 'Avalonia') {
-                $marker = [ordered]@{ SchemaVersion=1; Framework='Avalonia'; Version=$Version; RuntimeIdentifier=$rid; SelfContained=[bool]$withRuntime; Executable=$executableName }
+                Get-ChildItem -LiteralPath $publish -File -Filter '*.pdb' |
+                    ForEach-Object { Remove-Item -LiteralPath $_.FullName }
+                $marker = [ordered]@{ SchemaVersion=1; Framework='Avalonia'; Version=$appVersion; RuntimeIdentifier=$rid; SelfContained=[bool]$withRuntime; Executable=$executableName }
                 [IO.File]::WriteAllText((Join-Path $publish 'nxfileviewer-avalonia.json'), ($marker | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
                 if ($rid.StartsWith('linux-')) {
                     foreach ($scriptName in @('start.sh','install-shortcut.sh')) {
@@ -147,7 +201,16 @@ try {
             }
             $zip = $null
             $reportDirectory = $publish
-            if ($CreateZipArchives) {
+            $defaultFormat = !$FormatTargets.Count -or $rid -in $FormatTargets
+            $buildZip = $defaultFormat -and $CreateZipArchives
+            $buildExecutable = ($defaultFormat -and !$CreateZipArchives) -or "$rid-exe" -in $FormatTargets
+            $buildNative = $NativePackage -and (!$FormatTargets.Count -or "$rid-$NativePackage" -in $nativeFormatTargets)
+            if ($null -ne $TargetOutputs) {
+                $buildZip = $target.Binary -in @('Zip','Both')
+                $buildExecutable = $target.Binary -in @('Folder','Both')
+                $buildNative = $target.Native -ne 'Off'
+            }
+            if ($buildZip) {
                 $zip = Join-Path $output "$name.zip"
                 Write-PackageZip $publish $zip
                 if ($Framework -eq 'Avalonia') {
@@ -159,18 +222,53 @@ try {
                         finally { $archive.Dispose() }
                         Set-ZipUnixCreator $zip @($executableName,'start.sh','install-shortcut.sh')
                     }
-                    $updateMarker = [ordered]@{ Framework='Avalonia'; AssetName=[IO.Path]::GetFileName($zip); Sha256=(Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash }
-                    [IO.File]::WriteAllText(($zip + '.avalonia.json'),($updateMarker | ConvertTo-Json),[Text.UTF8Encoding]::new($false))
+                    if (!$SkipAvaloniaZipMetadata) { Write-AvaloniaUpdateChecksum $zip }
                 }
                 Write-Host "ZIP: $zip"
-            } else {
+            }
+            if ($buildExecutable) {
                 $exeDirectory = Join-Path $output $name
                 New-Item -ItemType Directory -Path $exeDirectory -Force | Out-Null
                 $reportDirectory = $exeDirectory
-                Copy-Item -LiteralPath $executable -Destination (Join-Path $exeDirectory $executableName) -Force
-                Write-Host "EXE: $(Join-Path $exeDirectory $executableName)"
+                if ($null -eq $TargetOutputs) {
+                    Copy-Item -LiteralPath $executable -Destination (Join-Path $exeDirectory $executableName) -Force
+                    Write-Host "EXE: $(Join-Path $exeDirectory $executableName)"
+                } else {
+                    Get-ChildItem -LiteralPath $publish -Force | Copy-Item -Destination $exeDirectory -Recurse -Force
+                    Write-Host "Folder: $exeDirectory"
+                }
             }
             Add-PublishSizeRow $sizes $name $reportDirectory $executable $zip
+            if ($buildNative) {
+                $nativeName = if ($app.Kind -eq 'Viewer') { "v${appVersion}_$rid-$dotnetVariant" } else {
+                    $legacyRuntime = if ($withRuntime) { '_self-contained' } else { '' }
+                    "$($app.Name)_Avalonia_v${appVersion}${legacyRuntime}_$rid"
+                }
+                $nativeOutput = $output
+                $nativeZipSelected = $CreateZipArchives -and $app.Project -eq 'NxFileViewer.Avalonia'
+                if ($null -ne $TargetOutputs) {
+                    $nativeName = "$name-$($NativePackage.ToLowerInvariant())"
+                    $nativeZipSelected = $target.Native -in @('Zip','Both')
+                    $nativeOutput = if ($target.Native -in @('Folder','Both')) { Join-Path $output $nativeName } else { Join-Path $stage 'native-output' }
+                    New-Item -ItemType Directory -Path $nativeOutput -Force | Out-Null
+                }
+                $nativeAsset = & (Join-Path $PSScriptRoot 'Publish-NativePackage.ps1') -Format $NativePackage -Tool $nativeTool -RuntimeIdentifier $rid -Version $appVersion -AppName $app.Name -AssetName $nativeName -PublishDirectory $publish -ExecutableName $executableName -OutputDirectory $nativeOutput
+                if ($null -eq $TargetOutputs -or $target.Native -in @('Folder','Both')) {
+                    Write-Host "$NativePackage package: $nativeAsset"
+                }
+                if ($nativeZipSelected) {
+                    $nativeZip = Join-Path $output "$name-$($NativePackage.ToLowerInvariant()).zip"
+                    Compress-Archive -LiteralPath $nativeAsset -DestinationPath $nativeZip -Force
+                    if ($NativePackage -eq 'AppImage') {
+                        Add-Type -AssemblyName System.IO.Compression.FileSystem
+                        $archive = [IO.Compression.ZipFile]::Open($nativeZip,[IO.Compression.ZipArchiveMode]::Update)
+                        try { $archive.Entries[0].ExternalAttributes = -2115174400 }
+                        finally { $archive.Dispose() }
+                        Set-ZipUnixCreator $nativeZip @([IO.Path]::GetFileName($nativeAsset))
+                    }
+                    Write-Host "ZIP: $nativeZip"
+                }
+            }
             if ($CopyExecutableToTestDirectory -and $rid -eq $CopyRuntimeIdentifier -and $withRuntime -eq $CopyWithDotNet) {
                 foreach ($copy in @($CopyExecutables | Where-Object Project -eq $app.Project)) {
                     $copyName = if ([string]::IsNullOrEmpty($copy.Name)) { $executableName } else { $copy.Name }
@@ -190,7 +288,8 @@ try {
         Write-Host "ZIP: $hashZip"
         Add-PublishSizeRow $sizes ([IO.Path]::GetFileName($hashZip)) $hashRoot $null $hashZip
     }
-    Save-PublishSizeReport $sizes (Join-Path $output "publish-sizes-$Framework-v$Version.txt")
+    $reportVersion = $publishedVersions -join '_v'
+    Save-PublishSizeReport $sizes (Join-Path $output "publish-sizes-$Framework-v$reportVersion.txt")
     if ($CopyExecutableToTestDirectory) { Copy-PublishExecutables $copies $TestDirectory }
 }
 finally {

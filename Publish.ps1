@@ -1,7 +1,8 @@
 <#
     Default: show GUI using publish.ps1.conf/defaults; auto-build after 10 seconds without input.
     -Gui edits/saves the configuration. -GitHub builds all CI release artifacts.
-    -ReleasePackages preserves the full release/update/Explorer packaging flow.
+    -ReleasePackages builds the Avalonia release and update metadata.
+    -AppImage (Linux, appimagetool on PATH) or -Dmg (macOS) adds a native Avalonia package.
 #>
 [CmdletBinding(PositionalBinding = $false)]
 param(
@@ -39,6 +40,8 @@ param(
     [switch]$AvaloniaOnly,
     [switch]$AvaloniaViewer,
     [switch]$AvaloniaLogViewer,
+    [switch]$AppImage,
+    [switch]$Dmg,
     [ValidateSet('win-x64', 'win-x86', 'win-arm64', 'linux-x64', 'linux-arm64', 'osx-x64', 'osx-arm64')]
     [string[]]$AvaloniaRuntimeIdentifiers = @(),
     [switch]$WithDotNet,
@@ -50,6 +53,12 @@ param(
     [switch]$Avalonia,
     [switch]$All,
     [switch]$ReleasePackages,
+    [ValidateSet('Explorer','Transition','Updater','UpdateManifest','AvaloniaZipMetadata','WpfMigration')][string[]]$Extras=@(),
+    [ValidateSet('Zip','Folder','Both')][string]$ExplorerOutputFormat='Zip',
+    [ValidateSet('Zip','Folder','Both')][string]$TransitionOutputFormat='Zip',
+    [ValidateSet('x64','x86','arm64')][string[]]$ExtraWindowsArchitectures=@('x64','x86','arm64'),
+    [ValidateSet('WPF','Avalonia')][string[]]$UpdateFrameworks=@('WPF','Avalonia'),
+    [hashtable]$AvaloniaUpdateVersions=@{},
     [string]$ConfigFile,
     [string]$Profile,
     [Parameter(ValueFromRemainingArguments = $true)]
@@ -72,15 +81,24 @@ $SelectedExeVariants = @(
     'TransitionX64','TransitionX86','TransitionX64WithRuntime','TransitionX86WithRuntime'
 ) | Where-Object { $PSBoundParameters.ContainsKey($_) -and $PSBoundParameters[$_] }
 # Config/menu orchestration is separate from the established full release builder below.
-$individualSelection = $SelectedExeVariants -or $LogViewerOnly -or $AvaloniaOnly -or $AvaloniaViewer -or $AvaloniaLogViewer
-if (($Gui -or $GitHub) -and ($individualSelection -or $Wpf -or $Avalonia -or $All -or $ReleasePackages)) { throw 'Use -Gui or -GitHub without application/release selectors.' }
+$nativePackage = $AppImage -or $Dmg
+if ($AppImage -and $Dmg) { throw 'Run -AppImage on Linux and -Dmg on macOS in separate invocations.' }
+if ($nativePackage -and ($SelectedExeVariants -or $LogViewerOnly -or $SkipAvalonia -or $ReleasePackages -or $Wpf -or $All)) {
+    throw 'Use -AppImage or -Dmg with an Avalonia build.'
+}
+if ($Extras.Count -and ($Gui -or $GitHub -or $ReleasePackages -or $SelectedExeVariants -or $LogViewerOnly -or
+    $AvaloniaOnly -or $AvaloniaViewer -or $AvaloniaLogViewer -or $nativePackage -or $Wpf -or $Avalonia -or $All -or $Profile)) {
+    throw 'Use -Extras as a standalone publish mode.'
+}
+$individualSelection = $Extras.Count -or $SelectedExeVariants -or $LogViewerOnly -or $AvaloniaOnly -or $AvaloniaViewer -or $AvaloniaLogViewer
+if (($Gui -or $GitHub) -and ($nativePackage -or $individualSelection -or $Wpf -or $Avalonia -or $All -or $ReleasePackages)) { throw 'Use -Gui or -GitHub without application/release selectors.' }
 if ($Gui -and ($GitHub -or $NoGui)) { throw 'Choose -Gui, -NoGui or -GitHub.' }
 if (($Gui -or $GitHub) -and ($SkipAvalonia -or $SkipLogViewer -or $AvaloniaRuntimeIdentifiers.Count -or $WithDotNet -or $WithoutDotNet)) { throw 'Use -Gui or -GitHub without additional target/runtime filters.' }
 if (($Wpf -or $Avalonia -or $All) -and $SkipAvalonia) { throw 'Use -Wpf instead of combining application groups with -SkipAvalonia.' }
 if ($individualSelection -and ($Wpf -or $Avalonia -or $All)) { throw 'Do not combine application groups and individual selectors.' }
 if ($GitHub -and ($ConfigFile -or $Profile)) { throw '-GitHub does not load local configuration files or profiles.' }
-if ($Profile -and ($individualSelection -or $ReleasePackages -or $SkipAvalonia)) { throw 'Use -Profile with the configured/menu modes or application groups.' }
-if (!$GitHub -and !$ReleasePackages -and !$individualSelection -and !$SkipAvalonia) {
+if ($Profile -and ($nativePackage -or $individualSelection -or $ReleasePackages -or $SkipAvalonia)) { throw 'Use -Profile with the configured/menu modes or application groups.' }
+if (!$nativePackage -and !$GitHub -and !$ReleasePackages -and !$individualSelection -and !$SkipAvalonia) {
     . (Join-Path $PSScriptRoot 'tools/Publish-Configuration.ps1')
     if (!$ConfigFile) { $ConfigFile = Join-Path $PSScriptRoot 'publish.ps1.conf' }
     $config = Read-PublishConfiguration $ConfigFile $Profile
@@ -90,16 +108,33 @@ if (!$GitHub -and !$ReleasePackages -and !$individualSelection -and !$SkipAvalon
     elseif ($Wpf -and $Avalonia) { $config.Applications=@('WpfViewer','WpfLogViewer','AvaloniaViewer','AvaloniaLogViewer') }
     if ($SkipLogViewer) { $config.Applications=@($config.Applications | Where-Object { $_ -notlike '*LogViewer' }) }
     if ($PSBoundParameters.ContainsKey('OutputDirectory')) { $config.OutputDirectory=$OutputDirectory }
-    if ($AvaloniaRuntimeIdentifiers.Count) { $config.RuntimeIdentifiers=$AvaloniaRuntimeIdentifiers }
-    if ($WithDotNet -or $WithoutDotNet) { $config.WithDotNet=[bool]$WithDotNet; $config.WithoutDotNet=[bool]$WithoutDotNet }
+    if ($AvaloniaRuntimeIdentifiers.Count) {
+        $config.RuntimeIdentifiers=$AvaloniaRuntimeIdentifiers
+        $config.PSObject.Properties.Remove('TargetOutputs')
+    }
+    if ($WithDotNet -or $WithoutDotNet) {
+        $config.WithDotNet=[bool]$WithDotNet
+        $config.WithoutDotNet=[bool]$WithoutDotNet
+        foreach ($entry in $config.TargetOutputs.PSObject.Properties) {
+            $row = $entry.Value
+            $with = $row.WithDotNet
+            $without = $row.WithoutDotNet
+            $row.WithDotNet = if (!$WithDotNet) { 'Off' } elseif ($with -eq 'Off') { $without } else { $with }
+            $row.WithoutDotNet = if (!$WithoutDotNet) { 'Off' } elseif ($without -eq 'Off') { $with } else { $without }
+        }
+    }
     $showMenu = $Gui -or (!$NoGui -and !$Wpf -and !$Avalonia -and !$All -and !$SkipLogViewer -and !$AvaloniaRuntimeIdentifiers.Count -and !$WithDotNet -and !$WithoutDotNet)
-    if ($showMenu) { $config = Show-PublishConfigurationMenu $config $ConfigFile $Profile; if ($null -eq $config) { return } }
+    if ($showMenu) {
+        $config = Show-PublishConfigurationMenu $config $ConfigFile $Profile $PSScriptRoot $Version
+        if ($null -eq $config) { return }
+        $Version = $null
+    }
     Invoke-PublishConfiguration $config $PSScriptRoot $Version
     return
 }
-$AvaloniaSelection = $AvaloniaOnly -or $AvaloniaViewer -or $AvaloniaLogViewer
+$AvaloniaSelection = $nativePackage -or $AvaloniaOnly -or $AvaloniaViewer -or $AvaloniaLogViewer
 if ($SkipAvalonia -and $AvaloniaSelection) { throw 'Do not combine -SkipAvalonia with an Avalonia-only selection.' }
-if ($AvaloniaSelection -and ($SelectedExeVariants -or $LogViewerOnly -or $SkipLogViewer)) { throw 'Do not combine Avalonia-only choices with WPF-only selections.' }
+if ($AvaloniaSelection -and ($SelectedExeVariants -or $LogViewerOnly -or ($SkipLogViewer -and !$nativePackage))) { throw 'Do not combine Avalonia-only choices with WPF-only selections.' }
 if (!$AvaloniaSelection -and ($AvaloniaRuntimeIdentifiers.Count -or $WithDotNet -or $WithoutDotNet)) { throw 'Use Avalonia target/runtime filters with -AvaloniaOnly, -AvaloniaViewer or -AvaloniaLogViewer.' }
 function Publish-AvaloniaSelection {
     $options = @{ OutputDirectory = $OutputDirectory; SkipFirmwareHashes = $true; AllTargets = $true; NoCopy = $true }
@@ -111,9 +146,35 @@ function Publish-AvaloniaSelection {
     if ($WithDotNet -or $WithoutDotNet) {
         $options.RuntimeVariants = @($(if ($WithoutDotNet) { $false }); $(if ($WithDotNet) { $true }))
     }
+    if ($nativePackage) {
+        $options.NativePackage = if ($AppImage) { 'AppImage' } else { 'Dmg' }
+        if (!$WithDotNet -and !$WithoutDotNet) { $options.RuntimeVariants = @($true) }
+        if (!$AvaloniaOnly -and !$AvaloniaLogViewer -and !$Avalonia) { $options.Applications = @('Viewer') }
+    }
     & (Join-Path $PSScriptRoot 'tools/Publish-Applications.ps1') -Framework Avalonia @options
 }
 if ($AvaloniaSelection) { Publish-AvaloniaSelection; return }
+if ($ReleasePackages -and !$SkipAvalonia -and !$Wpf) {
+    $releaseOptions = @{ OutputDirectory=$OutputDirectory; Applications=@('Viewer'); NoCopy=$true }
+    if (!$SkipLogViewer) { $releaseOptions.Applications += 'LogViewer' }
+    if ($Version) { $releaseOptions.Version = $Version }
+    & (Join-Path $PSScriptRoot 'tools/Publish-Applications.ps1') -Framework Avalonia @releaseOptions
+    $manifestOptions = @{
+        OutputDirectory=$OutputDirectory
+        UpdateFrameworks=@('Avalonia')
+        Extras=@('UpdateManifest')
+    }
+    if ($Version) { $manifestOptions.Version = $Version }
+    if (!$SkipExplorerPackages -and [Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT) {
+        $manifestOptions.Extras += 'Explorer'
+        foreach ($option in @('ExplorerPackageVersion', 'ExplorerPublisher', 'ExplorerCertificateThumbprint', 'ExplorerSdkBin',
+            'ExplorerTimestampServer', 'UnsignedExplorerPackages')) {
+            if ($PSBoundParameters.ContainsKey($option)) { $manifestOptions[$option] = $PSBoundParameters[$option] }
+        }
+    }
+    & $PSCommandPath @manifestOptions
+    return
+}
 if ($SelectedExeVariants -and ($LogViewerOnly -or $SkipLogViewer)) {
     throw 'Do not combine individual EXE selections with -LogViewerOnly or -SkipLogViewer.'
 }
@@ -125,7 +186,7 @@ if ($PackageName -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$' -or $PackageName.
 & (Join-Path $PSScriptRoot 'src/config/Validate-DefaultSettings.ps1')
 & (Join-Path $PSScriptRoot 'src/config/Validate-MasterKeys.ps1')
 $AppName = $PackageName
-$ProjectPath = Join-Path $PSScriptRoot "src/NxFileViewer/NxFileViewer.csproj"
+$ProjectPath = Join-Path $PSScriptRoot "src/NxFileViewer.WPF/NxFileViewer.WPF.csproj"
 $PublishedExecutableName = (Select-Xml -LiteralPath $ProjectPath -XPath "//Project/PropertyGroup/AssemblyName").Node.InnerText
 if (!$PublishedExecutableName) { $PublishedExecutableName = [IO.Path]::GetFileNameWithoutExtension($ProjectPath) }
 $PublishedExecutableName += '.exe'
@@ -212,16 +273,227 @@ New-Item -ItemType Directory -Path $OutDirRoot -Force | Out-Null
 # Isolated staging leaves existing extracted releases and user keys untouched.
 $StagingRoot = Join-Path $OutDirRoot (".publish-" + [Guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Path $StagingRoot | Out-Null
+function Write-PublishExtraPackage([string]$Name, [string[]]$Files, [string]$Format) {
+    if ($Format -in @('Zip','Both')) {
+        Compress-Archive -LiteralPath $Files -DestinationPath (Join-Path $OutDirRoot "$Name.zip") -Force
+    }
+    if ($Format -in @('Folder','Both')) {
+        $directory = Join-Path $OutDirRoot $Name
+        New-Item -ItemType Directory -Path $directory -Force | Out-Null
+        Copy-Item -LiteralPath $Files -Destination $directory -Force
+        Write-Host "Folder: $directory"
+    }
+}
+function Publish-TransitionPackage([string]$Architecture, [bool]$WithRuntime, [string]$TransitionVersion=$AppVersion) {
+    $Variant = if ($WithRuntime) { '_self-contained' } else { '' }
+    $transitionProject = Join-Path $PSScriptRoot 'src/NxFileViewer.Transition/NxFileViewer.Transition.csproj'
+    $transitionDir = Join-Path $StagingRoot ("transition${Variant}_${Architecture}")
+    dotnet publish $transitionProject --artifacts-path (Join-Path $StagingRoot "artifacts") -p:Version=$TransitionVersion -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=$WithRuntime -c Release --self-contained $WithRuntime -r "win-$Architecture" -o $transitionDir
+    if ($LASTEXITCODE -ne 0) { throw 'Transition publishing failed.' }
+    $transitionFiles = @(Get-ChildItem -LiteralPath $transitionDir -File)
+    if ($transitionFiles.Count -ne 1 -or $transitionFiles[0].Name -ne 'NxFileViewer.exe') { throw 'Legacy transition must contain exactly one NxFileViewer.exe.' }
+    Write-PublishExtraPackage "NxFileViewer_v${TransitionVersion}${Variant}_${Architecture}" $transitionFiles[0].FullName $TransitionOutputFormat
+}
+
+function Publish-ExplorerPackages([string[]]$Architectures=@('x64','arm64')) {
+    $ExplorerOutput = Join-Path $StagingRoot 'explorer'
+    New-Item -ItemType Directory -Path $ExplorerOutput -Force | Out-Null
+    if (!$ExplorerSdkBin) { $ExplorerSdkBin = & (Join-Path $PSScriptRoot 'src/NxFileViewer.Explorer/Get-SdkBin.ps1') }
+    $ownCertificate = $null
+    if (!$UnsignedExplorerPackages -and !$ExplorerCertificateThumbprint) {
+        $ownCertificate = & (Join-Path $PSScriptRoot 'src/NxFileViewer.Explorer/Get-SigningCertificate.ps1') -Publisher $ExplorerPublisher
+        $ExplorerCertificateThumbprint = $ownCertificate.Thumbprint
+        $ExplorerPublisher = $ownCertificate.Subject
+        Write-Host "Using local signing certificate $ExplorerCertificateThumbprint (created: $($ownCertificate.Created))"
+        $publicCertificate = Join-Path $ExplorerOutput 'NxFileViewerFork.Explorer.cer'
+        [IO.File]::WriteAllBytes($publicCertificate, [Convert]::FromBase64String($ownCertificate.PublicCertificate))
+        $trustScript = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'src/NxFileViewer.Explorer/Trust-ExplorerCertificate.ps1') -Raw
+        $trustScript = $trustScript.Replace('@CERTIFICATE_THUMBPRINT@', $ExplorerCertificateThumbprint)
+        [IO.File]::WriteAllText((Join-Path $ExplorerOutput 'Trust-ExplorerCertificate.ps1'), $trustScript, [Text.UTF8Encoding]::new($true))
+        Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'src/NxFileViewer.Explorer/Trust-ExplorerCertificate.cmd') -Destination $ExplorerOutput -Force
+        $instructions = @"
+NxFileViewer Fork - modern Explorer menu
+
+1. If you downloaded the setup ZIP, extract it into a folder.
+2. Run Trust-ExplorerCertificate.cmd. Approve the Windows administrator prompt.
+3. Check the publisher and thumbprint, then type YES to trust the public certificate.
+4. Open NxFileViewer Fork normally. In Settings > Program, add the modern menu and select the MSIX from this folder.
+
+This trust step is needed once per PC while the same certificate is used. Later updates do not require importing it again.
+Certificate: $ExplorerPublisher
+Thumbprint: $ExplorerCertificateThumbprint
+Valid until: $($ownCertificate.NotAfter)
+Only the public certificate is included. The private signing key is never distributed.
+The helper trusts this certificate in Local Machine > Trusted People, not Trusted Root Certification Authorities.
+You can remove the menu in NxFileViewer Fork. If you no longer want to trust this publisher, remove this exact certificate from Trusted People using certlm.msc.
+
+Deutsch:
+Falls als ZIP vorliegend, zuerst entpacken. Trust-ExplorerCertificate.cmd starten, die Windows-Adminabfrage bestaetigen und im angezeigten Fenster YES eingeben.
+Danach NxFileViewer Fork normal starten und unter Einstellungen > Programm das moderne Menue mit der beiliegenden MSIX hinzufuegen.
+"@
+        [IO.File]::WriteAllText((Join-Path $ExplorerOutput 'Explorer-install.txt'), $instructions, [Text.UTF8Encoding]::new($true))
+    }
+    $packageOptions = @{
+        Publisher = $ExplorerPublisher; Version = $ExplorerPackageVersion
+        SdkBin = $ExplorerSdkBin; OutputDirectory = $ExplorerOutput
+        TimestampServer = $ExplorerTimestampServer
+    }
+    if ($ExplorerCertificateThumbprint) { $packageOptions.CertificateThumbprint = $ExplorerCertificateThumbprint }
+    else {
+        $packageOptions.Unsigned = $true
+        Write-Warning 'Explorer MSIX packages are unsigned because -UnsignedExplorerPackages was specified.'
+    }
+    foreach ($shellArchitecture in $Architectures) {
+        Write-Host "Packaging Explorer menu ($shellArchitecture)"
+        & (Join-Path $PSScriptRoot 'src/NxFileViewer.Explorer/Build-Package.ps1') @packageOptions -Architecture $shellArchitecture
+        if ($ownCertificate) {
+            $setupFiles = @(
+                (Join-Path $ExplorerOutput "NxFileViewerFork.Explorer_${ExplorerPackageVersion}_${shellArchitecture}.msix"),
+                $publicCertificate,
+                (Join-Path $ExplorerOutput 'Trust-ExplorerCertificate.ps1'),
+                (Join-Path $ExplorerOutput 'Trust-ExplorerCertificate.cmd'),
+                (Join-Path $ExplorerOutput 'Explorer-install.txt')
+            )
+        } else {
+            $suffix = if ($UnsignedExplorerPackages) { '.unsigned' } else { '' }
+            $setupFiles = @(Join-Path $ExplorerOutput "NxFileViewerFork.Explorer_${ExplorerPackageVersion}_${shellArchitecture}${suffix}.msix")
+        }
+        Write-PublishExtraPackage "NxFileViewerFork.Exploder_${ExplorerPackageVersion}_win-$shellArchitecture" $setupFiles $ExplorerOutputFormat
+    }
+}
+
+function Write-ReleaseDescriptor($ApplicationReleasePackages, [switch]$IncludeExplorer, [switch]$RequireExplorerPackages, $AvaloniaPackages=@()) {
+    $ReleaseDescriptor = [ordered]@{ SchemaVersion=1; ApplicationId='NxFileViewerFork'; Version=$AppVersion; Prerelease=$AppVersion.Contains('-'); Packages=@($ApplicationReleasePackages | Where-Object Architecture -ne 'arm64'); Arm64Packages=@($ApplicationReleasePackages | Where-Object Architecture -eq 'arm64') }
+    $ExplorerReleasePackages = @()
+    if ($IncludeExplorer) {
+        foreach ($architecture in @('x64','arm64')) {
+            $assetName = "NxFileViewerFork.Exploder_${ExplorerPackageVersion}_win-$architecture.zip"
+            $zip = Join-Path $OutDirRoot $assetName
+            if (!(Test-Path -LiteralPath $zip -PathType Leaf)) {
+                if ($RequireExplorerPackages) { throw "Explorer ZIP missing after packaging: $assetName" }
+                continue
+            }
+            $ExplorerReleasePackages += [ordered]@{ Architecture=$architecture; SelfContained=$false; AssetName=$assetName; Sha256=(Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash }
+        }
+    }
+    $ReleaseDescriptor.ExplorerPackages = $ExplorerReleasePackages
+    $ReleaseDescriptor.AvaloniaPackages = @($AvaloniaPackages)
+    [IO.File]::WriteAllText((Join-Path $OutDirRoot 'nxfileviewer-update.json'), ($ReleaseDescriptor | ConvertTo-Json -Depth 8), [Text.UTF8Encoding]::new($false))
+
+    $checksums = @{}
+    foreach ($package in @($ApplicationReleasePackages) + @($ExplorerReleasePackages) + @($AvaloniaPackages)) {
+        $checksums[$package.AssetName] = $package.Sha256
+    }
+    $entries = @(Get-ChildItem -LiteralPath $OutDirRoot -Filter '*.zip' -File | Sort-Object Name | ForEach-Object {
+        $framework = if ($_.Name -like '*_Avalonia_*' -or $_.Name -match '^NxFileViewerFork(?:\.LogViewer)?_v[^_]+_(?:win|linux|osx)-') { 'Avalonia' } else { 'WPF' }
+        $hash = if ($checksums.ContainsKey($_.Name)) { $checksums[$_.Name] } else { (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash }
+        [ordered]@{ AssetName=$_.Name; Framework=$framework; Sha256=$hash }
+    })
+    $index = [ordered]@{ SchemaVersion=1; Packages=$entries }
+    [IO.File]::WriteAllText((Join-Path $OutDirRoot 'nxfileviewer-packages.json'), ($index | ConvertTo-Json -Depth 5), [Text.UTF8Encoding]::new($false))
+}
+
+function Get-ExistingApplicationReleasePackages([switch]$Migration) {
+    foreach ($architecture in @('x64','x86','arm64')) {
+        foreach ($withRuntime in @($false,$true)) {
+            $variant = if ($withRuntime) { '_self-contained' } else { '' }
+            $runtime = if ($withRuntime) { 'with-net' } else { 'without-net' }
+            $assetName = if ($Migration) { "${AppName}_v${AppVersion}${variant}_${architecture}.zip" } else { "${AppName}.WPF_v${AppVersion}_win-$architecture-$runtime.zip" }
+            $zip = Join-Path $OutDirRoot $assetName
+            if (Test-Path -LiteralPath $zip -PathType Leaf) {
+                [pscustomobject]@{ Architecture=$architecture; SelfContained=$withRuntime; AssetName=$assetName; Sha256=(Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash }
+            }
+        }
+    }
+}
+
+function Publish-WpfMigrationPackages {
+    foreach ($architecture in @('x64','x86','arm64')) {
+        foreach ($withRuntime in @($false,$true)) {
+            $runtime = if ($withRuntime) { 'with-net' } else { 'without-net' }
+            $legacyVariant = if ($withRuntime) { '_self-contained' } else { '' }
+            $package = Join-Path $OutDirRoot "NxFileViewerFork_v${AppVersion}_win-$architecture-$runtime.zip"
+            if (!(Test-Path -LiteralPath $package -PathType Leaf)) { throw "Migration package missing: $package" }
+            $legacyName = "${AppName}_v${AppVersion}${legacyVariant}_$architecture.zip"
+            $legacyPath = Join-Path $OutDirRoot $legacyName
+            if ((Test-Path -LiteralPath $legacyPath) -and
+                (Get-FileHash -LiteralPath $package).Hash -ne (Get-FileHash -LiteralPath $legacyPath).Hash) {
+                throw "Existing package conflicts with the migration alias: $legacyName"
+            }
+            Copy-Item -LiteralPath $package -Destination $legacyPath -Force
+        }
+    }
+}
+
 # Resolve the SDK using src/global.json for every dotnet invocation.
 Push-Location -LiteralPath (Join-Path $PSScriptRoot 'src')
 try {
+    if ($Extras.Count) {
+        . (Join-Path $PSScriptRoot 'tools/Publish-Configuration.ps1')
+        $migration = 'WpfMigration' -in $Extras
+        $writeUpdateManifest = $migration -or 'UpdateManifest' -in $Extras -or 'Updater' -in $Extras
+        $explorerArchitectures = @($ExtraWindowsArchitectures | Where-Object { $_ -in @('x64','arm64') } | Select-Object -Unique)
+        $transitionArchitectures = @($ExtraWindowsArchitectures | Where-Object { $_ -in @('x64','x86') } | Select-Object -Unique)
+        if ('Explorer' -in $Extras) {
+            if (!$explorerArchitectures.Count) { Write-Warning 'Explorer requires a Windows x64 or ARM64 target.' }
+            elseif ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) { throw 'Explorer packaging requires Windows.' }
+            else { Publish-ExplorerPackages $explorerArchitectures }
+        }
+        if ('Transition' -in $Extras) {
+            if (!$transitionArchitectures.Count) { Write-Warning 'Transition requires a Windows x64 or x86 target.' }
+            $transitionVersion = if ($Version) { $AppVersion } else {
+                (Select-Xml -LiteralPath (Join-Path $PSScriptRoot 'src/NxFileViewer.Transition/NxFileViewer.Transition.csproj') -XPath '/Project/PropertyGroup/Version').Node.InnerText
+            }
+            if ($transitionVersion -notmatch '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$') { throw "Invalid Transition version: $transitionVersion" }
+            foreach ($architecture in $transitionArchitectures) {
+                foreach ($withRuntime in @($false,$true)) { Publish-TransitionPackage $architecture $withRuntime $transitionVersion }
+            }
+        }
+        if ($migration) { Publish-WpfMigrationPackages }
+        $writeAvaloniaZipMetadata = 'AvaloniaZipMetadata' -in $Extras
+        if ($writeUpdateManifest -or $writeAvaloniaZipMetadata) {
+            $found = $false
+            $AvaloniaReleasePackages = @()
+            if ($writeUpdateManifest -and ($migration -or 'WPF' -in $UpdateFrameworks)) {
+                $ApplicationReleasePackages = @(Get-ExistingApplicationReleasePackages -Migration:$migration)
+            }
+            if ($writeAvaloniaZipMetadata -or 'Avalonia' -in $UpdateFrameworks) {
+                . (Join-Path $PSScriptRoot 'tools/Publish-Output.ps1')
+                foreach ($avaloniaName in @('NxFileViewerFork','NxFileViewerFork.LogViewer')) {
+                    $appVersion = if ($AvaloniaUpdateVersions.ContainsKey($avaloniaName)) { $AvaloniaUpdateVersions[$avaloniaName] } elseif ($Version) { $AppVersion } else {
+                        $project = if ($avaloniaName -eq 'NxFileViewerFork') { 'NxFileViewer.Avalonia' } else { 'NxFileViewer.LogViewer.Avalonia' }
+                        (Select-Xml -LiteralPath (Join-Path $PSScriptRoot (Get-ViewerProjectPath $project)) -XPath '/Project/PropertyGroup/Version').Node.InnerText
+                    }
+                    if ($appVersion -notmatch '^\d+\.\d+\.\d+(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$') { throw "Invalid Avalonia version: $appVersion" }
+                    $pattern = '^' + [regex]::Escape("${avaloniaName}_v${appVersion}") + '_(?:win|linux|osx)-(?:x64|x86|arm64)-(?:with|without)-net\.zip$'
+                    foreach ($zip in Get-ChildItem -LiteralPath $OutDirRoot -File -Filter '*.zip' | Where-Object Name -match $pattern) {
+                        $marker = if ($writeAvaloniaZipMetadata) {
+                            Write-Host "Update metadata: $($zip.FullName).avalonia.json"
+                            Write-AvaloniaUpdateChecksum $zip.FullName -PassThru
+                        } else {
+                            Get-AvaloniaUpdateChecksum $zip.FullName
+                        }
+                        if ($writeUpdateManifest -and 'Avalonia' -in $UpdateFrameworks) { $AvaloniaReleasePackages += $marker }
+                        $found = $true
+                    }
+                }
+            }
+            if ($writeUpdateManifest -and ($ApplicationReleasePackages.Count -or $AvaloniaReleasePackages.Count)) {
+                Write-ReleaseDescriptor $ApplicationReleasePackages -IncludeExplorer -AvaloniaPackages $AvaloniaReleasePackages
+                Write-Host "Update manifest: $(Join-Path $OutDirRoot 'nxfileviewer-update.json')"
+                $found = $true
+            }
+            if (!$found) { Write-Warning "No matching application ZIPs found in $OutDirRoot. Build the ZIPs before generating update metadata." }
+        }
+        return
+    }
     if ($SelectedExeVariants) {
         foreach ($selection in $SelectedExeVariants) {
             $architecture = if ($selection -match 'Arm64') { 'arm64' } elseif ($selection -match 'X64') { 'x64' } else { 'x86' }
             $withRuntime = $selection.EndsWith('WithRuntime')
             $suffix = if ($withRuntime) { '_self-contained' } else { '' }
             if ($selection.StartsWith('LogViewer')) {
-                $selectedProject = Join-Path $PSScriptRoot 'src/NxFileViewer.LogViewer/NxFileViewer.LogViewer.csproj'
+                $selectedProject = Join-Path $PSScriptRoot 'src/NxFileViewer.LogViewer.WPF/NxFileViewer.LogViewer.WPF.csproj'
                 $builtExe = 'NxFileViewerFork.LogViewer.exe'
                 $targetExe = $builtExe
                 $releaseName = "NxFileViewerFork.LogViewer_v$($AppVersion)$($suffix)_$architecture"
@@ -250,11 +522,11 @@ try {
         return
     }
     if (!$SkipLogViewer) {
-        $LogViewerProject = Join-Path $PSScriptRoot 'src/NxFileViewer.LogViewer/NxFileViewer.LogViewer.csproj'
+        $LogViewerProject = Join-Path $PSScriptRoot 'src/NxFileViewer.LogViewer.WPF/NxFileViewer.LogViewer.WPF.csproj'
         foreach ($ViewerArchitecture in @('x64', 'x86', 'arm64')) {
             foreach ($ViewerWithRuntime in @($false, $true)) {
-                $ViewerVariant = if ($ViewerWithRuntime) { '_self-contained' } else { '' }
-                $ViewerReleaseName = "NxFileViewerFork.LogViewer_v${AppVersion}${ViewerVariant}_${ViewerArchitecture}"
+                $viewerRuntime = if ($ViewerWithRuntime) { 'with-net' } else { 'without-net' }
+                $ViewerReleaseName = "NxFileViewerFork.WPF.LogViewer_v${AppVersion}_win-$ViewerArchitecture-$viewerRuntime"
                 $ViewerReleaseDir = Join-Path $StagingRoot $ViewerReleaseName
                 Write-Host "Publishing $ViewerReleaseName"
                 dotnet publish $LogViewerProject --artifacts-path (Join-Path $StagingRoot "artifacts") -p:Version=$AppVersion -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=$ViewerWithRuntime -c Release --self-contained $ViewerWithRuntime -r "win-$ViewerArchitecture" -o $ViewerReleaseDir
@@ -267,8 +539,8 @@ try {
     if ($LogViewerOnly) { return }
     foreach ($Architecture in @("x64", "x86", "arm64")) {
         foreach ($WithRuntime in @($false, $true)) {
-            $Variant = if ($WithRuntime) { "_self-contained" } else { "" }
-            $ReleaseName = "${AppName}_v${AppVersion}${Variant}_${Architecture}"
+            $runtime = if ($WithRuntime) { 'with-net' } else { 'without-net' }
+            $ReleaseName = "${AppName}.WPF_v${AppVersion}_win-$Architecture-$runtime"
             $ReleaseDir = Join-Path $StagingRoot $ReleaseName
             Write-Host "Publishing $ReleaseName"
             dotnet publish $ProjectPath --artifacts-path (Join-Path $StagingRoot "artifacts") -p:Version=$AppVersion -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=$WithRuntime -c Release --self-contained $WithRuntime -r "win-$Architecture" -o $ReleaseDir
@@ -291,18 +563,11 @@ try {
             Compress-Archive -LiteralPath @($applicationFiles | ForEach-Object { Join-Path $ReleaseDir $_ }) -DestinationPath (Join-Path $OutDirRoot "$ReleaseName.zip") -Force
             $ApplicationReleasePackages += [pscustomobject]@{ Architecture=$Architecture; SelfContained=[bool]$WithRuntime; AssetName="$ReleaseName.zip"; Sha256=(Get-FileHash -LiteralPath (Join-Path $OutDirRoot "$ReleaseName.zip") -Algorithm SHA256).Hash }
             if ($IncludeLegacyTransition -and $Architecture -ne 'arm64') {
-                $transitionProject = Join-Path $PSScriptRoot 'src/NxFileViewer.Transition/NxFileViewer.Transition.csproj'
-                $transitionDir = Join-Path $StagingRoot ("transition${Variant}_${Architecture}")
-                dotnet publish $transitionProject --artifacts-path (Join-Path $StagingRoot "artifacts") -p:Version=$AppVersion -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=$WithRuntime -c Release --self-contained $WithRuntime -r "win-$Architecture" -o $transitionDir
-                if ($LASTEXITCODE -ne 0) { throw 'Transition publishing failed.' }
-                $transitionFiles = @(Get-ChildItem -LiteralPath $transitionDir -File)
-                if ($transitionFiles.Count -ne 1 -or $transitionFiles[0].Name -ne 'NxFileViewer.exe') { throw 'Legacy transition must contain exactly one NxFileViewer.exe.' }
-                Compress-Archive -LiteralPath $transitionFiles[0].FullName -DestinationPath (Join-Path $OutDirRoot "NxFileViewer_v${AppVersion}${Variant}_${Architecture}.zip") -Force
+                Publish-TransitionPackage $Architecture $WithRuntime
             }
         }
     }
 
-    $ReleaseDescriptor = [ordered]@{ SchemaVersion=1; ApplicationId='NxFileViewerFork'; Version=$AppVersion; Prerelease=$AppVersion.Contains('-'); Packages=@($ApplicationReleasePackages | Where-Object Architecture -ne 'arm64'); Arm64Packages=@($ApplicationReleasePackages | Where-Object Architecture -eq 'arm64') }
 
     # The add-on extracts to Plugins/fwhashes next to either architecture's executable.
     $HashRoot = Join-Path $StagingRoot "firmware-hashes"
@@ -315,84 +580,8 @@ try {
     }
     Compress-Archive -LiteralPath (Join-Path $HashRoot "Plugins") -DestinationPath (Join-Path $OutDirRoot "${AppName}_v${AppVersion}_firmware-hashes.zip") -Force
 
-    if (!$SkipExplorerPackages) {
-        $ExplorerOutput = Join-Path $StagingRoot 'explorer'
-        New-Item -ItemType Directory -Path $ExplorerOutput -Force | Out-Null
-        if (!$ExplorerSdkBin) { $ExplorerSdkBin = & (Join-Path $PSScriptRoot 'src/NxFileViewer.Explorer/Get-SdkBin.ps1') }
-        $ownCertificate = $null
-        if (!$UnsignedExplorerPackages -and !$ExplorerCertificateThumbprint) {
-            $ownCertificate = & (Join-Path $PSScriptRoot 'src/NxFileViewer.Explorer/Get-SigningCertificate.ps1') -Publisher $ExplorerPublisher
-            $ExplorerCertificateThumbprint = $ownCertificate.Thumbprint
-            $ExplorerPublisher = $ownCertificate.Subject
-            Write-Host "Using local signing certificate $ExplorerCertificateThumbprint (created: $($ownCertificate.Created))"
-            $publicCertificate = Join-Path $ExplorerOutput 'NxFileViewerFork.Explorer.cer'
-            [IO.File]::WriteAllBytes($publicCertificate, [Convert]::FromBase64String($ownCertificate.PublicCertificate))
-            $trustScript = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'src/NxFileViewer.Explorer/Trust-ExplorerCertificate.ps1') -Raw
-            $trustScript = $trustScript.Replace('@CERTIFICATE_THUMBPRINT@', $ExplorerCertificateThumbprint)
-            [IO.File]::WriteAllText((Join-Path $ExplorerOutput 'Trust-ExplorerCertificate.ps1'), $trustScript, [Text.UTF8Encoding]::new($true))
-            Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'src/NxFileViewer.Explorer/Trust-ExplorerCertificate.cmd') -Destination $ExplorerOutput -Force
-            $instructions = @"
-NxFileViewer Fork - modern Explorer menu
-
-1. Extract the setup ZIP into a folder.
-2. Run Trust-ExplorerCertificate.cmd. Approve the Windows administrator prompt.
-3. Check the publisher and thumbprint, then type YES to trust the public certificate.
-4. Open NxFileViewer Fork normally. In Settings > Program, add the modern menu and select the MSIX from this folder.
-
-This trust step is needed once per PC while the same certificate is used. Later updates do not require importing it again.
-Certificate: $ExplorerPublisher
-Thumbprint: $ExplorerCertificateThumbprint
-Valid until: $($ownCertificate.NotAfter)
-Only the public certificate is included. The private signing key is never distributed.
-The helper trusts this certificate in Local Machine > Trusted People, not Trusted Root Certification Authorities.
-You can remove the menu in NxFileViewer Fork. If you no longer want to trust this publisher, remove this exact certificate from Trusted People using certlm.msc.
-
-Deutsch:
-ZIP entpacken, Trust-ExplorerCertificate.cmd starten, die Windows-Adminabfrage bestaetigen und im angezeigten Fenster YES eingeben.
-Danach NxFileViewer Fork normal starten und unter Einstellungen > Programm das moderne Menue mit der beiliegenden MSIX hinzufuegen.
-"@
-            [IO.File]::WriteAllText((Join-Path $ExplorerOutput 'Explorer-install.txt'), $instructions, [Text.UTF8Encoding]::new($true))
-        }
-        $packageOptions = @{
-            Publisher = $ExplorerPublisher; Version = $ExplorerPackageVersion
-            SdkBin = $ExplorerSdkBin; OutputDirectory = $ExplorerOutput
-            TimestampServer = $ExplorerTimestampServer
-        }
-        if ($ExplorerCertificateThumbprint) { $packageOptions.CertificateThumbprint = $ExplorerCertificateThumbprint }
-        else {
-            $packageOptions.Unsigned = $true
-            Write-Warning 'Explorer MSIX packages are unsigned because -UnsignedExplorerPackages was specified.'
-        }
-        foreach ($shellArchitecture in @('x64', 'arm64')) {
-            Write-Host "Packaging Explorer menu ($shellArchitecture)"
-            & (Join-Path $PSScriptRoot 'src/NxFileViewer.Explorer/Build-Package.ps1') @packageOptions -Architecture $shellArchitecture
-            if ($ownCertificate) {
-                $setupFiles = @(
-                    (Join-Path $ExplorerOutput "NxFileViewerFork.Explorer_${ExplorerPackageVersion}_${shellArchitecture}.msix"),
-                    $publicCertificate,
-                    (Join-Path $ExplorerOutput 'Trust-ExplorerCertificate.ps1'),
-                    (Join-Path $ExplorerOutput 'Trust-ExplorerCertificate.cmd'),
-                    (Join-Path $ExplorerOutput 'Explorer-install.txt')
-                )
-                Compress-Archive -LiteralPath $setupFiles -DestinationPath (Join-Path $OutDirRoot "NxFileViewerFork.Explorer_${ExplorerPackageVersion}_${shellArchitecture}_setup.zip") -Force
-            } else {
-                $suffix = if ($UnsignedExplorerPackages) { '.unsigned' } else { '' }
-                $package = Join-Path $ExplorerOutput "NxFileViewerFork.Explorer_${ExplorerPackageVersion}_${shellArchitecture}${suffix}.msix"
-                Compress-Archive -LiteralPath $package -DestinationPath (Join-Path $OutDirRoot "NxFileViewerFork.Explorer_${ExplorerPackageVersion}_${shellArchitecture}_setup.zip") -Force
-            }
-        }
-    }
-    $ExplorerReleasePackages = @()
-    if (!$SkipExplorerPackages) {
-        foreach ($architecture in @('x64','arm64')) {
-            $assetName = "NxFileViewerFork.Explorer_${ExplorerPackageVersion}_${architecture}_setup.zip"
-            $zip = Join-Path $OutDirRoot $assetName
-            if (!(Test-Path -LiteralPath $zip -PathType Leaf)) { throw 'Explorer ZIP missing after packaging.' }
-            $ExplorerReleasePackages += [ordered]@{ Architecture=$architecture; SelfContained=$false; AssetName=$assetName; Sha256=(Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash }
-        }
-    }
-    $ReleaseDescriptor.ExplorerPackages = $ExplorerReleasePackages
-    [IO.File]::WriteAllText((Join-Path $OutDirRoot 'nxfileviewer-update.json'), ($ReleaseDescriptor | ConvertTo-Json -Depth 8), [Text.UTF8Encoding]::new($false))
+    if (!$SkipExplorerPackages) { Publish-ExplorerPackages }
+    Write-ReleaseDescriptor $ApplicationReleasePackages -IncludeExplorer:(!$SkipExplorerPackages) -RequireExplorerPackages:(!$SkipExplorerPackages)
 }
 finally {
     Pop-Location
@@ -406,4 +595,9 @@ finally {
 # Individual WPF EXE switches and -LogViewerOnly return above. The full build
 # also includes Avalonia; the tag-release workflow passes -SkipAvalonia because
 # its native OS jobs already build those packages separately for beta tags.
-if (!$SkipAvalonia) { Publish-AvaloniaSelection }
+if (!$SkipAvalonia) {
+    Publish-AvaloniaSelection
+    $manifestOptions = @{ OutputDirectory=$OutDirRoot; Extras=@('UpdateManifest'); ExplorerPackageVersion=$ExplorerPackageVersion }
+    if ($Version) { $manifestOptions.Version = $Version }
+    & $PSCommandPath @manifestOptions
+}

@@ -1,0 +1,1197 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="NxFileViewer.Avalonia.MainWindow" Title="NxFileViewer Fork" Icon="/Icons/Icon.ico" Width="1400" Height="850" MinWidth="1000" MinHeight="600" DragDrop.AllowDrop="True">
+  <Window.Styles>
+    <StyleInclude Source="/WorkspaceStyles.axaml" />
+  </Window.Styles>
+  <Grid RowDefinitions="*,Auto">
+    <TabControl x:Name="Workspace">
+      <TabItem x:Name="HomeTab">
+        <TabItem.Header>
+          <StackPanel Orientation="Horizontal" Spacing="7">
+            <Image Source="/Icons/FolderDirectoryEntryItem.png" Width="16" Height="16" />
+            <TextBlock Text="{Binding Workspace_Home}" VerticalAlignment="Center" />
+          </StackPanel>
+        </TabItem.Header>
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <StackPanel HorizontalAlignment="Stretch" VerticalAlignment="Center" MaxWidth="1080" Margin="16,20">
+            <Image Source="/Icons/Icon.ico" Width="72" Height="72" Margin="0,0,0,16" />
+            <TextBlock Text="NxFileViewer Fork" FontSize="30" Margin="0,0,0,24" HorizontalAlignment="Center" />
+            <Border x:Name="HomeKeysWarning" BorderBrush="{DynamicResource FontBrush.Warning}" BorderThickness="1" Padding="12" Margin="0,0,0,12">
+              <StackPanel Spacing="6">
+                <TextBlock Text="⚠ prod.keys" Foreground="{DynamicResource FontBrush.Warning}" FontWeight="Bold" />
+                <TextBlock Text="{Binding WarnNoProdKeysFileFound}" TextWrapping="Wrap" />
+                <WrapPanel>
+                  <Button Content="{Binding SettingsView_Title}" Tag="SettingsTab" Click="NavigateWorkspace" Margin="0,0,8,0" />
+                  <Button Content="{Binding MenuItem_ReloadKeys}" Click="ReloadKeysClicked" />
+                </WrapPanel>
+              </StackPanel>
+            </Border>
+            <StackPanel HorizontalAlignment="Center" Margin="0,0,0,10" Spacing="4">
+              <TextBlock x:Name="HomePollNotice" HorizontalAlignment="Center" IsVisible="False" Foreground="{DynamicResource FontBrush.Warning}" />
+              <Button x:Name="HomePollButton" Click="OpenPolls" HorizontalAlignment="Center" />
+            </StackPanel>
+            <StackPanel x:Name="HomeUpdatePanel" IsVisible="False" Margin="14,0,14,12" Spacing="6">
+              <TextBlock x:Name="HomeUpdateText" HorizontalAlignment="Center" IsVisible="False" Classes="update-available" TextWrapping="Wrap" />
+              <TextBlock x:Name="HomeExtraUpdateText" HorizontalAlignment="Center" IsVisible="False" Classes="update-available" TextWrapping="Wrap" />
+              <Button x:Name="HomeInstallUpdate" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Click="InstallApplicationUpdate" />
+            </StackPanel>
+            <WrapPanel HorizontalAlignment="Center">
+              <Button Classes="home-navigation" Tag="FileTab" Click="NavigateWorkspace">
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                  <Image Source="/Icons/open_16x16.png" Width="20" Height="20" />
+                  <TextBlock Text="{Binding Workspace_File}" VerticalAlignment="Center" />
+                </StackPanel>
+              </Button>
+              <Button Classes="home-navigation" Tag="BatchTab" Click="NavigateWorkspace">
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                  <Image Source="/Icons/safe_16x16.png" Width="20" Height="20" />
+                  <TextBlock Text="{Binding BatchIntegrity_Title}" VerticalAlignment="Center" />
+                </StackPanel>
+              </Button>
+              <Button Classes="home-navigation" Tag="RenameTab" Click="NavigateWorkspace">
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                  <Image Source="/Icons/rename_16x16.png" Width="20" Height="20" />
+                  <TextBlock Text="{Binding RenamingTool_WindowTitle}" VerticalAlignment="Center" />
+                </StackPanel>
+              </Button>
+              <Button Classes="home-navigation" Tag="NandTab" Click="NavigateWorkspace">
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                  <Image x:Name="HomeNandIcon" Width="24" Height="20" />
+                  <TextBlock Text="NAND" VerticalAlignment="Center" />
+                </StackPanel>
+              </Button>
+              <Button Classes="home-navigation" Tag="SettingsTab" Click="NavigateWorkspace">
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                  <Image Source="/Icons/settings_16x16.png" Width="20" Height="20" />
+                  <TextBlock Text="{Binding SettingsView_Title}" VerticalAlignment="Center" />
+                </StackPanel>
+              </Button>
+              <Button Classes="home-navigation" Tag="PluginsTab" Click="NavigateWorkspace">
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                  <Image Source="/Icons/settings_16x16.png" Width="20" Height="20" />
+                  <TextBlock Text="{Binding Workspace_Plugins}" VerticalAlignment="Center" />
+                </StackPanel>
+              </Button>
+              <Button x:Name="HomeUpdatesButton" Classes="home-navigation" Tag="UpdatesTab" Click="NavigateWorkspace">
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                  <Image Source="/Icons/refresh_16x16.png" Width="20" Height="20" />
+                  <TextBlock Text="{Binding DataUpdate_Title}" VerticalAlignment="Center" />
+                </StackPanel>
+              </Button>
+              <Button Classes="home-navigation" Tag="InfoTab" Click="NavigateWorkspace">
+                <StackPanel>
+                  <TextBlock Text="Info" HorizontalAlignment="Center" />
+                  <TextBlock x:Name="HomeReportLabel" HorizontalAlignment="Center" />
+                </StackPanel>
+              </Button>
+            </WrapPanel>
+            <Border x:Name="HomePluginPanel" Margin="4,14,4,0" Padding="10" BorderThickness="1" BorderBrush="{DynamicResource Control.Static.Border}" CornerRadius="6">
+              <StackPanel>
+                <TextBlock Text="{Binding Home_PluginLaunchTitle}" FontSize="14" FontWeight="SemiBold" Margin="4,0,0,4" />
+                <TextBlock Text="{Binding Home_PluginLaunchTip}" TextWrapping="Wrap" FontSize="12" Margin="4,0,4,6" />
+                <WrapPanel HorizontalAlignment="Center">
+                  <Button x:Name="HomeNandLaunch" Classes="plugin-launch" Tag="NAND" Click="LaunchPlugin" ToolTip.Tip="{Binding Home_NandLaunchTip}">
+                    <StackPanel Spacing="4">
+                      <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Image x:Name="NandPluginIcon" Width="26" Height="23" />
+                        <TextBlock Text="NxNandManager" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center" />
+                      </StackPanel>
+                      <TextBlock Text="{Binding Home_NandDescription}" TextWrapping="Wrap" FontSize="12" />
+                      <TextBlock Text="{Binding Home_LaunchExternal}" FontWeight="SemiBold" />
+                    </StackPanel>
+                  </Button>
+                  <Button x:Name="HomeNszLaunch" Classes="plugin-launch" Tag="NSZ" Click="LaunchPlugin" ToolTip.Tip="{Binding Home_NszLaunchTip}">
+                    <StackPanel Spacing="4">
+                      <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Image x:Name="NszPluginIcon" Width="24" Height="26" />
+                        <TextBlock Text="NSZ" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center" />
+                      </StackPanel>
+                      <TextBlock Text="{Binding Home_NszDescription}" TextWrapping="Wrap" FontSize="12" />
+                      <TextBlock Text="{Binding Home_LaunchExternal}" FontWeight="SemiBold" />
+                    </StackPanel>
+                  </Button>
+                  <Button x:Name="HomeRustLaunch" Classes="plugin-launch" Tag="Rust" Click="LaunchPlugin">
+                    <StackPanel Spacing="4">
+                      <TextBlock Text="{Binding RustDesktop_Title}" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap" />
+                      <TextBlock Text="{Binding Home_NszDescription}" TextWrapping="Wrap" FontSize="12" />
+                      <TextBlock Text="{Binding Home_LaunchExternal}" FontWeight="SemiBold" />
+                    </StackPanel>
+                  </Button>
+                  <Button x:Name="HomeKronosLaunch" Classes="plugin-launch" Tag="Kronos" Click="LaunchPlugin">
+                    <StackPanel Spacing="4">
+                      <TextBlock Text="Kronos / NSC_BUILDER" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap" />
+                      <TextBlock Text="{Binding Package_Title}" TextWrapping="Wrap" FontSize="12" />
+                      <TextBlock Text="{Binding Home_LaunchExternal}" FontWeight="SemiBold" />
+                    </StackPanel>
+                  </Button>
+                </WrapPanel>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+      <TabItem x:Name="FileTab">
+        <TabItem.Header>
+          <StackPanel Orientation="Horizontal" Spacing="7">
+            <Image Source="/Icons/open_16x16.png" Width="16" Height="16" />
+            <TextBlock Text="{Binding Workspace_File}" VerticalAlignment="Center" />
+          </StackPanel>
+        </TabItem.Header>
+        <Grid RowDefinitions="Auto,*">
+          <WrapPanel Margin="8,8,8,0">
+            <Button Click="OpenClicked" ToolTip.Tip="Ctrl+O" Margin="0,0,8,0">
+              <StackPanel Orientation="Horizontal" Spacing="7">
+                <Image Source="/Icons/open_16x16.png" Width="16" Height="16" />
+                <TextBlock Text="{Binding MenuItem_Open}" VerticalAlignment="Center" />
+              </StackPanel>
+            </Button>
+            <Button Click="OpenLastClicked" x:Name="OpenLastButton" IsEnabled="False" ToolTip.Tip="Ctrl+Shift+O" Margin="0,0,8,0">
+              <StackPanel Orientation="Horizontal" Spacing="7">
+                <Image Source="/Icons/reload_last_16x16.png" Width="16" Height="16" />
+                <TextBlock Text="{Binding MenuItem_OpenLast}" VerticalAlignment="Center" />
+              </StackPanel>
+            </Button>
+            <Button x:Name="FileCloseButton" IsEnabled="False" Click="CloseClicked" ToolTip.Tip="Ctrl+Shift+C" Margin="0,0,8,0">
+              <StackPanel Orientation="Horizontal" Spacing="7">
+                <Image Source="/Icons/close_16x16.png" Width="16" Height="16" />
+                <TextBlock Text="{Binding MenuItem_Close}" VerticalAlignment="Center" />
+              </StackPanel>
+            </Button>
+            <Button x:Name="FileMtpButton" Content="{Binding Mtp_Title}" Click="OpenMtp" Margin="0,0,8,0" ToolTip.Tip="{Binding Mtp_Tip}" />
+            <Button x:Name="MtpCancelButton" Content="{Binding CancelAction}" Click="CancelMtp" IsVisible="False" Margin="0,0,8,0" />
+            <Button IsEnabled="{Binding IsEnabled, ElementName=VerifyFileButton}" Content="{Binding MenuItem_CheckIntegrity}" Click="VerifyOpenedFile" Margin="0,0,8,0" ToolTip.Tip="F5" />
+            <Button x:Name="FileCompressButton" IsEnabled="False" Content="{Binding Nsz_Compress}" Tag="Compress" Click="RunOpenedPackageAction" Margin="0,0,8,0" />
+            <Button x:Name="FileDecompressButton" IsEnabled="False" Content="{Binding Nsz_Decompress}" Tag="Decompress" Click="RunOpenedPackageAction" Margin="0,0,8,0" />
+            <Button x:Name="FileTitlePageButton" IsVisible="False" Content="{Binding MenuItem_OpenTitleWebPage}" Click="OpenTitlePage" Margin="0,0,8,0" />
+            <Button x:Name="FilePackageCancelButton" IsVisible="False" Content="{Binding CancelAction}" Click="CancelBatch" Margin="0,0,8,0" />
+            <Button Content="{Binding MenuItem_ReloadKeys}" Click="ReloadKeysClicked" ToolTip.Tip="F10" />
+          </WrapPanel>
+          <StackPanel x:Name="FileEmpty" Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
+            <TextBlock Text="{Binding DragMeAFile}" FontSize="16" FontStyle="Italic" Opacity="0.45" HorizontalAlignment="Center" />
+            <TextBlock x:Name="FileKeysWarning" Text="{Binding WarnNoProdKeysFileFound}" Foreground="{DynamicResource FontBrush.Warning}" HorizontalAlignment="Center" />
+          </StackPanel>
+          <TabControl x:Name="FileBody" Grid.Row="1" IsVisible="False">
+            <TabItem Header="{Binding TabOverview}">
+              <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                  <TextBlock x:Name="MetadataStatus" TextWrapping="Wrap" Foreground="{DynamicResource FontBrush.Warning}" Margin="8" />
+                  <Border Classes="overview-group">
+                    <StackPanel>
+                      <TextBlock Text="{Binding FileInfo_Title}" FontWeight="Bold" Margin="0,0,0,4" />
+                      <Grid ColumnDefinitions="*,*,*,1.2*" RowDefinitions="Auto,Auto">
+                        <StackPanel Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="1" Margin="0,0,4,4">
+                          <TextBlock Classes="overview-label" Text="{Binding Title_FileInfo_FileType}" />
+                          <TextBox Classes="overview-value" x:Name="OverviewType" IsReadOnly="True" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Grid.Row="0" Grid.ColumnSpan="1" Margin="0,0,4,4">
+                          <StackPanel Orientation="Horizontal">
+                            <TextBlock Classes="overview-label" Text="{Binding PackageStructure_Title}" ToolTip.Tip="{Binding ToolTip_PackageStructure}" />
+                            <Border Classes="help-tip" ToolTip.Tip="{Binding ToolTip_PackageStructure}">
+                              <TextBlock Text="?" HorizontalAlignment="Center" FontWeight="Bold" />
+                            </Border>
+                          </StackPanel>
+                          <TextBox Classes="overview-value" x:Name="OverviewStructure" IsReadOnly="True" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Grid.Row="0" Grid.ColumnSpan="1" Margin="0,0,4,4">
+                          <StackPanel Orientation="Horizontal">
+                            <TextBlock Classes="overview-label" Text="{Binding Signature_Title}" ToolTip.Tip="{Binding ToolTip_NcaSignature}" />
+                            <Border Classes="help-tip" ToolTip.Tip="{Binding ToolTip_NcaSignature}">
+                              <TextBlock Text="?" HorizontalAlignment="Center" FontWeight="Bold" />
+                            </Border>
+                          </StackPanel>
+                          <TextBox Classes="overview-value" x:Name="OverviewSignature" IsReadOnly="True" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="3" Grid.Row="0" Grid.ColumnSpan="1" Margin="0,0,4,4">
+                          <StackPanel Orientation="Horizontal">
+                            <TextBlock Classes="overview-label" Text="{Binding Title_FileInfo_Integrity}" ToolTip.Tip="{Binding ToolTip_NcasIntegrity}" />
+                            <Border Classes="help-tip" ToolTip.Tip="{Binding ToolTip_NcasIntegrity}">
+                              <TextBlock Text="?" HorizontalAlignment="Center" FontWeight="Bold" />
+                            </Border>
+                          </StackPanel>
+                          <TextBox Classes="overview-value" x:Name="OverviewIntegrity" IsReadOnly="True" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="1" Margin="0,0,4,4">
+                          <TextBlock Classes="overview-label" Text="{Binding FileInfo_FileSize}" />
+                          <TextBox Classes="overview-value" x:Name="OverviewSize" IsReadOnly="True" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Grid.Row="1" Grid.ColumnSpan="1" Margin="0,0,4,4">
+                          <TextBlock Classes="overview-label" Text="{Binding Title_FileInfo_Compression}" />
+                          <TextBox Classes="overview-value" x:Name="OverviewCompression" IsReadOnly="True" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Grid.Row="1" Grid.ColumnSpan="2" Margin="0,0,4,4">
+                          <TextBlock Classes="overview-label" Text="{Binding FileInfo_CompressionRatio}" />
+                          <TextBox Classes="overview-value" x:Name="OverviewRatio" IsReadOnly="True" />
+                        </StackPanel>
+                      </Grid>
+                    </StackPanel>
+                  </Border>
+                  <Border x:Name="OverviewMissingKeys" Classes="overview-group" IsVisible="False">
+                    <StackPanel Spacing="4">
+                      <TextBlock Text="{Binding File_MissingKeysHeader}" FontWeight="Bold" />
+                      <SelectableTextBlock x:Name="OverviewMissingKeysText" TextWrapping="Wrap" />
+                      <Button Content="{Binding File_CopyMissingKeys}" Click="CopyOverviewMissingKeys" HorizontalAlignment="Left" />
+                    </StackPanel>
+                  </Border>
+                  <Border x:Name="OverviewMultiPackage" Classes="overview-group" IsVisible="False">
+                    <StackPanel Spacing="4">
+                      <TextBlock Text="{Binding Packages_Title}" FontWeight="Bold" />
+                      <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4">
+                        <TextBlock Text="{Binding AvailableContents}" Classes="overview-label" VerticalAlignment="Center" />
+                        <ComboBox x:Name="OverviewPackageChoice" SelectionChanged="OverviewPackageSelected" MinWidth="120" />
+                        <Border x:Name="OverviewMultiPackageTip" Classes="help-tip">
+                          <TextBlock Text="?" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold" />
+                        </Border>
+                      </StackPanel>
+                    </StackPanel>
+                  </Border>
+                  <Border Classes="overview-group">
+                    <StackPanel>
+                      <TextBlock Text="{Binding CnmtOverview_Title}" FontWeight="Bold" Margin="0,0,0,4" />
+                      <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+                        <StackPanel Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="1" Margin="0,0,4,4">
+                          <TextBlock Classes="overview-label" Text="{Binding CnmtOverview_ContentType}" />
+                          <TextBox Classes="overview-value" x:Name="OverviewContentType" IsReadOnly="True" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Grid.Row="0" Grid.ColumnSpan="1" Margin="0,0,4,4">
+                          <TextBlock Classes="overview-label" Text="{Binding CnmtOverview_TitleId}" />
+                          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="4">
+                            <TextBox Classes="overview-value" x:Name="OverviewTitleId" IsReadOnly="True" />
+                            <Button x:Name="OverviewTitlePageButton" Grid.Column="1" IsVisible="False" Content="↗" Click="OpenTitlePage" ToolTip.Tip="{Binding MenuItem_OpenTitleWebPage}" />
+                          </Grid>
+                        </StackPanel>
+                        <StackPanel Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="1" Margin="0,0,4,4">
+                          <TextBlock Classes="overview-label" Text="{Binding CnmtOverview_TitleVersion}" />
+                          <TextBox Classes="overview-value" x:Name="OverviewVersion" IsReadOnly="True" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Grid.Row="1" Grid.ColumnSpan="1" Margin="0,0,4,4">
+                          <TextBlock Classes="overview-label" Text="{Binding CnmtOverview_MinimumSystemVersion}" />
+                          <TextBox Classes="overview-value" x:Name="OverviewSystemVersion" IsReadOnly="True" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="0" Grid.Row="2" Grid.ColumnSpan="1" Margin="0,0,4,4">
+                          <TextBlock Classes="overview-label" Text="{Binding CnmtOverview_BaseTitleId}" />
+                          <TextBox Classes="overview-value" x:Name="OverviewBaseId" IsReadOnly="True" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Grid.Row="2" Grid.ColumnSpan="1" Margin="0,0,4,4">
+                          <TextBlock Classes="overview-label" Text="{Binding CnmtOverview_MasterKey}" />
+                          <TextBox Classes="overview-value" x:Name="OverviewMasterKey" IsReadOnly="True" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="0" Grid.Row="3" Grid.ColumnSpan="1" Margin="0,0,4,4">
+                          <TextBlock Classes="overview-label" Text="{Binding CnmtOverview_MinimumApplicationVersion}" />
+                          <TextBox Classes="overview-value" x:Name="OverviewMinApp" IsReadOnly="True" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Grid.Row="3" Grid.ColumnSpan="1" Margin="0,0,4,4">
+                          <TextBlock Classes="overview-label" Text="{Binding CnmtOverview_Distribution}" />
+                          <TextBox Classes="overview-value" x:Name="OverviewDistribution" IsReadOnly="True" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="0" Grid.Row="4" Grid.ColumnSpan="2" Margin="0,0,4,4">
+                          <TextBlock Classes="overview-label" Text="{Binding CnmtOverview_BuildID}" />
+                          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                            <TextBox Classes="overview-value" x:Name="OverviewBuildId" IsReadOnly="True" />
+                            <CheckBox x:Name="OverviewDemo" Grid.Column="1" Content="{Binding CnmtOverview_IsDemo}"
+                                      IsHitTestVisible="False" Focusable="False" VerticalAlignment="Center" />
+                          </Grid>
+                        </StackPanel>
+                      </Grid>
+                    </StackPanel>
+                  </Border>
+                  <Border Classes="overview-group">
+                    <StackPanel>
+                      <TextBlock Text="{Binding Security_Title}" FontWeight="Bold" Margin="0,0,0,4" />
+                      <Grid ColumnDefinitions="*,*,*">
+                        <StackPanel Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="1" Margin="0,0,4,4">
+                          <StackPanel Orientation="Horizontal">
+                            <TextBlock Classes="overview-label" Text="{Binding Security_Level}" ToolTip.Tip="{Binding ToolTip_Permission}" />
+                            <Border Classes="help-tip" ToolTip.Tip="{Binding ToolTip_Permission}">
+                              <TextBlock Text="?" HorizontalAlignment="Center" FontWeight="Bold" />
+                            </Border>
+                          </StackPanel>
+                          <TextBox Classes="overview-value" x:Name="OverviewSecurity" IsReadOnly="True" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Grid.Row="0" Grid.ColumnSpan="1" Margin="0,0,4,4">
+                          <StackPanel Orientation="Horizontal">
+                            <TextBlock Classes="overview-label" Text="{Binding Security_FileSystemPermissions}" ToolTip.Tip="{Binding ToolTip_Permission}" />
+                            <Border Classes="help-tip" ToolTip.Tip="{Binding ToolTip_Permission}">
+                              <TextBlock Text="?" HorizontalAlignment="Center" FontWeight="Bold" />
+                            </Border>
+                          </StackPanel>
+                          <TextBox Classes="overview-value" x:Name="OverviewPermissions" IsReadOnly="True" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Grid.Row="0" Grid.ColumnSpan="1" Margin="0,0,4,4">
+                          <StackPanel Orientation="Horizontal">
+                            <TextBlock Classes="overview-label" Text="{Binding Security_AcidSignature}" ToolTip.Tip="{Binding ToolTip_AcidSignature}" />
+                            <Border Classes="help-tip" ToolTip.Tip="{Binding ToolTip_AcidSignature}">
+                              <TextBlock Text="?" HorizontalAlignment="Center" FontWeight="Bold" />
+                            </Border>
+                          </StackPanel>
+                          <TextBox Classes="overview-value" x:Name="OverviewAcid" IsReadOnly="True" />
+                        </StackPanel>
+                      </Grid>
+                    </StackPanel>
+                  </Border>
+                  <Border Classes="overview-group">
+                    <StackPanel>
+                      <TextBlock Text="{Binding Presentation_Title}" FontWeight="Bold" Margin="0,0,0,4" />
+                      <Grid RowDefinitions="Auto,Auto,*" ColumnDefinitions="160,*">
+                        <StackPanel Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="2" Margin="0,0,4,4">
+                          <TextBlock Classes="overview-label" Text="{Binding DisplayVersion}" />
+                          <TextBox Classes="overview-value" x:Name="OverviewDisplayVersion" IsReadOnly="True" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Grid.Row="1">
+                          <TextBlock Text="{Binding AvailableLanguages}" Classes="overview-label" ToolTip.Tip="{Binding ToolTip_AvailableLanguages}" />
+                          <Border Classes="help-tip" ToolTip.Tip="{Binding ToolTip_AvailableLanguages}">
+                            <TextBlock Text="?" HorizontalAlignment="Center" FontWeight="Bold" />
+                          </Border>
+                        </StackPanel>
+                        <ListBox x:Name="OverviewLanguages" Grid.Row="2" Margin="0,0,8,0" MinHeight="180" MaxHeight="300" SelectionChanged="OverviewLanguageSelected" DisplayMemberBinding="{Binding Name}" />
+                        <StackPanel Grid.Row="1" Grid.RowSpan="2" Grid.Column="1">
+                          <StackPanel Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="1" Margin="0,0,4,4">
+                            <TextBlock Classes="overview-label" Text="{Binding AppTitle}" />
+                            <TextBox Classes="overview-value" x:Name="OverviewTitleName" IsReadOnly="True" />
+                          </StackPanel>
+                          <StackPanel Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="1" Margin="0,0,4,4">
+                            <TextBlock Classes="overview-label" Text="{Binding Publisher}" />
+                            <TextBox Classes="overview-value" x:Name="OverviewPublisher" IsReadOnly="True" />
+                          </StackPanel>
+                          <Image x:Name="OverviewIcon" Width="256" Height="256" HorizontalAlignment="Center" Stretch="Uniform">
+                            <Image.ContextMenu>
+                              <ContextMenu>
+                                <MenuItem Header="{Binding ContextMenu_CopyImage}" Click="CopyOverviewIcon" />
+                                <MenuItem Header="{Binding ContextMenu_SaveImage}" Click="SaveOverviewIcon" />
+                              </ContextMenu>
+                            </Image.ContextMenu>
+                          </Image>
+                        </StackPanel>
+                      </Grid>
+                    </StackPanel>
+                  </Border>
+                </StackPanel>
+              </ScrollViewer>
+            </TabItem>
+            <TabItem Header="{Binding TabContent}">
+              <Grid x:Name="ContentBody" Margin="8" RowDefinitions="Auto,*,5,*">
+                <TextBlock Text="{Binding GroupBoxStructure}" FontWeight="Bold" Margin="4,0,0,2" />
+                <TreeView Grid.Row="1" x:Name="Entries" SelectionChanged="EntrySelected" PointerPressed="EntryPointerPressed">
+                  <TreeView.ContextMenu>
+                    <ContextMenu>
+                      <MenuItem Header="{Binding ContextMenu_SaveFileItem}" Click="ExtractSelectedEntry" />
+                      <MenuItem Header="{Binding ContextMenu_SaveDirectoryItem}" Click="ExtractAllEntries" />
+                      <MenuItem Header="NCA / NCZ" Click="BrowseNcaContents" />
+                    </ContextMenu>
+                  </TreeView.ContextMenu>
+                  <TreeView.Styles>
+                    <Style Selector="TreeViewItem">
+                      <Setter Property="IsExpanded" Value="{Binding IsRoot}" />
+                    </Style>
+                  </TreeView.Styles>
+                  <TreeView.ItemTemplate>
+                    <TreeDataTemplate ItemsSource="{Binding Children}">
+                      <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Image Source="{Binding Icon}" Width="16" Height="16" />
+                        <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                      </StackPanel>
+                    </TreeDataTemplate>
+                  </TreeView.ItemTemplate>
+                </TreeView>
+                <GridSplitter ResizeDirection="Rows" HorizontalAlignment="Stretch" Grid.Row="2" />
+                <ScrollViewer Margin="4" Grid.Row="3">
+                  <StackPanel Spacing="8">
+                    <TextBlock Text="{Binding GroupBoxProperties}" FontWeight="Bold" />
+                    <DataGrid x:Name="EntryProperties" IsReadOnly="True" AutoGenerateColumns="False" HeadersVisibility="None" GridLinesVisibility="All" FontSize="12" RowHeight="18" MaxHeight="300">
+                      <DataGrid.Columns>
+                        <DataGridTextColumn Binding="{Binding Name}" Width="135" />
+                        <DataGridTextColumn Binding="{Binding Value}" Width="*" />
+                      </DataGrid.Columns>
+                    </DataGrid>
+                    <TextBlock x:Name="FileNameText" FontSize="12" TextWrapping="Wrap" />
+                    <TextBlock x:Name="FileInfoText" TextWrapping="Wrap" />
+                    <TextBlock x:Name="EntryInfoText" TextWrapping="Wrap" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <Button x:Name="ExtractEntryButton" Content="{Binding ContextMenu_SaveFileItem}" IsEnabled="False" Click="ExtractSelectedEntry" />
+                      <Button x:Name="ExtractAllButton" Content="{Binding ContextMenu_SaveDirectoryItem}" Click="ExtractAllEntries" />
+                      <Button x:Name="ExtractCancelButton" Content="{Binding CancelAction}" IsEnabled="False" Click="CancelExtraction" />
+                    </StackPanel>
+                    <CheckBox x:Name="ExtractOriginalNca" Content="NCZ → NCA" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <Button x:Name="VerifyFileButton" Content="{Binding Batch_VerifyAll}" IsEnabled="False" Click="VerifyOpenedFile" />
+                      <Button x:Name="VerifyFileCancelButton" Content="{Binding CancelAction}" IsEnabled="False" Click="CancelFileVerification" />
+                    </StackPanel>
+                    <TextBox x:Name="FileVerificationResult" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" IsVisible="False" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <Button x:Name="BrowseNcaButton" Content="NCA / NCZ" IsVisible="False" Click="BrowseNcaContents" />
+                      <Button x:Name="BrowseNcaCancel" Content="{Binding CancelAction}" IsVisible="False" Click="CancelNcaContents" />
+                    </StackPanel>
+                    <ListBox x:Name="NcaContentsList" IsVisible="False" MaxHeight="350" SelectionChanged="NcaContentSelected" />
+                    <Button x:Name="SaveNcaContentButton" Content="{Binding ContextMenu_SaveFileItem}" IsVisible="False" IsEnabled="False" Click="SaveNcaContent" />
+                    <TextBlock x:Name="NcaContentsStatus" TextWrapping="Wrap" />
+                  </StackPanel>
+                </ScrollViewer>
+              </Grid>
+            </TabItem>
+          </TabControl>
+        </Grid>
+      </TabItem>
+      <TabItem x:Name="BatchTab">
+        <TabItem.Header>
+          <StackPanel Orientation="Horizontal" Spacing="7">
+            <Image Source="/Icons/safe_16x16.png" Width="16" Height="16" />
+            <TextBlock Text="{Binding BatchIntegrity_Title}" VerticalAlignment="Center" />
+          </StackPanel>
+        </TabItem.Header>
+        <Grid RowDefinitions="Auto,Auto,*,Auto,Auto" Margin="10" RowSpacing="8">
+          <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
+            <TextBox x:Name="BatchInputPath" PlaceholderText="{Binding BatchIntegrity_Path}" TextChanged="BatchPathChanged" ToolTip.Tip="{Binding BatchIntegrity_SelectDirectory}" />
+            <Button Grid.Column="1" Content="{Binding BatchIntegrity_Browse}" Click="ChooseBatchFolder" />
+            <Button Grid.Column="2" Content="{Binding Firmware_BrowseZip}" Click="ChooseBatchArchive" /><Button x:Name="BatchMtpButton" Grid.Column="3" Content="{Binding Mtp_Title}" Click="OpenMtp" Tag="Batch" ToolTip.Tip="{Binding Mtp_Tip}"/>
+          </Grid>
+          <StackPanel Grid.Row="1" Spacing="4">
+            <WrapPanel>
+              <TextBox x:Name="BatchSearch" PlaceholderText="{Binding BatchTable_Search}" Width="220" TextChanged="BatchFilterChanged" Margin="0,0,8,0" />
+              <ComboBox ToolTip.Tip="{Binding BatchIntegrity_FileType}" x:Name="BatchTypeFilter" Width="110" SelectionChanged="BatchChoiceChanged" Margin="0,0,8,0" />
+              <ComboBox ToolTip.Tip="{Binding Title_FileInfo_Integrity}" x:Name="BatchIntegrityFilter" Width="150" SelectionChanged="BatchChoiceChanged" Margin="0,0,8,0" />
+              <ComboBox x:Name="BatchNamingFilter" Width="150" SelectionChanged="BatchChoiceChanged" Margin="0,0,8,0" ToolTip.Tip="{Binding BatchNaming_Title}" />
+              <Button Content="{Binding BatchTable_ResetFiltersAndSort}" Click="ResetBatchFilters" Margin="0,0,8,0" />
+              <Button Content="{Binding BatchTable_Columns}" Click="ChooseBatchColumns" Margin="0,0,8,0" />
+              <Button Content="{Binding BatchTable_ResetColumns}" Click="ResetBatchColumns" Margin="0,0,8,0" />
+              <ToggleButton x:Name="BatchDetailsToggle" IsChecked="True" Content="▸"
+                            ToolTip.Tip="{Binding TabOverview}" Click="ToggleBatchDetails" />
+            </WrapPanel>
+            <WrapPanel>
+              <CheckBox x:Name="BatchRecursive" Content="{Binding BatchIntegrity_IncludeSubdirectories}" IsChecked="True" Margin="0,0,14,0" />
+              <CheckBox x:Name="BatchIncludeArchives" Content="{Binding Batch_IncludeArchives}" IsChecked="True" Margin="0,0,14,0" />
+              <CheckBox x:Name="BatchErrorsOnly" Content="{Binding BatchIntegrity_ShowOnlyErrors}" IsCheckedChanged="BatchFilterChanged" Margin="0,0,14,0" />
+              <CheckBox x:Name="BatchSeparatePackages" Content="{Binding BatchPackages_Display}" IsCheckedChanged="BatchFilterChanged" Margin="0,0,14,0"/>
+              <CheckBox x:Name="BatchGroupFiles" Content="{Binding Batch_GroupFiles}" IsCheckedChanged="BatchFilterChanged" Margin="0,0,14,0" />
+              <CheckBox x:Name="BatchAlphabetical" Content="{Binding Batch_GameSortAlphabetical}" IsCheckedChanged="BatchFilterChanged" />
+            </WrapPanel>
+          </StackPanel>
+          <Grid x:Name="BatchTableLayout" Grid.Row="2" ColumnDefinitions="3*,5,2*">
+            <DataGrid x:Name="BatchResults" FontSize="12" RowHeight="18" ColumnHeaderHeight="18" IsReadOnly="True" AutoGenerateColumns="False" ContextRequested="OpenBatchContextMenu" DoubleTapped="OpenBatchResult" SelectionChanged="BatchSelectionChanged" SelectionMode="Extended" RowDetailsVisibilityMode="VisibleWhenSelected" CanUserReorderColumns="True" CanUserResizeColumns="True" GridLinesVisibility="All">
+              <DataGrid.Styles>
+                <Style Selector="DataGridRowGroupHeader">
+                  <Setter Property="IsPropertyNameVisible" Value="False" />
+                </Style>
+              </DataGrid.Styles>
+              <DataGrid.RowDetailsTemplate>
+                <DataTemplate>
+                  <StackPanel IsVisible="{Binding ShowPackageDetails}" Margin="8,3" Spacing="2">
+                    <ItemsControl ItemsSource="{Binding PackageDetails}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                          <Grid ColumnDefinitions="85,140,80,*" Margin="8,1">
+                            <TextBlock Text="{Binding ContentType}" />
+                            <TextBlock Grid.Column="1" Text="{Binding TitleId}" />
+                            <TextBlock Grid.Column="2" Text="{Binding Version}" />
+                            <TextBlock Grid.Column="3" Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+                          </Grid>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </StackPanel>
+                </DataTemplate>
+              </DataGrid.RowDetailsTemplate>
+              <DataGrid.Columns>
+                <DataGridTextColumn Header="Datei" Binding="{Binding FileName}" Width="280" />
+                <DataGridTextColumn Header="Dateityp" Binding="{Binding FileType}" Width="75" />
+                <DataGridTextColumn Header="{Binding Title_FileInfo_FileType}" Binding="{Binding ContainerType}" Width="85" />
+                <DataGridTextColumn Header="Paketstruktur" Binding="{Binding Structure}" Width="110" />
+                <DataGridTextColumn Header="NCA-Signatur" Binding="{Binding Signature}" Width="110" />
+                <DataGridTextColumn Header="Integrität" Binding="{Binding Integrity}" Width="110" />
+                <DataGridTextColumn Header="Dateigröße" Binding="{Binding Size}" Width="100" />
+                <DataGridTextColumn Header="Titel" Binding="{Binding Title}" Width="200" />
+                <DataGridTextColumn Header="TitelID" Binding="{Binding TitleId}" Width="150" />
+                <DataGridTextColumn Header="{Binding CnmtOverview_TitleVersion}" Binding="{Binding Version}" Width="80" />
+                <DataGridTextColumn Header="{Binding BatchNaming_Title}" Binding="{Binding Naming}" Width="120" />
+                <DataGridTextColumn Header="{Binding BatchIntegrity_Error}" Binding="{Binding Error}" Width="220" />
+              </DataGrid.Columns>
+            </DataGrid>
+            <GridSplitter x:Name="BatchDetailsSplitter" Grid.Column="1" ResizeDirection="Columns" HorizontalAlignment="Stretch" />
+            <TabControl x:Name="BatchDetailsTabs" Grid.Column="2">
+              <TabItem Header="{Binding TabOverview}">
+                <ScrollViewer>
+                  <StackPanel Margin="8" Spacing="8">
+                    <TextBox x:Name="BatchDetailPath" Classes="overview-value" IsReadOnly="True" />
+                    <StackPanel x:Name="BatchDetails" />
+                  </StackPanel>
+                </ScrollViewer>
+              </TabItem>
+              <TabItem x:Name="FirmwareTab" Header="{Binding Firmware_Title}">
+                <Grid RowDefinitions="Auto,Auto,*" RowSpacing="8" Margin="12">
+                  <StackPanel x:Name="FirmwareActions" Orientation="Horizontal" Spacing="8">
+                    <Button Content="{Binding BatchIntegrity_SelectDirectory}" Click="ChooseFirmwareFolder" />
+                    <Button Content="{Binding Firmware_BrowseZip}" Click="ChooseFirmwareArchive" />
+                    <Button Content="NCA…" ToolTip.Tip="{Binding Firmware_NcaMatches}" Click="ChooseFirmwareNca" />
+                  </StackPanel>
+                  <Button x:Name="FirmwareCancel" Grid.Row="1" Content="{Binding CancelAction}" IsEnabled="False" Click="CancelFirmware" />
+                  <TextBox x:Name="FirmwareResult" Grid.Row="2" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" ScrollViewer.VerticalScrollBarVisibility="Auto" />
+                </Grid>
+              </TabItem>
+              <TabItem x:Name="BatchNandTab" Header="NAND" IsVisible="False">
+                <TextBox x:Name="BatchNandInformation" Margin="8" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" />
+              </TabItem>
+            </TabControl>
+          </Grid>
+          <WrapPanel x:Name="BatchActionsPanel" Grid.Row="3">
+            <Button x:Name="BatchStartButton" Content="{Binding Batch_Scan}" Click="StartBatch" IsEnabled="False" Margin="0,0,8,4" />
+            <Button x:Name="BatchHashButton" Content="{Binding Batch_ScanAndVerify}" Click="StartBatch" IsEnabled="False" Margin="0,0,8,4" />
+            <Button x:Name="BatchVerifyAllButton" Content="{Binding Batch_VerifyAll}" Click="VerifyBatchRows" Margin="0,0,8,4" />
+            <Button Content="{Binding Nsz_CompressValid}" Tag="Compress" Click="RunBatchPackageAction" Margin="0,0,8,4" />
+            <Button Content="{Binding Nsz_DecompressValid}" Tag="Decompress" Click="RunBatchPackageAction" Margin="0,0,8,4" />
+            <Button Content="{Binding Batch_SplitAllPackages}" Tag="Split" Click="RunBatchPackageAction" Margin="0,0,8,4" />
+            <Button Content="{Binding Batch_MergeAllPackages}" Tag="Merge" Click="RunBatchPackageAction" Margin="0,0,8,4" />
+            <Button Content="{Binding Package_ConvertNsp}" Tag="Nsp" Click="RunBatchPackageAction" Margin="0,0,8,4" />
+            <Button Content="{Binding Package_ConvertXci}" Tag="Xci" Click="RunBatchPackageAction" Margin="0,0,8,4" />
+            <Button x:Name="BatchExportButton" Content="{Binding BatchIntegrity_Export}" Click="ExportBatch" IsEnabled="False" Margin="0,0,8,4" />
+            <Button Content="{Binding BatchNaming_Check}" Click="CheckBatchNames" Margin="0,0,8,4" />
+            <Button Content="{Binding BatchNaming_RenameAll}" Click="RenameBatchNames" Margin="0,0,8,4" />
+            <Button Content="{Binding BatchIntegrity_MoveValid}" Click="MoveValidBatch" Margin="0,0,8,4" />
+            <Button x:Name="BatchCancelButton" Content="{Binding CancelAction}" Click="CancelBatch" IsEnabled="False" Margin="0,0,8,4" />
+          </WrapPanel>
+          <Grid Grid.Row="4" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+            <TextBlock Text="{Binding BatchHistory_Title}" VerticalAlignment="Center" />
+            <ComboBox x:Name="BatchHistoryChoice" MinWidth="420" Grid.Column="1" />
+            <Button Grid.Column="2" Content="{Binding BatchHistory_Resume}" Click="ResumeBatchHistory" />
+          </Grid>
+          <TextBlock x:Name="BatchStatus" Grid.Row="4" IsVisible="False" />
+          <TextBlock x:Name="BatchFolderText" IsVisible="False" />
+        </Grid>
+      </TabItem>
+      <TabItem x:Name="RenameTab">
+        <TabItem.Header>
+          <StackPanel Orientation="Horizontal" Spacing="7">
+            <Image Source="/Icons/rename_16x16.png" Width="16" Height="16" />
+            <TextBlock Text="{Binding RenamingTool_WindowTitle}" VerticalAlignment="Center" />
+          </StackPanel>
+        </TabItem.Header>
+        <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="8" RowSpacing="8">
+          <StackPanel Spacing="6">
+            <Border Classes="overview-group">
+              <StackPanel Spacing="4">
+                <TextBlock Text="Eingabe" FontWeight="Bold" />
+                <TextBlock Classes="overview-label" Text="Eingabepfad" />
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBox x:Name="RenameInputPath" TextChanged="RenameInputChanged" />
+                  <Button Grid.Column="1" Content="…" Click="ChooseRenameFolder" />
+                </Grid>
+                <TextBlock Classes="overview-label" Text="Zielordner (leer = bisheriger Ordner)" />
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBox x:Name="RenameOutputPath" TextChanged="RenamePreviewInputChanged" />
+                  <Button Grid.Column="1" Content="…" Click="ChooseRenameDestination" />
+                </Grid>
+                <TextBlock Classes="overview-label" Text="Filter" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBox x:Name="RenameFilter" Text="*.nsp;*.nsz;*.xci;*.xcz" Width="240" TextChanged="RenamePreviewInputChanged" />
+                  <CheckBox x:Name="RenameRecursive" Content="Unterverzeichnisse einbeziehen" IsChecked="True" IsCheckedChanged="RenamePreviewInputChanged" />
+                  <CheckBox x:Name="RenameAutoClose" Content="{Binding RenamingTool_AutoCloseOpenedFile}" IsChecked="True" Margin="10,0,0,0" />
+                  <CheckBox x:Name="RenameCompactPaths" IsCheckedChanged="RenamePathDisplayChanged" Margin="10,0,0,0" />
+                </StackPanel>
+              </StackPanel>
+            </Border>
+            <Button Content="{Binding RenamingTool_GroupBoxNamingSettings}" Tag="NamingSettingsTab" Click="NavigateWorkspace" />
+          </StackPanel>
+          <DataGrid x:Name="RenameBatchRows" Grid.Row="1" IsReadOnly="True" AutoGenerateColumns="False" GridLinesVisibility="All" CanUserResizeColumns="True">
+            <DataGrid.Columns>
+              <DataGridTextColumn Header="Alter Name" Binding="{Binding Source}" SortMemberPath="Source" Width="2*" />
+              <DataGridTextColumn Header="Neuer Name" Binding="{Binding Destination}" SortMemberPath="Destination" Width="2*" />
+              <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="120" />
+              <DataGridTextColumn Header="Fehler" Binding="{Binding Error}" Width="220" />
+            </DataGrid.Columns>
+          </DataGrid>
+          <TextBlock x:Name="RenameBatchStatus" Grid.Row="3" TextWrapping="Wrap" />
+          <ScrollViewer IsVisible="False">
+            <StackPanel Margin="16" Spacing="8" MaxWidth="750" HorizontalAlignment="Left">
+              <Button Content="{Binding MenuItem_Open}" Click="ChooseRenameFile" />
+              <TextBlock Text="{Binding RenamingTool_OldName}" />
+              <TextBlock x:Name="RenameSourceText" TextWrapping="Wrap" />
+              <TextBlock Text="{Binding RenamingTool_Patterns}" />
+              <ComboBox x:Name="RenamePresetChoice" MinWidth="500" SelectionChanged="RenamePresetSelected" />
+              <TextBox x:Name="RenamePattern" MinWidth="500" PlaceholderText="{}{Title} [{TitleId:U}][v{VerNum}].{Ext:L}" ToolTip.Tip="{Binding RenamingTool_Patterns}" />
+              <Button Content="{Binding RenamingTool_StatusSimulation}" Click="SuggestRename" />
+              <TextBlock Text="{Binding RenamingTool_NewName}" />
+              <TextBox x:Name="RenameTargetName" MinWidth="500" TextChanged="RenameNameChanged" />
+              <TextBlock x:Name="RenamePreview" TextWrapping="Wrap" />
+              <Button x:Name="RenameApply" Content="{Binding RenamingTool_Button_Rename}" IsEnabled="False" Click="ApplyRename" />
+              <TextBlock x:Name="RenameStatus" TextWrapping="Wrap" />
+            </StackPanel>
+          </ScrollViewer>
+          <StackPanel Orientation="Horizontal" Spacing="8" Grid.Row="2" HorizontalAlignment="Center">
+            <Button x:Name="RenameBatchPreviewButton" Click="PreviewRenameBatch" />
+            <Button x:Name="RenameBatchApplyButton" Content="{Binding RenamingTool_Button_Rename}" IsEnabled="False" Click="ApplyRenameBatch" />
+            <Button x:Name="RenameBatchCancelButton" Content="{Binding CancelAction}" IsEnabled="False" Click="CancelRenameBatch" />
+          </StackPanel>
+        </Grid>
+      </TabItem>
+      <TabItem x:Name="NandTab">
+        <TabItem.Header>
+          <StackPanel Orientation="Horizontal" Spacing="7">
+            <Image x:Name="NandTabIcon" Width="20" Height="16" />
+            <TextBlock Text="NAND" />
+          </StackPanel>
+        </TabItem.Header>
+        <Grid Margin="12" RowDefinitions="Auto,Auto,*" RowSpacing="10">
+          <TextBlock Text="{Binding Nand_Tip}" TextWrapping="Wrap" />
+          <WrapPanel Grid.Row="1">
+            <Button Content="{Binding Nand_Open}" Click="OpenNand" Margin="0,0,8,0" />
+            <Button x:Name="NandInfoButton" IsEnabled="False" Content="{Binding Nand_Info}" Click="ReadNand" Margin="0,0,8,0" />
+            <Button Content="{Binding Nand_OpenDrive}" Click="OpenNandDrive" Margin="0,0,8,0" />
+            <Button Content="{Binding Nand_Explorer}" Click="BrowseNandExplorer" Margin="0,0,8,0" />
+            <ComboBox x:Name="NandPartitions" MinWidth="180" DisplayMemberBinding="{Binding Name}" SelectionChanged="NandPartitionSelected" />
+            <Button x:Name="NandUpButton" IsEnabled="False" Content="{Binding Nand_ExplorerUp}" Click="NandUp" Margin="8,0" />
+            <Button x:Name="NandExportFileButton" IsEnabled="False" Content="{Binding Nand_ExportFile}" Click="ExportNandFile" />
+            <Button x:Name="NandExportPartitionButton" IsEnabled="False" Content="{Binding Nand_Export}" Click="ExportNandPartition" Margin="8,0"/>
+            <Button x:Name="NandCancelButton" IsEnabled="False" Content="{Binding CancelAction}" Click="CancelNand"/>
+          </WrapPanel>
+          <TabControl x:Name="NandViews" Grid.Row="2" SelectionChanged="NandViewSelected">
+            <TabItem Header="{Binding Nand_Info}">
+              <TextBox x:Name="NandInformation" IsReadOnly="True" AcceptsReturn="True" FontFamily="Consolas" />
+            </TabItem>
+            <TabItem Header="{Binding Nand_Explorer}">
+              <Grid RowDefinitions="Auto,Auto,*" RowSpacing="6">
+                <WrapPanel>
+                  <Button x:Name="NandOpenSaveButton" IsEnabled="False" Content="{Binding Nand_OpenSave}" Click="OpenNandSave" Margin="0,0,8,0" />
+                  <Button x:Name="NandLeaveSaveButton" IsEnabled="False" Content="{Binding Nand_LeaveSave}" Click="LeaveNandSave" Margin="0,0,8,0" />
+                  <Button x:Name="NandExportSaveButton" IsEnabled="False" Content="{Binding Nand_ExportSave}" Click="ExportNandSave" />
+                </WrapPanel>
+                <TextBox x:Name="NandLocation" Grid.Row="1" IsReadOnly="True" />
+                <Grid Grid.Row="2" ColumnDefinitions="180,5,*">
+                <TreeView x:Name="NandFolders" SelectionChanged="SelectNandTreeFolder">
+                  <TreeView.ItemTemplate>
+                    <TreeDataTemplate ItemsSource="{Binding Children}"><TextBlock Text="{Binding Name}" /></TreeDataTemplate>
+                  </TreeView.ItemTemplate>
+                </TreeView>
+                <GridSplitter Grid.Column="1" HorizontalAlignment="Stretch" ResizeDirection="Columns" />
+                <DataGrid SelectionChanged="NandSelectionChanged" x:Name="NandFiles" Grid.Column="2" IsReadOnly="True" AutoGenerateColumns="False" DoubleTapped="OpenNandFolder">
+                  <DataGrid.Columns>
+                    <DataGridTextColumn Header="Datei" Binding="{Binding Name}" Width="2*" />
+                    <DataGridTextColumn Header="Titel" Binding="{Binding Title}" Width="2*" />
+                    <DataGridTextColumn Header="Titel-ID" Binding="{Binding TitleId}" Width="145" />
+                    <DataGridTextColumn Header="Benutzer-ID" Binding="{Binding UserId}" Width="210" />
+                    <DataGridTextColumn Header="Typ" Binding="{Binding Type}" Width="120" />
+                    <DataGridTextColumn Header="Dateigröße" Binding="{Binding Size}" Width="120" />
+                  </DataGrid.Columns>
+                </DataGrid>
+                </Grid>
+              </Grid>
+            </TabItem>
+          </TabControl>
+        </Grid>
+      </TabItem>
+      <TabItem x:Name="SettingsTab">
+        <TabItem.Header>
+          <StackPanel Orientation="Horizontal" Spacing="7">
+            <Image Source="/Icons/settings_16x16.png" Width="16" Height="16" />
+            <TextBlock Text="{Binding SettingsView_Title}" VerticalAlignment="Center" />
+          </StackPanel>
+        </TabItem.Header>
+        <Grid RowDefinitions="*,Auto,Auto">
+          <TabControl x:Name="SettingsPages">
+            <TabItem x:Name="ProgramSettingsTab" Header="{Binding Settings_Program}">
+              <ScrollViewer>
+                <StackPanel x:Name="ProgramSettingsHost" Margin="8,4" Spacing="4" MaxWidth="1100" HorizontalAlignment="Left">
+                  <Border x:Name="ExplorerRegistrationPanel" Classes="overview-group" IsVisible="False">
+                    <StackPanel x:Name="ExplorerRegistrationActions" Spacing="8">
+                      <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="{Binding Associations_Title}" FontWeight="Bold" />
+                        <Border Classes="help-tip" ToolTip.Tip="{Binding Associations_Tip}">
+                          <TextBlock Text="?" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold" />
+                        </Border>
+                      </StackPanel>
+                      <WrapPanel>
+                        <Button Content="{Binding Associations_Register}" Tag="Associate" Click="ManageExplorer" Margin="0,0,8,0" />
+                        <Button Content="{Binding Associations_Remove}" Tag="Unassociate" Click="ManageExplorer" />
+                      </WrapPanel>
+                      <TextBlock Text="{Binding Explorer_Title}" Classes="overview-label" />
+                      <TextBlock Text="{Binding Explorer_Tip}" TextWrapping="Wrap" />
+                      <WrapPanel>
+                        <Button Content="{Binding Explorer_AddClassic}" Tag="Classic" Click="ManageExplorer" Margin="0,0,8,0" />
+                        <Button Content="{Binding Explorer_RemoveClassic}" Tag="RemoveClassic" Click="ManageExplorer" />
+                      </WrapPanel>
+                      <StackPanel x:Name="ModernExplorerActions" Spacing="8">
+                        <TextBlock Text="{Binding Explorer_ModernTip}" TextWrapping="Wrap" />
+                        <WrapPanel>
+                          <Button Content="{Binding Explorer_AddModern}" Tag="Online" Click="ManageExplorer" Margin="0,0,8,0" />
+                          <Button Content="{Binding Explorer_Local}" Tag="Local" Click="ManageExplorer" Margin="0,0,8,0" />
+                          <Button Content="{Binding Explorer_RemoveModern}" Tag="RemoveModern" Click="ManageExplorer" />
+                        </WrapPanel>
+                      </StackPanel>
+                      <TextBlock x:Name="ExplorerRegistrationStatus" TextWrapping="Wrap" />
+                    </StackPanel>
+                  </Border>
+                  <Border Classes="overview-group">
+                    <StackPanel Spacing="8">
+                      <TextBlock Text="{Binding Settings_GroupGeneral}" FontWeight="Bold" />
+                      <Grid ColumnDefinitions="*,*">
+                        <StackPanel>
+                          <TextBlock Classes="overview-label" Text="{Binding SettingsView_Title_Language}" />
+                          <ComboBox x:Name="LanguageChoice" MinWidth="220">
+                            <ComboBoxItem Content="Auto" Tag="" />
+                            <ComboBoxItem Content="Deutsch" Tag="de" />
+                            <ComboBoxItem Content="English" Tag="en" />
+                            <ComboBoxItem Content="Français" Tag="fr" />
+                            <ComboBoxItem Content="Español" Tag="es" />
+                          </ComboBox>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1">
+                          <TextBlock Text="{Binding SettingsView_Title_Theme}" />
+                          <ComboBox x:Name="ThemeChoice" MinWidth="220">
+                            <ComboBoxItem Content="Auto" Tag="" />
+                            <ComboBoxItem Content="Light" Tag="Light" />
+                            <ComboBoxItem Content="Dark" Tag="Dark" />
+                          </ComboBox>
+                        </StackPanel>
+                      </Grid>
+                    </StackPanel>
+                  </Border>
+                  <TextBlock Text="{Binding SettingsView_TitleDbRepository}" />
+                  <ComboBox x:Name="TitleDbRepositoryChoice" MinWidth="220" DropDownOpened="TitleDbRepositoryOpened" />
+                  <Button x:Name="RefreshTitleDbButton" Content="{Binding DataUpdate_Titles}" Click="RefreshTitleDb" />
+                  <TextBlock x:Name="TitleDbStatus" TextWrapping="Wrap" />
+                  <Border Classes="overview-group">
+                    <StackPanel Spacing="8">
+                      <TextBlock Text="{Binding Settings_AutoVerifyTitle}" FontWeight="Bold" />
+                      <CheckBox x:Name="VerifyOnOpenSetting" Content="{Binding Settings_AutoVerifyProgram}" ToolTip.Tip="{Binding Settings_AutoVerifyProgramTip}" />
+                      <CheckBox x:Name="AutoVerifyBatchDropSetting" Content="{Binding Settings_AutoVerifyBatchDrop}" ToolTip.Tip="{Binding Settings_AutoVerifyBatchDropTip}" />
+                    </StackPanel>
+                  </Border>
+                  <Border Classes="overview-group">
+                    <StackPanel Spacing="8">
+                      <TextBlock Text="{Binding Settings_GroupHistory}" FontWeight="Bold" />
+                      <CheckBox x:Name="HistoryEnabledSetting" Content="{Binding BatchHistory_Enable}" />
+                      <TextBlock Text="{Binding BatchHistory_Limit}" />
+                      <NumericUpDown x:Name="HistoryLimitSetting" Minimum="1" Maximum="100" Value="5" Width="130" HorizontalAlignment="Left" ToolTip.Tip="{Binding BatchHistory_RetentionTip}" />
+                    </StackPanel>
+                  </Border>
+                  <Border Classes="overview-group">
+                    <StackPanel Spacing="8">
+                      <TextBlock Text="{Binding BatchIntegrity_Export}" FontWeight="Bold" />
+                      <CheckBox x:Name="ExportVisibleSetting" Content="{Binding BatchExport_VisibleOnly}" />
+                    </StackPanel>
+                  </Border>
+                  <Border Classes="overview-group">
+                    <StackPanel Spacing="8">
+                      <TextBlock Text="{Binding Settings_GroupLogging}" FontWeight="Bold" />
+                      <TextBlock Text="{Binding SettingsView_LogLevel}" />
+                      <ComboBox x:Name="LogLevelSetting" MinWidth="220" ToolTip.Tip="{Binding SettingsView_ToolTip_LogLevel}">
+                        <ComboBoxItem Content="TRACE" Tag="TRACE" /><ComboBoxItem Content="DEBUG" Tag="DEBUG" /><ComboBoxItem Content="INFO" Tag="INFO" />
+                        <ComboBoxItem Content="WARN" Tag="WARN" />
+                        <ComboBoxItem Content="ERROR" Tag="ERROR" /><ComboBoxItem Content="CRITICAL" Tag="CRITICAL" /><ComboBoxItem Content="{Binding PluginLog_Off}" Tag="OFF" />
+                      </ComboBox>
+                      <TextBlock Text="{Binding SettingsView_LogFileRetention}" />
+                      <NumericUpDown x:Name="LogRetentionSetting" Minimum="1" Maximum="100" Value="14" Width="130" HorizontalAlignment="Left" />
+                    </StackPanel>
+                  </Border>
+                </StackPanel>
+              </ScrollViewer>
+            </TabItem>
+            <TabItem Header="{Binding SettingsView_GroupBoxKeys}">
+              <ScrollViewer>
+                <StackPanel Margin="16" Spacing="12">
+                  <Border Classes="overview-group">
+                    <StackPanel Spacing="8">
+                      <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="{Binding SettingsView_GroupBoxKeys}" FontWeight="Bold" />
+                        <Border Classes="help-tip" ToolTip.Tip="{Binding SettingsView_ToolTip_Keys}">
+                          <TextBlock Text="?" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold" />
+                        </Border>
+                      </StackPanel>
+                      <WrapPanel>
+                        <Button Content="{Binding Keys_CopyToSwitch}" ToolTip.Tip="{Binding Keys_CopyToSwitchHelp}" Click="CopyKeysToProfile" VerticalAlignment="Bottom" Margin="0,0,8,0" />
+                        <Button x:Name="DownloadKeysButton" Content="{Binding Keys_DownloadAll}" Click="DownloadKeyFiles" VerticalAlignment="Bottom" Margin="0,0,8,0" />
+                        <Button x:Name="CancelKeysDownloadButton" Content="{Binding CancelAction}" Click="CancelKeyDownload" VerticalAlignment="Bottom" IsVisible="False" Margin="0,0,8,0" />
+                        <StackPanel Width="240">
+                          <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding Keys_DownloadHost}" Classes="overview-label" />
+                            <Border Classes="help-tip" ToolTip.Tip="{Binding Keys_DownloadHostTip}">
+                              <TextBlock Text="?" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold" />
+                            </Border>
+                          </StackPanel>
+                          <TextBox x:Name="KeysDownloadHost" />
+                        </StackPanel>
+                      </WrapPanel>
+                      <WrapPanel>
+                        <CheckBox x:Name="ReloadKeysBeforeOpenSetting" Content="{Binding SettingsView_CheckBox_AlwaysReloadKeysBeforeOpen}" Margin="0,0,16,0" />
+                        <CheckBox x:Name="InjectTicketsSetting" Content="{Binding SettingsView_CheckBox_InjectTicketKeys}" Margin="0,0,16,0" />
+                        <CheckBox x:Name="SaveTicketKeysSetting" Content="{Binding Keys_SaveTicketKeys}" IsEnabled="{Binding IsChecked, ElementName=InjectTicketsSetting}" />
+                      </WrapPanel>
+                      <Button Content="{Binding MenuItem_ReloadKeys}" Click="ValidateKeys" />
+                      <TextBlock x:Name="KeyDownloadStatus" TextWrapping="Wrap" IsVisible="False" />
+                    </StackPanel>
+                  </Border>
+                  <Border Classes="overview-group">
+                    <StackPanel Spacing="8">
+                      <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="prod.keys" FontWeight="Bold" />
+                        <Border Classes="help-tip" ToolTip.Tip="{Binding SettingsView_ToolTip_ProdKeys}">
+                          <TextBlock Text="?" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold" />
+                        </Border>
+                      </StackPanel>
+                      <StackPanel x:Name="ProdKeyLocations" Spacing="4" />
+                      <TextBlock Text="{Binding SettingsView_Title_KeysCustomFilePath}" Classes="overview-label" />
+                      <DockPanel>
+                        <Button DockPanel.Dock="Right" Content="…" Click="LoadKeysClicked" />
+                        <TextBox x:Name="SettingsKeysPath" LostFocus="ValidateKeys" />
+                      </DockPanel>
+                      <TextBlock x:Name="KeyValidationText" TextWrapping="Wrap" />
+                      <TextBlock Text="{Binding SettingsView_Title_KeysDownloadUrl}" Classes="overview-label" />
+                      <TextBox x:Name="ProdKeysDownloadUrl" ToolTip.Tip="{Binding Keys_DownloadHostTip}" />
+                    </StackPanel>
+                  </Border>
+                  <Border Classes="overview-group">
+                    <StackPanel Spacing="8">
+                      <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="title.keys" FontWeight="Bold" />
+                        <Border Classes="help-tip" ToolTip.Tip="{Binding SettingsView_ToolTip_TitleKeys}">
+                          <TextBlock Text="?" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold" />
+                        </Border>
+                      </StackPanel>
+                      <StackPanel x:Name="TitleKeyLocations" Spacing="4" />
+                      <TextBlock Text="{Binding SettingsView_Title_KeysCustomFilePath}" Classes="overview-label" />
+                      <DockPanel>
+                        <Button DockPanel.Dock="Right" Content="…" Click="ChooseTitleKeys" />
+                        <TextBox x:Name="TitleKeysPath" LostFocus="ValidateKeys" />
+                      </DockPanel>
+                      <TextBlock x:Name="TitleKeyValidationText" TextWrapping="Wrap" />
+                      <TextBlock Text="{Binding SettingsView_Title_KeysDownloadUrl}" Classes="overview-label" />
+                      <TextBox x:Name="TitleKeysDownloadUrl" ToolTip.Tip="{Binding Keys_DownloadHostTip}" />
+                    </StackPanel>
+                  </Border>
+                </StackPanel>
+              </ScrollViewer>
+            </TabItem>
+            <TabItem x:Name="NamingSettingsTab" Header="{Binding RenamingTool_GroupBoxNamingSettings}">
+              <ScrollViewer>
+                <StackPanel Margin="12" Spacing="8">
+                  <StackPanel Orientation="Horizontal" Spacing="4">
+                    <TextBlock Text="{Binding RenamingTool_Patterns}" FontWeight="Bold" VerticalAlignment="Center" />
+                    <Border Classes="help-tip" ToolTip.Tip="{Binding RenamingTool_ToolTip_Patterns}">
+                      <TextBlock Text="?" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold" />
+                    </Border>
+                  </StackPanel>
+                  <StackPanel x:Name="NamingSettingsHost" Spacing="4" />
+                </StackPanel>
+              </ScrollViewer>
+            </TabItem>
+            <TabItem x:Name="UpdatesTab" Header="{Binding DataUpdate_Title}">
+              <Grid RowDefinitions="Auto,Auto,*" Margin="10" RowSpacing="8">
+                <Border Classes="overview-group">
+                  <StackPanel>
+                    <TextBlock Text="{Binding Update_Title}" FontWeight="Bold" />
+                    <CheckBox x:Name="AutoUpdateSetting" Content="{Binding Update_Auto}" />
+                    <CheckBox x:Name="PreReleaseSetting" Content="{Binding Update_IncludePrereleases}" />
+                    <WrapPanel Margin="0,8">
+                      <Button x:Name="UpdateCheckButton" Content="{Binding Update_Check}" Click="CheckUpdates" Margin="0,0,8,0" />
+                      <Button x:Name="UpdateCancelButton" Content="{Binding CancelAction}" Click="CancelUpdateCheck" IsEnabled="False" />
+                    </WrapPanel>
+                  </StackPanel>
+                </Border>
+                <TextBlock x:Name="UpdateStatus" Grid.Row="1" TextWrapping="Wrap" />
+                <ScrollViewer Grid.Row="2">
+                  <StackPanel>
+                    <Border Classes="overview-group">
+                      <StackPanel Spacing="4" Margin="8,4">
+                        <TextBlock x:Name="ApplicationUpdateHeading" />
+                        <TextBlock x:Name="ApplicationUpdateMessage" TextWrapping="Wrap" IsVisible="False" />
+                        <WrapPanel x:Name="ApplicationUpdateActions">
+                          <Button x:Name="ApplicationInstallUpdate" Content="{Binding Update_Install}" IsVisible="False" Click="InstallApplicationUpdate" Margin="0,0,8,0" />
+                        </WrapPanel>
+                        <Separator Margin="0,4" />
+                        <TextBlock x:Name="UpdateTitleDbSummary" />
+                        <TextBlock x:Name="UpdateTitleDbAvailable" IsVisible="False" />
+                        <Button x:Name="UpdateTitleDbButton" Content="{Binding DataUpdate_Titles}" Click="RefreshTitleDb" />
+                        <TextBlock x:Name="UpdateFirmwareSummary" />
+                        <TextBlock x:Name="UpdateFirmwareAvailable" IsVisible="False" />
+                        <WrapPanel x:Name="UpdateFirmwareActions">
+                          <Button Content="{Binding DataUpdate_CheckFirmware}" Click="UpdateFirmwareHashes" Margin="0,0,8,0" />
+                          <Button Content="{Binding DataUpdate_SaveFirmware}" Tag="Save" Click="UpdateFirmwareHashes" />
+                        </WrapPanel>
+                        <TextBlock x:Name="UpdateExplorerSummary" IsVisible="False" />
+                      </StackPanel>
+                    </Border>
+                    <TextBlock Text="PLUGINS" FontWeight="Bold" Margin="4,8,4,0" />
+                    <Border Classes="overview-group" Padding="0">
+                      <StackPanel x:Name="ManagedPluginRows" />
+                    </Border>
+                  </StackPanel>
+                </ScrollViewer>
+              </Grid>
+            </TabItem>
+            <TabItem x:Name="PluginsTab" Header="{Binding Workspace_Plugins}">
+              <Grid RowDefinitions="*,Auto">
+                <TabControl>
+                  <TabItem Header="{Binding Plugin_General}">
+                    <ScrollViewer>
+                      <StackPanel x:Name="PluginGeneralHost" Margin="16" Spacing="8" />
+                    </ScrollViewer>
+                  </TabItem>
+                  <TabItem Header="Komprimieren / Dekomprimieren">
+                    <ScrollViewer>
+                      <StackPanel Margin="16" Spacing="8">
+                        <Border Classes="overview-group">
+                          <StackPanel Spacing="8">
+                            <TextBlock Text="{Binding Package_Engine}" FontWeight="Bold" />
+                            <ComboBox x:Name="CompressionEngineSetting" MinWidth="220" SelectionChanged="CompressionEngineChanged">
+                              <ComboBoxItem Content="cxfcxf / nscb_rust" />
+                              <ComboBoxItem Content="nicoboss/nsz" /><ComboBoxItem Content="cxfcxf / nscb_rust (Backup nicoboss/nsz)"/><ComboBoxItem Content="nicoboss/nsz (Backup cxfcxf / nscb_rust)"/>
+                            </ComboBox>
+                            <TextBlock Text="{Binding Nsz_Level}" />
+                            <TextBox x:Name="CompressionLevelSetting" Text="18" />
+                          </StackPanel>
+                        </Border>
+                        <Border Classes="overview-group">
+                          <StackPanel Spacing="8">
+                            <TextBlock Text="NSZ" FontWeight="Bold" />
+                            <TextBlock Text="NSZ CLI" />
+                            <TextBox x:Name="NszCliPath" />
+                            <TextBlock Text="{Binding Nsz_Mode}" />
+                            <ComboBox x:Name="CompressionModeSetting" SelectionChanged="CompressionEngineChanged" MinWidth="220" ToolTip.Tip="{Binding Nsz_ModeTip}">
+                              <ComboBoxItem Content="{Binding Nsz_ModeAuto}" />
+                              <ComboBoxItem Content="{Binding Nsz_ModeSolid}" />
+                              <ComboBoxItem Content="{Binding Nsz_ModeBlock}" />
+                            </ComboBox>
+                            <TextBlock Text="{Binding Nsz_BlockSize}" />
+                            <ComboBox x:Name="CompressionBlockSetting" />
+                            <TextBlock Text="NSZ GUI" />
+                            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="4">
+                              <TextBox x:Name="NszGuiPath" />
+                              <Button Grid.Column="1" Content="…" Tag="NSZ" Click="BrowsePlugin" />
+                              <Button Grid.Column="2" Content="{Binding MenuItem_Open}" Tag="NSZ" Click="LaunchPlugin" />
+                            </Grid>
+                          </StackPanel>
+                        </Border>
+                        <Border Classes="overview-group">
+                          <StackPanel Spacing="8">
+                            <TextBlock Text="nscb_rust / NSCB Desktop" FontWeight="Bold" />
+                            <TextBlock Text="nscb_rust (Backend)" />
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="4">
+                              <TextBox x:Name="RustBackendPath" />
+                              <Button Grid.Column="1" Content="…" Tag="Backend" Click="BrowsePlugin" />
+                            </Grid>
+                            <TextBlock Text="NSCB Desktop" />
+                            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="4">
+                              <TextBox x:Name="RustDesktopPath" />
+                              <Button Grid.Column="1" Content="…" Tag="Rust" Click="BrowsePlugin" />
+                              <Button Grid.Column="2" Content="{Binding MenuItem_Open}" Tag="Rust" Click="LaunchPlugin" />
+                            </Grid>
+                          </StackPanel>
+                        </Border>
+                      </StackPanel>
+                    </ScrollViewer>
+                  </TabItem>
+                  <TabItem x:Name="PackagePluginSettingsTab" Header="Zusammenführen / Inhalte aufteilen / Umwandeln (experimentell)">
+                    <ScrollViewer>
+                      <StackPanel Margin="16" Spacing="8">
+                        <Border Classes="overview-group">
+                          <StackPanel Spacing="8">
+                            <TextBlock Text="{Binding Package_Engine}" FontWeight="Bold" />
+                            <ComboBox x:Name="PackageEngineSetting" SelectedIndex="0">
+                              <ComboBoxItem Content="cxfcxf / nscb_rust" />
+                              <ComboBoxItem Content="Kronos / NSC_BUILDER" />
+                              <ComboBoxItem Content="cxfcxf / nscb_rust (Backup: Kronos / NSC_BUILDER)" />
+                              <ComboBoxItem Content="Kronos / NSC_BUILDER (Backup: cxfcxf / nscb_rust)" />
+                            </ComboBox>
+                          </StackPanel>
+                        </Border>
+                        <Border Classes="overview-group">
+                          <StackPanel Spacing="8">
+                            <TextBlock Text="Kronos / NSC_BUILDER" FontWeight="Bold" />
+                            <TextBlock Text="Kronos GUI" />
+                            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="4">
+                              <TextBox x:Name="KronosGuiPath" />
+                              <Button Grid.Column="1" Content="…" Tag="Kronos" Click="BrowsePlugin" />
+                              <Button Grid.Column="2" Content="{Binding MenuItem_Open}" Tag="Kronos" Click="LaunchPlugin" />
+                            </Grid>
+                          </StackPanel>
+                        </Border>
+                        <Border Classes="overview-group">
+                          <StackPanel Spacing="8">
+                            <TextBlock Text="nscb_rust / NSCB Desktop" FontWeight="Bold" />
+                            <TextBlock Text="nscb_rust (Backend)" />
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="4">
+                              <TextBox Text="{Binding Text, ElementName=RustBackendPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                              <Button Grid.Column="1" Content="…" Tag="Backend" Click="BrowsePlugin" />
+                            </Grid>
+                            <TextBlock Text="NSCB Desktop" />
+                            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="4">
+                              <TextBox Text="{Binding Text, ElementName=RustDesktopPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                              <Button Grid.Column="1" Content="…" Tag="Rust" Click="BrowsePlugin" />
+                              <Button Grid.Column="2" Content="{Binding MenuItem_Open}" Tag="Rust" Click="LaunchPlugin" />
+                            </Grid>
+                          </StackPanel>
+                        </Border>
+                      </StackPanel>
+                    </ScrollViewer>
+                  </TabItem>
+                  <TabItem x:Name="NandPluginSettingsTab" Header="NxNandManager">
+                    <ScrollViewer>
+                      <StackPanel Margin="16" Spacing="8">
+                        <Border Classes="overview-group">
+                          <StackPanel Spacing="8">
+                            <TextBlock Text="NxNandManager" FontWeight="Bold" />
+                            <TextBlock Text="{Binding Nand_SettingsTip}" TextWrapping="Wrap" />
+                            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="4">
+                              <TextBox x:Name="NandGuiPath" />
+                              <Button Grid.Column="1" Content="…" Tag="NAND" Click="BrowsePlugin" />
+                              <Button x:Name="OpenNandPluginButton" Grid.Column="2" Content="{Binding MenuItem_Open}" Tag="NAND" Click="LaunchPlugin" />
+                            </Grid>
+                            <TextBlock Text="{Binding Nand_BisKeys}" TextWrapping="Wrap" />
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="4">
+                              <TextBox x:Name="NandBisKeysPath" />
+                              <Button Grid.Column="1" Content="…" Click="BrowseNandBisKeys" />
+                            </Grid>
+                          </StackPanel>
+                        </Border>
+                      </StackPanel>
+                    </ScrollViewer>
+                  </TabItem>
+                </TabControl>
+                <TextBlock x:Name="PluginStatus" Grid.Row="1" TextWrapping="Wrap" />
+              </Grid>
+            </TabItem>
+            <TabItem Header="{Binding Features_Title}">
+              <ScrollViewer>
+                <StackPanel Margin="16" Spacing="12">
+                  <Border Classes="overview-group">
+                    <StackPanel Spacing="12">
+                      <TextBlock Text="{Binding Features_Title}" FontWeight="Bold" />
+                      <CheckBox x:Name="NszActiveSetting" Content="{Binding Features_NszPlugin}" />
+                      <CheckBox x:Name="NupActiveSetting" Content="{Binding Features_Nup}" />
+                      <CheckBox x:Name="NandActiveSetting" Content="{Binding Features_Nand}" />
+                      <CheckBox x:Name="NandPluginActiveSetting" IsEnabled="{Binding IsChecked, ElementName=NandActiveSetting}" Content="{Binding Features_NandPlugin}" />
+                      <CheckBox x:Name="MtpActiveSetting" Content="{Binding Features_Mtp}" />
+                      <CheckBox x:Name="FirmwareActiveSetting" Content="{Binding Features_Firmware}" />
+                      <CheckBox x:Name="PackageOperationsActiveSetting" Content="{Binding Features_PackageOperations}" />
+                      <Border Classes="overview-group">
+                        <StackPanel Spacing="8">
+                          <TextBlock Text="{Binding Features_DirectStarts}" FontWeight="Bold" />
+                          <CheckBox x:Name="NszDirectSetting" Content="{Binding Features_NszGui}" />
+                          <CheckBox x:Name="NandDirectSetting" Content="{Binding Features_NandGui}" />
+                          <CheckBox x:Name="RustDirectSetting" Content="{Binding Features_RustDesktopGui}" />
+                          <CheckBox x:Name="KronosDirectSetting" Content="{Binding Features_KronosGui}" />
+                        </StackPanel>
+                      </Border>
+                    </StackPanel>
+                  </Border>
+                </StackPanel>
+              </ScrollViewer>
+            </TabItem>
+          </TabControl>
+          <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4" Margin="4">
+            <Button Content="{Binding SettingsView_Button_Reset}" Click="ResetSettings" Margin="0,0,120,0" />
+            <Button Content="{Binding SettingsView_Button_Apply}" Click="SavePreferences" />
+            <Button Content="{Binding SettingsView_Button_Cancel}" Click="CancelSettings" />
+          </StackPanel>
+          <TextBlock x:Name="SettingsStatus" TextWrapping="Wrap" Grid.Row="1" />
+        </Grid>
+      </TabItem>
+      <TabItem x:Name="LogTab">
+        <TabItem.Header>
+          <StackPanel Orientation="Horizontal" Spacing="7">
+            <Image Source="/Icons/FileDirectoryEntryItem.png" Width="16" Height="16" />
+            <TextBlock Text="Log" />
+          </StackPanel>
+        </TabItem.Header>
+        <Grid Margin="10" RowDefinitions="Auto,*" RowSpacing="8">
+          <StackPanel Orientation="Horizontal" Spacing="14">
+            <TextBlock Text="● INFO" Foreground="LightSkyBlue" />
+            <TextBlock Text="▲ WARN" Foreground="Orange" />
+            <TextBlock Text="■ ERROR" Foreground="Salmon" />
+            <CheckBox IsVisible="False" x:Name="LogInfo" Content="● INFO" IsChecked="True" IsCheckedChanged="LogFilterChanged" />
+            <CheckBox IsVisible="False" x:Name="LogWarn" Content="▲ WARN" IsChecked="True" IsCheckedChanged="LogFilterChanged" />
+            <CheckBox IsVisible="False" x:Name="LogError" Content="■ ERROR" IsChecked="True" IsCheckedChanged="LogFilterChanged" />
+          </StackPanel>
+          <ListBox x:Name="SessionLog" Grid.Row="1">
+            <ListBox.ContextMenu>
+              <ContextMenu>
+                <MenuItem Header="Kopieren" Click="CopySelectedLog" />
+              </ContextMenu>
+            </ListBox.ContextMenu>
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <StackPanel>
+                  <Border IsVisible="{Binding IsFileHeader}" Background="{DynamicResource Item.Selected.Background}"
+                          BorderBrush="{Binding Brush}" BorderThickness="1" Padding="8,5" Margin="0,5,0,2">
+                    <StackPanel>
+                      <SelectableTextBlock Text="{Binding Message}" FontFamily="Consolas" FontWeight="Bold" TextWrapping="Wrap" />
+                      <SelectableTextBlock Text="{Binding HeaderDetails}" FontFamily="Consolas" FontSize="10" TextWrapping="Wrap" />
+                    </StackPanel>
+                  </Border>
+                  <Border IsVisible="{Binding IsDetail}" Background="{Binding Background}" BorderBrush="{Binding Brush}"
+                          BorderThickness="3,0,0,0" Padding="8,3" Margin="4,0,0,0">
+                    <SelectableTextBlock Text="{Binding Text}" FontFamily="Consolas" TextWrapping="Wrap" />
+                  </Border>
+                </StackPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Grid>
+      </TabItem>
+      <TabItem x:Name="InfoTab">
+        <TabItem.Header>
+          <StackPanel Orientation="Horizontal" Spacing="7">
+            <TextBlock Text="ⓘ" />
+            <TextBlock Text="Info" />
+          </StackPanel>
+        </TabItem.Header>
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <StackPanel Margin="24" MaxWidth="1100" HorizontalAlignment="Left">
+            <Image Source="/Icons/Icon.ico" Width="72" Height="72" HorizontalAlignment="Left" Margin="0,0,0,16" />
+            <TextBlock x:Name="ProgramVersionText" FontSize="28" Margin="0,0,0,16" />
+            <StackPanel Orientation="Horizontal" Spacing="12">
+              <TextBlock x:Name="ProgramArchitectureText" FontWeight="Bold" Margin="0,0,0,8" />
+              <TextBlock x:Name="ProgramRuntimeText" Margin="0,0,0,8" />
+              <TextBlock Text="UI: Avalonia" Margin="0,0,0,8" />
+            </StackPanel>
+            <TextBlock Text="{Binding Info_Description}" TextWrapping="Wrap" Margin="0,0,0,12" />
+            <Button x:Name="LinuxShortcutButton" IsVisible="False" Content="Linux-Starter erstellen" Click="InstallLinuxShortcut" HorizontalAlignment="Left" Margin="0,0,0,8" />
+            <TextBlock x:Name="LinuxShortcutStatus" TextWrapping="Wrap" />
+            <Button Content="GitHub: sandmaennchen5/fork_NxFileViewer" Tag="https://github.com/sandmaennchen5/fork_NxFileViewer" Click="OpenInfoLink" HorizontalAlignment="Left" Margin="0,0,0,8" />
+            <WrapPanel Margin="0,0,0,16">
+              <Button Content="Fehler / Funktionswunsch melden" Click="OpenFeedback" Margin="0,0,8,0" />
+              <Button x:Name="PollsInfoButton" Content="Umfragen" Click="OpenPolls" Margin="0,0,8,0" />
+              <Button Content="Discord" Tag="https://discord.gg/tjvhd3jw3d" Click="OpenInfoLink" />
+            </WrapPanel>
+            <TextBlock Text="Support-ID" Margin="0,0,0,6" />
+            <TextBox x:Name="SupportIdentityText" IsReadOnly="True" />
+            <WrapPanel Margin="0,6,0,0">
+              <Button x:Name="RefreshSupportButton" Content="Support-ID aktualisieren" Click="RefreshSupportIdentity" Margin="0,0,8,0" />
+              <Button x:Name="CopySupportButton" Content="Kopieren" Click="CopySupportIdentity" Margin="0,0,8,0" />
+              <Button x:Name="SearchSupportButton" Content="Meine Meldungen suchen" Click="SearchSupportIdentity" />
+            </WrapPanel>
+            <TextBlock x:Name="SupportIdentityStatus" Text="Öffentlich in deinen Meldungen sichtbar." TextWrapping="Wrap" Margin="0,6,0,12" />
+            <TextBlock Text="{Binding Info_Credits}" FontWeight="Bold" Margin="0,12" />
+            <TextBlock x:Name="CreditsText" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding Info_Licenses}" FontWeight="Bold" Margin="0,12" />
+            <Expander Header="LICENSE">
+              <TextBox x:Name="LicenseText" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="320" />
+            </Expander>
+            <Expander Header="Third-party notices">
+              <TextBox x:Name="ThirdPartyText" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="320" />
+            </Expander>
+            <TextBlock Text="{Binding Info_Shortcuts}" FontWeight="Bold" Margin="0,16,0,12" />
+            <Grid ColumnDefinitions="160,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="10">
+              <TextBlock Text="Ctrl+O" FontWeight="Bold" />
+              <TextBlock Grid.Column="1" Text="{Binding MenuItem_Open}" />
+              <TextBlock Grid.Row="1" Text="Ctrl+Shift+O" FontWeight="Bold" />
+              <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding MenuItem_OpenLast}" />
+              <TextBlock Grid.Row="2" Text="Ctrl+Shift+C" FontWeight="Bold" />
+              <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding MenuItem_Close}" />
+              <TextBlock Grid.Row="3" Text="F5" FontWeight="Bold" />
+              <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding MenuItem_CheckIntegrity}" />
+              <TextBlock Grid.Row="4" Text="F10" FontWeight="Bold" />
+              <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding MenuItem_ReloadKeys}" />
+              <TextBlock Grid.Row="5" Text="F2" FontWeight="Bold" />
+              <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding RenamingTool_WindowTitle}" />
+              <TextBlock Grid.Row="6" Text="Alt+S" FontWeight="Bold" />
+              <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding SettingsView_Title}" />
+            </Grid>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+    </TabControl>
+    <Border Grid.Row="1" Padding="3,2" MinHeight="22" Background="{DynamicResource StatusBar.Static.Background}" BorderBrush="{DynamicResource Control.Static.Border}" BorderThickness="0,1,0,0">
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+        <TextBlock x:Name="StatusText" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" ToolTip.Tip="{Binding Text, RelativeSource={RelativeSource Self}}" />
+        <ProgressBar x:Name="FileStatusProgress" Grid.Column="1" Width="80" Height="12" IsVisible="False" IsIndeterminate="True" />
+        <ProgressBar x:Name="BatchProgress" Grid.Column="1" Width="80" Height="12" IsVisible="False" IsIndeterminate="True" />
+      </Grid>
+    </Border>
+  </Grid>
+</Window>

@@ -20,9 +20,9 @@ try {
     & $script -AvaloniaViewer -AvaloniaRuntimeIdentifiers linux-x64 -WithDotNet -Version 4.1.1-beta9 -OutputDirectory $root
     & $script --AvaloniaLogViewer -AvaloniaRuntimeIdentifiers osx-arm64 -WithoutDotNet -Version 4.1.1-beta9 -OutputDirectory $root
     $calls = $global:publishSelectionCalls
-    if ($calls.Count -ne 2 -or $calls[0].Project -notlike '*NxFileViewer.Avalonia.csproj' -or
+    if ($calls.Count -ne 2 -or $calls[0].Project -notlike '*NxFileViewer.csproj' -or
         $calls[0].Rid -ne 'linux-x64' -or !$calls[0].Contained -or
-        $calls[1].Project -notlike '*NxFileViewer.LogViewer.Avalonia.csproj' -or
+        $calls[1].Project -notlike '*NxFileViewer.LogViewer.csproj' -or
         $calls[1].Rid -ne 'osx-arm64' -or $calls[1].Contained) { throw 'Targeted Avalonia dispatch failed.' }
     if (@(Get-ChildItem -LiteralPath $root -Filter '*.zip').Count -ne 2) { throw 'Targeted mode built extra packages.' }
     # Exercise CI and release initialization, including typed switch variables.
@@ -62,16 +62,43 @@ try {
     Save-PublishConfiguration $config $configPath
     $before=$global:publishSelectionCalls.Count
     & $script -NoGui -ConfigFile $configPath -Version 4.1.1-beta9
-    if($global:publishSelectionCalls.Count -ne ($before+1) -or $global:publishSelectionCalls[$before].Project -notlike '*NxFileViewer.LogViewer.Avalonia.csproj'){throw 'Bare configured dispatch failed.'}
+    if($global:publishSelectionCalls.Count -ne ($before+1) -or $global:publishSelectionCalls[$before].Project -notlike '*NxFileViewer.LogViewer.csproj'){throw 'Bare configured dispatch failed.'}
     & $script -Wpf -ConfigFile $configPath -Version 4.1.1-beta9
-    if($global:publishSelectionCalls.Count -ne ($before+3) -or $global:publishSelectionCalls[$before+1].Project -notlike '*NxFileViewer.csproj'){throw '-Wpf group dispatch failed.'}
+    if($global:publishSelectionCalls.Count -ne ($before+3) -or $global:publishSelectionCalls[$before+1].Project -notlike '*NxFileViewer.WPF.csproj'){throw '-Wpf group dispatch failed.'}
     $named=New-PublishConfiguration
     $named.Applications=@('AvaloniaViewer');$named.RuntimeIdentifiers=@('linux-arm64');$named.WithDotNet=$true;$named.WithoutDotNet=$false;$named.FirmwareHashes=$false
     $named.OutputDirectory=Join-Path $root 'profile-output'
     Save-PublishConfiguration $named $configPath 'Linux ARM'
     & $script -NoGui -Profile 'Linux ARM' -ConfigFile $configPath -Version 4.1.1-beta9
     $last=$global:publishSelectionCalls[$global:publishSelectionCalls.Count-1]
-    if($last.Rid -ne 'linux-arm64' -or !$last.Contained -or $last.Project -notlike '*NxFileViewer.Avalonia.csproj'){throw 'Named profile dispatch failed.'}
+    if($last.Rid -ne 'linux-arm64' -or !$last.Contained -or $last.Project -notlike '*NxFileViewer.csproj'){throw 'Named profile dispatch failed.'}
+    $named.OutputDirectory=Join-Path $root 'matrix-output'
+    $named | Add-Member -NotePropertyName TargetOutputs -NotePropertyValue ([pscustomobject]@{
+        'win-x64'=[pscustomobject]@{WithDotNet='Both';WithoutDotNet='Folder'}
+        'linux-x64'=[pscustomobject]@{WithDotNet='Zip';WithoutDotNet='Off'}
+    }) -Force
+    Save-PublishConfiguration $named $configPath 'Mixed targets'
+    $before=$global:publishSelectionCalls.Count
+    & $script -NoGui -Profile 'Mixed targets' -ConfigFile $configPath -Version 4.1.1-beta9
+    $matrixCalls=@($global:publishSelectionCalls | Select-Object -Skip $before)
+    if ($matrixCalls.Count -ne 3 -or @($matrixCalls | Where-Object { $_.Rid -eq 'linux-x64' -and $_.Contained }).Count -ne 1) {
+        throw 'The output matrix built extra variants or skipped Linux with .NET.'
+    }
+    $prefix='NxFileViewerFork_v4.1.1-beta9'
+    $matrixOutput=$named.OutputDirectory
+    $expected=@(
+        "${prefix}_win-x64-with-net.zip"
+        "${prefix}_win-x64-with-net/nxfileviewer-package.json"
+        "${prefix}_win-x64-without-net/nxfileviewer-package.json"
+        "${prefix}_linux-x64-with-net.zip"
+    )
+    foreach ($file in $expected) {
+        if (!(Test-Path -LiteralPath (Join-Path $matrixOutput $file) -PathType Leaf)) { throw "Missing matrix output: $file" }
+    }
+    if ((Test-Path -LiteralPath (Join-Path $matrixOutput "${prefix}_win-x64-without-net.zip")) -or
+        (Test-Path -LiteralPath (Join-Path $matrixOutput "${prefix}_linux-x64-with-net"))) {
+        throw 'The output matrix produced an unselected output format.'
+    }
     Write-Host 'Publish selection passed: targeted apps, OS/architecture, .NET variants, -ViewerX64 and --ViewerX64.'
 }
 finally {

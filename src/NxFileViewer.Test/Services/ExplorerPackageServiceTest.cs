@@ -71,6 +71,17 @@ public sealed class ExplorerPackageServiceTest : IDisposable
         Assert.Null(ExplorerPackageService.SelectRelease(Release(arch, draft: true), arch, true));
         Assert.Null(ExplorerPackageService.SelectRelease(Release(arch == "x64" ? "arm64" : "x64"), arch, true));
     }
+    [Fact]
+    public void SelectsRenamedExploderZip()
+    {
+        var name = $"NxFileViewerFork.Exploder_{PackageVersion}_win-x64.zip";
+        var release = JsonSerializer.SerializeToElement(new
+        {
+            tag_name = "v4.0.1", prerelease = false, draft = false,
+            assets = new[] { new { name, browser_download_url = Repository + name } }
+        });
+        Assert.Equal(name, ExplorerPackageService.SelectRelease(release, "x64", false)?.AssetName);
+    }
     [Theory]
     [InlineData("http://github.com/sandmaennchen5/fork_NxFileViewer/releases/download/v4.0.1/")]
     [InlineData("https://github.com/other/repo/releases/download/v4.0.1/")]

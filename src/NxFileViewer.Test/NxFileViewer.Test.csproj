@@ -23,12 +23,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="../NxFileViewer.Avalonia/Updates/AvaloniaAppUpdater.cs" Link="Avalonia/AvaloniaAppUpdater.cs" />
-    <Compile Include="..\NxFileViewer.Avalonia\SupportIdentityState.cs" Link="Avalonia\SupportIdentityState.cs" />
+    <Compile Include="../NxFileViewer/Updates/AvaloniaAppUpdater.cs" Link="Avalonia/AvaloniaAppUpdater.cs" />
+    <Compile Include="..\NxFileViewer\SupportIdentityState.cs" Link="Avalonia\SupportIdentityState.cs" />
     <Compile Include="..\NxFileViewer.Transition\LegacyDataMigration.cs" Link="Transition\LegacyDataMigration.cs" />
     <Compile Include="..\NxFileViewer.Transition\TransitionRelease.cs" Link="Transition\TransitionRelease.cs" />
-    <ProjectReference Include="..\NxFileViewer\NxFileViewer.csproj" />
-    <ProjectReference Include="..\NxFileViewer.LogViewer\NxFileViewer.LogViewer.csproj" />
+    <ProjectReference Include="..\NxFileViewer.WPF\NxFileViewer.WPF.csproj" />
+    <ProjectReference Include="..\NxFileViewer.LogViewer.WPF\NxFileViewer.LogViewer.WPF.csproj" />
   </ItemGroup>
 
 </Project>

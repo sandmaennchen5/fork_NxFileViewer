@@ -8,6 +8,12 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+## [4.1.2-beta2] - 2026-11-23
+
+Release only for Linux and MacOS.
+Avalonia further rebuilt based on WPF.
+Still pending are detailed file views and batch check view
+
 ## [4.1.2-beta1] - 2026-11-23
 
 Avalonia applications are the first converted versions and remain early beta software. The conversion is in progress; not all functions are implemented or tested, and full WPF feature parity is not yet available.

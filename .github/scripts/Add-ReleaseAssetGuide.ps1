@@ -45,9 +45,8 @@ function Asset-Lines([string[]]$assetNames) {
         $line
     }
 }
-$runtime = Get-RuntimeVersion 'src/NxFileViewer/NxFileViewer.csproj'
+$runtime = Get-RuntimeVersion 'src/NxFileViewer.WPF/NxFileViewer.WPF.csproj'
 $packages = @($descriptor.Packages) + @($descriptor.Arm64Packages | Where-Object { $null -ne $_ })
-if ($packages.Count -eq 0) { throw 'Release descriptor contains no viewer packages.' }
 $names = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
 foreach ($package in $packages) {
     Assert-Asset $package.AssetName
@@ -67,41 +66,54 @@ $zipFiles = @(Get-ChildItem -LiteralPath $PackageDirectory -Filter '*.zip' -File
 $transition = @($zipFiles | Where-Object { $_.Name -cmatch ('^NxFileViewer_v' + $escaped + '(?:_self-contained)?_(?:x64|x86|arm64)\.zip$') -and !$names.Contains($_.Name) } | Sort-Object Name)
 $firmware = @($zipFiles | Where-Object { $_.Name -cmatch ('^[A-Za-z0-9._-]+_v' + $escaped + '_firmware-hashes\.zip$') } | Sort-Object Name)
 $avalonia = @($zipFiles | Where-Object { $_.Name -cmatch ('^NxFileViewerFork_Avalonia_v' + $escaped + '(?:_self-contained)?_(?:x64|x86|arm64|linux-(?:x64|arm64)|osx-(?:x64|arm64))\.zip$') } | Sort-Object Name)
+$modern = @($zipFiles | Where-Object Name -CMatch ('^NxFileViewerFork_v' + $escaped + '_(?:win|linux|osx)-(?:x64|x86|arm64)-(?:with|without)-net(?:-appimage|-dmg)?\.zip$') | Sort-Object Name)
+if (!$packages.Count -and !$modern.Count -and !$avalonia.Count) { throw 'No viewer packages found.' }
 $lines = [Collections.Generic.List[string]]::new()
 $lines.Add('<!-- nxfileviewer-release-asset-guide -->')
 $lines.Add('#### Which ZIP file do I need?')
 $lines.Add('')
-$lines.Add('For a normal Windows installation, choose one of the **viewer ZIPs** below. In each filename pattern, replace {Arch} with one of the listed architectures to match your system. Windows ARM64 packages are for Windows on ARM, not macOS.')
-$lines.Add('')
-$contained = @($packages | Where-Object SelfContained | Sort-Object Architecture)
-$standard = @($packages | Where-Object { !$_.SelfContained } | Sort-Object Architecture)
-if ($contained.Count) {
-    $lines.Add("##### Viewer: includes .NET $runtime (self-contained)")
+if ($modern.Count) {
+    $lines.Add('Choose the ZIP for your operating system and architecture. Packages ending in with-net include .NET. Packages ending in without-net require a matching .NET runtime.')
     $lines.Add('')
-    $lines.Add('No separate .NET installation is required.')
+    foreach ($line in (Asset-Lines @($modern.Name))) { $lines.Add($line) }
     $lines.Add('')
-    foreach ($line in (Asset-Lines @($contained.AssetName))) { $lines.Add($line) }
+    if ($packages.Count) {
+        $lines.Add('The NxFileViewerFork_v... Windows ZIPs are compatibility downloads for the previous Windows updater.')
+        $lines.Add('')
+    }
+} else {
+    $lines.Add('For a normal Windows installation, choose one of the **viewer ZIPs** below. In each filename pattern, replace {Arch} with one of the listed architectures to match your system. Windows ARM64 packages are for Windows on ARM, not macOS.')
     $lines.Add('')
-}
-if ($standard.Count) {
-    $lines.Add("##### Viewer: requires .NET $runtime Desktop Runtime")
-    $lines.Add('')
-    $lines.Add('These smaller ZIPs do not include the runtime. Install the Desktop Runtime for the selected architecture.')
-    $lines.Add('')
-    foreach ($line in (Asset-Lines @($standard.AssetName))) { $lines.Add($line) }
-    $lines.Add('')
-}
-if ($avalonia.Count) {
-    $lines.Add('##### Avalonia beta: Windows, Linux and macOS')
-    $lines.Add('')
-    $lines.Add('**All Avalonia viewer packages (on every operating system) are early beta versions. Not all features are implemented or tested yet.**')
-    $lines.Add('')
-    $lines.Add('These are the first converted Avalonia applications; the conversion is still in progress. ZIPs with linux- are for Linux, osx- for macOS; bare x64/x86/arm64 suffixes are for Windows. Choose the architecture of your system.')
-    $lines.Add('')
-    $lines.Add('Self-contained ZIPs include .NET. The other Avalonia ZIPs require the matching .NET runtime (Desktop Runtime on Windows). On Linux and macOS, extract with executable permissions preserved and start the Avalonia executable; these ZIPs are not signed macOS app installers.')
-    $lines.Add('')
-    foreach ($line in (Asset-Lines @($avalonia.Name))) { $lines.Add($line) }
-    $lines.Add('')
+    $contained = @($packages | Where-Object SelfContained | Sort-Object Architecture)
+    $standard = @($packages | Where-Object { !$_.SelfContained } | Sort-Object Architecture)
+    if ($contained.Count) {
+        $lines.Add("##### Viewer: includes .NET $runtime (self-contained)")
+        $lines.Add('')
+        $lines.Add('No separate .NET installation is required.')
+        $lines.Add('')
+        foreach ($line in (Asset-Lines @($contained.AssetName))) { $lines.Add($line) }
+        $lines.Add('')
+    }
+    if ($standard.Count) {
+        $lines.Add("##### Viewer: requires .NET $runtime Desktop Runtime")
+        $lines.Add('')
+        $lines.Add('These smaller ZIPs do not include the runtime. Install the Desktop Runtime for the selected architecture.')
+        $lines.Add('')
+        foreach ($line in (Asset-Lines @($standard.AssetName))) { $lines.Add($line) }
+        $lines.Add('')
+    }
+    if ($avalonia.Count) {
+        $lines.Add('##### Avalonia beta: Windows, Linux and macOS')
+        $lines.Add('')
+        $lines.Add('**All Avalonia viewer packages (on every operating system) are early beta versions. Not all features are implemented or tested yet.**')
+        $lines.Add('')
+        $lines.Add('These are the first converted Avalonia applications; the conversion is still in progress. ZIPs with linux- are for Linux, osx- for macOS; bare x64/x86/arm64 suffixes are for Windows. Choose the architecture of your system.')
+        $lines.Add('')
+        $lines.Add('Self-contained ZIPs include .NET. The other Avalonia ZIPs require the matching .NET runtime (Desktop Runtime on Windows). On Linux and macOS, extract with executable permissions preserved and start the Avalonia executable; these ZIPs are not signed macOS app installers.')
+        $lines.Add('')
+        foreach ($line in (Asset-Lines @($avalonia.Name))) { $lines.Add($line) }
+        $lines.Add('')
+    }
 }
 if ($explorer.Count) {
     $lines.Add('##### Optional: modern Windows 11 Explorer context menu')

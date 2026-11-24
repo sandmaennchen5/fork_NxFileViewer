@@ -58,5 +58,17 @@ public sealed class BatchArchiveSourcesTest : IDisposable
         var files = BatchArchiveSources.Enumerate(_root, true, true, cache, CancellationToken.None).ToArray();
         Assert.Single(files); Assert.Contains(" :: ", files[0].DisplayPath);
     }
+    [Fact]
+    public void OptionalPackageTypesAreIncludedInArchivesOnlyWhenEnabled()
+    {
+        var zip = Archive(("game.NUP", "fixture"), ("game.nsp", "standard"));
+        var cache = Path.Combine(_root, "cache");
+        var token = TestContext.Current.CancellationToken;
+        Assert.Single(BatchArchiveSources.Enumerate(zip, false, true, cache, token));
+        var packages = BatchArchiveSources.Enumerate(zip, false, true, cache, token,
+            isPackage: path => BatchArchiveSources.IsPackage(path) || string.Equals(Path.GetExtension(path), ".nup", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(packages, package => Path.GetExtension(package.Path) == ".nup");
+    }
+
     public void Dispose() => Directory.Delete(_root, true);
 }

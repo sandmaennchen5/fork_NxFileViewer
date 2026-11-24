@@ -8,7 +8,7 @@ foreach($name in @('InvalidFileNameCharsReplacement','WhiteSpaceCharsReplacement
  $value=$catalog.Defaults.$name
  if($value -isnot [string] -or $value.IndexOfAny([IO.Path]::GetInvalidFileNameChars()) -ge 0){throw "Defaults.$name must be a string without invalid Windows filename characters."}
 }
-$keywordFile=Join-Path $PSScriptRoot '../NxFileViewer/Services/FileRenaming/Models/PatternParts/PatternKeyword.cs'
+$keywordFile=Join-Path $PSScriptRoot '../NxFileViewer.WPF/Services/FileRenaming/Models/PatternParts/PatternKeyword.cs'
 $keywords=@([regex]::Matches([IO.File]::ReadAllText($keywordFile),'\[SerializedValue\("([^"\r\n]+)"\)\]')|ForEach-Object{$_.Groups[1].Value})
 if($keywords.Count -eq 0){throw 'Naming keyword definitions missing.'}
 function Assert-Pattern([object]$pattern,[bool]$addon){

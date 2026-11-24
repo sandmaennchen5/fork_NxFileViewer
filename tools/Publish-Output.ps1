@@ -1,4 +1,16 @@
 # Shared output helpers for the configurable WPF/Avalonia publishers (PowerShell 5.1+).
+function Get-AvaloniaUpdateChecksum([string]$Zip) {
+    [ordered]@{
+        Framework='Avalonia'
+        AssetName=[IO.Path]::GetFileName($Zip)
+        Sha256=(Get-FileHash -LiteralPath $Zip -Algorithm SHA256).Hash
+    }
+}
+function Write-AvaloniaUpdateChecksum([string]$Zip, [switch]$PassThru) {
+    $marker = Get-AvaloniaUpdateChecksum $Zip
+    [IO.File]::WriteAllText(($Zip + '.avalonia.json'),($marker | ConvertTo-Json),[Text.UTF8Encoding]::new($false))
+    if ($PassThru) { $marker }
+}
 function Add-PublishSizeRow($Rows, [string]$Name, [string]$Directory, [string]$Executable, [string]$Zip) {
     $files = @(Get-ChildItem -LiteralPath $Directory -File -Recurse)
     $total = ($files | Measure-Object -Property Length -Sum).Sum

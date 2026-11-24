@@ -39,6 +39,6 @@ For individual EXE selectors, see [development and publishing](Development.md#in
 
 ## Experimental Avalonia variant
 
-`src/NxFileViewer.LogViewer.Avalonia` builds `NxFileViewerFork.LogViewer.Avalonia.exe`
+`src/NxFileViewer.LogViewer` builds `NxFileViewerFork.LogViewer.exe`
 with a separate interface and shared log parsing/text resources. It is distinct
 from the WPF executable and its release ZIPs. See [Avalonia builds](Avalonia.md).

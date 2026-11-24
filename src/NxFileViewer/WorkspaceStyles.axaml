@@ -1,0 +1,168 @@
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Style Selector="Window">
+        <Setter Property="FontFamily" Value="Segoe UI"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Background" Value="{DynamicResource Window.Static.Background}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Window.Static.Foreground}"/>
+    </Style>
+    <Style Selector="Button">
+        <Setter Property="Padding" Value="12,4"/>
+        <Setter Property="MinHeight" Value="24"/>
+        <Setter Property="CornerRadius" Value="0"/>
+        <Setter Property="Background" Value="{DynamicResource Control.Static.Background}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Control.Static.Foreground}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Control.Static.Border}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+    </Style>
+    <Style Selector="Button:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource Control.MouseOver.Background}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Control.MouseOver.Border}"/>
+    </Style>
+    <Style Selector="Button:pressed /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource Control.Pressed.Background}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Control.Pressed.Border}"/>
+    </Style>
+    <Style Selector="TextBlock.update-available">
+        <Setter Property="Foreground" Value="{DynamicResource Update.Available.Foreground}"/>
+    </Style>
+    <Style Selector="Button.home-navigation.update-available">
+        <Setter Property="BorderBrush" Value="{DynamicResource Update.Available.Foreground}"/>
+    </Style>
+    <Style Selector="Button.home-navigation">
+        <Setter Property="Padding" Value="12,10"/>
+        <Setter Property="Margin" Value="4,5"/>
+    </Style>
+    <Style Selector="Button.plugin-launch">
+        <Setter Property="Width" Value="270"/>
+        <Setter Property="MinHeight" Value="92"/>
+        <Setter Property="Padding" Value="12,8"/>
+        <Setter Property="Margin" Value="4,5"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+    </Style>
+    <Style Selector="TabControl">
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Background" Value="{DynamicResource Surface.Static.Background}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Window.Static.Foreground}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Control.Static.Border}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+    </Style>
+    <Style Selector="TabItem">
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Padding" Value="10,4"/>
+        <Setter Property="MinHeight" Value="0"/>
+        <Setter Property="Background" Value="{DynamicResource Control.Static.Background}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Control.Static.Foreground}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Control.Static.Border}"/>
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="1,1,1,0" Padding="{TemplateBinding Padding}" Margin="2,2,0,0">
+                    <ContentPresenter Name="PART_ContentPresenter" Content="{TemplateBinding Header}" ContentTemplate="{TemplateBinding HeaderTemplate}"
+                                      HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="TabItem:selected">
+        <Setter Property="Foreground" Value="{DynamicResource Window.Static.Foreground}"/>
+        <Setter Property="Background" Value="{DynamicResource Surface.Static.Background}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Control.Pressed.Border}"/>
+    </Style>
+    <Style Selector="TabItem:pointerover">
+        <Setter Property="Background" Value="{DynamicResource Control.MouseOver.Background}"/>
+    </Style>
+    <Style Selector="TabItem:disabled">
+        <Setter Property="Background" Value="{DynamicResource Control.Disabled.Background}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Control.Disabled.Border}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Control.Disabled.Foreground}"/>
+    </Style>
+    <Style Selector="TabItem:disabled /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Opacity" Value="0.55"/>
+    </Style>
+    <Style Selector="Button:disabled /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource Control.Disabled.Background}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Control.Disabled.Border}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Control.Disabled.Foreground}"/>
+    </Style>
+    <Style Selector="TextBox">
+        <Setter Property="CornerRadius" Value="0"/>
+        <Setter Property="MinHeight" Value="18"/>
+        <Setter Property="Padding" Value="2,0"/>
+        <Setter Property="Background" Value="{DynamicResource TextBox.Static.Background}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextBox.Static.Foreground}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource TextBox.Static.Border}"/>
+    </Style>
+    <Style Selector="ComboBox">
+        <Setter Property="CornerRadius" Value="0"/>
+        <Setter Property="MinHeight" Value="22"/>
+        <Setter Property="Padding" Value="4,1"/>
+        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        <Setter Property="Background" Value="{DynamicResource Control.Static.Background}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Control.Static.Foreground}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Control.Static.Border}"/>
+    </Style>
+    <Style Selector="ListBox">
+        <Setter Property="Background" Value="{DynamicResource Surface.Static.Background}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Control.Static.Border}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+    </Style>
+    <Style Selector="ListBoxItem">
+        <Setter Property="Padding" Value="4,1"/>
+        <Setter Property="MinHeight" Value="18"/>
+    </Style>
+    <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource Item.Selected.Background}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Item.Selected.Foreground}"/>
+    </Style>
+    <Style Selector="TreeView">
+        <Setter Property="Background" Value="{DynamicResource Surface.Static.Background}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Control.Static.Border}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+    </Style>
+    <Style Selector="TreeViewItem">
+        <Setter Property="Padding" Value="2,1"/>
+        <Setter Property="MinHeight" Value="18"/>
+    </Style>
+    <Style Selector="GridSplitter">
+        <Setter Property="Background" Value="{DynamicResource GridSplitter.Static.Background}"/>
+    </Style>
+    <Style Selector="Border.update-plugin-row">
+        <Setter Property="BorderBrush" Value="{DynamicResource Control.Static.Border}"/>
+    </Style>
+    <Style Selector="Border.overview-group">
+        <Setter Property="BorderBrush" Value="{DynamicResource Control.Static.Border}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Margin" Value="4"/>
+        <Setter Property="Padding" Value="4"/>
+    </Style>
+    <Style Selector="TextBlock.overview-label">
+        <Setter Property="Foreground" Value="{DynamicResource Title2.Foreground}"/>
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+    </Style>
+    <Style Selector="TextBox.overview-value">
+        <Setter Property="MinHeight" Value="18"/>
+        <Setter Property="Padding" Value="2,0"/>
+        <Setter Property="Background" Value="Transparent"/>
+    </Style>
+<Style Selector="TreeViewItem:selected /template/ Border#PART_LayoutRoot"><Setter Property="Background" Value="{DynamicResource Item.Selected.Background}"/></Style>
+<Style Selector="CheckBox"><Setter Property="MinHeight" Value="20"/><Setter Property="Foreground" Value="{DynamicResource Title2.Foreground}"/></Style>
+<Style Selector="DataGrid"><Setter Property="Background" Value="{DynamicResource Surface.Static.Background}"/><Setter Property="Foreground" Value="{DynamicResource Window.Static.Foreground}"/><Setter Property="RowHeight" Value="22"/><Setter Property="BorderBrush" Value="{DynamicResource Control.Static.Border}"/><Setter Property="BorderThickness" Value="1"/></Style>
+<Style Selector="DataGridColumnHeader"><Setter Property="Background" Value="{DynamicResource Control.Static.Background}"/><Setter Property="Foreground" Value="{DynamicResource Window.Static.Foreground}"/><Setter Property="MinHeight" Value="22"/><Setter Property="Padding" Value="4,2"/></Style>
+<Style Selector="DataGridCell"><Setter Property="BorderBrush" Value="{DynamicResource Control.Static.Border}"/></Style>
+<Style Selector="CheckBox /template/ Border#PART_Border"><Setter Property="CornerRadius" Value="0"/></Style>
+<Style Selector="CheckBox">
+<Setter Property="FontWeight" Value="Bold"/><Setter Property="Padding" Value="0"/>
+<Setter Property="Template"><ControlTemplate><Grid ColumnDefinitions="Auto,*"><Border Width="13" Height="13" BorderThickness="1" BorderBrush="{DynamicResource Control.Static.Border}" Background="#E6E6E6" VerticalAlignment="Center"><Path Width="9" Height="8" Stretch="Uniform" Name="CheckGlyph" Data="M 1,5 L 4,8 L 10,1" Stroke="#666666" StrokeThickness="2" IsVisible="False"/></Border><ContentPresenter Grid.Column="1" Margin="5,0,0,0" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" VerticalAlignment="Center"/></Grid></ControlTemplate></Setter>
+</Style>
+<Style Selector="CheckBox:checked /template/ Path#CheckGlyph"><Setter Property="IsVisible" Value="True"/></Style>
+<Style Selector="CheckBox:checked"><Setter Property="Foreground" Value="{DynamicResource Title2.Foreground}"/></Style>
+<Style Selector="Border.help-tip"><Setter Property="Width" Value="16"/><Setter Property="Height" Value="16"/><Setter Property="CornerRadius" Value="8"/><Setter Property="Margin" Value="6,0,0,0"/><Setter Property="Background" Value="{DynamicResource Control.Static.Border}"/></Style>
+<Style Selector="TextBlock.key-valid"><Setter Property="Foreground" Value="{DynamicResource FontBrush.Success}"/></Style>
+<Style Selector="TextBox.overview-success"><Setter Property="Foreground" Value="{DynamicResource FontBrush.Success}"/></Style>
+<Style Selector="TextBlock.key-warning"><Setter Property="Foreground" Value="{DynamicResource FontBrush.Warning}"/></Style>
+<Style Selector="TextBlock.key-invalid"><Setter Property="Foreground" Value="{DynamicResource FontBrush.Error}"/></Style>
+<Style Selector="ToolTip"><Setter Property="MaxWidth" Value="620"/><Setter Property="ContentTemplate"><DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap" MaxWidth="580"/></DataTemplate></Setter></Style>
+<Style Selector="MenuItem"><Setter Property="MinHeight" Value="20"/><Setter Property="Padding" Value="4,1"/><Setter Property="FontSize" Value="12"/></Style>
+<Style Selector="ContextMenu"><Setter Property="Padding" Value="2"/><Setter Property="CornerRadius" Value="0"/></Style>
+</Styles>

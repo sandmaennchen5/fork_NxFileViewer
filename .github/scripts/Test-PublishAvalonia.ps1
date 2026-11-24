@@ -30,13 +30,14 @@ try {
     if ($global:avaloniaPublishTestCalls.Count -ne 28) { throw 'Expected two applications and two distributions for each runtime.' }
     foreach ($rid in $rids) {
         if (@($global:avaloniaPublishTestCalls | Where-Object Rid -eq $rid).Count -ne 4) { throw "Missing builds for $rid." }
-        $suffix = if ($rid.StartsWith('win-')) { $rid.Substring(4) } else { $rid }
         foreach ($app in @('NxFileViewerFork', 'NxFileViewerFork.LogViewer')) {
             foreach ($variant in @('', '_self-contained')) {
-                $zip = Join-Path $root "${app}_Avalonia_v4.1.1-beta9${variant}_${suffix}.zip"
+                $runtime = if ($variant) { 'with-net' } else { 'without-net' }
+                $name = "${app}_v4.1.1-beta9_$rid-$runtime.zip"
+                $zip = Join-Path $root $name
                 if (!(Test-Path -LiteralPath $zip)) { throw "Missing package $zip." }
                 $archive = [IO.Compression.ZipFile]::OpenRead($zip)
-                try { if ($archive.Entries.Count -ne $(if($rid.StartsWith('linux-')){4}else{2})) { throw "Unexpected package contents: $zip" }; if($rid.StartsWith('linux-')) { foreach($entry in $archive.Entries | Where-Object { $_.FullName.EndsWith('.sh') -or $_.FullName -like 'NxFileViewerFork*' }) { if((($entry.ExternalAttributes -shr 16) -band 511) -ne 493) { throw 'Linux executable permissions missing.' } } } }
+                try { if ($archive.Entries.Count -ne $(if($rid.StartsWith('linux-')){4}elseif($app -eq 'NxFileViewerFork' -and $rid.StartsWith('win-')){3}else{2})) { throw "Unexpected package contents: $zip" }; if($rid.StartsWith('linux-')) { foreach($entry in $archive.Entries | Where-Object { $_.FullName.EndsWith('.sh') -or $_.FullName -in @('NxFileViewerFork','NxFileViewerFork.LogViewer') }) { if((($entry.ExternalAttributes -shr 16) -band 511) -ne 493) { throw 'Linux executable permissions missing.' } } } }
                 finally { $archive.Dispose() }
             }
         }
@@ -50,6 +51,24 @@ try {
         $zipBytes = (Get-Item -LiteralPath (Join-Path $root ($columns[0].TrimEnd() + '.zip'))).Length
         $expectedMB = ([decimal]$zipBytes / 1000000).ToString('0.00',[Globalization.CultureInfo]::GetCultureInfo('de-DE'))
         if ($columns[3].Trim() -ne $expectedMB) { throw 'Reported ZIP MB size differs from the actual file.' }
+    }
+    & (Join-Path $PSScriptRoot '../../Publish.ps1') -Version '4.1.1-beta9' -OutputDirectory $root -Extras WpfMigration
+    $descriptor = Get-Content -LiteralPath (Join-Path $root 'nxfileviewer-update.json') -Raw | ConvertFrom-Json
+    $migrationPackages = @($descriptor.Packages) + @($descriptor.Arm64Packages)
+    if ($migrationPackages.Count -ne 6) { throw 'Expected six WPF migration aliases.' }
+    foreach ($migration in $migrationPackages) {
+        $runtime = if ($migration.SelfContained) { 'with-net' } else { 'without-net' }
+        $canonical = Join-Path $root "NxFileViewerFork_v4.1.1-beta9_win-$($migration.Architecture)-$runtime.zip"
+        if ((Get-FileHash -LiteralPath $canonical).Hash -cne $migration.Sha256) { throw 'Migration ZIP differs from the Avalonia ZIP.' }
+        $archive = [IO.Compression.ZipFile]::OpenRead((Join-Path $root $migration.AssetName))
+        try {
+            $manifestStream = [IO.StreamReader]::new($archive.GetEntry('nxfileviewer-package.json').Open())
+            try { $manifest = $manifestStream.ReadToEnd() | ConvertFrom-Json }
+            finally { $manifestStream.Dispose() }
+            if ($manifest.Executable -cne 'NxFileViewerFork.exe' -or !$archive.GetEntry($manifest.Executable)) {
+                throw 'Migration package lacks the new Windows entry point.'
+            }
+        } finally { $archive.Dispose() }
     }
     $exeOutput = Join-Path $root 'exe-mode'
     $copyOutput = Join-Path $root 'copies'

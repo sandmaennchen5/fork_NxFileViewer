@@ -3,14 +3,14 @@ $ErrorActionPreference='Stop'
 $root=Join-Path ([IO.Path]::GetTempPath()) ('nxfv-update-worker-'+[guid]::NewGuid().ToString('N'))
 $install=Join-Path $root 'installation with spaces'
 $stage=Join-Path $install ('Updates/avalonia-'+[guid]::NewGuid().ToString('N'))
-$exeName='NxFileViewerFork.Avalonia.exe'
+$exeName=[IO.Path]::GetFileName($ExecutablePath)
 $worker=$null
 try {
     New-Item -ItemType Directory -Path (Join-Path $stage 'payload'),(Join-Path $stage 'worker') -Force | Out-Null
     foreach($directory in @($install,(Join-Path $stage 'payload'),(Join-Path $stage 'worker'))) { Copy-Item -LiteralPath $ExecutablePath -Destination (Join-Path $directory $exeName) }
     # A GUI smoke test must never send production telemetry, polls or update checks.
     $settings=@{ CheckUpdatesOnStart=$false; IncludePreReleases=$true; SharedSettings=@{ UsageStatisticsChoiceConfirmed=$true;SendAnonymousUsageStatistics=$false;ReportEndpoint='';PollEndpoint='';CheckViewerUpdatesOnStartup=$false } } | ConvertTo-Json -Depth 5
-    [IO.File]::WriteAllText((Join-Path $install 'NxFileViewerFork.Avalonia.settings.json'),$settings)
+    [IO.File]::WriteAllText((Join-Path $install 'NxFileViewer.settings.json'),$settings)
     [IO.File]::WriteAllText((Join-Path $install 'prod.keys'),'fixture-preserve')
     $hash=(Get-FileHash -LiteralPath (Join-Path $install $exeName) -Algorithm SHA256).Hash
     if($SimulateFailure){

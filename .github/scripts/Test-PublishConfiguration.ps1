@@ -10,7 +10,7 @@ try {
        (Get-PublishAutoStartRemaining 0 $true) -ne -1 -or
        (Get-PublishAutoStartRemaining 20 $true) -ne -1){throw 'GUI inactivity countdown failed.'}
     $path=Join-Path $root 'publish.ps1.conf'
-    $config=Read-PublishConfiguration $path
+    $config=New-PublishConfiguration
     Assert-PublishConfiguration $config
     $config.Applications=@('WpfViewer','AvaloniaLogViewer');$config.RuntimeIdentifiers=@('win-arm64','linux-x64')
     $config.WithDotNet=$false;$config.WithoutDotNet=$true;$config.CopyExecutables=$false
@@ -21,8 +21,8 @@ try {
     $named.Applications=@('AvaloniaViewer');$named.RuntimeIdentifiers=@('linux-arm64')
     Save-PublishConfiguration $named $path 'Linux ARM'
     $active=Read-PublishConfiguration $path
-    $standard=Read-PublishConfiguration $path 'Standard'
-    if($active.RuntimeIdentifiers[0] -ne 'linux-arm64' -or $standard.Applications.Count -ne 2){throw 'Named profiles did not preserve the other selections.'}
+    $original=Read-PublishConfiguration $path 'Release'
+    if($active.RuntimeIdentifiers[0] -ne 'linux-arm64' -or $original.Applications.Count -ne 2){throw 'Named profiles did not preserve the other selections.'}
     $missing=$false;try{Read-PublishConfiguration $path 'Does not exist' | Out-Null}catch{$missing=$true}
     if(!$missing){throw 'Missing profile was accepted.'}
     $legacy=Join-Path $root 'legacy.conf'
@@ -31,7 +31,7 @@ try {
     if($legacyConfig.Applications.Count -ne 2){throw 'Legacy flat configuration did not load.'}
     Save-PublishConfiguration $legacyConfig $legacy 'Windows'
     $upgraded=Read-PublishProfileStore $legacy
-    if($upgraded.SchemaVersion -ne 2 -or @($upgraded.Profiles.PSObject.Properties).Count -ne 5){throw 'Legacy configuration was not preserved when adding a profile.'}
+    if($upgraded.SchemaVersion -ne 2 -or @($upgraded.Profiles.PSObject.Properties).Count -ne 4){throw 'Legacy configuration was not preserved when adding a profile.'}
     # Exercise the same dynamic-module boundary as WinForms GetNewClosure events.
     # Construct the API in a temporary function scope, then invoke it after return.
     function Create-CallbackApi {
@@ -49,7 +49,7 @@ try {
     }.GetNewClosure()
     $callbackResult=& $callback
     if($callbackResult.OutputDirectory -ne 'callback-output'){throw 'GUI callback scope lost its configuration helpers.'}
-    if((Read-PublishProfileStore $callbackPath).ActiveProfile -ne 'Standard'){throw 'Saving a GUI profile unexpectedly changed the start profile.'}
+    if((Read-PublishProfileStore $callbackPath).ActiveProfile -ne 'Release'){throw 'Saving a GUI profile unexpectedly changed the start profile.'}
     $startCallback={
         $api.SetStartProfile($callbackPath,'77')
         $draft=$api.NewConfiguration()
@@ -72,18 +72,23 @@ try {
         $rejected=$false;try{Assert-PublishConfiguration $bad}catch{$rejected=$true}
         if(!$rejected){throw "Invalid configuration accepted: $change"}
     }
-    $wpfPreset=Read-PublishConfiguration $path 'WPF'
-    $avaloniaPreset=Read-PublishConfiguration $path 'Avalonia'
-    if($wpfPreset.Applications.Count -ne 2 -or $wpfPreset.RuntimeIdentifiers.Count -ne 3 -or $wpfPreset.CopyExecutables -or $wpfPreset.OutputDirectory -ne 'Publish/WPF'){throw 'WPF preset differs from the previous script.'}
-    if($avaloniaPreset.Applications.Count -ne 2 -or $avaloniaPreset.RuntimeIdentifiers.Count -ne 7 -or $avaloniaPreset.CopyExecutables -or $avaloniaPreset.FirmwareHashes -or $avaloniaPreset.OutputDirectory -ne 'Publish/Avalonia'){throw 'Avalonia preset differs from the agreed defaults.'}
-    $presets=New-PredefinedPublishProfiles
-    if(@($presets.PSObject.Properties).Count -ne 4 -or $presets.WPF.FirmwareHashes){throw 'Expected exactly four predefined profiles.'}
-    $testWin=$presets.'Test Win'
-    if($testWin.Applications.Count -ne 4 -or $testWin.RuntimeIdentifiers.Count -ne 1 -or $testWin.RuntimeIdentifiers[0] -ne 'win-x64' -or $testWin.WithDotNet -or !$testWin.WithoutDotNet -or $testWin.CreateZipArchives -or !$testWin.CopyExecutables -or $testWin.FirmwareHashes){throw 'Test Win defaults differ from the agreed settings.'}
-    if(!$presets.Standard.FirmwareHashes -or $presets.Standard.CopyExecutables -or $presets.Standard.RuntimeIdentifiers.Count -ne 7){throw 'Standard defaults differ from the agreed settings.'}
-    $wpfPreset.OutputDirectory='custom-wpf-output'
-    Save-PublishConfiguration $wpfPreset $path 'WPF'
-    if((Read-PublishConfiguration $path 'WPF').OutputDirectory -ne 'custom-wpf-output'){throw 'Predefined profile overwrote a user customization.'}
+    $newStore=Read-PublishProfileStore (Join-Path $root 'new-install.conf')
+    if ($newStore.ActiveProfile -ne 'Release' -or ($newStore.Profiles.PSObject.Properties.Name -join ',') -ne 'Release,Prerelease') {
+        throw 'Expected only Release and Prerelease presets, with Release active.'
+    }
+    foreach ($name in @('Release','Prerelease')) {
+        $preset = Read-PublishConfiguration (Join-Path $root 'new-install.conf') $name
+        if (($preset.Applications -join ',') -ne 'AvaloniaViewer,AvaloniaLogViewer' -or
+            ($preset.RuntimeIdentifiers -join ',') -ne 'win-x64,win-x86,win-arm64,linux-x64,linux-arm64,osx-x64,osx-arm64' -or
+            ($preset.Extras -join ',') -ne 'Explorer,WpfMigration' -or $preset.OutputDirectory -ne "Publish/$name" -or
+            !$preset.WithDotNet -or !$preset.WithoutDotNet -or !$preset.CreateZipArchives -or !$preset.FirmwareHashes -or
+            $preset.ExplorerOutputFormat -ne 'Zip' -or $preset.CopyExecutables) {
+            throw "$name preset does not match the GitHub release packages."
+        }
+    }
+    $preset.OutputDirectory='custom-prerelease-output'
+    Save-PublishConfiguration $preset $path 'Prerelease'
+    if((Read-PublishConfiguration $path 'Prerelease').OutputDirectory -ne 'custom-prerelease-output'){throw 'Predefined profile overwrote a user customization.'}
     $stub=@'
 param($Framework,$OutputDirectory,$Applications,$RuntimeIdentifiers,$RuntimeVariants,[switch]$AllTargets,[switch]$NoCopy,[switch]$SkipFirmwareHashes,$Version,[switch]$ExecutableOnly,$CopyTo,$CopyRuntime,$CopyRuntimeIncludesDotNet)
 $PSBoundParameters | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $PSScriptRoot ('backend-'+$Framework+'.json')) -Encoding UTF8

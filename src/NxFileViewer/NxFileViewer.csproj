@@ -1,140 +1,83 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net10.0-windows7.0</TargetFramework>
-    <UseWPF>true</UseWPF>
-    <RootNamespace>Emignatik.NxFileViewer</RootNamespace>
+    <Version>4.1.2-beta2</Version>
+    <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
-    <ApplicationIcon>Styling\Icons\Icon.ico</ApplicationIcon>
     <AssemblyName>NxFileViewerFork</AssemblyName>
-    <PackageId>NxFileViewerFork</PackageId>
-    <Company>sandmaennchen5</Company>
-    <Product>NxFileViewer Fork</Product>
-    <Authors>sandmaennchen5</Authors>
-    <Version>4.1.2-beta1</Version>
-    <!-- Increment when the packaged Explorer extension changes. -->
-    <ExplorerPackageVersion>1.0.5.0</ExplorerPackageVersion>
-    <PackageProjectUrl>https://github.com/sandmaennchen5/fork_NxFileViewer</PackageProjectUrl>
-    <PackageIcon>Icon.ico</PackageIcon>
-    <Description>Browse content of Nintendo Switch files</Description>
-    <RepositoryUrl>https://github.com/sandmaennchen5/fork_NxFileViewer</RepositoryUrl>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <Platforms>AnyCPU</Platforms>
+    <RootNamespace>NxFileViewer.Avalonia</RootNamespace>
+    <ApplicationIcon>../NxFileViewer.WPF/Styling/Icons/Icon.ico</ApplicationIcon>
+    <!-- Preserve the reflection bindings used by the converted views. -->
+    <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
+    <AvaloniaVersion>12.1.6</AvaloniaVersion>
   </PropertyGroup>
-
   <ItemGroup>
-    <None Remove="Styling\Icons\close_16x16.png" />
-    <None Remove="Styling\Icons\CnmtContentEntryItem.png" />
-    <None Remove="Styling\Icons\exit_16x16.png" />
-    <None Remove="Styling\Icons\FileDirectoryEntryItem.png" />
-    <None Remove="Styling\Icons\FolderDirectoryEntryItem.png" />
-    <None Remove="Styling\Icons\Icon.ico" />
-    <None Remove="Styling\Icons\navigate_16x16.png" />
-    <None Remove="Styling\Icons\NspItem.png" />
-    <None Remove="Styling\Icons\open_16x16.png" />
-    <None Remove="Styling\Icons\PartitionFileEntryItem.png" />
-    <None Remove="Styling\Icons\refresh_16x16.png" />
-    <None Remove="Styling\Icons\reload_last_16x16.png" />
-    <None Remove="Styling\Icons\rename_16x16.png" />
-    <None Remove="Styling\Icons\safe_16x16.png" />
-    <None Remove="Styling\Icons\SectionItem.png" />
-    <None Remove="Styling\Icons\settings_16x16.png" />
-    <None Remove="Styling\Icons\XciItem.png" />
-    <None Remove="Styling\Icons\XciPartitionItem.png" />
-    <None Include="Styling\Icons\Icon.ico">
-      <Pack>True</Pack>
-      <PackagePath></PackagePath>
-    </None>
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="LibHac" Version="0.19.0" />
-    <PackageReference Include="Microsoft-WindowsAPICodePack-Shell" Version="1.1.5" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.11" />
-    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.11" />
+    <Compile Include="../NxFileViewer.WPF/Services/OnlineServices/OnlineTitleInfoService.cs;../NxFileViewer.WPF/Services/OnlineServices/IOnlineTitleInfoService.cs;../NxFileViewer.WPF/Services/OnlineServices/CachedOnlineTitleInfoService.cs;../NxFileViewer.WPF/Services/OnlineServices/ICachedOnlineTitleInfoService.cs" Link="Shared/%(Filename)%(Extension)" />
+    <Compile Include="../NxFileViewer.WPF/Services/KeysManagement/SharedKeyFiles.cs;../NxFileViewer.WPF/Services/KeysManagement/TicketKeyStore.cs" Link="Shared/%(Filename)%(Extension)" />
+    <Compile Include="../NxFileViewer.WPF/FileLoading/NupReader.cs;../NxFileViewer.WPF/FileLoading/NupContentTree.cs;../NxFileViewer.WPF/Models/TreeItems/Impl/NupFileItem.cs;../NxFileViewer.WPF/Models/TreeItems/ItemBase.cs;../NxFileViewer.WPF/Models/TreeItems/IItem.cs;../NxFileViewer.WPF/Models/TreeItems/IItemErrors.cs;../NxFileViewer.WPF/Models/TreeItems/Impl/ItemErrors.cs" Link="Shared/%(Filename)%(Extension)" />
+    <Compile Include="../NxFileViewer.WPF/Services/FileAssociations/ExplorerRegistration.cs;../NxFileViewer.WPF/Services/FileAssociations/ExplorerLaunchRequest.cs" Link="Shared/%(Filename)%(Extension)" />
+    <Compile Include="../NxFileViewer.WPF/Services/FileAssociations/ExplorerIntegration.cs;../NxFileViewer.WPF/Services/FileAssociations/ExplorerPackageService.cs;../NxFileViewer.WPF/Services/FileAssociations/ExplorerVersionCleanup.cs;../NxFileViewer.WPF/Services/FileAssociations/ForkAssociationLauncher.cs;../NxFileViewer.WPF/Services/FileAssociations/ForkFileAssociations.cs;../NxFileViewer.WPF/Services/RepositoryMirrors.cs;../NxFileViewer.WPF/Services/Integrity/FirmwareReferenceStore.cs;../NxFileViewer.WPF/Services/Updates/InstalledDataStatus.cs" Link="Shared/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="../NxFileViewer.WPF/Services/FileAssociations/Launcher/NxFileViewerFork.Open.exe" LogicalName="Viewer.AssociationLauncher" />
+    <EmbeddedResource Include="../NxFileViewer.Explorer/Native/x64/NxFileViewer.Explorer.dll" LogicalName="Viewer.Explorer.x64" />
+    <EmbeddedResource Include="../NxFileViewer.Explorer/Native/x86/NxFileViewer.Explorer.dll" LogicalName="Viewer.Explorer.x86" />
+    <EmbeddedResource Include="../NxFileViewer.Explorer/Native/arm64/NxFileViewer.Explorer.dll" LogicalName="Viewer.Explorer.arm64" />
+    <EmbeddedResource Include="../NxFileViewer.Explorer/Trust-ExplorerCertificate.ps1" LogicalName="Viewer.Explorer.Trust.ps1" />
+    <Compile Include="../NxFileViewer.WPF/Services/UsageStatisticsService.cs;../NxFileViewer.WPF/Settings/SystemReportChoice.cs" Link="Shared/%(Filename)%(Extension)" />
+    <Compile Include="../NxFileViewer.WPF/Services/CommunityPollService.cs;../NxFileViewer.WPF/Logging/LogAnonymizer.cs;../NxFileViewer.WPF/Logging/SessionFileLog.cs;../NxFileViewer.WPF/Logging/SessionEnvironment.cs" Link="Shared/%(Filename)%(Extension)" />
+    <Compile Include="../NxFileViewer.WPF/Services/Mtp/ShellMtpBackend.cs;../NxFileViewer.WPF/Services/Mtp/MtpImportService.cs;../NxFileViewer.WPF/Services/Mtp/MtpDirectSource.cs;../NxFileViewer.WPF/FileLoading/SdBatchAreas.cs;../NxFileViewer.WPF/FileLoading/SdCardSource.cs;../NxFileViewer.WPF/Services/Nand/NandSaveExplorer.cs" Link="Shared/%(Filename)%(Extension)" />
+    <Compile Include="../NxFileViewer.WPF/Utils/CustomAttributes/*.cs;../NxFileViewer.WPF/Utils/StringReader.cs;../NxFileViewer.WPF/Localization/LocalizationStringExtension.cs;../NxFileViewer.WPF/Services/Updates/ViewerPackageLayout.cs;../NxFileViewer.WPF/Services/Updates/ViewerUpdateService.cs;../NxFileViewer.WPF/Services/Updates/ViewerRemoteReleaseSource.cs;../NxFileViewer.WPF/Services/Updates/ViewerDistribution.cs" Link="Shared/%(Filename)%(Extension)" />
+    <Compile Include="../NxFileViewer.WPF/Settings/AppSettings.cs;../NxFileViewer.WPF/Settings/IAppSettings.cs;../NxFileViewer.WPF/Settings/DefaultSettings.cs;../NxFileViewer.WPF/Settings/OutputLocation.cs;../NxFileViewer.WPF/Settings/PluginLogLevel.cs;../NxFileViewer.WPF/Settings/SdBatchSourceMode.cs;../NxFileViewer.WPF/Settings/NszCompressionEngine.cs;../NxFileViewer.WPF/Settings/TitleInfoProvider.cs;../NxFileViewer.WPF/Styling/Theme/AppTheme.cs;../NxFileViewer.WPF/Utils/MVVM/NotifyPropertyChangedBase.cs" Link="Shared/%(Filename)%(Extension)" />
+    <Compile Include="../NxFileViewer.WPF/Services/FileRenaming/NamingPresets.cs;../NxFileViewer.WPF/Services/FileRenaming/NamingPatternsParser.cs;../NxFileViewer.WPF/Services/FileRenaming/INamingPatternsParser.cs;../NxFileViewer.WPF/Services/FileRenaming/Models/**/*.cs;../NxFileViewer.WPF/Services/FileRenaming/Exceptions/*.cs;../NxFileViewer.WPF/Tools/DelimitedTextParsing/*.cs;../NxFileViewer.WPF/Services/ExternalSources.cs;../NxFileViewer.WPF/Services/Updates/ViewerUpdateMetadata.cs;../NxFileViewer.WPF/Services/Updates/ViewerUpdateSource.cs" Link="Shared/%(Filename)%(Extension)" />
+    <Compile Include="../NxFileViewer.WPF/Services/Nsz/NszCommandArguments.cs;../NxFileViewer.WPF/Services/Nsz/NszProcess.cs;../NxFileViewer.WPF/Services/Nsz/NszProgressUpdate.cs;../NxFileViewer.WPF/Services/Nsz/NszInputAlias.cs;../NxFileViewer.WPF/Services/Nsz/XciPartitionIntegrity.cs;../NxFileViewer.WPF/Services/Nsz/XciGamecardLayout.cs;../NxFileViewer.WPF/Services/PackageOperations/PackageCommandArguments.cs;../NxFileViewer.WPF/Services/BackgroundTask/IProgressReporter.cs;../NxFileViewer.WPF/Settings/NszCompressionMode.cs;../NxFileViewer.WPF/Settings/PackageEngine.cs" Link="Shared/%(Filename)%(Extension)" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.11" />
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.15" />
+    <PackageReference Include="Avalonia.Controls.DataGrid" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Desktop" Version="$(AvaloniaVersion)" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="$(AvaloniaVersion)" />
+    <PackageReference Include="LibHac" Version="0.19.0" />
     <PackageReference Include="SharpCompress" Version="0.50.11" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\LibHac.NSZ\LibHac.NSZ.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Resource Include="Styling\Icons\close_16x16.png" />
-    <Resource Include="Styling\Icons\CnmtContentEntryItem.png" />
-    <Resource Include="Styling\Icons\exit_16x16.png" />
-    <Resource Include="Styling\Icons\FileDirectoryEntryItem.png" />
-    <Resource Include="Styling\Icons\FolderDirectoryEntryItem.png" />
-    <Resource Include="Styling\Icons\Icon.ico" />
-    <Resource Include="Styling\Icons\navigate_16x16.png" />
-    <Resource Include="Styling\Icons\NspItem.png" />
-    <Resource Include="Styling\Icons\open_16x16.png" />
-    <Resource Include="Styling\Icons\PartitionFileEntryItem.png" />
-    <Resource Include="Styling\Icons\refresh_16x16.png" />
-    <Resource Include="Styling\Icons\reload_last_16x16.png" />
-    <Resource Include="Styling\Icons\rename_16x16.png" />
-    <Resource Include="Styling\Icons\safe_16x16.png" />
-    <Resource Include="Styling\Icons\settings_16x16.png" />
-    <Resource Include="Styling\Icons\XciPartitionItem.png" />
-    <Resource Include="Styling\Icons\SectionItem.png" />
-    <Resource Include="Styling\Icons\XciItem.png" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Compile Update="Views\UserControls\FileOverviewView.xaml.cs">
-      <DependentUpon>FileOverviewView.xaml</DependentUpon>
-    </Compile>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Page Update="Styling\TextBlockStyle.xaml">
-      <XamlRuntime>$(DefaultXamlRuntime)</XamlRuntime>
-      <SubType>Designer</SubType>
-    </Page>
-    <Page Update="Styling\CheckBoxStyle.xaml">
-      <XamlRuntime>$(DefaultXamlRuntime)</XamlRuntime>
-    </Page>
-    <Page Update="Views\UserControls\FileOverviewView.xaml">
-      <XamlRuntime>$(DefaultXamlRuntime)</XamlRuntime>
-      <SubType>Designer</SubType>
-    </Page>
-    <Page Update="Views\Windows\SettingsWindow.xaml">
-      <XamlRuntime>$(DefaultXamlRuntime)</XamlRuntime>
-    </Page>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Content Include="..\..\fw\hashes\*.json" Link="Plugins\fwhashes\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" ExcludeFromSingleFile="true" />
-  </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="Services\FileAssociations\Launcher\NxFileViewerFork.Open.exe" LogicalName="Viewer.AssociationLauncher" />
-    <EmbeddedResource Include="..\NxFileViewer.Explorer\Native\x64\NxFileViewer.Explorer.dll" LogicalName="Viewer.Explorer.x64" />
-    <EmbeddedResource Include="..\NxFileViewer.Explorer\Native\x86\NxFileViewer.Explorer.dll" LogicalName="Viewer.Explorer.x86" />
-    <EmbeddedResource Include="..\NxFileViewer.Explorer\Native\arm64\NxFileViewer.Explorer.dll" LogicalName="Viewer.Explorer.arm64" />
-    <EmbeddedResource Include="..\NxFileViewer.Explorer\Trust-ExplorerCertificate.ps1" LogicalName="Viewer.Explorer.Trust.ps1" />
-    <EmbeddedResource Include="Services\Updates\InstallUpdate.ps1" LogicalName="ViewerUpdate.InstallUpdate.ps1" />
-  </ItemGroup>
-  <ItemGroup>
-    <AssemblyMetadata Include="ViewerSelfContained" Value="$(SelfContained)" />
-  </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="../config/default-settings.json" LogicalName="Viewer.DefaultSettings.json" />
+    <ProjectReference Include="../LibHac.NSZ/LibHac.NSZ.csproj" />
+    <Compile Include="../NxFileViewer.WPF/FileLoading/PackageZip.cs;../NxFileViewer.WPF/FileLoading/PackageZip.Operation.cs;../NxFileViewer.WPF/FileLoading/SaveBackupDetection.cs;../NxFileViewer.WPF/Services/Nsz/XciRepairInspection.cs;../NxFileViewer.WPF/Services/Nsz/XciRepairService.cs;../NxFileViewer.WPF/Models/TreeItems/Impl/NroFileItem.cs;../NxFileViewer.WPF/Models/Overview/TitleInfo.cs" Link="Shared/%(Filename)%(Extension)" />
+    <Compile Include="../NxFileViewer.WPF/FileLoading/IPackageTypeAnalyzer.cs" Link="Shared/IPackageTypeAnalyzer.cs" />
+    <Compile Include="../NxFileViewer.WPF/FileLoading/PackageSignature.cs" Link="Shared/PackageSignature.cs" />
+    <Compile Include="../NxFileViewer.WPF/Utils/LibHacExtensions/IStorageExtension.cs" Link="Shared/IStorageExtension.cs" />
+    <Compile Include="../NxFileViewer.WPF/FileLoading/QuickFileInfoLoading/PackageInfo.cs;../NxFileViewer.WPF/FileLoading/QuickFileInfoLoading/PackageMetadataReader.cs" Link="Shared/%(Filename)%(Extension)" />
+    <Compile Include="../NxFileViewer.WPF/Utils/IdHelper.cs;../NxFileViewer.WPF/Utils/LibHacExtensions/IFileSystemExtension.cs;../NxFileViewer.WPF/Utils/LibHacExtensions/NcaExtension.cs;../NxFileViewer.WPF/Utils/LibHacExtensions/NacpTitleBlockDecompressor.cs;../NxFileViewer.WPF/Utils/LibHacExtensions/TitleVersionExtension.cs" Link="Shared/%(Filename)%(Extension)" />
+    <Compile Include="../NxFileViewer.WPF/Models/Overview/NacpLanguage.cs" Link="Shared/NacpLanguage.cs" />
+    <Compile Include="../NxFileViewer.WPF/Localization/Keys/*.cs" Link="Shared/Localization/%(Filename)%(Extension)" />
+    <Compile Include="../NxFileViewer.WPF/Services/Integrity/NcaHashPrefix.cs" Link="Shared/NcaHashPrefix.cs" />
+    <Compile Include="../NxFileViewer.WPF/Services/KeysManagement/KeyFileValidator.cs;../NxFileViewer.WPF/Services/KeysManagement/KeyFileValidationResult.cs;../NxFileViewer.WPF/Services/KeysManagement/MasterKeyCatalog.cs;../NxFileViewer.WPF/Services/KeysManagement/MasterKeyFirmwareMap.cs;../NxFileViewer.WPF/Services/KeysManagement/KeyDownloads.cs;../NxFileViewer.WPF/Services/OnlineServices/HttpDownloader.cs;../NxFileViewer.WPF/Services/OnlineServices/IHttpDownloader.cs" Link="Shared/%(Filename)%(Extension)" />
     <EmbeddedResource Include="../config/master-keys.json" LogicalName="Viewer.MasterKeys.json" />
+    <Compile Include="../NxFileViewer.WPF/Services/SupportIdentityClient.cs" Link="Shared/SupportIdentityClient.cs" />
+    <Compile Include="../NxFileViewer.WPF/Services/Integrity/BatchArchiveSources.cs" Link="Shared/BatchArchiveSources.cs" />
+    <Compile Include="../NxFileViewer.WPF/Services/Integrity/BatchSummaryValues.cs;../NxFileViewer.WPF/Services/Integrity/BatchVersionSortKey.cs;../NxFileViewer.WPF/Services/Integrity/BatchContentMetadata.cs;../NxFileViewer.WPF/Services/Integrity/BatchExcelWriter.cs;../NxFileViewer.WPF/Services/Integrity/BatchCsvWriter.cs" Link="Shared/BatchCsvWriter.cs" />
+    <Compile Include="../NxFileViewer.WPF/Services/Security/ProgramPermissionAnalyzer.cs" Link="Shared/ProgramPermissionAnalyzer.cs" />
+    <Compile Include="../NxFileViewer.WPF/Services/PackageAnalysis/PackageStructureNames.cs" Link="Shared/PackageStructureNames.cs" />
+    <Compile Include="../NxFileViewer.WPF/Utils/FileSizeHelper.cs" Link="Shared/FileSizeHelper.cs" />
+    <Compile Include="../NxFileViewer.WPF/Utils/FileSizeUnit.cs" Link="Shared/FileSizeUnit.cs" />
+    <Compile Include="../NxFileViewer.WPF/Services/Integrity/FirmwareComparison.cs" Link="Shared/FirmwareComparison.cs" />
+    <Compile Include="../NxFileViewer.WPF/Services/ApplicationDataPaths.cs;../NxFileViewer.WPF/Services/GitHubContentLocation.cs;../NxFileViewer.WPF/Services/TitleDbSources.cs;../NxFileViewer.WPF/Services/Updates/GitHubUpdateRequests.cs;../NxFileViewer.WPF/Services/OnlineServices/TitleDbCatalog.cs" Link="Shared/%(Filename)%(Extension)" />
+    <Compile Include="../NxFileViewer.WPF/Services/PluginGuiLauncher.cs;../NxFileViewer.WPF/Utils/PathHelper.cs" Link="Shared/%(Filename)%(Extension)" />
+    <Compile Include="../NxFileViewer.WPF/Utils/MVVM/Localization/LocalizationKeysBase.cs;../NxFileViewer.WPF/Utils/MVVM/Localization/ILocalizationKeysBase.cs" Link="Shared/Localization/%(Filename)%(Extension)" />
+    <AvaloniaResource Include="../NxFileViewer.WPF/Styling/Icons/*.*" Link="Icons/%(Filename)%(Extension)" />
+    <None Include="../../LICENSE" Link="LICENSE.txt" CopyToPublishDirectory="PreserveNewest" />
+    <EmbeddedResource Include="../NxFileViewer.WPF/Views/Windows/MainWindow.xaml" LogicalName="Viewer.WorkspaceIcons" />
     <EmbeddedResource Include="../config/naming-presets.json" LogicalName="Viewer.NamingPresets.json" />
+    <EmbeddedResource Include="../config/default-settings.json" LogicalName="Viewer.DefaultSettings.json" />
     <EmbeddedResource Include="../config/external-sources.json" LogicalName="Viewer.ExternalSources.json" />
+    <EmbeddedResource Include="../config/package-manifest.json" LogicalName="Viewer.PackageManifest.json" />
+    <Compile Include="../NxFileViewer.WPF/Services/Updates/ViewerVersion.cs" Link="Shared/ViewerVersion.cs" />
+    <Compile Include="../NxFileViewer.WPF/Services/Nand/NandPluginManager.cs;../NxFileViewer.WPF/Services/Nsz/NszPluginManager.cs;../NxFileViewer.WPF/Services/PackageOperations/PackageEngineInstaller.cs;../NxFileViewer.WPF/Services/PackageOperations/PackageVersionStore.cs;../NxFileViewer.WPF/Services/Updates/OldVersionCleanup.cs;../NxFileViewer.WPF/Services/Updates/PluginStorageCleanup.cs;../NxFileViewer.WPF/Services/Updates/ViewerRollback.cs;../NxFileViewer.WPF/Services/Nand/NandCliPlugin.cs;../NxFileViewer.WPF/Services/KeysManagement/IKeySetProviderService.cs" Link="Shared/%(Filename)%(Extension)" />
+    <Compile Include="../NxFileViewer.WPF/Services/Updates/PluginVersionStorage.cs;../NxFileViewer.WPF/Services/PackageOperations/PackageEnginePaths.cs" Link="Shared/%(Filename)%(Extension)" />
+    <Compile Include="../NxFileViewer.WPF/Services/Nand/NandDriveDiscovery.cs;../NxFileViewer.WPF/Services/Nand/NandDetection.cs;../NxFileViewer.WPF/Services/Nand/NandExplorer.cs;../NxFileViewer.WPF/Services/Nand/NandPartitionCatalog.cs" Link="Shared/%(Filename)%(Extension)" />
+    <Compile Include="../NxFileViewer.WPF/Services/OnlineServices/TitleDbCatalog.Local.cs;../NxFileViewer.WPF/Services/OnlineServices/OnlineTitleInfo.cs;../NxFileViewer.WPF/Services/OnlineServices/IOnlineTitleInfo.cs;../NxFileViewer.WPF/Services/OnlineServices/OptionalRatingConverter.cs" Link="Shared/%(Filename)%(Extension)" />
+    <AssemblyMetadata Include="ViewerSingleFile" Value="$(PublishSingleFile)" />
+    <AssemblyMetadata Include="ViewerSelfContained" Value="$(SelfContained)" />
+    <EmbeddedResource Include="../NxFileViewer.WPF/Styling/Theme/LightTheme.xaml" LogicalName="Viewer.Theme.Light" />
+    <EmbeddedResource Include="../NxFileViewer.WPF/Styling/Theme/DarkTheme.xaml" LogicalName="Viewer.Theme.Dark" />
     <EmbeddedResource Include="../../CREDITS.txt" LogicalName="Viewer.Credits" />
     <EmbeddedResource Include="../../LICENSE" LogicalName="Viewer.License" />
     <EmbeddedResource Include="../../docs/THIRD-PARTY-NOTICES.txt" LogicalName="Viewer.ThirdPartyNotices" />
-    <EmbeddedResource Include="../../docs/Icon-provenance.md" LogicalName="Viewer.IconProvenance" />
-    <None Include="../../docs/Icon-provenance.md" Link="Icon-provenance.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" ExcludeFromSingleFile="true" />
-    <None Include="../../CREDITS.txt" Link="CREDITS.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" ExcludeFromSingleFile="true" />
-    <None Include="../../LICENSE" Link="LICENSE.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
-    <None Include="../../docs/THIRD-PARTY-NOTICES.txt" Link="THIRD-PARTY-NOTICES.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" ExcludeFromSingleFile="true" />
-    <None Include="../../docs/licenses/*.txt" Link="licenses/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" ExcludeFromSingleFile="true" />
-  </ItemGroup>
-  <ItemGroup>
-    <InternalsVisibleTo Include="NxFileViewer.Test" />
+    <Content Include="../../fw/hashes/*.json" Link="Plugins/fwhashes/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" ExcludeFromSingleFile="true" />
   </ItemGroup>
 </Project>

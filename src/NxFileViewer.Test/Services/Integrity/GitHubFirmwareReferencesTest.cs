@@ -93,7 +93,7 @@ public class GitHubFirmwareReferencesTest
     {
         var error = Assert.Throws<InvalidDataException>(() => new FirmwareIntegrityVerifier(Array.Empty<string>()));
         var stack = error.StackTrace!.Replace('\\', '/');
-        Assert.Contains("/_/NxFileViewer/src/NxFileViewer/Services/Integrity/FirmwareIntegrityVerifier.cs:line", stack);
+        Assert.Contains("/_/NxFileViewer/src/NxFileViewer.WPF/Services/Integrity/FirmwareIntegrityVerifier.cs:line", stack);
         Assert.DoesNotContain(":/Users/", stack, StringComparison.OrdinalIgnoreCase);
     }
 #endif

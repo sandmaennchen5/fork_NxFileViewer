@@ -106,6 +106,19 @@ public sealed class KeyDownloadsTest : IDisposable
         Assert.Single(Directory.GetFiles(_root));
     }
 
+    [Fact]
+    public async Task InvalidFirstDownloadIsNotInstalled()
+    {
+        var destination = Path.Combine(_root, "prod.keys");
+        var downloader = new FakeDownloader((path, _) => File.WriteAllText(path, "invalid key file"));
+        await Assert.ThrowsAsync<InvalidDataException>(() => KeyDownloads.DownloadValidatedAsync(
+            downloader, "https://example.test/prod.keys", destination, TestContext.Current.CancellationToken,
+            (source, _) => KeyFileValidator.ValidateProdKeys(source).IsValid
+                ? Task.FromResult(true)
+                : Task.FromException<bool>(new InvalidDataException())));
+        Assert.Empty(Directory.GetFiles(_root));
+    }
+
     private sealed class FakeDownloader(Action<string, CancellationToken> action) : IHttpDownloader
     {
         public Task DownloadFileAsync(string url, string destFilePath, CancellationToken cancellationToken)

@@ -3,6 +3,12 @@ name: Discord Release Notification
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Published release tag to announce
+        required: true
+        type: string
   workflow_call:
     secrets:
       DISCORD_RELEASE_WEBHOOK:
@@ -21,7 +27,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          RELEASE_TAG: ${{ github.event.release.tag_name || github.ref_name }}
+          RELEASE_TAG: ${{ inputs.release_tag || github.event.release.tag_name || github.ref_name }}
           DISCORD_RELEASE_WEBHOOK: ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
           DISCORD_PRERELEASE_WEBHOOK: ${{ secrets.DISCORD_PRERELEASE_WEBHOOK }}
         run: |
@@ -31,9 +37,15 @@ jobs:
           async function notify() {
             const release = JSON.parse(execFileSync('gh', [
               'release', 'view', '--repo', process.env.GH_REPO,
-              '--json', 'name,tagName,url,body,isPrerelease,publishedAt',
+              '--json', 'name,tagName,url,body,isDraft,isPrerelease,publishedAt',
               '--', process.env.RELEASE_TAG,
             ], { encoding: 'utf8' }));
+
+            if (release.isDraft || !release.publishedAt) {
+              console.error('Discord notifications require a published release.');
+              process.exitCode = 1;
+              return;
+            }
 
             const secret = release.isPrerelease
               ? 'DISCORD_PRERELEASE_WEBHOOK'

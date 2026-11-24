@@ -14,21 +14,26 @@ Use the Windows WPF viewer for the existing full application workflows.
 
 ## Applications and settings
 
-- Viewer project: `src/NxFileViewer.Avalonia`; Windows executable: `NxFileViewerFork.Avalonia.exe`.
-- LogViewer project: `src/NxFileViewer.LogViewer.Avalonia`; Windows executable: `NxFileViewerFork.LogViewer.Avalonia.exe`.
-- Viewer preferences are stored separately in `NxFileViewerFork.Avalonia.settings.json`
+- Viewer project: `src/NxFileViewer/NxFileViewer.csproj`; Windows executable: `NxFileViewerFork.exe`.
+- WPF reference project for testing: `src/NxFileViewer.WPF/NxFileViewer.WPF.csproj`.
+
+Release ZIPs use `NxFileViewerFork_v<version>_<runtime>-with-net.zip` or `NxFileViewerFork_v<version>_<runtime>-without-net.zip`. ZIPs containing a native AppImage or DMG add `-appimage` or `-dmg` before `.zip`.
+
+For a release that switches installed WPF copies to Avalonia, run `Publish.ps1 -Version <version> -Extras WpfMigration` after building the Avalonia Windows ZIPs. This creates compatibility aliases for x64, x86 and ARM64 and writes the update manifests. The legacy WPF updater selects the alias and reads the new entry point from its package manifest. Run `-Extras UpdateManifest` without migration aliases for later releases once that upgrade path is no longer needed.
+- LogViewer project: `src/NxFileViewer.LogViewer`; Windows executable: `NxFileViewerFork.LogViewer.exe`.
+- Viewer preferences are stored in `NxFileViewerFork.settings.json`. Shared settings use the WPF layout and Avalonia-specific preferences are stored under `AvaloniaPreferences`. Avalonia reads the previous settings filenames for migration.
   beside the executable. Existing WPF preferences can supply the initial settings.
-- Keep WPF and Avalonia executable names distinct when testing them in the same folder.
+- Use separate test directories for WPF and Avalonia because their executable names are identical.
 
 ## Build and test publishing
 
 ```powershell
-dotnet build src/NxFileViewer.Avalonia/NxFileViewer.Avalonia.csproj -c Release
-dotnet build src/NxFileViewer.LogViewer.Avalonia/NxFileViewer.LogViewer.Avalonia.csproj -c Release
+dotnet build src/NxFileViewer/NxFileViewer.csproj -c Release
+dotnet build src/NxFileViewer.LogViewer/NxFileViewer.LogViewer.csproj -c Release
 ```
 
 Use `./Publish.ps1 -Profile 'Test Win'` for Windows x64 test executables, without
-.NET or ZIPs, copied to the configured test folder with distinct WPF/Avalonia names.
+.NET or ZIPs, copied to the test folder configured for the selected framework.
 The predefined **Avalonia** profile is the entry point for all Avalonia packages:
 
 ```powershell
@@ -107,8 +112,8 @@ viewer and uses an isolated temporary installation, with reporting/polls/network
 checks disabled. It opens and closes only its own test window:
 
 ```powershell
-./.github/scripts/Test-AvaloniaUpdateWorker.ps1 -ExecutablePath /path/to/NxFileViewerFork.Avalonia.exe
-./.github/scripts/Test-AvaloniaUpdateWorker.ps1 -ExecutablePath /path/to/NxFileViewerFork.Avalonia.exe -SimulateFailure
+./.github/scripts/Test-AvaloniaUpdateWorker.ps1 -ExecutablePath /path/to/NxFileViewerFork.exe
+./.github/scripts/Test-AvaloniaUpdateWorker.ps1 -ExecutablePath /path/to/NxFileViewerFork.exe -SimulateFailure
 ```
 
 This tests the real process handoff and main-window acknowledgement; failure mode

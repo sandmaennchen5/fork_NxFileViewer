@@ -45,10 +45,25 @@ public sealed class AvaloniaUpdaterTest : IDisposable
         using var marked=JsonDocument.Parse(JsonSerializer.Serialize(new{tag_name="4.1.1-beta6",assets=new[]{new{name},new{name=name+".avalonia.json"}}}));
         Assert.True(AvaloniaAppUpdater.SelectRelease(marked.RootElement,"owner/repo","win-x64",false)!.RequiresManifest);
     }
+    [Theory]
+    [InlineData("win-x64", false, "NxFileViewerFork_v4.1.2-beta1_win-x64-without-net.zip")]
+    [InlineData("linux-x64", true, "NxFileViewerFork_v4.1.2-beta1_linux-x64-with-net.zip")]
+    [InlineData("osx-x64", true, "NxFileViewerFork_v4.1.2-beta1_osx-x64-with-net.zip")]
+    public void SelectsNewZipNamesAndIgnoresNativeWrapperArchives(string rid, bool selfContained, string name)
+    {
+        var wrapper = name.Replace(".zip", rid.StartsWith("linux-") ? "-appimage.zip" : "-dmg.zip");
+        using var json = JsonDocument.Parse(JsonSerializer.Serialize(new
+        {
+            tag_name = "4.1.2-beta1", assets = new[] { new { name = wrapper }, new { name } }
+        }));
+        var result = Assert.IsType<AvaloniaRelease>(AvaloniaAppUpdater.SelectRelease(json.RootElement, "owner/repo", rid, selfContained));
+        Assert.Equal(name, result.AssetName);
+        Assert.True(result.RequiresManifest);
+    }
     [Fact]
     public void RejectsTraversalUserSettingsAndWrongArchitecture()
     {
-        foreach(var name in new[]{"../outside","prod.keys","NxFileViewerFork.Avalonia.settings.json","Plugins/tool"})
+        foreach(var name in new[]{"../outside","../symbols.pdb","Plugins/symbols.pdb","prod.keys","NxFileViewer.settings.json","Plugins/tool"})
         {
             using var zip=Zip(("NxFileViewerFork.Avalonia",Elf()),(name,new byte[]{1}));
             Assert.Throws<InvalidDataException>(()=>AvaloniaAppUpdater.Extract(zip,Path.Combine(_root,Guid.NewGuid().ToString("N")),Release(),"linux-x64",false));
@@ -59,6 +74,14 @@ public sealed class AvaloniaUpdaterTest : IDisposable
         Assert.Throws<InvalidDataException>(()=>AvaloniaAppUpdater.Extract(missing,Path.Combine(_root,"missing"),Release(true),"linux-x64",false));
     }
     [Fact]
+    public void IgnoresPublishedDebugSymbolsWithoutStagingThem()
+    {
+        using var zip = Zip(("NxFileViewerFork.Avalonia", Elf()), ("libHarfBuzzSharp.pdb", new byte[] { 1 }));
+        var destination = Path.Combine(_root, "with-symbols");
+        AvaloniaAppUpdater.Extract(zip, destination, Release(), "linux-x64", false);
+        Assert.Equal("NxFileViewerFork.Avalonia", Path.GetFileName(Assert.Single(Directory.GetFiles(destination))));
+    }
+    [Fact]
     public void ValidatesManifestAndSupportsFutureExecutableName()
     {
         var package=new AvaloniaPackage(1,"Avalonia","4.1.1-beta6","linux-x64",false,"NxFileViewerFork");
@@ -66,6 +89,8 @@ public sealed class AvaloniaUpdaterTest : IDisposable
         Assert.Equal("NxFileViewerFork",AvaloniaAppUpdater.Extract(zip,Path.Combine(_root,"future"),Release(true),"linux-x64",false).Executable);
         using var wrong=Zip(("NxFileViewerFork",Elf()),(AvaloniaAppUpdater.ManifestName,JsonSerializer.SerializeToUtf8Bytes(package with{Framework="WPF"})));
         Assert.Throws<InvalidDataException>(()=>AvaloniaAppUpdater.Extract(wrong,Path.Combine(_root,"wpf"),Release(true),"linux-x64",false));
+        using var renamed = Zip(("NxFileViewer", Elf()), (AvaloniaAppUpdater.ManifestName, JsonSerializer.SerializeToUtf8Bytes(package with { Executable = "NxFileViewer" })));
+        Assert.Equal("NxFileViewer", AvaloniaAppUpdater.Extract(renamed, Path.Combine(_root, "renamed"), Release(true), "linux-x64", false).Executable);
     }
     [Fact]
     public void FailedRestartRollsBackAndKeepsUserFiles()
@@ -84,11 +109,11 @@ public sealed class AvaloniaUpdaterTest : IDisposable
     {
         var stage=Path.Combine(_root,"success-stage");var payload=Path.Combine(stage,"payload");var install=Path.Combine(_root,"success-install");Directory.CreateDirectory(payload);Directory.CreateDirectory(install);
         const string exe="NxFileViewerFork.Avalonia";
-        File.WriteAllText(Path.Combine(payload,exe),"new");File.WriteAllText(Path.Combine(install,exe),"old");File.WriteAllText(Path.Combine(install,"NxFileViewerFork.Avalonia.settings.json"),"keep");
+        File.WriteAllText(Path.Combine(payload,exe),"new");File.WriteAllText(Path.Combine(install,exe),"old");File.WriteAllText(Path.Combine(install,"NxFileViewer.settings.json"),"keep");
         var job=new UpdateJob(1,1,exe,exe,new[]{new UpdateFile(exe,AvaloniaAppUpdater.Hash(Path.Combine(payload,exe)))});
         var launched=false;
         AvaloniaAppUpdater.Apply(stage,install,job,start=>{Assert.Equal(install,start.WorkingDirectory);Assert.Equal(Path.Combine(install,exe),start.FileName);launched=true;});
-        Assert.True(launched);Assert.Equal("new",File.ReadAllText(Path.Combine(install,exe)));Assert.Equal("keep",File.ReadAllText(Path.Combine(install,"NxFileViewerFork.Avalonia.settings.json")));
+        Assert.True(launched);Assert.Equal("new",File.ReadAllText(Path.Combine(install,exe)));Assert.Equal("keep",File.ReadAllText(Path.Combine(install,"NxFileViewer.settings.json")));
     }
     private sealed class FixtureHandler(byte[] bytes) : System.Net.Http.HttpMessageHandler
     {
@@ -103,15 +128,31 @@ public sealed class AvaloniaUpdaterTest : IDisposable
         await Assert.ThrowsAsync<InvalidDataException>(()=>AvaloniaAppUpdater.DownloadAsync(client,Release() with{Digest="sha256:"+new string('0',64)},_root,"linux-x64",false,TestContext.Current.CancellationToken));
         Assert.Empty(Directory.GetDirectories(Path.Combine(_root,"Updates")));
     }
-    private sealed class IndexHandler(byte[] zip, bool wrongFramework) : System.Net.Http.HttpMessageHandler
+    private sealed class IndexHandler(byte[] zip, bool wrongFramework, bool combined = false) : System.Net.Http.HttpMessageHandler
     {
         protected override Task<System.Net.Http.HttpResponseMessage> SendAsync(System.Net.Http.HttpRequestMessage request, System.Threading.CancellationToken token)
         {
-            var bytes = request.RequestUri!.AbsolutePath.EndsWith("nxfileviewer-packages.json")
-                ? JsonSerializer.SerializeToUtf8Bytes(new { SchemaVersion = 1, Packages = new[] { new { AssetName = "fixture.zip", Framework = wrongFramework ? "WPF" : "Avalonia", Sha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(zip)) } } })
-                : zip;
+            var entries = new[] { new { AssetName = "fixture.zip", Framework = wrongFramework ? "WPF" : "Avalonia", Sha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(zip)) } };
+            var bytes = request.RequestUri!.AbsolutePath.EndsWith("nxfileviewer-update.json")
+                ? combined
+                    ? JsonSerializer.SerializeToUtf8Bytes(new { SchemaVersion = 1, ApplicationId = "NxFileViewerFork", AvaloniaPackages = entries })
+                    : JsonSerializer.SerializeToUtf8Bytes(new { SchemaVersion = 1, ApplicationId = "NxFileViewerFork" })
+                : request.RequestUri.AbsolutePath.EndsWith("nxfileviewer-packages.json") && !combined
+                    ? JsonSerializer.SerializeToUtf8Bytes(new { SchemaVersion = 1, Packages = entries })
+                    : zip;
             return Task.FromResult(new System.Net.Http.HttpResponseMessage(System.Net.HttpStatusCode.OK) { Content = new System.Net.Http.ByteArrayContent(bytes) });
         }
+    }
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ReadsCombinedManifestOrFallsBackToLegacyIndex(bool combined)
+    {
+        using var zip = Zip(("NxFileViewerFork.Avalonia", Elf()));
+        using var client = new System.Net.Http.HttpClient(new IndexHandler(zip.ToArray(), false, combined));
+        var release = Release() with { HasReleaseManifest = true };
+        var stage = await AvaloniaAppUpdater.DownloadAsync(client, release, _root, "linux-x64", false, TestContext.Current.CancellationToken);
+        Assert.True(File.Exists(Path.Combine(stage, "payload", "NxFileViewerFork.Avalonia")));
     }
     [Theory]
     [InlineData(false)]

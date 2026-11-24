@@ -29,7 +29,7 @@ $manifest = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'AppxManifest.xml'
 $manifest = $manifest.Replace('@PUBLISHER@', [Security.SecurityElement]::Escape($Publisher)).Replace('@VERSION@', $Version).Replace('@ARCHITECTURE@', $Architecture)
 [IO.File]::WriteAllText((Join-Path $stage 'AppxManifest.xml'), $manifest, [Text.UTF8Encoding]::new($false))
 Add-Type -AssemblyName System.Drawing
-$icon = [Drawing.Icon]::new((Join-Path $PSScriptRoot '../NxFileViewer/Styling/Icons/Icon.ico'))
+$icon = [Drawing.Icon]::new((Join-Path $PSScriptRoot '../NxFileViewer.WPF/Styling/Icons/Icon.ico'))
 $source = $icon.ToBitmap()
 try {
     foreach ($asset in @(@('StoreLogo.png',50),@('Logo150.png',150),@('Logo44.png',44))) {
