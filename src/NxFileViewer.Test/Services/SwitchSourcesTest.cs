@@ -184,6 +184,18 @@ public sealed class SwitchSourcesTest : IDisposable
         }
         Assert.Equal(contents, SdCardSource.FindContents(_root));
         Assert.True(SdCardSource.IsNax0(physical));
+        var input = split ? Path.Combine(physical, "00") : physical;
+        Assert.True(global::NxFileViewer.Avalonia.Nax0Contents.IsNax0(input));
+        var sdEntry = Assert.Single(global::NxFileViewer.Avalonia.Nax0Contents.Enumerate(contents, TestContext.Current.CancellationToken));
+        Assert.Equal(relative, sdEntry.FullPath);
+        Assert.Equal(split ? new FileInfo(input).Length + new FileInfo(Path.Combine(physical, "01")).Length : new FileInfo(input).Length, sdEntry.Size);
+        var avaloniaBytes = global::NxFileViewer.Avalonia.Nax0Contents.Read(input, keys, stream =>
+        {
+            using var buffer = new MemoryStream();
+            stream.CopyTo(buffer);
+            return buffer.ToArray();
+        });
+        Assert.Equal(expected, avaloniaBytes);
         using var sd = SdCardItem.Open(contents, keys);
         using var denied = new UniqueRef<IFile>();
         Assert.True(sd.PartitionFileSystem.OpenFile(ref denied.Ref, relative.ToU8Span(), OpenMode.Write).IsFailure());

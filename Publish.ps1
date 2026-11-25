@@ -468,7 +468,7 @@ try {
                     $pattern = '^' + [regex]::Escape("${avaloniaName}_v${appVersion}") + '_(?:win|linux|osx)-(?:x64|x86|arm64)-(?:with|without)-net\.zip$'
                     foreach ($zip in Get-ChildItem -LiteralPath $OutDirRoot -File -Filter '*.zip' | Where-Object Name -match $pattern) {
                         $marker = if ($writeAvaloniaZipMetadata) {
-                            Write-Host "Update metadata: $($zip.FullName).avalonia.json"
+                            Write-Host "Update metadata: $($zip.FullName).viewer.json"
                             Write-AvaloniaUpdateChecksum $zip.FullName -PassThru
                         } else {
                             Get-AvaloniaUpdateChecksum $zip.FullName

@@ -12,6 +12,22 @@ public class KeyFileValidatorTest : IDisposable
     public KeyFileValidatorTest() => Directory.CreateDirectory(_tempDirectory);
 
     [Fact]
+    public void ValidateProdKeys_ReportsConsoleKeyPresenceAndFormatSeparately()
+    {
+        var path = WriteFile("console.keys",
+            $"BIS_KEY_00 = {new string('a', 64)}\nbis_key_01 = ABCD\nbis_key_02 = invalid\nsd_seed = {new string('b', 32)}\n");
+        var result = KeyFileValidator.ValidateProdKeys(path);
+
+        Assert.NotNull(result.ConsoleKeys);
+        Assert.Equal(ConsoleKeyStatus.Present, result.ConsoleKeys["bis_key_00"]);
+        Assert.Equal(ConsoleKeyStatus.InvalidFormat, result.ConsoleKeys["bis_key_01"]);
+        Assert.Equal(ConsoleKeyStatus.InvalidFormat, result.ConsoleKeys["bis_key_02"]);
+        Assert.Equal(ConsoleKeyStatus.Missing, result.ConsoleKeys["bis_key_03"]);
+        Assert.Equal(ConsoleKeyStatus.Present, result.ConsoleKeys["sd_seed"]);
+        Assert.DoesNotContain("bis_key_03", result.MissingKeys);
+    }
+
+    [Fact]
     public void ValidateProdKeys_ReportsMissingAndInvalidMasterKeys()
     {
         var path = WriteFile("prod.keys", "master_key_00 = 00000000000000000000000000000000\n");

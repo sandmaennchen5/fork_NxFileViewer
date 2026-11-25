@@ -1,10 +1,13 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Avalonia.Interactivity;
+using Avalonia.Controls;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
 using Emignatik.NxFileViewer.Services.FileAssociations;
 using Emignatik.NxFileViewer.Services.PackageOperations;
 
@@ -12,6 +15,63 @@ namespace NxFileViewer.Avalonia;
 
 public partial class MainWindow
 {
+    private readonly Queue<ExplorerLaunchRequest> _explorerRequests = new();
+    private DispatcherTimer? _explorerRequestTimer;
+    private bool _handlingExplorerRequest;
+    private bool _explorerReady;
+
+    internal void InitializeExplorerQueue(ExplorerLaunchRequest? initialRequest, string? startupError)
+    {
+        _explorerRequestTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
+        _explorerRequestTimer.Tick += async (_, _) => await ProcessExplorerQueueAsync();
+        if (initialRequest is { Paths.Length: > 0 }) EnqueueExplorerRequest(initialRequest);
+        Opened += (_, _) =>
+        {
+            _explorerReady = true;
+            if (startupError != null) ReportExplorerRequestError(startupError);
+        };
+        Closed += (_, _) =>
+        {
+            _explorerReady = false;
+            _explorerRequestTimer.Stop();
+            _explorerRequests.Clear();
+        };
+    }
+
+    internal void EnqueueExplorerRequest(ExplorerLaunchRequest request)
+    {
+        if (_closed) return;
+        _explorerRequests.Enqueue(request);
+        _explorerRequestTimer?.Start();
+    }
+
+    private async Task ProcessExplorerQueueAsync()
+    {
+        if (!_explorerReady || _handlingExplorerRequest || _workspaceJobs.Count > 0 || _applicationUpdatePending ||
+            _batchCancellation != null || _nandCancellation != null || _sourceCancellation != null ||
+            _fileVerificationCancellation != null || _updateCancellation != null) return;
+        if (!_explorerRequests.TryDequeue(out var request))
+        {
+            _explorerRequestTimer?.Stop();
+            return;
+        }
+        _handlingExplorerRequest = true;
+        try
+        {
+            if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
+            Activate();
+            await OpenExplorerRequestAsync(request);
+        }
+        finally { _handlingExplorerRequest = false; }
+    }
+
+    internal void ReportExplorerRequestError(string message)
+    {
+        if (_closed) return;
+        StatusText.Text = message;
+        LogSession("ERROR", message);
+    }
+
     private void InitializeExplorerRegistration()
     {
         ExplorerRegistrationPanel.IsVisible = OperatingSystem.IsWindows();
@@ -99,22 +159,27 @@ public partial class MainWindow
             if (!_closed) RefreshUpdateExplorerSummary();
         }
     }
-    internal async Task OpenExplorerRequestAsync(string[] args)
+    private async Task OpenExplorerRequestAsync(ExplorerLaunchRequest request)
     {
         try
         {
-            var request = ExplorerLaunchRequest.Parse(args);
-            if (request.Mode is ExplorerLaunchMode.FileOpen or ExplorerLaunchMode.FileVerify)
+            if (request.Paths.Length == 0) return;
+            if (request.Paths.Any(path => !File.Exists(path) && !Directory.Exists(path)))
+                throw new FileNotFoundException("An Explorer selection no longer exists.");
+            var automatic = request.Mode == ExplorerLaunchMode.Automatic;
+            var automaticBatch = automatic && (request.Paths.Length > 1 || request.Paths.Any(Directory.Exists));
+            if (request.Mode is ExplorerLaunchMode.FileOpen or ExplorerLaunchMode.FileVerify || (automatic && !automaticBatch))
             {
                 await OpenFileAsync(request.Paths[0], fromWindows: true, forceVerify: request.Mode == ExplorerLaunchMode.FileVerify);
                 return;
             }
 
             Workspace.SelectedItem = BatchTab;
-            if (request.Mode is ExplorerLaunchMode.BatchOpen or ExplorerLaunchMode.BatchVerify)
+            if (request.Mode is ExplorerLaunchMode.BatchOpen or ExplorerLaunchMode.BatchVerify || automaticBatch)
             {
                 if (request.Paths.Length == 1) BatchInputPath.Text = request.Paths[0];
-                await RunBatchAsync(request.Paths, request.Mode == ExplorerLaunchMode.BatchVerify);
+                await RunBatchAsync(request.Paths, request.Mode == ExplorerLaunchMode.BatchVerify ||
+                    (automaticBatch && _preferences.SharedSettings.VerifyFilesOpenedFromWindows));
             }
             else if (request.Mode is ExplorerLaunchMode.Compress or ExplorerLaunchMode.Decompress)
             {
@@ -130,8 +195,7 @@ public partial class MainWindow
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         {
-            StatusText.Text = error.Message;
-            LogSession("ERROR", error.Message);
+            ReportExplorerRequestError(error.Message);
         }
     }
 }

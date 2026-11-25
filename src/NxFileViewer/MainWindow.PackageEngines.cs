@@ -33,9 +33,9 @@ public partial class MainWindow
         File.Exists(Path.Combine(kronos, "runtime", "python.exe")) &&
         File.Exists(Path.Combine(kronos, "ztools", "squirrel.py"));
 
-    private static string RunPackageEngines(PackageEngine selection, PackageOperation operation, IReadOnlyList<string> sources,
+    private string RunPackageEngines(PackageEngine selection, PackageOperation operation, IReadOnlyList<string> sources,
         string type, string rust, string kronos, string keys, string job, Action<string> validate,
-        IProgress<string> progress, CancellationToken token)
+        PackageProgress progress, CancellationToken token)
     {
         var engines = PackageEngines(selection);
         var failures = new List<string>(engines.Length);
@@ -70,11 +70,14 @@ public partial class MainWindow
                     arguments.InsertRange(0, ["-c", bootstrap, Path.Combine(tools, "squirrel.py")]);
                 }
 
-                progress.Report($"{engine} · {operation}");
+                var phase = $"{engine} · {operation} · {Path.GetFileName(sources[0])}";
+                progress(phase);
+                QueuePluginLog("INFO", "PACKAGE", phase);
                 var reportedError = false;
-                NszProcess.Run(executable, arguments, attempt, token, onProgress: update => progress.Report(update.Details),
+                NszProcess.Run(executable, arguments, attempt, token, onProgress: update => progress($"{phase} · {update.Details}", update.Fraction),
                     onDiagnostic: line =>
                     {
+                        QueuePluginLog("DEBUG", "PACKAGE", line);
                         if (line.Contains("Traceback (", StringComparison.OrdinalIgnoreCase) ||
                             line.Contains("Exception:", StringComparison.OrdinalIgnoreCase)) reportedError = true;
                     });
@@ -90,7 +93,8 @@ public partial class MainWindow
             {
                 var message = $"{engine} · {error.Message}";
                 failures.Add(message);
-                progress.Report(message);
+                QueuePluginLog("WARN", "PACKAGE", message);
+                progress(message);
             }
         }
         token.ThrowIfCancellationRequested();

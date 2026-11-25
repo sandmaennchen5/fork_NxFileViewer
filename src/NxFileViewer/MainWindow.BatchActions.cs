@@ -12,22 +12,61 @@ using Avalonia.Platform.Storage;
 namespace NxFileViewer.Avalonia;
 public partial class MainWindow
 {
-    private sealed record BatchHistoryEntry(DateTime Time, string Source, BatchSource[] Paths, BatchRow[]? Results = null)
-    { public override string ToString() => $"{Time:g} · {Paths.Length} · {Source}"; }
+    private sealed record BatchHistoryEntry(DateTime Time, string Source, BatchSource[] Paths, BatchRow[]? Results = null, Guid Id = default)
+    {
+        public BatchResumeOptions? Options { get; init; }
+        public override string ToString() => $"{Time:g} · {Paths.Length} · {Source}";
+    }
+    private sealed record BatchResumeOptions(string[] Sources, bool Verify, bool Recursive, bool IncludeArchives,
+        bool IgnoreMissingDeltaFragments, Emignatik.NxFileViewer.FileLoading.SdBatchAreas Areas);
     private List<BatchHistoryEntry> _batchHistory = new();
     private static readonly JsonSerializerOptions BatchHistoryJson = new() { IgnoreReadOnlyProperties = true };
-    private static string BatchHistoryPath => Path.Combine(ViewerDataDirectory.Root, "History", "batch-history.avalonia.json");
+    private static string BatchHistoryPath => Path.Combine(ViewerDataDirectory.Root, "History", "batch-history.json");
     private void LoadBatchHistory()
     {
-        var path = File.Exists(BatchHistoryPath)
-            ? BatchHistoryPath
-            : Path.Combine(AppContext.BaseDirectory, "Cache", "Avalonia", "batch-history.json");
         try
         {
-            if (File.Exists(path))
-                _batchHistory = JsonSerializer.Deserialize<List<BatchHistoryEntry>>(File.ReadAllText(path)) ?? new();
+            var oldDirectory = Path.Combine(BatchHistoryDirectory, "Avalonia");
+            if (Directory.Exists(oldDirectory))
+            {
+                foreach (var archive in Directory.EnumerateFiles(oldDirectory, "scan-*.zip"))
+                {
+                    var destination = Path.Combine(BatchHistoryDirectory, Path.GetFileName(archive));
+                    if (!File.Exists(destination)) File.Move(archive, destination);
+                }
+            }
+            var path = new[] { BatchHistoryPath, Path.Combine(BatchHistoryDirectory, "batch-history.avalonia.json"),
+                Path.Combine(AppContext.BaseDirectory, "Cache", "Avalonia", "batch-history.json") }.FirstOrDefault(File.Exists);
+            var archives = Directory.Exists(BatchHistoryDirectory)
+                ? Directory.GetFiles(BatchHistoryDirectory, "scan-*.zip") : [];
+            foreach (var archive in archives)
+            {
+                try
+                {
+                    if (ReadBatchScanArchive(archive, headerOnly: true) is { } entry &&
+                        string.Equals(Path.GetFullPath(BatchScanArchive(entry.Id)), Path.GetFullPath(archive), StringComparison.Ordinal))
+                        _batchHistory.Add(entry);
+                }
+                catch (Exception error) when (error is IOException or InvalidDataException or UnauthorizedAccessException or JsonException)
+                {
+                    LogSession("WARN", $"Could not read batch history archive: {error.Message}");
+                }
+            }
+            if (archives.Length == 0 && path != null)
+                _batchHistory = (JsonSerializer.Deserialize<List<BatchHistoryEntry>>(File.ReadAllText(path)) ?? [])
+                    .Select(entry => entry.Id == Guid.Empty ? entry with { Id = Guid.NewGuid() } : entry).ToList();
+            var imported = ReadWpfBatchHistory();
+            _batchHistory = imported.Concat(_batchHistory).DistinctBy(entry => entry.Id).OrderByDescending(entry => entry.Time)
+                .Take(Math.Clamp(_preferences.BatchHistoryLimit, 1, 100)).ToList();
+            foreach (var scan in _batchHistory.Where(imported.Contains))
+                WriteBatchScanArchive(scan, includeLogos: true);
+            if (imported.Count > 0) LogSession("INFO", $"WPF batch history: {imported.Count} scan(s)");
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException) { SettingsStatus.Text = ex.Message; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            SettingsStatus.Text = ex.Message;
+            LogSession("WARN", $"Could not load batch history: {ex.Message}");
+        }
         BatchHistoryChoice.ItemsSource = _batchHistory.ToArray();
         if (_batchHistory.Count > 0) BatchHistoryChoice.SelectedIndex = 0;
     }
@@ -37,40 +76,96 @@ public partial class MainWindow
         foreach (var property in typeof(BatchRow).GetProperties().Where(property => property.PropertyType == typeof(string) && !property.CanWrite))
             if (property.GetValue(row) is string value) metadata[property.Name] = value;
         var content = row.ContentOverride ?? row.Package?.Titles.FirstOrDefault();
-        var languages = row.StoredLanguages ?? GetOverviewLanguages(content);
+        var languages = row.StoredLanguages ?? (row.Package?.Homebrew is { } homebrew
+            ? GetHomebrewLanguages(homebrew) : GetOverviewLanguages(content));
         return row with
         {
             StoredMetadata = metadata, StoredSize = row.Package?.Size ?? row.StoredSize,
             StoredDemo = row.StoredDemo ?? content?.NacpData?.IsDemo,
-            StoredLanguages = includeLogos ? languages : languages.Select(language => language with { Icon = null }).ToArray(),
+            Path = PersistentBatchPath(row),
+            StoredLanguages = includeLogos ? languages : languages.Select(language => language with { Icon = null, IconReference = null }).ToArray(),
             StoredParts = row.ShowPackageDetails ? row.PackageDetails.Select(part => StoreBatchRow(part, includeLogos)).ToArray() : null,
             Package = null, ContentOverride = null
         };
     }
 
-    private void SaveBatchHistory(string source)
+    private void SaveBatchHistory(string source, BatchResumeOptions? options = null)
     {
         if (!_preferences.BatchHistoryEnabled) return;
-        _batchHistory.Insert(0, new(DateTime.Now, source, _batchRows.Select(row => new BatchSource(row.Path, row.DisplayPath)).ToArray(),
-            _batchRows.Select(row => StoreBatchRow(row, _preferences.SharedSettings.SaveBatchHistoryLogos)).ToArray()));
-        _batchHistory = _batchHistory.Take(Math.Clamp(_preferences.BatchHistoryLimit, 1, 100)).ToList();
-        Directory.CreateDirectory(Path.GetDirectoryName(BatchHistoryPath)!);
-        var temporary = BatchHistoryPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
-        try { File.WriteAllText(temporary, JsonSerializer.Serialize(_batchHistory, BatchHistoryJson)); File.Move(temporary, BatchHistoryPath, true); }
-        finally { if (File.Exists(temporary)) File.Delete(temporary); }
-        BatchHistoryChoice.ItemsSource = _batchHistory.ToArray(); BatchHistoryChoice.SelectedIndex = 0;
+        try
+        {
+            var keepLogos = _preferences.SharedSettings.SaveBatchHistoryLogos;
+            var scan = new BatchHistoryEntry(DateTime.Now, source,
+                _batchRows.Select(row => new BatchSource(PersistentBatchPath(row), row.DisplayPath)).ToArray(),
+                _batchRows.Select(row => StoreBatchRow(row, keepLogos)).ToArray(), _batchScanId)
+            { Options = options ?? _batchHistory.FirstOrDefault(entry => entry.Id == _batchScanId)?.Options };
+            var previous = _batchHistory.Where(entry => entry.Id != scan.Id).ToArray();
+            var history = previous.Prepend(scan).Take(Math.Clamp(_preferences.BatchHistoryLimit, 1, 100)).ToList();
+            foreach (var legacy in history.Skip(1).Where(entry => !File.Exists(BatchScanArchive(entry.Id))))
+                WriteBatchScanArchive(legacy, keepLogos);
+            WriteBatchScanArchive(scan, keepLogos);
+            _batchHistory = history.Select(entry => entry with { Results = null }).ToList();
+            BatchHistoryChoice.ItemsSource = _batchHistory.ToArray();
+            BatchHistoryChoice.SelectedIndex = 0;
+            foreach (var entry in previous.Where(entry => !history.Contains(entry)))
+                File.Delete(BatchScanArchive(entry.Id));
+            LogSession("TRACE", $"Saved batch history: results={_batchRows.Count}; logos={keepLogos}");
+        }
+        catch (Exception error) when (error is IOException or InvalidDataException or UnauthorizedAccessException or JsonException)
+        {
+            LogSession("WARN", $"Could not save batch history: {error.Message}");
+        }
     }
+
+    private static string PersistentBatchPath(BatchRow row) =>
+        row.DisplayPath.Contains(" :: ", StringComparison.Ordinal) ? row.DisplayPath : row.Path;
     private async void ResumeBatchHistory(object? sender, RoutedEventArgs e)
+    {
+        if (_batchCancellation != null || BatchHistoryChoice.SelectedItem is not BatchHistoryEntry history) return;
+        var archive = BatchScanArchive(history.Id);
+        try
+        {
+            if (File.Exists(archive)) history = await Task.Run(() => ReadBatchScanArchive(archive, headerOnly: false)) ?? history;
+            if (_closed || _batchCancellation != null) return;
+            var options = history.Options;
+            if (options == null && (Directory.Exists(history.Source) || File.Exists(history.Source)))
+                options = new([history.Source], history.Results?.Any(row => row.Verified) == true,
+                    BatchRecursive.IsChecked == true, BatchIncludeArchives.IsChecked == true,
+                    _preferences.SharedSettings.IgnoreMissingDeltaFragments,
+                    Emignatik.NxFileViewer.FileLoading.SdBatchAreas.From(_preferences.SharedSettings) with { SourceMode = _batchSourceMode });
+            if (options == null || !options.Sources.Any(path => Directory.Exists(path) || File.Exists(path)))
+            {
+                StatusText.Text = string.Format(_text.FileNotSupported_Log, history.Source);
+                return;
+            }
+            BatchInputPath.Text = history.Source;
+            BatchRecursive.IsChecked = options.Recursive;
+            BatchIncludeArchives.IsChecked = options.IncludeArchives;
+            BatchSourceMode.SelectedIndex = (int)options.Areas.SourceMode;
+            await RunBatchAsync(options.Sources, options.Verify, checkpoint: history with { Options = options });
+        }
+        catch (Exception error) when (error is IOException or InvalidDataException or UnauthorizedAccessException or JsonException)
+        { if (!_closed) StatusText.Text = error.Message; }
+    }
+
+    private async void ShowBatchHistory(object? sender, RoutedEventArgs e)
     {
         if (_batchCancellation != null || BatchHistoryChoice.SelectedItem is not BatchHistoryEntry history) return;
         using var workspaceJob = LockWorkspace(BatchTab);
         using var cancellation = new System.Threading.CancellationTokenSource(); _batchCancellation = cancellation; SetBatchBusy(true);
+        ResetBatchWorkingFiles();
         _batchRows.Clear(); var keys = _keysPath;
         try
         {
+            var archive = BatchScanArchive(history.Id);
+            if (File.Exists(archive))
+                history = await Task.Run(() => ReadBatchScanArchive(archive, headerOnly: false), cancellation.Token) ?? history;
+            cancellation.Token.ThrowIfCancellationRequested();
+            LogSession("DEBUG", $"Restoring batch history: entries={history.Paths.Length}; storedResults={history.Results != null}");
             if (history.Results != null)
             {
-                foreach (var row in history.Results) _batchRows.Add(row);
+                foreach (var row in history.Results)
+                    _batchRows.Add(RestoreBatchPaths(row));
                 RefreshBatchFilter(followResult: _batchRows.FirstOrDefault());
             }
             else
@@ -78,21 +173,40 @@ public partial class MainWindow
                 foreach (var path in history.Paths)
                 {
                     cancellation.Token.ThrowIfCancellationRequested();
-                    var row = await Task.Run(() => ReadBatchRow(path.Path, path.DisplayPath, keys, false, cancellation.Token));
+                    var input = path.DisplayPath.Contains(" :: ", StringComparison.Ordinal) ? path.DisplayPath : path.Path;
+                    var row = await Task.Run(() => ReadBatchRow(input, path.DisplayPath, keys, false, cancellation.Token));
                     if (_closed) return;
-                    _batchRows.Add(row);
+                    _batchRows.Add(StoreActiveBatchArtwork(row));
                     LogBatchFile(row);
                     RefreshBatchFilter(followResult: row);
                 }
             }
             BatchInputPath.Text = history.Source;
+            FlushBatchArtwork();
             StatusText.Text = _text.BatchHistory_LoadedNotice;
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
-        finally { _batchCancellation = null; if (!_closed) SetBatchBusy(false); }
+        catch (Exception error) when (error is IOException or InvalidDataException or UnauthorizedAccessException or JsonException)
+        {
+            if (!_closed)
+            {
+                StatusText.Text = error.Message;
+                LogSession("WARN", $"Could not restore batch history: {error.Message}");
+            }
+        }
+        finally
+        {
+            _batchCancellation = null;
+            ClearBatchExtraction();
+            if (!_closed) SetBatchBusy(false);
+            else ResetBatchWorkingFiles();
+        }
     }
+    private static BatchRow RestoreBatchPaths(BatchRow row) =>
+        row with { Path = PersistentBatchPath(row), StoredParts = row.StoredParts?.Select(RestoreBatchPaths).ToArray() };
     private void OpenBatchContextMenu(object? sender, ContextRequestedEventArgs e)
     {
+        if (IsBatchPackageTableEvent(e.Source)) return;
         if (_workspaceJobs.Count > 0 || _batchCancellation != null || _mtpCancellation != null) return;
         var clicked = (e.Source as global::Avalonia.Visual)?.FindAncestorOfType<DataGridRow>(includeSelf: true);
         if (clicked?.DataContext is BatchRow clickedRow && !BatchResults.SelectedItems.Contains(clickedRow))
@@ -117,17 +231,17 @@ public partial class MainWindow
             var row = clicked?.DataContext as BatchRow ?? files[0];
             var source = row.DisplayPath.Split(" :: ", 2)[0];
             var folder = Path.GetDirectoryName(source);
-            Add(_text.BatchTable_OpenExplorer, () => OpenBatchLocationAsync(folder!), Directory.Exists(folder));
-            Add(_text.BatchIntegrity_OpenSelected, () => OpenFileAsync(row.Path), File.Exists(row.Path));
+            Add(_text.BatchTable_OpenExplorer, () => OpenLocalDirectoryAsync(folder!), Directory.Exists(folder));
+            Add(_text.BatchIntegrity_OpenSelected, () => OpenBatchFileAsync(row), IsAvailableBatchSource(row.Path));
             if (selected.Length == 1 && row.TitleId.Length == 16 && row.TitleId.All(Uri.IsHexDigit))
                 Add(_text.MenuItem_OpenTitleWebPage, () => { OpenTitlePageForId(row.TitleId); return Task.CompletedTask; });
         }
 
         var paths = files.Select(row => row.Path).ToHashSet();
-        var verifiable = _batchRows.Where(row => paths.Contains(row.Path) && row.Nand == null && File.Exists(row.Path)).ToArray();
+        var verifiable = _batchRows.Where(row => paths.Contains(row.Path) && row.Nand == null && IsAvailableBatchSource(row.Path)).ToArray();
         Add(_text.MenuItem_CheckIntegrity, () => VerifyBatchSelectionAsync(verifiable), verifiable.Length > 0);
 
-        var renameable = _batchRows.Where(row => paths.Contains(row.Path) && row.FileType is "NSP" or "NSZ" or "XCI" or "XCZ" &&
+        var renameable = _batchRows.Where(row => paths.Contains(row.Path) && row.RawFileType is "NSP" or "NSZ" or "XCI" or "XCZ" &&
             row.DisplayPath == row.Path && File.Exists(row.Path)).ToArray();
         Add(_text.BatchNaming_Check, async () => { await PrepareBatchNames(true, renameable); }, renameable.Length > 0);
         Add(_text.RenamingTool_Button_Rename, () => OpenBatchRenamingAsync(renameable), renameable.Length > 0);
@@ -140,11 +254,11 @@ public partial class MainWindow
             Add(label, () => RunPackageActionAsync(action, inputs.Select(row => row.Path).ToArray(), source, label, target));
         }
 
-        var packages = files.Where(row => !row.HasError && File.Exists(row.Path) && row.FileType is "NSP" or "NSZ" or "XCI" or "XCZ").ToArray();
+        var packages = files.Where(row => !row.HasError && IsAvailableBatchSource(row.Path) && row.RawFileType is "NSP" or "NSZ" or "XCI" or "XCZ").ToArray();
         if (_preferences.NszActive)
         {
-            AddPackageAction(_text.Nsz_Compress, "Compress", packages.Where(row => row.FileType is "NSP" or "XCI").ToArray());
-            AddPackageAction(_text.Nsz_Decompress, "Decompress", packages.Where(row => row.FileType is "NSZ" or "XCZ").ToArray());
+            AddPackageAction(_text.Nsz_Compress, "Compress", packages.Where(row => row.RawFileType is "NSP" or "XCI").ToArray());
+            AddPackageAction(_text.Nsz_Decompress, "Decompress", packages.Where(row => row.RawFileType is "NSZ" or "XCZ").ToArray());
         }
         if (_preferences.PackageOperationsActive && packages.Length > 0)
         {
@@ -165,7 +279,7 @@ public partial class MainWindow
         menu.Open((Control?)clicked ?? BatchResults);
     }
 
-    private async Task OpenBatchLocationAsync(string folder)
+    private async Task OpenLocalDirectoryAsync(string folder)
     {
         try
         {
@@ -188,8 +302,27 @@ public partial class MainWindow
         }
         if (sender is Control target) menu.Open(target);
     }
-    private void ResetBatchColumns(object? sender, RoutedEventArgs e)
-    { for (var i = 0; i < BatchResults.Columns.Count; i++) { var column = BatchResults.Columns[i]; column.IsVisible = _defaultBatchColumns.GetValueOrDefault(column).Visible; column.DisplayIndex = i; column.Width = _defaultBatchColumns.GetValueOrDefault(column).Width; } }
+    private async void ResetBatchColumns(object? sender, RoutedEventArgs e)
+    {
+        if (!await ConfirmPluginCleanupAsync(_text.BatchTable_ResetColumns, _text.BatchTable_ConfirmResetColumns,
+            _text.Dialog_Yes, _text.Dialog_No)) return;
+
+        _resettingBatchColumns = true;
+        try
+        {
+            for (var i = 0; i < BatchResults.Columns.Count; i++)
+            {
+                var column = BatchResults.Columns[i];
+                var defaults = _defaultBatchColumns[column];
+                column.DisplayIndex = i;
+                column.IsVisible = defaults.Visible;
+                column.Width = defaults.Width;
+            }
+        }
+        finally { _resettingBatchColumns = false; }
+        RefreshBatchPackageTables();
+        SaveResetBatchLayout();
+    }
     private async Task<RenameBatchRow[]> PrepareBatchNames(bool updateStatus, BatchRow[]? selection = null)
     {
         var rows = (selection ?? FilteredBatchRows()).DistinctBy(row => row.Path).ToArray(); var keys = _keysPath; var result = new List<RenameBatchRow>();
@@ -237,7 +370,8 @@ public partial class MainWindow
     private async void MoveValidBatch(object? sender, RoutedEventArgs e) => await MoveValidBatchAsync(FilteredBatchRows());
 
     private static bool CanMoveBatchRow(BatchRow row) => row.Verified && row.Original && !row.HasError &&
-        row.DisplayPath == row.Path && !Emignatik.NxFileViewer.Services.Mtp.MtpDirectSource.IsDirect(row.Path);
+        row.DisplayPath == row.Path && !row.DisplayPath.Contains(" :: ", StringComparison.Ordinal) &&
+        !Emignatik.NxFileViewer.Services.Mtp.MtpDirectSource.IsDirect(row.Path);
 
     private async Task MoveValidBatchAsync(BatchRow[] selection)
     {

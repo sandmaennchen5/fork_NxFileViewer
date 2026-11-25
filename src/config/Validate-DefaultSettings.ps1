@@ -2,7 +2,7 @@ param([string]$Path = (Join-Path $PSScriptRoot 'default-settings.json'))
 $ErrorActionPreference = 'Stop'
 $c = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json
 if (($c.SchemaVersion -isnot [int] -and $c.SchemaVersion -isnot [long]) -or $c.SchemaVersion -ne 1) { throw 'Unsupported default settings schema.' }
-$source = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../NxFileViewer.WPF/Settings/AppSettings.cs') -Raw -Encoding UTF8
+$source = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../NxFileViewer/Shared/Settings/AppSettings.cs') -Raw -Encoding UTF8
 # Resolve enum sources directly, and read each type only once. Recursive project
 # searches also walk bin/obj and are particularly expensive on SMB shares.
 $enumValues = @{}
@@ -35,7 +35,7 @@ foreach ($m in $matches) {
                 default {
                     if (!$enumValues.ContainsKey($type)) {
                         $relativePath = if ($type -eq 'AppTheme') { 'Styling/Theme/AppTheme.cs' } else { "Settings/$type.cs" }
-                        $enumPath = Join-Path (Join-Path $PSScriptRoot '../NxFileViewer.WPF') $relativePath
+                        $enumPath = Join-Path (Join-Path $PSScriptRoot '../NxFileViewer/Shared') $relativePath
                         if (!(Test-Path -LiteralPath $enumPath -PathType Leaf)) { throw "Enum definition missing: $type ($relativePath)" }
                         $enum = Get-Content -LiteralPath $enumPath -Raw -Encoding UTF8
                         $enum=[regex]::Replace($enum, '(?m)//[^\r\n]*', '')

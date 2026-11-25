@@ -16,27 +16,7 @@
         dragAndDrop:DropFilesBehaviorExtension.IsEnabled="True">
 
     <Window.Resources>
-        <DrawingImage x:Key="NandIcon">
-            <DrawingImage.Drawing>
-                <DrawingGroup>
-                    <!-- RAM-style memory board, chips and gold contacts. -->
-                    <GeometryDrawing Brush="#348A68" Geometry="M1,1 L31,1 31,12 19,12 19,15 16,15 16,12 1,12 Z">
-                        <GeometryDrawing.Pen><Pen Brush="#205A45" Thickness="1"/></GeometryDrawing.Pen>
-                    </GeometryDrawing>
-                    <GeometryDrawing Brush="#263747" Geometry="M4,3 H10 V10 H4 Z M13,3 H19 V10 H13 Z M22,3 H28 V10 H22 Z"/>
-                    <GeometryDrawing Brush="#E5BD60" Geometry="M3,12 H5 V15 H3 Z M7,12 H9 V15 H7 Z M11,12 H13 V15 H11 Z M21,12 H23 V15 H21 Z M25,12 H27 V15 H25 Z M29,12 H31 V15 H29 Z"/>
-                </DrawingGroup>
-            </DrawingImage.Drawing>
-        </DrawingImage>
-        <DrawingImage x:Key="NszPluginIcon">
-            <DrawingImage.Drawing>
-                <DrawingGroup>
-                    <GeometryDrawing Brush="#377EC4" Geometry="M3,7 L16,1 29,7 29,26 16,32 3,26 Z"/>
-                    <GeometryDrawing Brush="#62A9E8" Geometry="M3,7 L16,13 29,7 16,1 Z"/>
-                    <GeometryDrawing Brush="#FFFFFF" Geometry="M9,17 H14 V14 L20,20 14,26 V23 H9 Z"/>
-                </DrawingGroup>
-            </DrawingImage.Drawing>
-        </DrawingImage>
+        <ResourceDictionary Source="../../Styling/Theme/WorkspaceIcons.xaml" />
     </Window.Resources>
     <Window.InputBindings>
         <KeyBinding Gesture="Ctrl+O" Command="{Binding Path=OpenFileCommand}" />
@@ -158,7 +138,7 @@
                         <Button Command="{Binding OpenFileCommand}" IsEnabled="{Binding BackgroundTaskRunner.IsRunning, Converter={StaticResource BoolInverterConverter}}" Padding="12,4" Margin="0,0,8,0" ToolTip="Ctrl+O"><StackPanel Orientation="Horizontal"><Image Source="/Styling/Icons/open_16x16.png" Width="16" Height="16" Margin="0,0,7,0"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.MenuItem_Open}" VerticalAlignment="Center"/></StackPanel></Button>
                         <Button Command="{Binding OpenLastFileCommand}" IsEnabled="{Binding BackgroundTaskRunner.IsRunning, Converter={StaticResource BoolInverterConverter}}" Padding="12,4" Margin="0,0,8,0" ToolTip="Ctrl+Shift+O"><StackPanel Orientation="Horizontal"><Image Source="/Styling/Icons/reload_last_16x16.png" Width="16" Height="16" Margin="0,0,7,0"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.MenuItem_OpenLast}" VerticalAlignment="Center"/></StackPanel></Button>
                         <Button Command="{Binding CloseFileCommand}" IsEnabled="{Binding BackgroundTaskRunner.IsRunning, Converter={StaticResource BoolInverterConverter}}" Padding="12,4" Margin="0,0,8,0" ToolTip="Ctrl+Shift+C"><StackPanel Orientation="Horizontal"><Image Source="/Styling/Icons/close_16x16.png" Width="16" Height="16" Margin="0,0,7,0"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.MenuItem_Close}" VerticalAlignment="Center"/></StackPanel></Button>
-                        <Button Visibility="{Binding Source={x:Static app:App.Features}, Path=MtpActive, Converter={StaticResource FalseToCollapseVisibilityConverter}}" x:Name="SphairaSingleButton" Command="{Binding OpenSphairaCommand}" IsEnabled="{Binding BackgroundTaskRunner.IsRunning, Converter={StaticResource BoolInverterConverter}}" Padding="12,4" Margin="0,0,8,0" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Mtp_Title}"/>
+                        <Button Visibility="{Binding Source={x:Static app:App.Features}, Path=MtpActive, Converter={StaticResource FalseToCollapseVisibilityConverter}}" x:Name="SphairaSingleButton" Command="{Binding OpenSphairaCommand}" IsEnabled="{Binding BackgroundTaskRunner.IsRunning, Converter={StaticResource BoolInverterConverter}}" Padding="12,4" Margin="0,0,8,0" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Mtp_Title}" ToolTip="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Mtp_Tip}"/>
                         <Button Command="{Binding OpenSdCardCommand}" IsEnabled="{Binding BackgroundTaskRunner.IsRunning, Converter={StaticResource BoolInverterConverter}}" Padding="12,4" Margin="0,0,8,0" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.OpenSdCard}"/>
                         <Button Command="{Binding VerifyNcasIntegrityCommand}" Padding="12,4" Margin="0,0,8,0" Content="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.MenuItem_CheckIntegrity}"/>
                         <Button Visibility="{Binding Source={x:Static app:App.Features}, Path=NszPluginActive, Converter={StaticResource FalseToCollapseVisibilityConverter}}" Command="{Binding Nsz.CompressCommand}" Padding="12,4" Margin="0,0,8,0"><StackPanel Orientation="Horizontal"><Image Source="/Styling/Icons/NspItem.png" Width="16" Height="16" Margin="0,0,7,0"/><TextBlock Text="{Binding Source={x:Static loc:LocalizationManager.Instance}, Path=Current.Keys.Nsz_Compress}" VerticalAlignment="Center"/></StackPanel></Button>

@@ -1,7 +1,7 @@
 # Packages an already published Avalonia application on its target OS.
 [CmdletBinding()]
 param(
-    [ValidateSet('AppImage','Dmg')][string]$Format,
+    [ValidateSet('AppImage','Dmg','App')][string]$Format,
     [string]$Tool,
     [string]$RuntimeIdentifier,
     [string]$Version,
@@ -54,9 +54,9 @@ Terminal=false
         $env:APPIMAGE_EXTRACT_AND_RUN = $previousExtractAndRun
     }
 } else {
-    $asset = Join-Path $stage "$AssetName.dmg"
-    $imageRoot = Join-Path $stage "$AssetName-dmg"
-    $contents = Join-Path $imageRoot "$displayName.app/Contents"
+    $imageRoot = Join-Path $stage "$AssetName-bundle"
+    $bundle = Join-Path $imageRoot "$displayName.app"
+    $contents = Join-Path $bundle 'Contents'
     $bin = (New-Item -ItemType Directory -Path (Join-Path $contents 'MacOS') -Force).FullName
     Get-ChildItem -LiteralPath $PublishDirectory -Force | Copy-Item -Destination $bin -Recurse
     & /bin/chmod +x (Join-Path $bin $ExecutableName)
@@ -78,10 +78,17 @@ Terminal=false
 </plist>
 "@
     [IO.File]::WriteAllText((Join-Path $contents 'Info.plist'), $plist, $utf8)
-    & /bin/ln -s /Applications (Join-Path $imageRoot 'Applications')
-    if ($LASTEXITCODE -ne 0) { throw 'Could not create the Applications link.' }
-    & $Tool create -srcfolder $imageRoot -volname $displayName -format UDZO $asset | Out-Host
-    if ($LASTEXITCODE -ne 0) { throw "hdiutil failed ($LASTEXITCODE)." }
+    if ($Format -eq 'App') {
+        $asset = Join-Path $stage "$AssetName.app.zip"
+        & /usr/bin/ditto -c -k --keepParent $bundle $asset
+        if ($LASTEXITCODE -ne 0) { throw "Archiving the macOS app failed ($LASTEXITCODE)." }
+    } else {
+        $asset = Join-Path $stage "$AssetName.dmg"
+        & /bin/ln -s /Applications (Join-Path $imageRoot 'Applications')
+        if ($LASTEXITCODE -ne 0) { throw 'Could not create the Applications link.' }
+        & $Tool create -srcfolder $imageRoot -volname $displayName -format UDZO $asset | Out-Host
+        if ($LASTEXITCODE -ne 0) { throw "hdiutil failed ($LASTEXITCODE)." }
+    }
 }
 if (!(Test-Path -LiteralPath $asset -PathType Leaf)) { throw "Native package missing: $asset" }
 $destination = Join-Path $OutputDirectory ([IO.Path]::GetFileName($asset))

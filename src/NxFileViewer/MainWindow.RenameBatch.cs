@@ -103,6 +103,8 @@ public partial class MainWindow
         using var cancellation = new CancellationTokenSource();
         _renameBatchCancellation = cancellation;
         RenameBatchCancelButton.IsEnabled = true;
+        RenameBatchProgress.Value = 0;
+        RenameBatchProgress.IsVisible = RenameBatchProgress.IsIndeterminate = true;
         _renamingBatch = true;
         _renameBatch = Array.Empty<RenameBatchRow>();
         RenameBatchRows.ItemsSource = _renameBatch;
@@ -127,6 +129,14 @@ public partial class MainWindow
                 if (paths.Length == 1) _lastRenameInput = paths[0];
             }
             if (paths.Length == 0 || _closed) return;
+            cancellation.Token.ThrowIfCancellationRequested();
+            RenameBatchProgress.IsIndeterminate = false;
+            var completed = 0;
+            IProgress<int> progress = new Progress<int>(percent =>
+            {
+                if (!_closed && ReferenceEquals(_renameBatchCancellation, cancellation))
+                    RenameBatchProgress.Value = Math.Max(RenameBatchProgress.Value, percent);
+            });
             var keys = _keysPath;
             var sourceRoot = Directory.Exists(RenameInputPath.Text) ? Path.GetFullPath(RenameInputPath.Text!) : null;
             var outputFolder = RenameOutputPath.Text;
@@ -157,6 +167,9 @@ public partial class MainWindow
                     {
                         proposals[index] = new RenameBatchRow(path, null, 0, default, _text.RenamingTool_StatusError, false) { SourceRoot = sourceRoot, Error = ex.Message };
                     }
+                    var done = Interlocked.Increment(ref completed);
+                    var percent = (int)(100L * done / paths.Length);
+                    if (percent != 100L * (done - 1) / paths.Length) progress.Report(percent);
                 });
                 var duplicates = proposals.Where(row => row.CanApply).GroupBy(row => row.Destination!, StringComparer.OrdinalIgnoreCase)
                     .Where(group => group.Count() > 1).Select(group => group.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -182,6 +195,7 @@ public partial class MainWindow
             _renamingBatch = false;
             if (!_closed)
             {
+                RenameBatchProgress.IsVisible = false;
                 RenameBatchPreviewButton.IsEnabled = true;
                 RenameBatchApplyButton.IsEnabled = _renameBatch.Any(row => row.CanApply);
             }
@@ -196,15 +210,21 @@ public partial class MainWindow
         using var cancellation = new CancellationTokenSource();
         _renameBatchCancellation = cancellation;
         RenameBatchCancelButton.IsEnabled = true;
+        RenameBatchProgress.Value = 0;
+        RenameBatchProgress.IsIndeterminate = false;
+        RenameBatchProgress.IsVisible = true;
         _renamingBatch = true;
         RenameBatchPreviewButton.IsEnabled = RenameBatchApplyButton.IsEnabled = false;
         var rows = _renameBatch.ToArray();
+        var total = rows.Count(row => row.CanApply);
+        var completed = 0;
         var revision = _renameInputRevision;
         var autoClose = RenameAutoClose.IsChecked == true;
         try
         {
-            for (var index = 0; index < rows.Length && !_closed && !cancellation.IsCancellationRequested && revision == _renameInputRevision; index++)
+            for (var index = 0; index < rows.Length && !_closed && revision == _renameInputRevision; index++)
             {
+                cancellation.Token.ThrowIfCancellationRequested();
                 var row = rows[index];
                 if (!row.CanApply) continue;
                 try
@@ -232,6 +252,7 @@ public partial class MainWindow
                 {
                     rows[index] = row with { CanApply = false, Status = ex.Message };
                 }
+                if (!_closed) RenameBatchProgress.Value = 100.0 * ++completed / total;
             }
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
@@ -248,7 +269,11 @@ public partial class MainWindow
             _renameBatchCancellation = null;
             if (!_closed) RenameBatchCancelButton.IsEnabled = false;
             _renamingBatch = false;
-            if (!_closed) RenameBatchPreviewButton.IsEnabled = true;
+            if (!_closed)
+            {
+                RenameBatchProgress.IsVisible = false;
+                RenameBatchPreviewButton.IsEnabled = true;
+            }
         }
     }
 }

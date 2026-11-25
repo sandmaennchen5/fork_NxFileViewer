@@ -158,4 +158,4 @@ public sealed record BatchTitleSummary(string Language, string Title, string Pub
 {
     public BatchIconReference? Icon { get; init; }
 }
-public sealed record BatchIconReference(Guid EntryId, string Key);
+

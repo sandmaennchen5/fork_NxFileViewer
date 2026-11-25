@@ -32,6 +32,9 @@ public sealed record LogDisplayEntry(LogEntry Entry, bool ShowHeader)
 public static class LogDocument
 {
     private static readonly Regex Header = new(@"^\[(?<time>\d{4}-\d{2}-\d{2} [^\]]+)\]\s+\[(?<level>[A-Za-z]+)\]\s?(?<message>.*)$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private static readonly Regex CompactHeader = new(@"^(?<time>(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d)  \[(?<level>[A-Za-z]+)\]  (?<message>.*)$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private static readonly Regex LegacyFilePath = new(@"^(?:[A-Za-z]:[\\/]|\\\\|/|MTP: ).+\.[A-Za-z0-9]{2,5}(?: :: .+)?$",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant);
     public static IReadOnlyList<LogEntry> ReadFile(string path, CancellationToken token = default)
     {
         using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
@@ -56,16 +59,22 @@ public static class LogDocument
         while (reader.ReadLine() is { } line)
         {
             token.ThrowIfCancellationRequested();
-            var match = Header.Match(line.TrimStart('\uFEFF'));
-            var isHeader = match.Success && DateTimeOffset.TryParse(match.Groups["time"].Value,
-                CultureInfo.InvariantCulture, DateTimeStyles.None, out _);
+            var text = line.TrimStart('\uFEFF');
+            var match = CompactHeader.Match(text);
+            var compact = match.Success;
+            if (!compact) match = Header.Match(text);
+            var isHeader = compact || (match.Success && DateTimeOffset.TryParse(match.Groups["time"].Value,
+                CultureInfo.InvariantCulture, DateTimeStyles.None, out _));
             if (isHeader)
             {
                 Finish();
                 time = match.Groups["time"].Value;
                 level = ParseLevel(match.Groups["level"].Value);
                 var firstMessage = match.Groups["message"].Value;
-                marker = TryGetFileMarker(firstMessage, out var openedPath);
+                marker = TryGetFileMarker(firstMessage, out var openedPath, allowEmpty: compact);
+                if (compact && !marker && LegacyFilePath.IsMatch(firstMessage))
+                { marker = true; openedPath = firstMessage; }
+                if (compact && !marker && filePath != null && firstMessage.Length == 0) marker = true;
                 if (marker) { filePath = openedPath; section++; }
                 else if (firstMessage.Contains("NxFileViewer Fork session started.", StringComparison.Ordinal))
                 { filePath = null; section++; }
@@ -112,13 +121,14 @@ public static class LogDocument
         "INFORMATION" or "INFO" => EntryLevel.Information, "WARNING" or "WARN" => EntryLevel.Warning,
         "ERROR" => EntryLevel.Error, "CRITICAL" or "FATAL" => EntryLevel.Critical, _ => EntryLevel.Unknown
     };
-    private static bool TryGetFileMarker(string message, out string? path)
+    private static bool TryGetFileMarker(string message, out string? path, bool allowEmpty)
     {
         path = null;
         var start = message.IndexOf("=====>", StringComparison.Ordinal);
         var end = message.LastIndexOf("<=====", StringComparison.Ordinal);
         if (start < 0 || end <= start || !string.IsNullOrWhiteSpace(message[(end + 6)..])) return false;
-        path = message[(start + 6)..end].Trim();
-        return path.Length > 0;
+        var value = message[(start + 6)..end].Trim();
+        path = value.Length > 0 ? value : null;
+        return path != null || allowEmpty;
     }
 }

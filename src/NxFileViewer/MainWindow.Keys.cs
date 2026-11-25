@@ -5,6 +5,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using Emignatik.NxFileViewer.Services.KeysManagement;
@@ -18,6 +20,32 @@ public partial class MainWindow
     {
         _keysPath = ResolveKeyFile(_preferences.ProdKeysPath, "prod.keys");
         PackageFile.TitleKeysFilePath = ResolveKeyFile(_preferences.TitleKeysPath, "title.keys");
+        RefreshStatusKeyWarning();
+    }
+
+    private void RefreshStatusKeyWarning()
+    {
+        var needsProdKeys = !File.Exists(_keysPath) || _overviewPackage?.NeedsProdKeys == true;
+        var warning = OverviewMissingKeys.Content as MissingKeysWarning;
+        StatusKeyWarning.IsVisible = needsProdKeys || warning != null;
+        if (StatusKeyWarning.ContextMenu?.Items[0] is MenuItem copy) copy.IsVisible = warning != null;
+        ToolTip.SetTip(StatusKeyWarning, string.Join(Environment.NewLine,
+            new[] { needsProdKeys ? _text.WarnNoProdKeysFileFound : null, warning?.Entries }
+                .Where(text => !string.IsNullOrWhiteSpace(text))));
+    }
+
+    private void OpenKeySettings(object? sender, TappedEventArgs e)
+    {
+        if (_workspaceJobs.Count > 0) return;
+        Workspace.SelectedItem = SettingsTab;
+        SettingsPages.SelectedItem = KeySettingsTab;
+        e.Handled = true;
+    }
+
+    private async void CopyStatusKeyWarning(object? sender, RoutedEventArgs e)
+    {
+        if (Clipboard != null && OverviewMissingKeys.Content is MissingKeysWarning warning)
+            await Clipboard.SetTextAsync(warning.KeyNames);
     }
 
     private async void CopyKeysToProfile(object? sender, RoutedEventArgs e)
@@ -182,9 +210,17 @@ public partial class MainWindow
             }
             var value = new TextBox { Text = path, IsReadOnly = true };
             value.Classes.Add("overview-value");
+            var reveal = new Button { Content = _text.ContextMenu_OpenFileLocation,
+                IsEnabled = File.Exists(path) || Directory.Exists(Path.GetDirectoryName(path)) };
+            ToolTip.SetTip(reveal, _text.SettingsView_ToolTip_OpenKeysLocation);
+            reveal.Click += async (_, _) => await RevealLocalSourceAsync(path);
+            var location = new DockPanel { LastChildFill = true };
+            DockPanel.SetDock(reveal, Dock.Right);
+            location.Children.Add(reveal);
+            location.Children.Add(value);
             var state = new TextBlock { TextWrapping = global::Avalonia.Media.TextWrapping.Wrap };
             SetValidation(state, path);
-            var panel = new StackPanel { Spacing = 2, Children = { heading, value, state } };
+            var panel = new StackPanel { Spacing = 2, Children = { heading, location, state } };
             var border = new Border { Child = panel };
             border.Classes.Add("overview-group");
             locations.Children.Add(border);
@@ -196,8 +232,9 @@ public partial class MainWindow
             {
                 var result = validate(path);
                 text.Text = (showActive ? _text.Keys_InUse + " · " : "") + DescribeKeyValidation(result);
-                text.Classes.Set("key-valid", result.IsValid && !result.HasWarnings);
-                text.Classes.Set("key-warning", !result.FileExists || (result.IsValid && result.HasWarnings));
+                var warnings = result.HasWarnings || result.ConsoleKeys?.Values.Any(status => status != ConsoleKeyStatus.Present) == true;
+                text.Classes.Set("key-valid", result.IsValid && !warnings);
+                text.Classes.Set("key-warning", !result.FileExists || (result.IsValid && warnings));
                 text.Classes.Set("key-invalid", result.FileExists && !result.IsValid);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
@@ -209,6 +246,15 @@ public partial class MainWindow
             }
         }
     }
+    private async void OpenCustomKeyLocation(object? sender, RoutedEventArgs e)
+    {
+        var path = (sender as Button)?.Tag as string == "prod.keys" ? SettingsKeysPath.Text : TitleKeysPath.Text;
+        if (string.IsNullOrWhiteSpace(path)) return;
+        try { await RevealLocalSourceAsync(Path.GetFullPath(path)); }
+        catch (Exception error) when (error is IOException or ArgumentException or UnauthorizedAccessException)
+        { SettingsStatus.Text = error.Message; }
+    }
+
     private string DescribeKeyValidation(KeyFileValidationResult result)
     {
         if (!result.FileExists) return _text.KeysValidation_MissingFile;
@@ -220,6 +266,19 @@ public partial class MainWindow
         if (result.HighestValidMasterKeyRevision is { } revision) lines.Add(string.Format(_text.KeysValidation_FirmwareEstimate, $"master_key_{revision:x2}", MasterKeyFirmwareMap.GetSupportedFirmware(revision)));
         if (result.UnsupportedMasterKeys is { Count: > 0 } unsupported)
             lines.Add(string.Format(_text.KeysValidation_UnsupportedMasterKeys, string.Join(", ", unsupported)));
+        if (result.ConsoleKeys is { } consoleKeys)
+        {
+            foreach (var group in consoleKeys.GroupBy(key => key.Value))
+            {
+                var label = group.Key switch
+                {
+                    ConsoleKeyStatus.Present => _text.KeysValidation_ConsolePresent,
+                    ConsoleKeyStatus.InvalidFormat => _text.KeysValidation_ConsoleInvalid,
+                    _ => _text.KeysValidation_ConsoleMissing
+                };
+                lines.Add(string.Format(label, string.Join(", ", group.Select(key => key.Key))));
+            }
+        }
         return lines.Count == 0
             ? KeyValidationMessage("Keine gültigen Schlüssel gefunden.", "No valid keys found.")
             : string.Join(Environment.NewLine, lines);

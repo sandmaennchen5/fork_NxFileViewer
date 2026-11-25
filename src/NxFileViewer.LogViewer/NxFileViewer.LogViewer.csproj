@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <AssemblyName>NxFileViewerFork.LogViewer</AssemblyName>
     <RootNamespace>NxFileViewer.LogViewer</RootNamespace>
-    <ApplicationIcon>../NxFileViewer.WPF/Styling/Icons/Icon.ico</ApplicationIcon>
+    <ApplicationIcon>../NxFileViewer/Shared/Styling/Icons/Icon.ico</ApplicationIcon>
     <!-- Preserve the reflection bindings used by the converted views. -->
     <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
     <AvaloniaVersion>12.1.6</AvaloniaVersion>
@@ -15,7 +15,7 @@
     <PackageReference Include="Avalonia.Desktop" Version="$(AvaloniaVersion)" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="$(AvaloniaVersion)" />
     <Compile Include="../NxFileViewer.LogViewer.WPF/LogDocument.cs;../NxFileViewer.LogViewer.WPF/UiText.cs" Link="%(Filename)%(Extension)" />
-    <AvaloniaResource Include="../NxFileViewer.WPF/Styling/Icons/Icon.ico" Link="Icon.ico" />
+    <AvaloniaResource Include="../NxFileViewer/Shared/Styling/Icons/Icon.ico" Link="Icon.ico" />
     <None Include="../../docs/LogViewer.md" Link="LogViewer.md" CopyToPublishDirectory="PreserveNewest" />
     <None Include="../../LICENSE" Link="LICENSE.txt" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>

@@ -15,7 +15,8 @@ namespace NxFileViewer.Avalonia;
 
 public partial class MainWindow
 {
-    private sealed record OverviewLanguage(string Name, string AppName, string Publisher, byte[]? Icon)
+    private sealed record OverviewLanguage(string Name, string AppName, string Publisher, byte[]? Icon,
+        Emignatik.NxFileViewer.Services.Integrity.BatchIconReference? IconReference = null)
     {
         public override string ToString() => Name;
     }
@@ -30,20 +31,22 @@ public partial class MainWindow
     private void UpdateOverview(PackageFile package)
     {
         _overviewPackage = package;
-        OverviewMissingKeys.IsVisible = package.MissingKeys.Length > 0;
-        OverviewMissingKeysText.Text = string.Join(Environment.NewLine, package.MissingKeys);
+        OverviewPackageFields.IsVisible = OverviewSecurityFields.IsVisible = package.Homebrew == null;
+        OverviewPresentationHeading.Text = package.Homebrew == null ? _text.Presentation_Title : "Homebrew (NRO)";
+        OverviewMissingKeys.Content = null;
+        OverviewMissingKeys.Content = CreateMissingKeysWarning(package.MissingKeys);
+        OverviewMissingKeys.IsVisible = OverviewMissingKeys.Content != null;
+        RefreshStatusKeyWarning();
         var multiPackage = package.IsMultiPackage;
         OverviewType.Text = package.DisplayType;
-        var structure = package.Type is "NSP" or "NSZ"
-            ? PackageStructureAnalyzer.AnalyzeNspNames(package.Entries.Select(entry => entry.Name)) : PackageStructure.Unknown;
-        OverviewStructure.Text = PackageStructureAnalyzer.GetDisplayName(structure.ToString(), _text);
+        OverviewStructure.Text = PackageStructureAnalyzer.GetDisplayName(package.Structure.ToString(), _text);
         OverviewSize.Text = package.Size.ToFileSize();
         OverviewCompression.Text = package.Compression ?? (package.Type is "NSZ" or "XCZ" or "NCZ" ? "NCZ" : "None");
         OverviewRatio.Text = package.UncompressedSize is > 0 and var original
             ? $"{(double)package.Size / original:P1} ({original.ToFileSize()})" : "—";
         OverviewSignature.Text = _text.Signature_Unchecked;
         OverviewIntegrity.Text = _text.NcasIntegrity_Unchecked;
-        OverviewIntegrity.Classes.Remove("overview-success");
+        ApplyIntegrityColor(OverviewIntegrity);
         OverviewPackageChoice.ItemsSource = package.Titles.Select((content, index) => new OverviewPackageOption(index + 1, content)).ToArray();
         OverviewMultiPackage.IsVisible = multiPackage;
         ToolTip.SetTip(OverviewMultiPackageTip, string.Format(_text.MultiContentPackageToolTip, OverviewType.Text));
@@ -52,14 +55,14 @@ public partial class MainWindow
         if (package.Homebrew is { } homebrew)
         {
             OverviewStructure.Text = _text.PackageStructure_Homebrew;
-            OverviewBuildId.Text = homebrew.BuildId;
             OverviewDisplayVersion.Text = homebrew.DisplayVersion;
-            var languages = homebrew.Titles.Select(title => new OverviewLanguage(
-                OverviewLanguageName(title.Language), title.AppName, title.Publisher, title.Icon)).ToArray();
+            OverviewHomebrewBuildId.Text = homebrew.BuildId;
+            var languages = GetHomebrewLanguages(homebrew);
             OverviewLanguages.ItemsSource = languages;
             OverviewLanguages.SelectedIndex = languages.Length > 0 ? 0 : -1;
             SetOverviewLanguage(languages.FirstOrDefault() ?? new OverviewLanguage("", "", "", homebrew.Icon));
         }
+        OverviewHomebrewBuild.IsVisible = package.Homebrew != null;
         RefreshFilePackageActions();
     }
 
@@ -91,13 +94,17 @@ public partial class MainWindow
             "Dangerous" => _text.Security_Dangerous,
             _ => _text.Security_Unavailable
         };
-        OverviewSecurity.Classes.Set("overview-success", content?.SecurityLevel == "Safe");
+        ApplySecurityColor(OverviewSecurity);
         OverviewDisplayVersion.Text = content?.NacpData?.DisplayVersion ?? "—";
         var languages = GetOverviewLanguages(content);
         OverviewLanguages.ItemsSource = languages;
         OverviewLanguages.SelectedIndex = languages.Length > 0 ? 0 : -1;
         SetOverviewLanguage(languages.FirstOrDefault());
     }
+
+    private OverviewLanguage[] GetHomebrewLanguages(Emignatik.NxFileViewer.Models.TreeItems.Impl.NroFileItem homebrew) =>
+        homebrew.Titles.Select(title => new OverviewLanguage(
+            OverviewLanguageName(title.Language), title.AppName, title.Publisher, title.Icon)).ToArray();
 
     private OverviewLanguage[] GetOverviewLanguages(Content? content) =>
         content?.NacpData?.Titles.Select((title, index) => (title, index))
@@ -110,11 +117,31 @@ public partial class MainWindow
     private string OverviewLanguageName(NacpLanguage language) =>
         _text.TryGetValue("Lng_" + language, out var translated) ? translated : language.ToString();
 
+    private sealed record MissingKeysWarning(string Heading, string Entries, string Help, string CopyLabel, string KeyNames);
+
+    private MissingKeysWarning? CreateMissingKeysWarning(string[] names)
+    {
+        if (names.Length == 0) return null;
+        var titleKeyCount = names.Count(IsTitleKeyName);
+        var hasSystemKeys = names.Length > titleKeyCount;
+        var heading = hasSystemKeys ? _text.File_MissingKeysHeader : _text.File_MissingTitleKeysHeading;
+        var entries = string.Join(Environment.NewLine, names.Select(name =>
+            "• " + (IsTitleKeyName(name) ? string.Format(_text.File_MissingTitleKeyEntry, name.ToUpperInvariant()) : name)));
+        var help = string.Join(Environment.NewLine + Environment.NewLine, new[]
+        {
+            titleKeyCount > 0 ? _text.File_MissingTitleKeysHelp : "",
+            hasSystemKeys ? _text.File_MissingSystemKeysHelp : ""
+        }.Where(value => value.Length > 0));
+        return new MissingKeysWarning(heading, entries, help, _text.File_CopyMissingKeys, string.Join(Environment.NewLine, names));
+    }
+
     private async void CopyOverviewMissingKeys(object? sender, RoutedEventArgs e)
     {
-        if (Clipboard != null && OverviewMissingKeysText.Text is { Length: > 0 } missing)
-            await Clipboard.SetTextAsync(missing);
+        if (Clipboard != null && sender is Button { DataContext: MissingKeysWarning warning })
+            await Clipboard.SetTextAsync(warning.KeyNames);
     }
+
+    private static bool IsTitleKeyName(string name) => name.Length == 32 && name.All(Uri.IsHexDigit);
 
     private async void CopyOverviewIcon(object? sender, RoutedEventArgs e)
     {
@@ -160,8 +187,12 @@ public partial class MainWindow
     private void ClearOverview()
     {
         _overviewPackage = null;
+        OverviewPackageFields.IsVisible = OverviewSecurityFields.IsVisible = true;
+        OverviewHomebrewBuild.IsVisible = false;
+        OverviewPresentationHeading.Text = _text.Presentation_Title;
+        OverviewMissingKeys.Content = null;
         OverviewMissingKeys.IsVisible = false;
-        OverviewMissingKeysText.Text = "";
+        RefreshStatusKeyWarning();
         OverviewMultiPackage.IsVisible = false;
         OverviewPackageChoice.ItemsSource = null;
         SetOverviewContent(null);

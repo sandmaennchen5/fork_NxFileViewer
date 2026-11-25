@@ -1,4 +1,5 @@
 using System;
+using Emignatik.NxFileViewer.Services.PackageAnalysis;
 using Emignatik.NxFileViewer.Services.Mtp;
 using System.Collections.Generic;
 using System.IO;
@@ -33,12 +34,14 @@ internal sealed record PackageEntry(string Name, long Size)
     public override string ToString() => Name;
 }
 
-internal sealed record NcaHashResult(string Name, bool? Matches, Validity? Signature = null, string? Error = null);
+internal sealed record NcaHashResult(string Name, bool? Matches, Validity? Signature = null, string? Error = null, bool Missing = false);
 
 internal sealed record PackageFile(string Path, string Type, long Size, IReadOnlyList<PackageEntry> Entries, IReadOnlyList<Content> Titles, bool NeedsProdKeys, string? MetadataError, string? HeaderDetails = null)
 {
     internal string? Compression { get; init; }
     internal long? UncompressedSize { get; init; }
+    internal string? SystemUpdateVersion { get; init; }
+    internal PackageStructure Structure { get; init; }
     internal static IReadOnlyDictionary<string, string> ContentDigests(string path, bool secureOnly, CancellationToken token)
     {
         var digests = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -162,9 +165,11 @@ internal sealed record PackageFile(string Path, string Type, long Size, IReadOnl
     internal static PackageFile Read(string path, string? keysPath) =>
         Read(path, keysPath, null, default);
 
-    internal static PackageFile Read(string path, string? keysPath, List<NcaHashResult>? hashes, CancellationToken token, bool includeDetails = true, Action<int, int>? hashProgress = null)
+    internal static PackageFile Read(string path, string? keysPath, List<NcaHashResult>? hashes, CancellationToken token, bool includeDetails = true,
+        Action<string, int, int, bool>? hashProgress = null, Action<double>? nupProgress = null)
     {
-        var package = ReadPackage(path, keysPath, hashes, token, includeDetails, hashProgress);
+        token.ThrowIfCancellationRequested();
+        var package = ReadPackage(path, keysPath, hashes, token, includeDetails, hashProgress, nupProgress);
         if (!includeDetails) return package;
         if (package.Type is not ("NSZ" or "XCZ" or "NCZ")) return package;
         try
@@ -198,11 +203,36 @@ internal sealed record PackageFile(string Path, string Type, long Size, IReadOnl
         }
     }
 
-    private static PackageFile ReadPackage(string path, string? keysPath, List<NcaHashResult>? hashes, CancellationToken token, bool includeDetails, Action<int, int>? hashProgress)
+    private static PackageFile ReadPackage(string path, string? keysPath, List<NcaHashResult>? hashes, CancellationToken token, bool includeDetails,
+        Action<string, int, int, bool>? hashProgress, Action<double>? nupProgress)
     {
+        if (Directory.Exists(System.IO.Path.Combine(path, "registered")))
+            return ReadSdContents(path, keysPath, hashes, token, includeDetails, hashProgress);
+        if (Nax0Contents.IsNax0(path))
+        {
+            var name = System.IO.Path.GetFileName(Nax0Contents.LogicalPath(path));
+            var size = new FileInfo(path).Length;
+            if (keysPath == null)
+            {
+                hashes?.Add(new NcaHashResult(name, null, null,
+                    Emignatik.NxFileViewer.Localization.LocalizationManager.Instance.Current.Keys.WarnNoProdKeysFileFound));
+                return new PackageFile(path, "NAX0", size, [], [], true, null) { MissingKeys = ["prod.keys"] };
+            }
+            var keys = LoadKeys(keysPath);
+            try
+            {
+                return Nax0Contents.Read(path, keys, stream =>
+                    ReadStandaloneContent(path, name, "NAX0", stream.Length, stream, () => keys, hashes, token, hashProgress));
+            }
+            catch (Exception ex) when (ex is IOException or InvalidDataException or LibHacException)
+            {
+                hashes?.Add(new NcaHashResult(name, null, null, ex.Message));
+                return new PackageFile(path, "NAX0", size, [], [], false, ex.Message);
+            }
+        }
         if (NupReader.IsNup(path))
         {
-            using var nup = NupReader.ReadRoot(path, token, out var size, hashes == null ? null : _ => { });
+            using var nup = NupReader.ReadRoot(path, token, out var size, hashes == null ? null : nupProgress ?? (_ => { }));
             var details = nup.ChildItems.OfType<Emignatik.NxFileViewer.Models.TreeItems.Impl.NupPackageItem>()
                 .Select(item => string.Join(" · ", new[] { item.Format, item.TitleId, "v" + item.Version, item.Title, item.Publisher }
                     .Where(value => !string.IsNullOrWhiteSpace(value))));
@@ -214,8 +244,8 @@ internal sealed record PackageFile(string Path, string Type, long Size, IReadOnl
         var extension = System.IO.Path.GetExtension(path);
         if (type == PackageType.UNKNOWN && (extension.Equals(".nca", StringComparison.OrdinalIgnoreCase) ||
             extension.Equals(".ncz", StringComparison.OrdinalIgnoreCase)))
-            return ReadStandalone(path, keysPath, hashes, token);
-        var (entries, titles, needsProdKeys, metadataError, missingKeys) = type switch
+            return ReadStandalone(path, keysPath, hashes, token, hashProgress);
+        var (entries, titles, needsProdKeys, metadataError, missingKeys, systemUpdateVersion, xciStructure) = type switch
         {
             PackageType.NSP => ReadNsp(path, keysPath, hashes, token, includeDetails, hashProgress),
             PackageType.XCI => ReadXci(path, keysPath, hashes, token, includeDetails, hashProgress),
@@ -232,19 +262,86 @@ internal sealed record PackageFile(string Path, string Type, long Size, IReadOnl
         return new PackageFile(path, label, stream.Length, entries, titles, needsProdKeys, metadataError)
         {
             MissingKeys = missingKeys ?? (needsProdKeys ? ["prod.keys"] : []),
+            SystemUpdateVersion = systemUpdateVersion,
+            Structure = type switch
+            {
+                PackageType.NSP => PackageStructureAnalyzer.AnalyzeNspNames(entries.Select(entry => entry.Name)),
+                PackageType.XCI => xciStructure,
+                PackageType.NRO => PackageStructure.Homebrew,
+                _ => PackageStructure.Unknown
+            },
             Homebrew = type == PackageType.NRO
                 ? new Emignatik.NxFileViewer.Models.TreeItems.Impl.NroFileItem(path, token) : null
         };
     }
 
-    private static PackageFile ReadStandalone(string path, string? keysPath, List<NcaHashResult>? hashes, CancellationToken token)
+    private static PackageFile ReadSdContents(string path, string? keysPath, List<NcaHashResult>? hashes, CancellationToken token,
+        bool includeDetails, Action<string, int, int, bool>? progress)
+    {
+        var entries = Nax0Contents.Enumerate(path, token).ToArray();
+        var package = new PackageFile(path, "NAX0", entries.Sum(entry => entry.Size),
+            entries.Select(entry => new PackageEntry(entry.FullPath.TrimStart('/'), entry.Size)).ToArray(), [], keysPath == null, null)
+            { Structure = PackageStructure.Filesystem, Compression = "None" };
+        if (entries.Length == 0) return package with { NeedsProdKeys = false };
+        if (keysPath == null) return package with { MissingKeys = ["prod.keys"] };
+
+        var missingKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var errors = new HashSet<string>(StringComparer.Ordinal);
+        try
+        {
+            var keys = LoadKeys(keysPath);
+            var physicalPaths = entries.Select(entry => System.IO.Path.Combine(path, entry.FullPath.TrimStart('/'))).ToArray();
+            var chunkSizes = physicalPaths.Where(file => File.Exists(System.IO.Path.Combine(file, "01")))
+                .Select(file => new FileInfo(System.IO.Path.Combine(file, "00")).Length).Distinct().ToArray();
+            if (chunkSizes.Length > 1 || chunkSizes.Any(size => size <= 0))
+                throw new InvalidDataException("Inconsistent SD split-file chunk sizes.");
+            var plain = File.Exists(System.IO.Path.Combine(path, ".nxfileviewer-mtp")) && !physicalPaths.Any(Nax0Contents.IsNax0);
+            using var fs = Nax0Contents.OpenFileSystem(path, keys, chunkSizes.FirstOrDefault(0xffff0000L), plain);
+
+            IEnumerable<LibHac.Tools.Ncm.Cnmt> ReadMetadata()
+            {
+                foreach (var entry in entries)
+                {
+                    token.ThrowIfCancellationRequested();
+                    IEnumerable<LibHac.Tools.Ncm.Cnmt> contents;
+                    try { contents = fs.LoadCnmts(entry, keys); }
+                    catch (Exception error) when (error is IOException or InvalidDataException or LibHacException)
+                    {
+                        if (error is MissingKeyException missing) missingKeys.Add(missing.Name);
+                        else errors.Add(error.Message);
+                        continue;
+                    }
+                    foreach (var content in contents) yield return content;
+                }
+            }
+
+            var titles = PackageMetadataReader.ReadContents(fs, entries, ReadMetadata(), keys, includeDetails,
+                missing => missingKeys.Add(missing.Name), token);
+            if (hashes != null) CheckNcaHashes(fs, hashes, keys, entries, token, progress);
+            package = package with { Titles = titles };
+        }
+        catch (Exception error) when (error is IOException or InvalidDataException or UnauthorizedAccessException or LibHacException)
+        {
+            if (error is MissingKeyException missing) missingKeys.Add(missing.Name);
+            errors.Add(error.Message);
+        }
+        return package with { MissingKeys = missingKeys.ToArray(), MetadataError = errors.Count == 0 ? null : string.Join(Environment.NewLine, errors) };
+    }
+
+    private static PackageFile ReadStandalone(string path, string? keysPath, List<NcaHashResult>? hashes, CancellationToken token, Action<string, int, int, bool>? progress)
     {
         using var source = MtpDirectSource.OpenRead(path);
         var compressed = System.IO.Path.GetExtension(path).Equals(".ncz", StringComparison.OrdinalIgnoreCase);
         if (compressed && hashes == null) EnsureCompressionAllowed(source);
         using var original = compressed ? Ncz.OpenOriginalStream(source) : null;
-        var stream = original ?? source;
         var name = System.IO.Path.GetFileName(path);
+        return ReadStandaloneContent(path, name, compressed ? "NCZ" : "NCA", source.Length, original ?? source,
+            keysPath == null ? null : () => LoadKeys(keysPath), hashes, token, progress);
+    }
+
+    private static PackageFile ReadStandaloneContent(string path, string name, string type, long size, Stream stream,
+        Func<KeySet>? loadKeys, List<NcaHashResult>? hashes, CancellationToken token, Action<string, int, int, bool>? progress)
+    {
         bool? matches = null;
         Validity? signature = null;
         string? details = null;
@@ -252,6 +349,7 @@ internal sealed record PackageFile(string Path, string Type, long Size, IReadOnl
         string? missingKey = null;
         if (hashes != null)
         {
+            progress?.Invoke(name, 1, 1, false);
             var id = name.Split('.', 2)[0];
             if (id.Length == 32 && id.All(Uri.IsHexDigit))
             {
@@ -260,12 +358,12 @@ internal sealed record PackageFile(string Path, string Type, long Size, IReadOnl
             }
         }
         token.ThrowIfCancellationRequested();
-        if (keysPath != null)
+        if (loadKeys != null)
         {
             try
             {
                 stream.Position = 0;
-                var nca = new Nca(LoadKeys(keysPath), stream.AsStorage());
+                var nca = new Nca(loadKeys(), stream.AsStorage());
                 details = $"{nca.Header.TitleId:X16} · {nca.Header.ContentType} · Key generation {nca.Header.KeyGeneration}";
                 if (hashes != null) signature = nca.VerifyHeaderSignature();
             }
@@ -276,42 +374,59 @@ internal sealed record PackageFile(string Path, string Type, long Size, IReadOnl
             }
         }
         hashes?.Add(new NcaHashResult(name, matches, signature, error));
-        return new PackageFile(path, compressed ? "NCZ" : "NCA", source.Length,
-            Array.Empty<PackageEntry>(), Array.Empty<Content>(), keysPath == null, error, details)
-        { MissingKeys = keysPath == null ? ["prod.keys"] : missingKey == null ? [] : [missingKey] };
+        if (hashes != null) progress?.Invoke(name, 1, 1, true);
+        return new PackageFile(path, type, size, [], [], loadKeys == null, error, details)
+        { MissingKeys = loadKeys == null ? ["prod.keys"] : missingKey == null ? [] : [missingKey] };
     }
 
-    private static PartitionContents ReadNsp(string path, string? keysPath, List<NcaHashResult>? hashes, CancellationToken token, bool includeDetails, Action<int, int>? hashProgress)
+    private static PartitionContents ReadNsp(string path, string? keysPath, List<NcaHashResult>? hashes, CancellationToken token, bool includeDetails, Action<string, int, int, bool>? hashProgress)
     {
         using var storage = MtpDirectSource.OpenStorage(path);
         using var partition = storage.LoadPartition();
         return ReadPartition(partition, keysPath, hashes, token, includeDetails, hashProgress);
     }
 
-    private static PartitionContents ReadXci(string path, string? keysPath, List<NcaHashResult>? hashes, CancellationToken token, bool includeDetails, Action<int, int>? hashProgress)
+    private static PartitionContents ReadXci(string path, string? keysPath, List<NcaHashResult>? hashes, CancellationToken token, bool includeDetails, Action<string, int, int, bool>? hashProgress)
     {
         using var storage = MtpDirectSource.OpenStorage(path);
         var gameCard = new Xci(new KeySet(), storage);
-        if (!gameCard.HasPartition(XciPartitionType.Secure)) return EmptyPartition;
+        var structure = PackageStructureAnalyzer.AnalyzeXciPartitions(
+            Enum.GetValues<XciPartitionType>().Where(gameCard.HasPartition));
+        if (!gameCard.HasPartition(XciPartitionType.Secure)) return EmptyPartition with { Structure = structure };
         using var partition = gameCard.OpenPartition(XciPartitionType.Secure);
-        return ReadPartition(partition, keysPath, hashes, token, includeDetails, hashProgress);
+        var result = ReadPartition(partition, keysPath, hashes, token, includeDetails, hashProgress) with { Structure = structure };
+        if (!includeDetails || keysPath == null || !gameCard.HasPartition(XciPartitionType.Update)) return result;
+        try
+        {
+            token.ThrowIfCancellationRequested();
+            using var update = gameCard.OpenPartition(XciPartitionType.Update);
+            var metadata = update.LoadCnmts(LoadKeys(keysPath)).FirstOrDefault(cnmt => cnmt.Type == LibHac.Ncm.ContentMetaType.SystemUpdate);
+            return result with { SystemUpdateVersion = metadata?.TitleVersion.ToString() };
+        }
+        catch (Exception error) when (error is IOException or InvalidDataException or LibHacException or NczFormatException)
+        { return result; }
     }
 
     public string[] MissingKeys { get; init; } = [];
     public Emignatik.NxFileViewer.Models.TreeItems.Impl.NroFileItem? Homebrew { get; init; }
 
-    public bool IsMultiPackage => Titles.Count > 1 && Type is "NSP" or "NSZ" or "XCI" or "XCZ";
-    public string DisplayType => IsMultiPackage ? "Super" + Type : Type;
+    public bool IsMultiPackage => Titles.Count > 1 && Type is "NSP" or "NSZ" or "XCI" or "XCZ" or "NAX0";
+    public string DisplayType => IsMultiPackage && Type != "NAX0" ? "Super" + Type : Type;
 
-    private sealed record PartitionContents(IReadOnlyList<PackageEntry> Entries, IReadOnlyList<Content> Titles, bool NeedsProdKeys = false, string? MetadataError = null, string[]? MissingKeys = null);
+    private sealed record PartitionContents(IReadOnlyList<PackageEntry> Entries, IReadOnlyList<Content> Titles, bool NeedsProdKeys = false, string? MetadataError = null, string[]? MissingKeys = null, string? SystemUpdateVersion = null, PackageStructure Structure = PackageStructure.Unknown);
 
     private static readonly PartitionContents EmptyPartition = new(Array.Empty<PackageEntry>(), Array.Empty<Content>());
 
-    private static PartitionContents ReadPartition(IFileSystem partition, string? keysPath, List<NcaHashResult>? hashes, CancellationToken token, bool includeDetails, Action<int, int>? hashProgress)
+    private static PartitionContents ReadPartition(IFileSystem partition, string? keysPath, List<NcaHashResult>? hashes, CancellationToken token, bool includeDetails, Action<string, int, int, bool>? hashProgress)
     {
         if (!AllowBlockless && hashes == null)
             foreach (var entry in partition.EnumerateEntries().Where(entry => entry.Type == DirectoryEntryType.File && entry.Name.EndsWith(".ncz", StringComparison.OrdinalIgnoreCase)))
-            { using var file = partition.LoadFile(entry); using var stream = file.AsStream(); EnsureCompressionAllowed(stream); }
+            {
+                token.ThrowIfCancellationRequested();
+                using var file = partition.LoadFile(entry);
+                using var stream = file.AsStream();
+                EnsureCompressionAllowed(stream);
+            }
         if (hashes != null)
             CheckNcaHashes(partition, hashes, keysPath, token, hashProgress);
 
@@ -328,11 +443,11 @@ internal sealed record PackageFile(string Path, string Type, long Size, IReadOnl
             var keys = LoadKeys(keysPath);
             var contents = PackageMetadataReader.Read(partition, keys, out _, injectTicketKeys: InjectTicketKeys, readDetails: includeDetails,
                 saveTicketKey: SaveTicketKeys ? (id, key) => StoreTicketKey(keysPath, id.ToString(), key.ToString()) : null,
-                missingKey: missing => missingKeys.Add(missing.Name));
+                missingKey: missing => missingKeys.Add(missing.Name), token: token);
             var present = entries.Where(entry => entry.Name.EndsWith(".nca", StringComparison.OrdinalIgnoreCase) || entry.Name.EndsWith(".ncz", StringComparison.OrdinalIgnoreCase)).Select(entry => entry.Name[..^4]).ToHashSet(StringComparer.OrdinalIgnoreCase);
             var missing = contents.SelectMany(content => content.ReferencedContents).Where(reference => !present.Contains(reference.Id) && (!IgnoreMissingDeltaFragments || reference.Type != LibHac.Ncm.ContentType.DeltaFragment)).Distinct().ToArray();
             var errors = missing.Select(reference => string.Format(Emignatik.NxFileViewer.Localization.LocalizationManager.Instance.Current.Keys.LoadingError_NcaFileMissing_Log, reference.Id, reference.Type)).ToArray();
-            if (hashes != null) foreach (var reference in missing) hashes.Add(new NcaHashResult(reference.Id + ".nca", null, null, string.Format(Emignatik.NxFileViewer.Localization.LocalizationManager.Instance.Current.Keys.LoadingError_NcaFileMissing_Log, reference.Id, reference.Type)));
+            if (hashes != null) foreach (var reference in missing) hashes.Add(new NcaHashResult(reference.Id + ".nca", null, null, string.Format(Emignatik.NxFileViewer.Localization.LocalizationManager.Instance.Current.Keys.LoadingError_NcaFileMissing_Log, reference.Id, reference.Type), Missing: true));
             return new PartitionContents(entries, contents, MetadataError: errors.Length == 0 ? null : string.Join(Environment.NewLine, errors), MissingKeys: missingKeys.ToArray());
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or LibHac.Common.LibHacException)
@@ -372,7 +487,7 @@ internal sealed record PackageFile(string Path, string Type, long Size, IReadOnl
         }
     }
 
-    private static KeySet LoadKeys(string keysPath)
+    internal static KeySet LoadKeys(string keysPath)
     {
         var keys = KeySet.CreateDefaultKeySet();
         var titlePath = TitleKeysFilePath ?? DefaultTitleKeysPath;
@@ -380,16 +495,22 @@ internal sealed record PackageFile(string Path, string Type, long Size, IReadOnl
         return keys;
     }
 
-    private static void CheckNcaHashes(IFileSystem partition, List<NcaHashResult> results, string? keysPath, CancellationToken token, Action<int, int>? progress)
+    private static void CheckNcaHashes(IFileSystem partition, List<NcaHashResult> results, string? keysPath, CancellationToken token, Action<string, int, int, bool>? progress)
     {
         var keys = keysPath == null ? null : LoadKeys(keysPath);
         var entries = partition.EnumerateEntries().Where(entry => entry.Type == DirectoryEntryType.File &&
             (entry.Name.EndsWith(".nca", StringComparison.OrdinalIgnoreCase) || entry.Name.EndsWith(".ncz", StringComparison.OrdinalIgnoreCase))).ToArray();
-        if (entries.Length > 0) progress?.Invoke(0, entries.Length);
+        CheckNcaHashes(partition, results, keys, entries, token, progress);
+    }
+
+    private static void CheckNcaHashes(IFileSystem partition, List<NcaHashResult> results, KeySet? keys,
+        DirectoryEntryEx[] entries, CancellationToken token, Action<string, int, int, bool>? progress)
+    {
         for (var index = 0; index < entries.Length; index++)
         {
             token.ThrowIfCancellationRequested();
             var entry = entries[index];
+            progress?.Invoke(entry.Name, index + 1, entries.Length, false);
             var compressed = entry.Name.EndsWith(".ncz", StringComparison.OrdinalIgnoreCase);
 
             var id = entry.Name.Split('.', 2)[0];
@@ -415,11 +536,11 @@ internal sealed record PackageFile(string Path, string Type, long Size, IReadOnl
                 }
                 results.Add(new NcaHashResult(entry.Name, matches, signature));
             }
-            catch (Exception ex) when (ex is IOException or InvalidDataException or LibHacException or NczFormatException)
+            catch (Exception ex) when (ex is IOException or InvalidDataException or LibHacException or NczFormatException or ZstdSharp.ZstdException)
             {
                 results.Add(new NcaHashResult(entry.Name, matches, Error: ex.Message));
             }
-            progress?.Invoke(index + 1, entries.Length);
+            progress?.Invoke(entry.Name, index + 1, entries.Length, true);
         }
     }
 

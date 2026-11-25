@@ -125,7 +125,8 @@ public partial class MainWindow
                             _preferences = _preferences with { KronosGuiPath = KronosGuiPath.Text };
                             break;
                     }
-                }, supportsManagement: supportsManagement);
+                }, supportsManagement: supportsManagement, sessionsRoot: component == PackageComponent.Kronos
+                    ? Path.Combine(Emignatik.NxFileViewer.Utils.PathHelper.CurrentAppDir, "Plugins", "KronosGuiSessions") : null);
         }
     }
 
@@ -144,7 +145,7 @@ public partial class MainWindow
     private StackPanel CreateManagedPluginSection(string name, string repository, string installed, bool canInstall,
         Func<IProgressReporter, CancellationToken, Task> install, bool canRollback, Action rollback,
         Func<IReadOnlyList<string>> oldVersions, Action<IReadOnlyList<string>> remove, Action apply, string? nszRoot = null,
-        bool supportsManagement = true)
+        bool supportsManagement = true, string? sessionsRoot = null)
     {
         var actions = new WrapPanel();
         var installButton = new Button { Content = _text.Nsz_Update, IsEnabled = canInstall, Margin = new Thickness(0, 0, 8, 0) };
@@ -182,6 +183,30 @@ public partial class MainWindow
             });
             actions.Children.Add(cacheButton);
         }
+        if (sessionsRoot != null && supportsManagement)
+        {
+            var sessions = new Button { Content = _text.Storage_Sessions, Margin = new Thickness(0, 0, 8, 0) };
+            sessions.Click += async (_, _) =>
+            {
+                string? result = null;
+                await RunManagedPluginJob(async (_, token) =>
+                {
+                    var paths = await Task.Run(() => PluginStorageCleanup.Sessions(sessionsRoot), token);
+                    if (paths.Count == 0)
+                    {
+                        result = _text.Storage_SessionEmpty;
+                        return;
+                    }
+                    if (!await ConfirmPluginCleanupAsync(_text.Storage_Sessions,
+                        string.Format(_text.Storage_SessionConfirm, string.Join(Environment.NewLine, paths)))) return;
+                    token.ThrowIfCancellationRequested();
+                    await Task.Run(() => PluginStorageCleanup.DeleteSessions(sessionsRoot, paths), token);
+                    result = string.Format(_text.Storage_Done, paths.Count);
+                });
+                if (!_closed && result != null) UpdateStatus.Text = result;
+            };
+            actions.Children.Add(sessions);
+        }
         actions.Children.Add(CreateReleaseButton(repository));
         var panel = new StackPanel { Spacing = 4 };
         var heading = new TextBlock();
@@ -198,29 +223,35 @@ public partial class MainWindow
         return panel;
     }
 
-    private async Task<bool> ConfirmPluginCleanupAsync(string title, string message, string? confirmLabel = null)
+    private async Task<bool> ConfirmPluginCleanupAsync(string title, string message, string? confirmLabel = null, string? cancelLabel = null)
     {
         var dialog = new Window
         {
             Title = title,
-            Width = 640,
+            Icon = Icon,
+            Width = 520,
+            CanResize = false,
+            ShowInTaskbar = false,
             SizeToContent = SizeToContent.Height,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             RequestedThemeVariant = ActualThemeVariant
         };
-        var confirm = new Button { Content = confirmLabel ?? title };
-        var cancel = new Button { Content = _text.CancelAction, IsCancel = true };
+        var confirm = new Button { Content = confirmLabel ?? title, MinWidth = 88, HorizontalContentAlignment = HorizontalAlignment.Center };
+        var cancel = new Button { Content = cancelLabel ?? _text.CancelAction, IsCancel = true, IsDefault = cancelLabel != null,
+            MinWidth = 88, HorizontalContentAlignment = HorizontalAlignment.Center };
         confirm.Click += (_, _) => dialog.Close(true);
         cancel.Click += (_, _) => dialog.Close(false);
         dialog.Content = new StackPanel
         {
-            Margin = new Thickness(16), Spacing = 8,
+            Margin = new Thickness(16), Spacing = 14,
             Children =
             {
                 new ScrollViewer { MaxHeight = 280, Content = new TextBlock { Text = message, TextWrapping = global::Avalonia.Media.TextWrapping.Wrap } },
-                new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { confirm, cancel } }
+                new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right,
+                    Spacing = 8, Children = { confirm, cancel } }
             }
         };
+        WpfTheme.Apply(dialog);
         return await dialog.ShowDialog<bool>(this);
     }
 

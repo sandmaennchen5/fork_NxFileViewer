@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Security.Principal;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -20,6 +21,7 @@ public partial class MainWindow
     private void RefreshNandActions()
     {
         NandInfoButton.IsEnabled = !_nandBusy && _nandSource != null;
+        NandCloseButton.IsEnabled = !_nandBusy && _nandSource != null;
         NandPartitions.IsEnabled = !_nandBusy;
         NandExportPartitionButton.IsEnabled = !_nandBusy && NandPartitions.SelectedItem is NandExplorerPartition;
         NandCancelButton.IsEnabled = _nandCancellation != null;
@@ -29,6 +31,18 @@ public partial class MainWindow
         NandUpButton.IsEnabled = !_nandBusy && _nandSource != null && _nandDirectory != "/";
     }
     private void NandSelectionChanged(object? sender, SelectionChangedEventArgs e) => RefreshNandActions();
+
+    private void CloseNand(object? sender, RoutedEventArgs e)
+    {
+        if (_nandBusy || _nandSource == null) return;
+        _nandSource = null;
+        NandPartitions.ItemsSource = null;
+        ResetNandExplorer();
+        NandInformation.Text = "";
+        NandViews.SelectedIndex = 0;
+        StatusText.Text = _text.Status_Ready;
+        RefreshNandActions();
+    }
     private static bool IsNandSourcePath(string source, string destination)
     {
         var target = Path.GetFullPath(destination);
@@ -77,6 +91,15 @@ public partial class MainWindow
         refresh.Click += async (_, _) => await Refresh();
         open.Click += (_, _) => { if (NandExplorer.IsDevice(path.Text?.Trim() ?? "")) dialog.Close(path.Text!.Trim()); };
         panel.Children.Add(new TextBlock { Text = _text.Nand_DriveTip, TextWrapping = global::Avalonia.Media.TextWrapping.Wrap });
+        using (var identity = WindowsIdentity.GetCurrent())
+        {
+            if (!new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator))
+            {
+                var warning = new TextBlock { Text = _text.Nand_DriveNotElevated, TextWrapping = global::Avalonia.Media.TextWrapping.Wrap };
+                warning.Classes.Add("permission-warning");
+                panel.Children.Add(warning);
+            }
+        }
         panel.Children.Add(choices); panel.Children.Add(path); panel.Children.Add(refresh); panel.Children.Add(error); panel.Children.Add(open);
         WpfTheme.Apply(dialog); dialog.Opened += async (_, _) => await Refresh();
         if (await dialog.ShowDialog<string?>(this) is { } selected && !_nandBusy && !_closed) { _nandSource = selected; ReadNand(sender, e); }
@@ -100,39 +123,26 @@ public partial class MainWindow
         try
         {
             var source = _nandSource;
-            var service = CreateNandService();
-            var requestPlugin = ReferenceEquals(sender, NandInfoButton) && OperatingSystem.IsWindows() && service.IsEnabled;
-            var progress = new MtpProgress(new Progress<string>(message => { if (!_closed) StatusText.Text = message; }));
+            var requestPlugin = ReferenceEquals(sender, NandInfoButton);
+            var progress = new MtpProgress(new Progress<string>(message =>
+            {
+                if (_closed || !ReferenceEquals(_nandCancellation, cancellation)) return;
+                StatusText.Text = message;
+                LogSession("DEBUG", message, "NAND");
+            }));
             var result = await Task.Run(() =>
             {
                 var token = cancellation.Token;
                 var detection = NandExplorer.IsDevice(source) ? null : NandDetection.Detect(source, token);
-                System.Collections.Generic.IReadOnlyList<NandExplorerPartition> partitions = Array.Empty<NandExplorerPartition>();
-                var information = detection?.Information ?? "";
-                try
-                {
-                    partitions = service.ExplorerPartitions(source, token);
-                    if (detection == null)
-                        information = string.Join(Environment.NewLine,
-                            partitions.Select(partition => $"{partition.Name} · {partition.Size:N0} B · 0x{partition.Offset:X}"));
-                }
-                catch (Exception error) when (IsNandExplorerError(error))
-                { information += Environment.NewLine + error.Message; }
-                if (requestPlugin)
-                {
-                    try { information += Environment.NewLine + Environment.NewLine + service.ReadInformation(source, progress, token); }
-                    catch (Exception error) when (error is IOException or InvalidDataException or UnauthorizedAccessException or InvalidOperationException or System.ComponentModel.Win32Exception)
-                    { information += Environment.NewLine + Environment.NewLine + error.Message; }
-                }
-                return (information, partitions, Recognized: detection != null || partitions.Count > 0);
+                return ReadNandReport(source, detection, requestPlugin, progress, token);
             });
             if (_closed) return;
-            if (result.Recognized) RememberOpenedPath(source);
-            NandInformation.Text = source + Environment.NewLine + result.information;
-            LogSession("INFO", NandInformation.Text, "NAND");
-            NandPartitions.ItemsSource = result.partitions;
+            if (result.Partitions.Count > 0) RememberOpenedPath(source);
+            NandInformation.Text = source + Environment.NewLine + result.Information;
+            LogSession("INFO", $"{source} · {string.Join(", ", result.Partitions.Select(partition => partition.Name))}", "NAND");
+            NandPartitions.ItemsSource = result.Partitions;
             ResetNandExplorer();
-            NandPartitions.SelectedIndex = result.partitions.Count > 0 ? 0 : -1;
+            NandPartitions.SelectedIndex = result.Partitions.Count > 0 ? 0 : -1;
         }
         catch (OperationCanceledException) { if (!_closed) NandInformation.Text = _text.Nand_Cancelled; }
         catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException or InvalidOperationException)

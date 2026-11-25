@@ -3,11 +3,11 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Net.Http;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Interactivity;
-using Avalonia.Platform.Storage;
 using Emignatik.NxFileViewer.Services;
 using Emignatik.NxFileViewer.Services.Integrity;
 using SharpCompress.Archives.SevenZip;
@@ -17,81 +17,64 @@ namespace NxFileViewer.Avalonia;
 
 public partial class MainWindow
 {
-    private CancellationTokenSource? _firmwareCancellation;
+    private CancellationTokenSource? _fileFirmwareCancellation;
 
-    private async void ChooseFirmwareFolder(object? sender, RoutedEventArgs e)
+    private void ResetFileFirmware()
     {
-        var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
-        {
-            Title = _text.BatchIntegrity_SelectDirectory
-        });
-        if (folders.FirstOrDefault()?.TryGetLocalPath() is { } path)
-            await CheckFirmwareAsync(path, identifyNca: false);
+        _fileFirmwareCancellation?.Cancel();
+        FileFirmwareTab.IsVisible = false;
+        FileFirmwareVersions.Text = FileFirmwareDetails.Text = "";
     }
 
-    private async void ChooseFirmwareArchive(object? sender, RoutedEventArgs e) =>
-        await ChooseFirmwareFileAsync(_text.Firmware_BrowseZip, new[] { "*.zip", "*.7z" }, identifyNca: false);
-
-    private async void ChooseFirmwareNca(object? sender, RoutedEventArgs e) =>
-        await ChooseFirmwareFileAsync(_text.Firmware_Title, new[] { "*.nca" }, identifyNca: true);
-
-    private async Task ChooseFirmwareFileAsync(string title, string[] patterns, bool identifyNca)
+    private async Task IdentifyOpenedFirmwareAsync(string path, int openVersion)
     {
-        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-        {
-            Title = title,
-            FileTypeFilter = new[] { new FilePickerFileType(string.Join(" / ", patterns)) { Patterns = patterns } }
-        });
-        if (files.FirstOrDefault()?.TryGetLocalPath() is { } path)
-            await CheckFirmwareAsync(path, identifyNca);
-    }
-
-    private async Task CheckFirmwareAsync(string path, bool identifyNca)
-    {
-        if (_closed || _firmwareCancellation != null) return;
-
-        using var workspaceJob = LockWorkspace(BatchTab);
         using var cancellation = new CancellationTokenSource();
-        _firmwareCancellation = cancellation;
-        FirmwareActions.IsEnabled = false;
-        FirmwareCancel.IsEnabled = true;
-        FirmwareResult.Text = path + "…";
+        _fileFirmwareCancellation = cancellation;
+        var token = cancellation.Token;
+        var keys = _text;
+        FileFirmwareTab.IsVisible = true;
+        FileFirmwareDetails.Text = keys.DataUpdate_Working;
         try
         {
-            var result = await Task.Run(() =>
+            FirmwareComparison comparison;
+            string source;
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
+            timeout.CancelAfter(TimeSpan.FromSeconds(15));
+            try
             {
-                var comparison = CreateFirmwareComparison();
-                return identifyNca
-                    ? comparison.IdentifyNca(path, _text, cancellation.Token)
-                    : comparison.Verify(path, _text, cancellation.Token);
-            });
-            if (_closed) return;
+                var manifests = await new RepositoryMirrors().FirmwareManifestsAsync(ExternalSources.Current.FirmwareHashes, timeout.Token);
+                comparison = await Task.Run(() => new FirmwareComparison(manifests.Values, ListFirmwareArchiveEntries, ReadFirmwareArchive), token);
+                source = keys.Firmware_OnlineSource;
+            }
+            catch (Exception ex) when (!token.IsCancellationRequested && ex is (HttpRequestException or OperationCanceledException
+                or IOException or InvalidDataException or UnauthorizedAccessException or JsonException or InvalidOperationException or ArgumentException or KeyNotFoundException))
+            {
+                LogSession("WARN", $"{keys.Firmware_OfflineSource} · {ex.Message}");
+                comparison = await Task.Run(CreateFirmwareComparison, token);
+                source = keys.Firmware_OfflineSource;
+            }
 
-            var status = result.Match switch
+            var result = await Task.Run(() => comparison.IdentifyNca(path, keys, token), token);
+            if (_closed || openVersion != _openVersion) return;
+            FileFirmwareVersions.Text = result.Version;
+            FileFirmwareDetails.Text = source + Environment.NewLine + result.Details;
+            LogFileSection(path, [("DEBUG", source), ("INFO", result.Details)]);
+            if (result.IsFirmware && FileBody.SelectedIndex == 0)
+                FileBody.SelectedItem = FileFirmwareTab;
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or JsonException
+            or InvalidOperationException or ArgumentException or KeyNotFoundException)
+        {
+            if (!_closed && openVersion == _openVersion)
             {
-                FirmwareMatch.Exact => _text.NcasIntegrity_Original,
-                FirmwareMatch.Unchecked => _text.NcasIntegrity_Unknown,
-                _ => _text.NcasIntegrity_Error
-            };
-            FirmwareResult.Text = string.Join(Environment.NewLine, path, status,
-                $"{_text.Firmware_Versions}  {result.Version}", result.Details);
-        }
-        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
-        {
-            if (!_closed) FirmwareResult.Text = _text.Log_NcasIntegrityCanceled;
-        }
-        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or JsonException or SharpCompressException)
-        {
-            if (!_closed) FirmwareResult.Text = ex.Message;
+                FileFirmwareDetails.Text = ex.Message;
+                LogFileSection(path, [("ERROR", ex.Message)]);
+            }
         }
         finally
         {
-            _firmwareCancellation = null;
-            if (!_closed)
-            {
-                FirmwareActions.IsEnabled = true;
-                FirmwareCancel.IsEnabled = false;
-            }
+            if (ReferenceEquals(_fileFirmwareCancellation, cancellation)) _fileFirmwareCancellation = null;
         }
     }
 
@@ -102,20 +85,86 @@ public partial class MainWindow
         return new FirmwareComparison(manifests, ListFirmwareArchiveEntries, ReadFirmwareArchive);
     }
 
-    private static bool IsBatchFirmwareArchive(string path)
-    {
-        if (!Path.GetFileName(path).Contains("firmware", StringComparison.OrdinalIgnoreCase)) return false;
-        var entries = ListFirmwareArchiveEntries(path);
-        return entries.Any(entry => entry.EndsWith(".cnmt.nca", StringComparison.OrdinalIgnoreCase)) &&
-            entries.All(entry => entry.EndsWith(".nca", StringComparison.OrdinalIgnoreCase));
-    }
+    private static bool IsBatchFirmwareArchive(string path) => LooksLikeFirmwareSource(path, ListFirmwareArchiveEntries(path));
 
-    private BatchRow ReadBatchFirmware(string path, CancellationToken token)
+    private async Task OpenFirmwareArchiveAsync(string path, IReadOnlyList<(string Name, long Size)> files, CancellationToken token)
     {
-        var fileType = Path.GetExtension(path).TrimStart('.').ToUpperInvariant();
+        var size = new FileInfo(path).Length;
+        var root = new ContentNode(Path.GetFileName(path), ContentKind.Archive, size) { IsRoot = true };
+        var folders = new Dictionary<string, ContentNode>(StringComparer.Ordinal) { [""] = root };
+        foreach (var file in files)
+        {
+            var parts = file.Name.Replace('\\', '/').Split('/', StringSplitOptions.RemoveEmptyEntries);
+            var parent = root;
+            var folderPath = "";
+            foreach (var part in parts.SkipLast(1))
+            {
+                folderPath += "/" + part;
+                if (!folders.TryGetValue(folderPath, out var folder))
+                {
+                    folder = new ContentNode(part, ContentKind.ArchiveDirectory);
+                    parent.Children.Add(folder);
+                    folders.Add(folderPath, folder);
+                }
+                parent = folder;
+            }
+            if (parts.Length > 0)
+                parent.Children.Add(new ContentNode(parts[^1], ContentKind.ArchiveFile, file.Size));
+        }
+
+        CloseClicked(this, new RoutedEventArgs());
+        var version = _openVersion;
+        _openedPath = path;
+        RememberOpenedPath(path);
+        Title = ProgramVersionText.Text + " - " + root.Name;
+        OverviewType.Text = _text.Firmware_Title;
+        OverviewSize.Text = Emignatik.NxFileViewer.Utils.FileSizeHelper.ToFileSize(size);
+        Entries.ItemsSource = new[] { root };
+        Entries.SelectedItem = root;
+        FileEmpty.IsVisible = false;
+        FileBody.IsVisible = true;
+        Workspace.SelectedItem = FileTab;
+        FileFirmwareTab.IsVisible = true;
+        FileFirmwareDetails.Text = _text.DataUpdate_Working;
+        FileBody.SelectedItem = FileFirmwareTab;
+        VerifyFileButton.IsEnabled = false;
+        FileStatusProgress.IsVisible = true;
+        StatusText.Text = _text.DataUpdate_Working;
+        LogFileSection(path);
+
         try
         {
-            var result = CreateFirmwareComparison().Verify(path, _text, token);
+            var result = await Task.Run(() => ReadBatchFirmware(path, token, progress: null), token);
+            if (_closed || _openVersion != version) return;
+            FileFirmwareVersions.Text = result.Structure;
+            FileFirmwareDetails.Text = result.Summary;
+            StatusText.Text = root.Name + " · " + result.Integrity;
+            LogFileSection(path, [(result.HasError ? "ERROR" : "INFO", result.Summary)]);
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            if (!_closed && _openVersion == version)
+                FileFirmwareDetails.Text = StatusText.Text = _text.Log_NcasIntegrityCanceled;
+        }
+    }
+
+    private static bool LooksLikeFirmwareSource(string path, IReadOnlyList<string> entries) =>
+        entries.Any(entry => entry.EndsWith(".cnmt.nca", StringComparison.OrdinalIgnoreCase)) &&
+            entries.All(entry => entry.EndsWith(".nca", StringComparison.OrdinalIgnoreCase)) &&
+            (Path.GetFileName(path).Contains("firmware", StringComparison.OrdinalIgnoreCase) ||
+                entries.Count >= 10 && entries.All(entry =>
+                {
+                    var id = Path.GetFileName(entry.Replace('\\', '/')).Split('.', 2)[0];
+                    return id.Length == 32 && id.All(Uri.IsHexDigit);
+                }));
+
+    private BatchRow ReadBatchFirmware(string path, CancellationToken token, Action<double>? progress)
+    {
+        var fileType = Directory.Exists(path) ? "Folder" : Path.GetExtension(path).TrimStart('.').ToUpperInvariant();
+        try
+        {
+            progress?.Invoke(0);
+            var result = CreateFirmwareComparison().Verify(path, _text, token, progress);
             return new BatchRow(path, result.Details, result.Match == FirmwareMatch.Error)
             {
                 FirmwareArchiveType = fileType,
@@ -137,18 +186,19 @@ public partial class MainWindow
         }
     }
 
-    private void CancelFirmware(object? sender, RoutedEventArgs e) => _firmwareCancellation?.Cancel();
+    private static IReadOnlyList<string> ListFirmwareArchiveEntries(string path) =>
+        ListFirmwareArchiveFiles(path).Select(entry => entry.Name).ToArray();
 
-    private static IReadOnlyList<string> ListFirmwareArchiveEntries(string path)
+    private static IReadOnlyList<(string Name, long Size)> ListFirmwareArchiveFiles(string path)
     {
         if (Path.GetExtension(path).Equals(".7z", StringComparison.OrdinalIgnoreCase))
         {
             using var archive = SevenZipArchive.OpenArchive(path);
-            return archive.Entries.Where(entry => !entry.IsDirectory).Select(entry => entry.Key!).ToArray();
+            return archive.Entries.Where(entry => !entry.IsDirectory).Select(entry => (entry.Key!, entry.Size)).ToArray();
         }
 
         using var zip = ZipFile.OpenRead(path);
-        return zip.Entries.Where(entry => entry.Name.Length > 0).Select(entry => entry.FullName).ToArray();
+        return zip.Entries.Where(entry => entry.Name.Length > 0).Select(entry => (entry.FullName, entry.Length)).ToArray();
     }
 
     private static void ReadFirmwareArchive(string path, Func<string, bool> include, Action<string, Stream, long> read, CancellationToken token)

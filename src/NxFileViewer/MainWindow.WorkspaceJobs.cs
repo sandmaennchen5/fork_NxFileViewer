@@ -20,10 +20,12 @@ public partial class MainWindow
     {
         if (_closed) return;
         var owner = _workspaceJobs.FirstOrDefault();
+        BatchMeasureMemory.IsEnabled = owner == null && _batchMemoryDiagnostics?.IsEnabled == true;
         foreach (var tab in Workspace.Items.OfType<TabItem>())
             tab.IsEnabled = owner == null || tab == owner || tab == LogTab;
         if (owner != null && Workspace.SelectedItem != owner && Workspace.SelectedItem != LogTab)
             Workspace.SelectedItem = owner;
+        RefreshEntryActions();
     }
 
     private sealed class WorkspaceJob(MainWindow window, TabItem owner) : IDisposable

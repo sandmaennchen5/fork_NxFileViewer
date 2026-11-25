@@ -37,7 +37,7 @@ public static class SphairaMtpActions
         catch (Exception ex)
         {
             logger?.LogError(ex, "MTP import failed.");
-            if (LoadingSpaceWarning.IsDiskFull(ex)) LoadingSpaceWarning.Show("Sphaira (MTP)");
+            if (LoadingSpaceWarning.IsDiskFull(ex)) LoadingSpaceWarning.Show(LocalizationManager.Instance.Current.Keys.Mtp_Title);
             else ThemedDialog.Notice(ex.Message, LocalizationManager.Instance.Current.Keys.Mtp_Title, MessageBoxImage.Error);
             return null;
         }

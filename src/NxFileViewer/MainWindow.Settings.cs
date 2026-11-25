@@ -55,7 +55,10 @@ public partial class MainWindow
 
     private void ApplyPreferences(ViewerPreferences preferences)
     {
+        var retentionChanged = _preferences.LogFileRetention != preferences.LogFileRetention;
         _preferences = preferences;
+        _memoryTrace?.Refresh();
+        if (retentionChanged) ApplyLogRetention();
         PackageFile.AllowBlockless = preferences.SharedSettings.OpenBlocklessCompressionNCZ; PackageFile.IgnoreMissingDeltaFragments = preferences.SharedSettings.IgnoreMissingDeltaFragments;
         FileMtpButton.IsVisible = BatchMtpButton.IsVisible = OperatingSystem.IsWindows() && preferences.SharedSettings.EnableMtp;
         MtpActiveSetting.IsVisible = OperatingSystem.IsWindows();
@@ -94,8 +97,14 @@ public partial class MainWindow
         RustDirectSetting.IsChecked = preferences.RustDirectStart;
         KronosDirectSetting.IsChecked = preferences.KronosDirectStart;
         _text = GetText(preferences.Language);
+        if (_batchMemoryDiagnostics != null) RefreshBatchDiagnostics("diagnostics-setting-changed");
         Emignatik.NxFileViewer.Localization.LocalizationManager.Instance.Keys = _text;
         DataContext = _text;
+        if (OperatingSystem.IsWindows())
+        {
+            try { Emignatik.NxFileViewer.Services.FileAssociations.ExplorerIntegration.UpdateLanguage(_text.CultureName); }
+            catch (Exception error) { LogSession("WARN", error.Message); }
+        }
         RenameCompactPaths.Content = _text.CultureName.StartsWith("de", StringComparison.OrdinalIgnoreCase)
             ? "Pfade abkürzen (QUELL:: / ZIEL::)" : "Shorten paths (QUELL:: / ZIEL::)";
         RenameBatchPreviewButton.Content = _text.CultureName.Split('-')[0] switch
@@ -110,7 +119,7 @@ public partial class MainWindow
         BuildProgramSettings();
         VerifyOnOpenSetting.IsChecked = _verifyOnOpen = preferences.VerifyOnOpen;
         NandActiveSetting.IsChecked = NandTab.IsVisible = preferences.NandActive;
-        FirmwareActiveSetting.IsChecked = FirmwareTab.IsVisible = preferences.FirmwareActive;
+        FirmwareActiveSetting.IsChecked = preferences.FirmwareActive;
         RequestedThemeVariant = preferences.Theme switch
         {
             "Light" => ThemeVariant.Light,
@@ -134,6 +143,7 @@ public partial class MainWindow
     {
         if (_keyDownloadCancellation != null) return;
         _editedSharedSettings.BatchGroupFiles = BatchGroupFiles.IsChecked == true;
+        _editedSharedSettings.SdBatchSourceMode = _batchSourceMode;
         _editedSharedSettings.AlwaysReloadKeysBeforeOpen = ReloadKeysBeforeOpenSetting.IsChecked == true;
         _editedSharedSettings.SaveTicketKeys = SaveTicketKeysSetting.IsChecked == true;
         _editedSharedSettings.NandBisKeysPath = NandBisKeysPath.Text?.Trim() ?? "";

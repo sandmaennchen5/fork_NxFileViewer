@@ -19,6 +19,33 @@ public class LogDocumentTest
         + "[2026-10-19 10:52:02.001 +02:00] [Critical] Device unavailable\n";
 
     [Fact]
+    public void AvaloniaLogsKeepFileGroupsAndSupportCombinedFilters()
+    {
+        const string text = """
+            15:43:03  [INFO]  Dateiliste einlesen
+            15:43:04  [TRACE]  W:\Games\Example.nsz
+            15:43:04  [DEBUG]  Reading metadata
+            15:43:05  [WARN]  Missing title
+            15:43:06  [TRACE]  =====>  <=====
+            15:43:06  [TRACE]  Memory process-sample: workingSetBytes=1024
+            15:43:07  [INFO]  =====> /mnt/sd/Nintendo/Contents <=====
+            15:43:07  [ERROR]  Cannot read contents
+            System.IO.IOException: Broken data
+            """;
+        var token = TestContext.Current.CancellationToken;
+        var entries = LogDocument.Read(new StringReader(text), token);
+        Assert.Equal(8, entries.Count);
+        var warning = Assert.Single(LogDocument.Filter(entries, "example.NSZ", EntryLevel.Warning, token: token));
+        Assert.True(warning.ShowHeader);
+        Assert.Equal(@"W:\Games\Example.nsz", warning.Header);
+        Assert.Equal("15:43:05", warning.Entry.Timestamp);
+        Assert.Null(Assert.Single(LogDocument.Filter(entries, null, memoryOnly: true, token: token)).Entry.FilePath);
+        var failure = Assert.Single(LogDocument.Filter(entries, "broken data", EntryLevel.Error, token: token));
+        Assert.Equal("/mnt/sd/Nintendo/Contents", failure.Header);
+        Assert.Contains("IOException", failure.Entry.Message);
+    }
+
+    [Fact]
     public void PreservesTimestampsMultilineExceptionsAndFileContext()
     {
         var entries = LogDocument.Read(new StringReader(Sample), token: TestContext.Current.CancellationToken);

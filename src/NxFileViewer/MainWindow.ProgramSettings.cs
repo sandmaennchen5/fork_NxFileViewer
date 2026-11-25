@@ -126,8 +126,14 @@ public partial class MainWindow
         sd.Children.Add(paths);
         var custom = SharedText(nameof(AppSettings.SdBatchCustomPaths), true); custom.Height = 100;
         var customPanel = new StackPanel { Spacing = 4 }; customPanel.Children.Add(custom); customPanel.Children.Add(new TextBlock { Text = _text.SdBatch_CustomTip, TextWrapping = TextWrapping.Wrap });
-        var expand = new Expander { Header = _text.SdBatch_Custom, Content = customPanel }; sd.Children.Add(expand);
-        void UpdateAreas() { paths.IsEnabled = expand.IsEnabled = areas.IsChecked == true; logos.IsEnabled = HistoryLimitSetting.IsEnabled = HistoryEnabledSetting.IsChecked == true; }
+        var expand = new global::Avalonia.Controls.Primitives.ToggleButton();
+        expand.Classes.Add("neutral-disclosure");
+        SetDisclosureToggle(expand, _text.SdBatch_Custom);
+        sd.Children.Add(expand);
+        sd.Children.Add(customPanel);
+        expand.IsCheckedChanged += (_, _) => customPanel.IsVisible = expand.IsChecked == true;
+        customPanel.IsVisible = false;
+        void UpdateAreas() { paths.IsEnabled = expand.IsEnabled = customPanel.IsEnabled = areas.IsChecked == true; logos.IsEnabled = HistoryLimitSetting.IsEnabled = HistoryEnabledSetting.IsChecked == true; }
         areas.IsCheckedChanged += (_, _) => UpdateAreas(); if (_programHistoryChanged != null) HistoryEnabledSetting.IsCheckedChanged -= _programHistoryChanged; _programHistoryChanged = (_, _) => UpdateAreas(); HistoryEnabledSetting.IsCheckedChanged += _programHistoryChanged; UpdateAreas();
         ProgramSettingsHost.Children.Add(ExplorerRegistrationPanel);
         var titles = ProgramGroup(_text.Settings_GroupTitleInfo);

@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using Avalonia.Collections;
 using Avalonia.Controls;
@@ -18,11 +19,21 @@ public partial class MainWindow
 
     private static string? ColumnPath(DataGridColumn column) => ((column as DataGridBoundColumn)?.Binding as Binding)?.Path;
 
+    private static string BatchSortPath(string path) => path switch
+    {
+        nameof(BatchRow.Version) => nameof(BatchRow.VersionSortKey),
+        nameof(BatchRow.MinimumSystemVersion) => nameof(BatchRow.MinimumSystemVersionSortKey),
+        nameof(BatchRow.SystemUpdateVersion) => nameof(BatchRow.SystemUpdateVersionSortKey),
+        nameof(BatchRow.DisplayVersion) => nameof(BatchRow.DisplayVersionSortKey),
+        _ => path
+    };
+
     private void RestoreBatchLayout()
     {
         if (_preferences.BatchLayout is not { } layout) return;
-        _batchSort = layout.Sort.Where(sort => Enum.IsDefined(sort.Direction) &&
-            BatchResults.Columns.Any(column => ColumnPath(column) == sort.BindingPath)).ToArray();
+        _batchSort = layout.Sort.Where(sort => Enum.IsDefined(sort.Direction))
+            .Select(sort => sort with { BindingPath = BatchSortPath(sort.BindingPath) })
+            .Where(sort => BatchResults.Columns.Any(column => column.SortMemberPath == sort.BindingPath)).ToArray();
         foreach (var saved in layout.Columns.OrderBy(column => column.Index))
         {
             var column = BatchResults.Columns.FirstOrDefault(column => ColumnPath(column) == saved.BindingPath);
@@ -43,6 +54,16 @@ public partial class MainWindow
             BatchResults.Columns.Select(column => new SavedBatchColumn(ColumnPath(column) ?? "",
                 column.DisplayIndex, column.IsVisible, column.Width.Value, column.Width.UnitType)).ToArray(),
             _batchSort, BatchDetailsToggle.IsChecked == true);
+    }
+
+    private void SaveResetBatchLayout()
+    {
+        _preferences = _preferences with { BatchLayout = CaptureBatchLayout() };
+        try { _preferences.Save(); }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+        {
+            LogSession("WARN", "Could not save batch layout: " + error.Message);
+        }
     }
 
     private void ReadBatchSort()

@@ -15,26 +15,85 @@ public partial class MainWindow
 {
     private readonly Dictionary<(string Archive, string Member, long Size, long Modified), ExtractedPackage> _openArchiveMembers = new();
     private CancellationTokenSource? _sourceCancellation;
+    private bool _updatingSdContentsChoice;
+
+    private async void OpenSdContentsClicked(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions { Title = _text.OpenSdContents });
+        if (folders.FirstOrDefault()?.TryGetLocalPath() is not { } path) return;
+        try
+        {
+            var sources = await Task.Run(() => SdCardSource.FindAllContents(path));
+            if (_closed) return;
+            if (sources.Count == 0)
+            {
+                StatusText.Text = string.Format(_text.FileNotSupported_Log, path);
+                return;
+            }
+            await OpenFileAsync(sources[0].ContentsPath, sdSources: sources);
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+        {
+            if (!_closed) StatusText.Text = error.Message;
+        }
+    }
+
+    private void UpdateSdContentsChoice(string? path, IReadOnlyList<SdContentSource>? sources = null)
+    {
+        _updatingSdContentsChoice = true;
+        try
+        {
+            FileSdContentsChoice.ItemsSource = sources;
+            FileSdContentsChoice.SelectedItem = sources?.FirstOrDefault(source =>
+                string.Equals(source.ContentsPath, path, StringComparison.OrdinalIgnoreCase));
+            FileSdContentsChoice.IsVisible = FileSdContentsChoice.SelectedItem != null;
+        }
+        finally { _updatingSdContentsChoice = false; }
+    }
+
+    private async void FileSdContentsChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (_updatingSdContentsChoice || _closed || !ReferenceEquals(e.Source, FileSdContentsChoice) ||
+            FileSdContentsChoice.SelectedItem is not SdContentSource source ||
+            string.Equals(source.ContentsPath, _openedPath, StringComparison.OrdinalIgnoreCase)) return;
+        var sources = (IReadOnlyList<SdContentSource>?)FileSdContentsChoice.ItemsSource;
+        FileSdContentsChoice.IsEnabled = false;
+        try { await OpenFileAsync(source.ContentsPath, sdSources: sources); }
+        finally
+        {
+            if (!_closed)
+            {
+                if (_openedPath != source.ContentsPath) UpdateSdContentsChoice(_openedPath, sources);
+                FileSdContentsChoice.IsEnabled = true;
+            }
+        }
+    }
 
     private void DisposeOpenedArchives()
     {
         _sourceCancellation?.Cancel();
-        foreach (var extraction in _openArchiveMembers.Values)
-        {
-            try { extraction.Dispose(); }
-            catch (IOException) { }
-            catch (UnauthorizedAccessException) { }
-        }
-        _openArchiveMembers.Clear();
+        ReleaseOpenedArchiveMembers();
     }
 
-    private async Task OpenArchiveAsync(string path, bool fromWindows, bool forceVerify)
+    private void ReleaseOpenedArchiveMembers(string? keep = null)
+    {
+        foreach (var entry in _openArchiveMembers.ToArray())
+        {
+            if (string.Equals(entry.Value.FilePath, keep, StringComparison.OrdinalIgnoreCase)) continue;
+            try { entry.Value.Dispose(); }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+            _openArchiveMembers.Remove(entry.Key);
+        }
+    }
+
+    private async Task OpenArchiveAsync(string path, bool fromWindows, bool forceVerify, string? requestedMember = null)
     {
         if (_sourceCancellation != null || _batchCancellation != null || _mtpCancellation != null) return;
         using var job = LockWorkspace(FileTab);
         using var cancellation = new CancellationTokenSource();
         _sourceCancellation = cancellation;
-        VerifyFileCancelButton.IsEnabled = true;
+        VerifyFileCancelButton.IsEnabled = VerifyFileCancelButton.IsVisible = true;
         FileStatusProgress.IsVisible = FileStatusProgress.IsIndeterminate = true;
         StatusText.Text = string.Format(_text.Archive_Reading, Path.GetFileName(path));
         string? selectedPath = null;
@@ -42,6 +101,17 @@ public partial class MainWindow
         try
         {
             var token = cancellation.Token;
+            if (_preferences.FirmwareActive)
+            {
+                var entries = await Task.Run(() => ListFirmwareArchiveFiles(path), token);
+                if (LooksLikeFirmwareSource(path, entries.Select(entry => entry.Name).ToArray()))
+                {
+                    if (_closed) return;
+                    token.ThrowIfCancellationRequested();
+                    await OpenFirmwareArchiveAsync(path, entries, token);
+                    return;
+                }
+            }
             var backupAndMembers = await Task.Run(() =>
             {
                 using var operation = PackageZip.BeginOperation();
@@ -53,24 +123,13 @@ public partial class MainWindow
             if (_closed) return;
             if (backupAndMembers.backup)
             {
-                ShowSaveBackup(path, backupAndMembers.members);
-                return;
-            }
-            if (_preferences.FirmwareActive && backupAndMembers.members.Count > 0 &&
-                backupAndMembers.members.All(name => name.EndsWith(".nca", StringComparison.OrdinalIgnoreCase)) &&
-                await Task.Run(() => IsBatchFirmwareArchive(path), token))
-            {
-                job.Dispose();
-                Workspace.SelectedItem = BatchTab;
-                BatchInputPath.Text = path;
-                await RunBatchAsync([path], forceVerify);
-                if (!_closed && _batchRows.Count > 0) RememberOpenedPath(path);
+                ShowSaveBackup(path, backupAndMembers.members, SaveBackupDetection.IsLikelyLegacyBackup(path, token));
                 return;
             }
             if (backupAndMembers.members.Count == 0)
                 throw new InvalidDataException(string.Format(_text.FileNotSupported_Log, path));
-            var member = backupAndMembers.members.Count == 1 ? backupAndMembers.members[0]
-                : await ChooseArchiveMemberAsync(path, backupAndMembers.members);
+            var member = requestedMember ?? (backupAndMembers.members.Count == 1 ? backupAndMembers.members[0]
+                : await ChooseArchiveMemberAsync(path, backupAndMembers.members));
             if (member == null || _closed) return;
             var info = new FileInfo(path);
             var key = (info.FullName, member, info.Length, info.LastWriteTimeUtc.Ticks);
@@ -99,7 +158,7 @@ public partial class MainWindow
             if (!_closed)
             {
                 FileStatusProgress.IsVisible = false;
-                VerifyFileCancelButton.IsEnabled = false;
+                VerifyFileCancelButton.IsEnabled = VerifyFileCancelButton.IsVisible = false;
             }
         }
         if (_closed || selectedPath == null) return;
@@ -124,23 +183,24 @@ public partial class MainWindow
         return await dialog.ShowDialog<string?>(this);
     }
 
-    private void ShowSaveBackup(string path, IReadOnlyList<string> members)
+    private void ShowSaveBackup(string path, IReadOnlyList<string> members, bool suspected)
     {
         CloseClicked(this, new global::Avalonia.Interactivity.RoutedEventArgs());
         _openedPath = path;
         RememberOpenedPath(path);
         FileEmpty.IsVisible = false;
         FileBody.IsVisible = true;
-        FileNameText.Text = Path.GetFileName(path);
-        OverviewType.Text = _text.File_SaveBackup;
+
+        var label = suspected ? _text.File_SaveBackupSuspected : _text.File_SaveBackup;
+        OverviewType.Text = label;
         OverviewSize.Text = Emignatik.NxFileViewer.Utils.FileSizeHelper.ToFileSize(new FileInfo(path).Length);
         MetadataStatus.Text = string.Join(Environment.NewLine, members);
         MetadataStatus.IsVisible = true;
         Workspace.SelectedItem = FileTab;
         FileBody.SelectedIndex = 0;
         FileCloseButton.IsEnabled = true;
-        StatusText.Text = _text.File_SaveBackup;
-        LogFileSection(path, [("INFO", _text.File_SaveBackup)]);
+        StatusText.Text = label;
+        LogFileSection(path, [("INFO", label)]);
     }
 
     private enum XciRepairChoice { Cancel, OpenOriginal, Repair }
@@ -175,7 +235,7 @@ public partial class MainWindow
         if (_sourceCancellation != null) return null;
         using var cancellation = new CancellationTokenSource();
         _sourceCancellation = cancellation;
-        VerifyFileCancelButton.IsEnabled = true;
+        VerifyFileCancelButton.IsEnabled = VerifyFileCancelButton.IsVisible = true;
         try
         {
             var progress = new MtpProgress(new Progress<string>(message => { if (!_closed && !cancellation.IsCancellationRequested) StatusText.Text = message; }));
@@ -209,7 +269,7 @@ public partial class MainWindow
         finally
         {
             _sourceCancellation = null;
-            if (!_closed) VerifyFileCancelButton.IsEnabled = false;
+            if (!_closed) VerifyFileCancelButton.IsEnabled = VerifyFileCancelButton.IsVisible = false;
         }
     }
 }

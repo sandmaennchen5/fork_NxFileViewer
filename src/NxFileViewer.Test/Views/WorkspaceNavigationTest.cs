@@ -50,7 +50,7 @@ public sealed class WorkspaceNavigationTest
                 Assert.Equal(nameof(BatchIntegrityWindowViewModel.BrowseSphairaCommand), batchMtp.GetBindingExpression(Button.CommandProperty)!.ParentBinding.Path.Path);
                 Assert.NotNull(App.ServiceProvider.GetRequiredService<Emignatik.NxFileViewer.Services.Mtp.MtpImportService>());
                 var mtpWindow = new SphairaMtpWindow();
-                Assert.Equal("Sphaira (MTP)", mtpWindow.Title);
+                Assert.Equal("MTP", mtpWindow.Title);
                 Assert.False(mtpWindow.DirectRead);
                 mtpWindow.Close();
                 var nandDevice = new Emignatik.NxFileViewer.Services.Nand.NandDriveChoice(@"\\.\PhysicalDrive40", "SD GPP hekate", 12UL * 1024 * 1024 * 1024);

@@ -1,112 +1,204 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using Path = System.IO.Path;
 using System.Linq;
+using System.Threading;
 using Emignatik.NxFileViewer.FileLoading;
 using Emignatik.NxFileViewer.FileLoading.QuickFileInfoLoading;
-using LibHac.FsSystem;
-using System.Threading;
+using Emignatik.NxFileViewer.Services.Mtp;
 using Emignatik.NxFileViewer.Utils.LibHacExtensions;
 using LibHac.Common.Keys;
 using LibHac.Fs;
 using LibHac.Fs.Fsa;
 using LibHac.NSZ;
+using LibHac.Tools.Es;
 using LibHac.Tools.Fs;
 using LibHac.Tools.FsSystem;
 using LibHac.Tools.FsSystem.NcaUtils;
 
 namespace NxFileViewer.Avalonia;
 
-internal sealed record NcaContentEntry(int Section, string Path, long Size)
-{
-    public override string ToString() => $"{Section} · {Path} · {Size:N0} B";
-}
+internal sealed record NcaDirectoryEntry(string Name, string Path, long Size, bool Directory);
 
 internal static class NcaContents
 {
-    internal static IReadOnlyDictionary<string, string> Properties(string path, string keysPath, string packageEntry)
-    {
-        return WithSource<IReadOnlyDictionary<string, string>>(path, packageEntry, (source, partition) =>
+    internal sealed record Inspection(Dictionary<string, string> Properties, IReadOnlyList<Section> Sections);
+    internal sealed record Section(int Index, Dictionary<string, string> Properties);
+
+    internal static Inspection Inspect(string path, string keys, string? member, CancellationToken token) =>
+        WithNca(path, keys, member, nca =>
         {
-            var keys = KeySet.CreateDefaultKeySet();
-            ExternalKeyReader.ReadKeyFile(keys, keysPath, null, null, null);
-            if (partition != null) PackageMetadataReader.ImportTicketKeys(partition, keys);
-            using var original = packageEntry.EndsWith(".ncz", StringComparison.OrdinalIgnoreCase) ? Ncz.OpenOriginalStream(source) : null;
-            var nca = new Nca(keys, (original ?? source).AsStorage());
-            var h = nca.Header;
-            return new Dictionary<string, string> { ["Format"] = "Nca", ["HeaderSignatureValidity"] = nca.VerifyHeaderSignature().ToString(), ["ContentType"] = h.ContentType.ToString(), ["SdkVersion"] = h.SdkVersion.ToString(), ["DistributionType"] = h.DistributionType.ToString(), ["KeyGeneration"] = h.KeyGeneration.ToString(), ["ContentIndex"] = h.ContentIndex.ToString(), ["FormatVersion"] = h.FormatVersion.ToString(), ["IsEncrypted"] = h.IsEncrypted.ToString(), ["IsNca0"] = h.IsNca0().ToString() };
-        });
-    }
-    internal static void Extract(string path, string keysPath, NcaContentEntry entry, string destination, CancellationToken token, string? packageEntry = null)
-    {
-        if (string.Equals(System.IO.Path.GetFullPath(path), System.IO.Path.GetFullPath(destination), StringComparison.OrdinalIgnoreCase))
-            throw new IOException("The destination is the source file.");
-        WithSource(path, packageEntry, (source, partition) =>
+            var header = nca.Header;
+            var properties = new Dictionary<string, string>
             {
-            var keys = KeySet.CreateDefaultKeySet();
-            ExternalKeyReader.ReadKeyFile(keys, keysPath, null, null, null);
-            if (partition != null) PackageMetadataReader.ImportTicketKeys(partition, keys);
-            using var original = System.IO.Path.GetExtension(packageEntry ?? path).Equals(".ncz", StringComparison.OrdinalIgnoreCase)
-                ? Ncz.OpenOriginalStream(source) : null;
-            var nca = new Nca(keys, (original ?? source).AsStorage());
-            if (entry.Section < 0 || entry.Section >= NcaExtension.MaxSections || !nca.Header.IsSectionEnabled(entry.Section))
-                throw new InvalidDataException("The NCA section is unavailable.");
-            using var fileSystem = nca.OpenFileSystem(entry.Section, IntegrityCheckLevel.ErrorOnInvalid);
-            var found = System.Linq.Enumerable.SingleOrDefault(
-                fileSystem.EnumerateEntries("/", "*", SearchOptions.RecurseSubdirectories),
-                item => item.Type == DirectoryEntryType.File && item.FullPath == entry.Path)
-                ?? throw new FileNotFoundException(entry.Path);
-            using var file = fileSystem.LoadFile(found);
-            using var input = file.AsStream();
-            var temporary = destination + "." + Guid.NewGuid().ToString("N") + ".tmp";
-            try
+                ["Format"] = Path.GetExtension(member ?? path).TrimStart('.').ToUpperInvariant(),
+                ["HeaderSignatureValidity"] = nca.VerifyHeaderSignature().ToString(),
+                ["ContentType"] = header.ContentType.ToString(), ["SdkVersion"] = header.SdkVersion.ToString(),
+                ["DistributionType"] = header.DistributionType.ToString(), ["KeyGeneration"] = header.KeyGeneration.ToString(),
+                ["ContentIndex"] = header.ContentIndex.ToString(), ["FormatVersion"] = header.FormatVersion.ToString(),
+                ["IsEncrypted"] = header.IsEncrypted.ToString(), ["IsNca0"] = header.IsNca0().ToString()
+            };
+            var sections = new List<Section>();
+            for (var index = 0; index < NcaExtension.MaxSections; index++)
             {
-                using (var output = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None))
-                {
-                    input.CopyToAsync(output, token).GetAwaiter().GetResult();
-                    if (output.Length != found.Size) throw new InvalidDataException("The NCA entry is truncated.");
-                }
                 token.ThrowIfCancellationRequested();
-                File.Move(temporary, destination, overwrite: true);
+                if (!header.IsSectionEnabled(index)) continue;
+                var fs = nca.GetFsHeader(index);
+                sections.Add(new Section(index, new Dictionary<string, string>
+                {
+                    ["Format"] = fs.FormatType.ToString(), ["SectionIndex"] = index.ToString(),
+                    ["NcaSectionType"] = Nca.TryGetSectionTypeFromIndex(index, header.ContentType, out var section) ? section.ToString() : "",
+                    ["EncryptionType"] = fs.EncryptionType.ToString(), ["HashType"] = fs.HashType.ToString(),
+                    ["Version"] = fs.Version.ToString()
+                }));
             }
-            finally { if (File.Exists(temporary)) File.Delete(temporary); }
+            return new Inspection(properties, sections);
+        });
+
+    internal static Dictionary<string, string> ReadTicket(string path, string member) =>
+        WithSource<Dictionary<string, string>>(path, member, (source, _) =>
+        {
+            if (source.Length is <= 0 or > 1048576) throw new InvalidDataException("Invalid ticket size.");
+            var ticket = new Ticket(source);
+            return new()
+            {
+                ["Format"] = "Ticket", ["RightsId"] = new LibHac.Fs.RightsId(ticket.RightsId).ToString(),
+                ["Issuer"] = ticket.Issuer, ["AccountId"] = ticket.AccountId.ToString("X8"),
+                ["DeviceId"] = ticket.DeviceId.ToString("X16"), ["TicketId"] = ticket.TicketId.ToString("X16"),
+                ["CryptoType"] = ticket.CryptoType.ToString(), ["FormatVersion"] = ticket.FormatVersion.ToString(),
+                ["TitleKeyType"] = ticket.TitleKeyType.ToString(), ["LicenseType"] = ticket.LicenseType.ToString(),
+                ["TicketVersion"] = ticket.TicketVersion.ToString(), ["PropertyMask"] = ticket.PropertyMask.ToString()
+            };
+        });
+
+    internal static IReadOnlyList<NcaDirectoryEntry> ReadDirectory(string path, string keys, string? member,
+        int section, string directory, CancellationToken token) =>
+        WithFileSystem<IReadOnlyList<NcaDirectoryEntry>>(path, keys, member, section, fs =>
+        {
+            var results = new List<NcaDirectoryEntry>();
+            foreach (var entry in fs.EnumerateEntries(directory, "*"))
+            {
+                token.ThrowIfCancellationRequested();
+                results.Add(new(entry.Name, entry.FullPath, entry.Size, entry.Type == DirectoryEntryType.Directory));
+            }
+            return results;
+        });
+
+    internal static void ExportRaw(string path, string? member, string destination, bool reconstruct, CancellationToken token)
+    {
+        if (member != null)
+        {
+            PackageFile.ExtractEntry(path, member, destination, token, reconstruct);
+            return;
+        }
+        WithSource(path, null, (source, _) =>
+        {
+            using var original = reconstruct ? Ncz.OpenOriginalStream(source) : null;
+            SaveStream(original ?? source, destination, token);
             return true;
         });
     }
 
-    internal static IReadOnlyList<NcaContentEntry> Read(string path, string keysPath, CancellationToken token, string? packageEntry = null)
-    {
-        return WithSource<IReadOnlyList<NcaContentEntry>>(path, packageEntry, (source, partition) =>
+    internal static void ExportPlaintext(string path, string keys, string? member, string destination, CancellationToken token) =>
+        WithNca(path, keys, member, nca =>
+        {
+            using var storage = nca.OpenDecryptedNca();
+            using var stream = storage.AsStream();
+            SaveStream(stream, destination, token);
+            return true;
+        });
+
+    internal static void ExportFile(string path, string keys, string? member, int section, string entryPath,
+        string destination, CancellationToken token) =>
+        WithFileSystem(path, keys, member, section, fs =>
+        {
+            var parent = entryPath[..Math.Max(1, entryPath.LastIndexOf('/'))];
+            var entry = fs.EnumerateEntries(parent, "*").SingleOrDefault(item => item.FullPath == entryPath && item.Type == DirectoryEntryType.File)
+                ?? throw new FileNotFoundException(entryPath);
+            using var file = fs.LoadFile(entry);
+            using var stream = file.AsStream();
+            SaveStream(stream, destination, token);
+            return true;
+        });
+
+    internal static void ExportDirectory(string path, string keys, string? member, int section, string directory,
+        string parent, string name, CancellationToken token) =>
+        WithFileSystem(path, keys, member, section, fs =>
+        {
+            var stage = Path.Combine(parent, ".nxfv-content-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(stage);
+            try
             {
-            var keys = KeySet.CreateDefaultKeySet();
-            ExternalKeyReader.ReadKeyFile(keys, keysPath, null, null, null);
-            if (partition != null) PackageMetadataReader.ImportTicketKeys(partition, keys);
-            using var original = System.IO.Path.GetExtension(packageEntry ?? path).Equals(".ncz", StringComparison.OrdinalIgnoreCase)
-                ? Ncz.OpenOriginalStream(source) : null;
-            var nca = new Nca(keys, (original ?? source).AsStorage());
-            var results = new List<NcaContentEntry>();
-            for (var index = 0; index < NcaExtension.MaxSections; index++)
-            {
-                token.ThrowIfCancellationRequested();
-                if (!nca.Header.IsSectionEnabled(index)) continue;
-                using var fileSystem = nca.OpenFileSystem(index, IntegrityCheckLevel.ErrorOnInvalid);
-                foreach (var entry in fileSystem.EnumerateEntries("/", "*", SearchOptions.RecurseSubdirectories))
+                var root = Path.GetFullPath(stage) + Path.DirectorySeparatorChar;
+                var prefix = directory.TrimEnd('/') + "/";
+                foreach (var entry in fs.EnumerateEntries(directory, "*", SearchOptions.RecurseSubdirectories))
                 {
                     token.ThrowIfCancellationRequested();
-                    if (entry.Type == DirectoryEntryType.File)
-                        results.Add(new NcaContentEntry(index, entry.FullPath, entry.Size));
+                    if (!entry.FullPath.StartsWith(prefix, StringComparison.Ordinal)) throw new InvalidDataException(entry.FullPath);
+                    var relative = entry.FullPath[prefix.Length..];
+                    if (relative.Split('/').Any(part => part is "" or "." or ".." || part.Contains('\\') || part.Contains(':')))
+                        throw new InvalidDataException(entry.FullPath);
+                    var target = Path.GetFullPath(Path.Combine(stage, relative));
+                    if (!target.StartsWith(root, StringComparison.Ordinal)) throw new InvalidDataException(entry.FullPath);
+                    if (entry.Type == DirectoryEntryType.Directory) Directory.CreateDirectory(target);
+                    else
+                    {
+                        Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+                        using var file = fs.LoadFile(entry);
+                        using var stream = file.AsStream();
+                        using var output = new FileStream(target, FileMode.CreateNew, FileAccess.Write);
+                        stream.CopyToAsync(output, token).GetAwaiter().GetResult();
+                    }
                 }
+                token.ThrowIfCancellationRequested();
+                Directory.Move(stage, Path.Combine(parent, name));
             }
-            return results;
+            finally { if (Directory.Exists(stage)) Directory.Delete(stage, recursive: true); }
+            return true;
+        });
+
+    private static void SaveStream(Stream input, string destination, CancellationToken token)
+    {
+        var temporary = destination + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        try
+        {
+            using (var output = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write))
+                input.CopyToAsync(output, token).GetAwaiter().GetResult();
+            token.ThrowIfCancellationRequested();
+            File.Move(temporary, destination, overwrite: true);
+        }
+        finally { if (File.Exists(temporary)) File.Delete(temporary); }
+    }
+
+    private static T WithFileSystem<T>(string path, string keys, string? member, int section, Func<IFileSystem, T> read) =>
+        WithNca(path, keys, member, nca =>
+        {
+            using var fs = nca.OpenFileSystem(section, IntegrityCheckLevel.ErrorOnInvalid);
+            return read(fs);
+        });
+
+    private static T WithNca<T>(string path, string keysPath, string? member, Func<Nca, T> read)
+    {
+        var keys = PackageFile.LoadKeys(keysPath);
+        if (member == null && Nax0Contents.IsNax0(path))
+            return Nax0Contents.Read(path, keys, source => read(new Nca(keys, source.AsStorage())));
+
+        return WithSource(path, member, (source, partition) =>
+        {
+            if (partition != null && PackageFile.InjectTicketKeys) PackageMetadataReader.ImportTicketKeys(partition, keys);
+            using var original = Path.GetExtension(member ?? path).Equals(".ncz", StringComparison.OrdinalIgnoreCase)
+                ? Ncz.OpenOriginalStream(source) : null;
+            return read(new Nca(keys, (original ?? source).AsStorage()));
         });
     }
 
     private static T WithSource<T>(string path, string? entryName, Func<Stream, IFileSystem?, T> read)
     {
-        using var source = File.OpenRead(path);
+        using var source = MtpDirectSource.OpenRead(path);
         if (entryName == null) return read(source, null);
         var type = PackageSignature.Read(source);
-        using var storage = new LocalStorage(path, FileAccess.Read);
+        using var storage = MtpDirectSource.OpenStorage(path);
         if (type == PackageType.NSP)
         {
             using var partition = storage.LoadPartition();
@@ -115,8 +207,7 @@ internal static class NcaContents
         if (type == PackageType.XCI)
         {
             var gameCard = new Xci(new KeySet(), storage);
-            if (!gameCard.HasPartition(XciPartitionType.Secure))
-                throw new InvalidDataException("The secure partition is missing.");
+            if (!gameCard.HasPartition(XciPartitionType.Secure)) throw new InvalidDataException("The secure partition is missing.");
             using var partition = gameCard.OpenPartition(XciPartitionType.Secure);
             return ReadEntry(partition, entryName, read);
         }
@@ -132,3 +223,4 @@ internal static class NcaContents
         return read(stream, partition);
     }
 }
+

@@ -9,7 +9,7 @@ param(
     [switch]$ExecutableOnly, [string]$CopyTo, [string]$CopyRuntime='win-x64',
     [Nullable[bool]]$CopyRuntimeIncludesDotNet=$null,
     [switch]$SkipFirmwareHashes, [switch]$AllTargets, [switch]$NoCopy,
-    [ValidateSet('AppImage','Dmg')][string]$NativePackage,
+    [ValidateSet('AppImage','Dmg','App')][string]$NativePackage,
     [switch]$SkipAvaloniaZipMetadata,
     [string[]]$FormatTargets=@(),
     $TargetOutputs,
@@ -33,8 +33,8 @@ if($Framework -eq 'WPF'){
     $defaultRids=@('win-x64','win-x86','win-arm64','linux-x64','linux-arm64','osx-x64','osx-arm64')
 }
 $projects=@($projects | Where-Object {$_.Kind -in $Applications})
-$nativeFormatTargets = @($FormatTargets | Where-Object { $_ -match '-(appimage|dmg)$' })
-if ($nativeFormatTargets.Count) {
+$nativeFormatTargets = @($FormatTargets | Where-Object { $_ -match '-(appimage|dmg|app)$' })
+if ($nativeFormatTargets.Count -and !$NativePackage) {
     $NativePackage = if ($IsLinux) { 'AppImage' } else { 'Dmg' }
 }
 if ($NativePackage) {
@@ -44,12 +44,12 @@ if ($NativePackage) {
         $nativeTool = (Get-Command appimagetool -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
         $nativeRids = @('linux-x64','linux-arm64')
     } else {
-        if (!$IsMacOS) { throw 'DMG packaging requires macOS.' }
+        if (!$IsMacOS) { throw 'App and DMG packaging require macOS.' }
         $nativeTool = '/usr/bin/hdiutil'
         $nativeRids = @('osx-x64','osx-arm64')
     }
     if (!$RuntimeIdentifiers.Count) { $RuntimeIdentifiers = $nativeRids }
-    $nativeRidsToBuild = if ($nativeFormatTargets.Count) { $nativeFormatTargets -replace '-(appimage|dmg)$' } else { $RuntimeIdentifiers }
+    $nativeRidsToBuild = if ($nativeFormatTargets.Count -and !$NativePackage) { $nativeFormatTargets -replace '-(appimage|dmg|app)$' } else { $RuntimeIdentifiers }
     foreach ($rid in $nativeRidsToBuild) {
         if ($rid -notin $nativeRids) { throw "$NativePackage packaging does not support $rid." }
     }
@@ -185,7 +185,7 @@ try {
                 Get-ChildItem -LiteralPath $publish -File -Filter '*.pdb' |
                     ForEach-Object { Remove-Item -LiteralPath $_.FullName }
                 $marker = [ordered]@{ SchemaVersion=1; Framework='Avalonia'; Version=$appVersion; RuntimeIdentifier=$rid; SelfContained=[bool]$withRuntime; Executable=$executableName }
-                [IO.File]::WriteAllText((Join-Path $publish 'nxfileviewer-avalonia.json'), ($marker | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
+                [IO.File]::WriteAllText((Join-Path $publish 'nxfileviewer-viewer.json'), ($marker | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
                 if ($rid.StartsWith('linux-')) {
                     foreach ($scriptName in @('start.sh','install-shortcut.sh')) {
                         $template = [IO.File]::ReadAllText((Join-Path $PSScriptRoot "linux/$scriptName.in"))
@@ -240,12 +240,13 @@ try {
             }
             Add-PublishSizeRow $sizes $name $reportDirectory $executable $zip
             if ($buildNative) {
-                $nativeName = if ($app.Kind -eq 'Viewer') { "v${appVersion}_$rid-$dotnetVariant" } else {
-                    $legacyRuntime = if ($withRuntime) { '_self-contained' } else { '' }
-                    "$($app.Name)_Avalonia_v${appVersion}${legacyRuntime}_$rid"
-                }
+                $nativeName = if ($app.Kind -eq 'Viewer') { "v${appVersion}_$rid-$dotnetVariant" } else { $name }
                 $nativeOutput = $output
                 $nativeZipSelected = $CreateZipArchives -and $app.Project -eq 'NxFileViewer.Avalonia'
+                if ($NativePackage -eq 'App') {
+                    $nativeName = $name
+                    $nativeZipSelected = $false
+                }
                 if ($null -ne $TargetOutputs) {
                     $nativeName = "$name-$($NativePackage.ToLowerInvariant())"
                     $nativeZipSelected = $target.Native -in @('Zip','Both')

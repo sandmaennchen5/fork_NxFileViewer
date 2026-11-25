@@ -16,17 +16,30 @@ namespace NxFileViewer.Avalonia.Updates;
 
 internal sealed record AvaloniaRelease(string Version, string AssetName, string DownloadUrl, string? Digest, bool RequiresManifest, bool HasReleaseManifest = false);
 internal sealed record UpdateFile(string Name, string Sha256);
-internal sealed record UpdateJob(int ParentId, long ParentStarted, string Executable, string PreviousExecutable, UpdateFile[] Files, string? PreviousSha256 = null);
+internal sealed record UpdateJob(int ParentId, long ParentStarted, string Executable, string PreviousExecutable, UpdateFile[] Files, string? PreviousSha256 = null, UpdateFile[]? Remove = null, UpdateFile[]? ExpectedInstalled = null);
+internal sealed record UpdateBackup(string Executable, string InstalledExecutable, UpdateFile[] Files, UpdateFile[] InstalledFiles);
 internal sealed record AvaloniaPackage(int SchemaVersion, string Framework, string Version, string RuntimeIdentifier, bool SelfContained, string Executable);
 
-internal static class AvaloniaAppUpdater
+internal static partial class AvaloniaAppUpdater
 {
     internal static ViewerVersion? ParseVersion(string value) => ViewerVersion.TryParse(Regex.Replace(value, @"-beta(?=\d+(?:\+|$))", "-beta."), out var parsed) ? parsed : null;
     internal static bool IsNewer(string installed, string latest) => ParseVersion(installed) is { } before && ParseVersion(latest) is { } after && after.CompareTo(before) > 0;
 
     private const long MaximumBytes = 512L * 1024 * 1024;
-    internal const string ManifestName = "nxfileviewer-avalonia.json";
+    internal const string ManifestName = "nxfileviewer-viewer.json";
+    private const string LegacyManifestName = "nxfileviewer-avalonia.json";
     private const string ReleaseManifestName = "nxfileviewer-update.json";
+
+    internal static AvaloniaRelease? SelectX64SwitchRelease(IEnumerable<JsonElement> eligibleReleases, string repository, string installed, bool selfContained)
+    {
+        if (ParseVersion(installed) is not { } current) return null;
+        return eligibleReleases
+            .Select(release => SelectRelease(release, repository, "win-x64", selfContained))
+            .OfType<AvaloniaRelease>()
+            .Where(release => ParseVersion(release.Version) is { } version && version.CompareTo(current) >= 0)
+            .OrderByDescending(release => ParseVersion(release.Version))
+            .FirstOrDefault();
+    }
 
     internal static AvaloniaRelease? SelectRelease(JsonElement release, string repository, string rid, bool selfContained)
     {
@@ -51,7 +64,8 @@ internal static class AvaloniaAppUpdater
             var name = $"{prefix}_v{tag.TrimStart('v', 'V')}{runtime}_{suffix}.zip";
             var generic = prefix == "NxFileViewerFork";
             // Generic Windows release names may still belong to WPF. Require an explicit marker.
-            if (generic && !assets.Any(a => a.GetProperty("name").GetString() == name + ".avalonia.json" || a.GetProperty("name").GetString() == "nxfileviewer-packages.json")) continue;
+            if (generic && !assets.Any(a => a.GetProperty("name").GetString() is { } assetName &&
+                (assetName == name + ".viewer.json" || assetName == name + ".avalonia.json" || assetName == "nxfileviewer-packages.json"))) continue;
             var asset = assets.FirstOrDefault(a => a.GetProperty("name").GetString() == name);
             if (asset.ValueKind == JsonValueKind.Undefined) continue;
             var url = $"https://github.com/{repository}/releases/download/{Uri.EscapeDataString(tag)}/{Uri.EscapeDataString(name)}";
@@ -66,7 +80,7 @@ internal static class AvaloniaAppUpdater
         CheckDirectory(install);
         var updates = Path.Combine(install, "Updates");
         Directory.CreateDirectory(updates); CheckDirectory(updates);
-        var stage = Path.Combine(updates, "avalonia-" + Guid.NewGuid().ToString("N"));
+        var stage = NewStagePath(updates);
         Directory.CreateDirectory(stage);
         var zipPath = Path.Combine(stage, "package.zip");
         try
@@ -97,10 +111,12 @@ internal static class AvaloniaAppUpdater
                 using var indexResponse = await client.GetAsync(indexUrl, cancellation);
                 if (indexResponse.StatusCode == System.Net.HttpStatusCode.NotFound)
                 {
-                    // Compatibility with earlier releases that published one marker per ZIP.
-                    using var metadata = await client.GetAsync(release.DownloadUrl + ".avalonia.json", cancellation);
-                    metadata.EnsureSuccessStatusCode();
-                    using var json = JsonDocument.Parse(await ReadLimitedAsync(await metadata.Content.ReadAsStreamAsync(cancellation), 16384, cancellation));
+                    using var metadata = await client.GetAsync(release.DownloadUrl + ".viewer.json", cancellation);
+                    using var legacyMetadata = metadata.StatusCode == System.Net.HttpStatusCode.NotFound
+                        ? await client.GetAsync(release.DownloadUrl + ".avalonia.json", cancellation) : null;
+                    var selectedMetadata = legacyMetadata ?? metadata;
+                    selectedMetadata.EnsureSuccessStatusCode();
+                    using var json = JsonDocument.Parse(await ReadLimitedAsync(await selectedMetadata.Content.ReadAsStreamAsync(cancellation), 16384, cancellation));
                     expected = ReadChecksum(json.RootElement, release.AssetName);
                 }
                 else
@@ -161,7 +177,7 @@ internal static class AvaloniaAppUpdater
         if (zip.Entries.Count > 16) throw new InvalidDataException("Unexpected update archive contents.");
         var windows = rid.StartsWith("win-", StringComparison.Ordinal);
         var defaultExe = "NxFileViewerFork.Avalonia" + (windows ? ".exe" : "");
-        var entry = zip.GetEntry(ManifestName);
+        var entry = zip.GetEntry(ManifestName) ?? zip.GetEntry(LegacyManifestName);
         AvaloniaPackage package;
         if (entry is not null)
         {
@@ -179,7 +195,7 @@ internal static class AvaloniaAppUpdater
             if (release.RequiresManifest) throw new InvalidDataException("A generic package must explicitly identify itself as Avalonia.");
             package = new(1, "Avalonia", release.Version.TrimStart('v', 'V'), rid, selfContained, defaultExe);
         }
-        var allowed = new HashSet<string>(StringComparer.Ordinal) { package.Executable, ManifestName, "LICENSE.txt", "start.sh", "install-shortcut.sh" };
+        var allowed = new HashSet<string>(StringComparer.Ordinal) { package.Executable, ManifestName, LegacyManifestName, "LICENSE.txt", "start.sh", "install-shortcut.sh" };
         if (windows) allowed.Add("nxfileviewer-package.json");
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase); long total = 0;
         Directory.CreateDirectory(destination);
@@ -187,11 +203,12 @@ internal static class AvaloniaAppUpdater
         {
             cancellation.ThrowIfCancellationRequested();
             var debugSymbols = Regex.IsMatch(file.FullName, @"\A[A-Za-z0-9_-][A-Za-z0-9._-]*\.pdb\z", RegexOptions.IgnoreCase);
-            if ((!allowed.Contains(file.FullName) && !debugSymbols) || !seen.Add(file.FullName) || ((file.ExternalAttributes >> 16) & 0xF000) == 0xA000)
+            var fileName = file.FullName == LegacyManifestName ? ManifestName : file.FullName;
+            if ((!allowed.Contains(file.FullName) && !debugSymbols) || !seen.Add(fileName) || ((file.ExternalAttributes >> 16) & 0xF000) == 0xA000)
                 throw new InvalidDataException("Unsafe or unexpected update path: " + file.FullName);
             total += file.Length; if (total > MaximumBytes || file.Length < 0) throw new InvalidDataException("Unpacked update too large.");
             if (debugSymbols) continue;
-            var path = Path.Combine(destination, file.FullName);
+            var path = Path.Combine(destination, fileName);
             using var input = file.Open(); using var output = File.Create(path);
             var buffer = new byte[81920]; long written = 0; int count;
             while ((count = input.Read(buffer)) > 0)
@@ -237,15 +254,16 @@ internal static class AvaloniaAppUpdater
         }
     }
 
-    internal static string CreateJob(string stage, string currentExecutable)
+    internal static string CreateJob(string stage, string currentExecutable, string? rollbackExecutable = null, UpdateFile[]? remove = null, UpdateFile[]? expectedInstalled = null)
     {
         var payload = Path.Combine(stage, "payload");
         var manifestPath = Path.Combine(payload, ManifestName);
+        if (!File.Exists(manifestPath)) manifestPath = Path.Combine(payload, LegacyManifestName);
         var package = File.Exists(manifestPath) ? JsonSerializer.Deserialize<AvaloniaPackage>(File.ReadAllText(manifestPath)) : null;
-        var executable = package?.Executable ?? Path.GetFileName(currentExecutable);
+        var executable = rollbackExecutable ?? package?.Executable ?? Path.GetFileName(currentExecutable);
         var process = Process.GetCurrentProcess();
         var files = Directory.GetFiles(payload).Select(p => new UpdateFile(Path.GetFileName(p), Hash(p))).ToArray();
-        var job = new UpdateJob(process.Id, process.StartTime.ToUniversalTime().Ticks, executable, Path.GetFileName(currentExecutable), files, Hash(currentExecutable));
+        var job = new UpdateJob(process.Id, process.StartTime.ToUniversalTime().Ticks, executable, Path.GetFileName(currentExecutable), files, Hash(currentExecutable), remove, expectedInstalled);
         var worker = Path.Combine(stage, "worker"); Directory.CreateDirectory(worker);
         var workerExe = Path.Combine(worker, Path.GetFileName(currentExecutable));
         File.Copy(currentExecutable, workerExe);
@@ -277,14 +295,14 @@ internal static class AvaloniaAppUpdater
         try
         {
             stage = Path.GetDirectoryName(Path.GetFullPath(jobPath))!;
-            if (!Regex.IsMatch(Path.GetFileName(stage), @"\Aavalonia-[a-f0-9]{32}\z") ||
+            if (!IsStageName(stage) ||
                 !Path.GetFullPath(AppContext.BaseDirectory).TrimEnd(Path.DirectorySeparatorChar).Equals(Path.Combine(stage,"worker"), OperatingSystem.IsWindows()?StringComparison.OrdinalIgnoreCase:StringComparison.Ordinal))
                 throw new InvalidDataException("Invalid update job location.");
             install = Path.GetDirectoryName(Path.GetDirectoryName(stage))!;
             if (Path.GetFileName(Path.GetDirectoryName(stage)) != "Updates") throw new InvalidDataException("Invalid update stage.");
             CheckDirectory(install); CheckDirectory(Path.GetDirectoryName(stage)!); CheckDirectory(stage);
             job = JsonSerializer.Deserialize<UpdateJob>(File.ReadAllText(jobPath)) ?? throw new InvalidDataException("Missing update job.");
-            using var updateLock = new FileStream(Path.Combine(Path.GetDirectoryName(stage)!, "avalonia-update.lock"), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+            using var updateLock = OpenUpdateLock(Path.GetDirectoryName(stage)!);
             try
             {
                 using var parent = Process.GetProcessById(job.ParentId);
@@ -335,13 +353,15 @@ internal static class AvaloniaAppUpdater
 
     internal static void Apply(string stage, string install, UpdateJob job, Action<ProcessStartInfo> launch)
     {
-        var validExecutables = new[] { "NxFileViewer", "NxFileViewer.exe", "NxFileViewerFork.Avalonia", "NxFileViewerFork.Avalonia.exe", "NxFileViewerFork", "NxFileViewerFork.exe" };
-        if (!validExecutables.Contains(job.Executable) || !validExecutables.Contains(job.PreviousExecutable) || job.Files.Length is < 1 or > 5 ||
+        if (!UpdateExecutables.Contains(job.Executable) || !UpdateExecutables.Contains(job.PreviousExecutable) || job.Files.Length is < 1 or > 5 ||
             !job.Files.Any(f => f.Name == job.Executable) || job.Files.Select(f=>f.Name).Distinct(StringComparer.OrdinalIgnoreCase).Count()!=job.Files.Length)
             throw new InvalidDataException("Invalid update file list.");
-        if (job.Executable != job.PreviousExecutable && File.Exists(Path.Combine(install, job.Executable))) throw new IOException("The new executable name is already occupied by another installation.");
-        var allowed = new[] { job.Executable, ManifestName, "LICENSE.txt", "start.sh", "install-shortcut.sh" };
+        var rollback = job.Remove != null;
+        var removals = job.Remove ?? [];
+        var allowed = UpdateNames(job.Executable);
         CheckDirectory(install); CheckDirectory(stage); CheckDirectory(Path.Combine(stage,"payload"));
+        if (rollback && (job.ExpectedInstalled == null || !ValidFiles(job.ExpectedInstalled, job.PreviousExecutable, install)))
+            throw new InvalidDataException("Installed files changed since the rollback was prepared.");
         foreach (var file in job.Files)
         {
             if (!allowed.Contains(file.Name) || Path.GetFileName(file.Name)!=file.Name || !Regex.IsMatch(file.Sha256,@"\A[A-Fa-f0-9]{64}\z")) throw new InvalidDataException("Unsafe update file.");
@@ -349,10 +369,29 @@ internal static class AvaloniaAppUpdater
             if (Hash(source) != file.Sha256) throw new InvalidDataException("Staged update changed.");
             var target = Path.Combine(install,file.Name); if(File.Exists(target)) CheckFile(target);
         }
-        var backup = Path.Combine(stage,"backup"); Directory.CreateDirectory(backup);
+        if (job.Executable != job.PreviousExecutable && File.Exists(Path.Combine(install, job.Executable)) &&
+            (!rollback || Hash(Path.Combine(install, job.Executable)) != job.Files.Single(file => file.Name == job.Executable).Sha256))
+            throw new IOException("The new executable name is already occupied by another installation.");
+        if (removals.Length > 5 || removals.Select(file => file.Name).Distinct(StringComparer.OrdinalIgnoreCase).Count() != removals.Length)
+            throw new InvalidDataException("Invalid rollback removal list.");
+        foreach (var file in removals)
+        {
+            if (!UpdateNames(job.PreviousExecutable).Contains(file.Name) || job.Files.Any(payload => string.Equals(payload.Name, file.Name, StringComparison.OrdinalIgnoreCase)))
+                throw new InvalidDataException("Unsafe rollback removal.");
+            var target = Path.Combine(install, file.Name);
+            CheckFile(target);
+            if (Hash(target) != file.Sha256) throw new InvalidDataException("Installed file changed since update.");
+        }
+        var backup = Path.Combine(stage,"backup"); Directory.CreateDirectory(backup); CheckDirectory(backup);
         var changed = new List<(string Name,bool Existed)>();
         try
         {
+            if (!rollback && job.Executable != job.PreviousExecutable)
+            {
+                var previous = Path.Combine(install, job.PreviousExecutable);
+                CheckFile(previous);
+                File.Copy(previous, Path.Combine(backup, job.PreviousExecutable));
+            }
             foreach (var file in job.Files)
             {
                 var target = Path.Combine(install,file.Name); var existed = File.Exists(target);
@@ -361,7 +400,18 @@ internal static class AvaloniaAppUpdater
                 File.Copy(Path.Combine(stage,"payload",file.Name),target,true);
                 if(file.Name==job.Executable||file.Name.EndsWith(".sh",StringComparison.Ordinal))MakeExecutable(target);
             }
+            foreach (var file in removals)
+            {
+                var target = Path.Combine(install, file.Name);
+                File.Copy(target, Path.Combine(backup, file.Name));
+                changed.Add((file.Name, true));
+                File.Delete(target);
+            }
+            var receipt = Path.Combine(stage, BackupManifest);
+            var saved = Directory.GetFiles(backup).Select(path => new UpdateFile(Path.GetFileName(path), Hash(path))).ToArray();
+            File.WriteAllText(receipt, JsonSerializer.Serialize(new UpdateBackup(job.PreviousExecutable, job.Executable, saved, job.Files)));
             launch(new ProcessStartInfo(Path.Combine(install,job.Executable)){UseShellExecute=false,WorkingDirectory=install});
+            File.Move(receipt, Path.Combine(stage, CompletedBackup));
         }
         catch
         {

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -34,6 +35,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        Entries.AddHandler(TreeViewItem.ExpandedEvent, EntryExpanded);
         NandTabIcon.Source = HomeNandIcon.Source = NandPluginIcon.Source = WorkspaceIcons.Read("NandIcon");
         NszPluginIcon.Source = WorkspaceIcons.Read("NszPluginIcon");
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
@@ -45,10 +47,16 @@ public partial class MainWindow : Window
         ActualThemeVariantChanged += (_, _) => WpfTheme.Apply(this);
         WpfTheme.Apply(this);
         InitializePreferences();
+        _memoryTrace = new Emignatik.NxFileViewer.Logging.MemoryTraceDiagnostics(new MemorySessionLogger(this));
         RestoreRenameInputs();
         InitializeWindowPlacement();
         Opened += async (_, _) => await ConfirmSystemReport();
         InitializeBatch();
+        InitializeBatchDiagnostics();
+        LogTab.PropertyChanged += (_, change) =>
+        {
+            if (change.Property == TabItem.IsSelectedProperty && LogTab.IsSelected) RefreshLog();
+        };
         _lastOpenedPath = _preferences.LastOpenedPath ?? _preferences.SharedSettings.LastOpenedFile;
         BatchInputPath.Text = _preferences.LastBatchPath ?? _preferences.SharedSettings.LastUsedDir;
         RefreshHome();
@@ -62,25 +70,30 @@ public partial class MainWindow : Window
         Closed += (_, _) =>
         {
             _closed = true;
+            _memoryTrace?.Dispose();
             _batchCancellation?.Cancel();
+            _fileLoadCancellation?.Cancel();
             _nandCancellation?.Cancel();
             _mtpCancellation?.Cancel();
             _mtpImport?.Cleanup();
             _renameBatchCancellation?.Cancel();
-            _firmwareCancellation?.Cancel();
+            _fileFirmwareCancellation?.Cancel();
             _extractionCancellation?.Cancel();
             _fileVerificationCancellation?.Cancel();
             _ncaContentsCancellation?.Cancel();
             _updateCancellation?.Cancel();
             _keyDownloadCancellation?.Cancel();
             _supportIdentityCancellation?.Cancel();
+            _homePollCancellation?.Cancel();
             _overviewBitmap?.Dispose();
             _batchIcon?.Dispose();
             DisposeOpenedArchives();
+            if (_batchCancellation == null) ResetBatchWorkingFiles();
         };
     }
 
-    internal async Task OpenFileAsync(string path, bool fromWindows = false, bool forceVerify = false, string? displayPath = null)
+    internal async Task OpenFileAsync(string path, bool fromWindows = false, bool forceVerify = false, string? displayPath = null,
+        IReadOnlyList<Emignatik.NxFileViewer.FileLoading.SdContentSource>? sdSources = null)
     {
         if (_applicationUpdatePending) return;
         if (Emignatik.NxFileViewer.FileLoading.PackageZip.IsArchive(path))
@@ -88,7 +101,8 @@ public partial class MainWindow : Window
             await OpenArchiveAsync(path, fromWindows, forceVerify);
             return;
         }
-        if (_preferences.NandActive && Emignatik.NxFileViewer.Services.Nand.NandDetection.IsCandidateName(path))
+        if (_preferences.NandActive && Emignatik.NxFileViewer.Services.Nand.NandDetection.IsCandidateName(path) &&
+            !Nax0Contents.IsCandidate(path))
         {
             _nandSource = path;
             Workspace.SelectedItem = NandTab;
@@ -96,9 +110,12 @@ public partial class MainWindow : Window
             return;
         }
         using var workspaceJob = LockWorkspace(FileTab);
+        _fileLoadCancellation?.Cancel();
         var version = ++_openVersion;
+        using var loadCancellation = new System.Threading.CancellationTokenSource();
         ResetFileVerification();
         ResetNcaContents();
+        ResetFileFirmware();
         var fileName = Path.GetFileName(path);
         StatusText.Text = $"{_text.LoadingFile_PleaseWait} {fileName}";
         FileStatusProgress.IsIndeterminate = true;
@@ -113,34 +130,51 @@ public partial class MainWindow : Window
             if (prepared == null || _closed || version != _openVersion) return;
             path = prepared;
             fileName = Path.GetFileName(path);
-            var package = await Task.Run(() => PackageFile.Read(path, keysPath));
+            _fileLoadCancellation = loadCancellation;
+            VerifyFileCancelButton.IsVisible = VerifyFileCancelButton.IsEnabled = true;
+            var token = loadCancellation.Token;
+            var package = await Task.Run(() => PackageFile.Read(path, keysPath, null, token), token);
+            if (package.Type == "NAX0" && Directory.Exists(package.Path))
+            {
+                sdSources ??= await Task.Run(() => Emignatik.NxFileViewer.FileLoading.SdCardSource.FindRelatedContents(package.Path));
+                if (!sdSources.Any(source => string.Equals(source.ContentsPath, package.Path, StringComparison.OrdinalIgnoreCase)))
+                    sdSources = [.. sdSources, new(package.Path, package.Path)];
+            }
+            token.ThrowIfCancellationRequested();
             if (_closed || version != _openVersion) return;
+            if (package.Type == "NAX0") fileName = Path.GetFileName(Nax0Contents.LogicalPath(path));
 
             _openedPath = package.Path;
+            ReleaseOpenedArchiveMembers(package.Path);
+            UpdateSdContentsChoice(package.Path, sdSources);
             _openedDisplayPath = displayPath;
             if (displayPath == null) RememberOpenedPath(package.Path);
             else RefreshHome();
             FileBody.IsVisible = true;
             FileEmpty.IsVisible = false;
-            BrowseNcaButton.IsVisible = package.Type is "NCA" or "NCZ";
             VerifyFileButton.IsEnabled = _fileVerificationCancellation == null && package.Type != "NRO";
-            FileNameText.Text = Path.GetFileName(package.Path);
-            FileInfoText.Text = $"{_text.Title_FileInfo_FileType}  {package.Type}{Environment.NewLine}" +
-                $"{_text.FileInfo_FileSize}  {package.Size:N0} B{Environment.NewLine}{displayPath ?? package.Path}" +
-                (package.HeaderDetails == null ? "" : Environment.NewLine + package.HeaderDetails);
-            ExtractAllButton.IsEnabled = package.Entries.Count > 0 && _extractionCancellation == null;
-            Entries.ItemsSource = new[] { new PackageEntry(Path.GetFileName(package.Path), package.Size) { IsRoot = true, Children = package.Entries } };
-            BrowseNcaButton.IsVisible = package.Type is "NCA" or "NCZ";
-            EntryInfoText.Text = "";
+            ShowContentTree(package);
             MetadataStatus.Text = package.NeedsProdKeys ? _text.WarnNoProdKeysFileFound : package.MetadataError;
             MetadataStatus.IsVisible = !string.IsNullOrEmpty(MetadataStatus.Text);
             UpdateOverview(package);
             FileBody.SelectedIndex = 0;
             Workspace.SelectedIndex = 1;
-            Title = ProgramVersionText.Text + " · Avalonia - " + FileNameText.Text;
+            Title = ProgramVersionText.Text + " - " + fileName;
             StatusText.Text = fileName;
-            LogFileSection(displayPath ?? package.Path);
+            LogFileSection(displayPath ?? package.Path,
+                [("INFO", $"{package.DisplayType} · {OverviewSize.Text} · {OverviewStructure.Text}"),
+                 .. package.MissingKeys.Select(key => ("WARN", key)),
+                 .. package.MetadataError is { Length: > 0 } error ? new[] { ("ERROR", error) } : []]);
+            if (_preferences.FirmwareActive && package.Type == "NCA" &&
+                !Emignatik.NxFileViewer.Services.Mtp.MtpDirectSource.IsDirect(path))
+                _ = IdentifyOpenedFirmwareAsync(path, version);
+            _fileLoadCancellation = null;
+            VerifyFileCancelButton.IsEnabled = VerifyFileCancelButton.IsVisible = false;
             if (package.Type != "NRO" && (forceVerify || (fromWindows ? _preferences.SharedSettings.VerifyFilesOpenedFromWindows : _verifyOnOpen))) VerifyOpenedFile(this, new RoutedEventArgs());
+        }
+        catch (OperationCanceledException) when (loadCancellation.IsCancellationRequested)
+        {
+            if (!_closed && version == _openVersion) StatusText.Text = _text.Update_Cancelled;
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException or LibHac.Common.LibHacException or LibHac.NSZ.NczFormatException or ZstdSharp.ZstdException or InvalidOperationException)
         {
@@ -149,6 +183,11 @@ public partial class MainWindow : Window
         }
         finally
         {
+            if (ReferenceEquals(_fileLoadCancellation, loadCancellation))
+            {
+                _fileLoadCancellation = null;
+                if (!_closed && version == _openVersion) VerifyFileCancelButton.IsEnabled = VerifyFileCancelButton.IsVisible = false;
+            }
             if (!_closed && version == _openVersion && _fileVerificationCancellation == null)
                 FileStatusProgress.IsVisible = false;
         }
@@ -156,7 +195,7 @@ public partial class MainWindow : Window
 
     private async Task PickFileAsync()
     {
-        var filter = _text.OpenFile_Filter.Replace("*.nca", "*.nca;*.ncz", StringComparison.Ordinal);
+        var filter = _text.OpenFile_Filter.Replace("*.nca", "*.nca;*.ncz;*.nax0;00", StringComparison.Ordinal);
         if (_preferences.SharedSettings.EnableNup)
             filter = filter.Replace("*.nro;", "*.nro;*.nup;", StringComparison.Ordinal) + "|NUP (*.nup)|*.nup";
         var fileTypes = filter.Split('|').Chunk(2).Select(parts => parts[1] == "*.*"
@@ -189,10 +228,14 @@ public partial class MainWindow : Window
 
     private void CloseClicked(object? sender, RoutedEventArgs e)
     {
+        _fileLoadCancellation?.Cancel();
         ++_openVersion;
         ResetFileVerification();
         ResetNcaContents();
+        ResetFileFirmware();
         _openedPath = null;
+        ReleaseOpenedArchiveMembers();
+        UpdateSdContentsChoice(null);
         _openedDisplayPath = null;
         RefreshHome();
         FileBody.IsVisible = false;
@@ -200,37 +243,14 @@ public partial class MainWindow : Window
         Entries.ItemsSource = null;
         ClearOverview();
         MetadataStatus.IsVisible = false;
-        Title = ProgramVersionText.Text + " · Avalonia";
-        FileNameText.Text = FileInfoText.Text = EntryInfoText.Text = MetadataStatus.Text = StatusText.Text = "";
+        Title = ProgramVersionText.Text;
+        MetadataStatus.Text = StatusText.Text = "";
         FileStatusProgress.IsVisible = false;
         StatusText.Text = _text.Status_Ready;
         if (_workspaceJobs.Count == 0) Workspace.SelectedIndex = 0;
     }
 
     private void ExitClicked(object? sender, RoutedEventArgs e) => Close();
-
-    private async void EntrySelected(object? sender, SelectionChangedEventArgs e)
-    {
-        ResetNcaContents();
-        BrowseNcaButton.IsVisible = SelectedPackageEntry is PackageEntry selected &&
-            (selected.Name.EndsWith(".nca", StringComparison.OrdinalIgnoreCase) || selected.Name.EndsWith(".ncz", StringComparison.OrdinalIgnoreCase));
-        EntryInfoText.Text = SelectedPackageEntry is PackageEntry entry ? $"{entry.Name} · {entry.Size:N0} B" : "";
-        ExtractEntryButton.IsEnabled = SelectedPackageEntry != null && _extractionCancellation == null;
-        EntryProperties.ItemsSource = SelectedPackageEntry is { } detail ? new[] { new DetailRow("Name", detail.Name), new DetailRow("Type", "FileEntry"), new DetailRow("Format", Path.GetExtension(detail.Name).TrimStart('.')), new DetailRow("Size", Emignatik.NxFileViewer.Utils.FileSizeHelper.ToFileSize(detail.Size)) } : Array.Empty<DetailRow>();
-        if (_openedPath is { } packagePath && _keysPath is { } keysPath && SelectedPackageEntry is { } selectedEntry && (selectedEntry.Name.EndsWith(".nca", StringComparison.OrdinalIgnoreCase) || selectedEntry.Name.EndsWith(".ncz", StringComparison.OrdinalIgnoreCase)))
-        {
-            try
-            {
-                var properties = await Task.Run(() => NcaContents.Properties(packagePath, keysPath, selectedEntry.Name));
-                if (!_closed && _openedPath == packagePath && ReferenceEquals(SelectedPackageEntry, selectedEntry))
-                    EntryProperties.ItemsSource = new[] { new DetailRow("Name", selectedEntry.Name), new DetailRow("Type", "FileEntry"), new DetailRow("Size", Emignatik.NxFileViewer.Utils.FileSizeHelper.ToFileSize(selectedEntry.Size)) }.Concat(properties.Select(pair => new DetailRow(pair.Key, pair.Value))).ToArray();
-            }
-            catch (Exception ex) when (ex is IOException or ArgumentException or UnauthorizedAccessException or LibHac.Common.LibHacException)
-            { if (!_closed && ReferenceEquals(SelectedPackageEntry, selectedEntry)) EntryInfoText.Text = ex.Message; }
-        }
-    }
-
-    private PackageEntry? SelectedPackageEntry => Entries.SelectedItem is PackageEntry { IsRoot: false } entry ? entry : null;
 
     private async void WindowKeyDown(object? sender, KeyEventArgs e)
     {
@@ -254,6 +274,11 @@ public partial class MainWindow : Window
         {
             e.Handled = true;
             VerifyOpenedFile(this, new RoutedEventArgs());
+        }
+        else if (e.Key == Key.F9 && e.KeyModifiers == KeyModifiers.None && FileTitlePageButton.IsVisible)
+        {
+            e.Handled = true;
+            OpenTitlePage(this, new RoutedEventArgs());
         }
         else if (e.Key == Key.F10)
         {
@@ -283,25 +308,16 @@ public partial class MainWindow : Window
         e.Handled = true;
         if (_workspaceJobs.Count > 0) return;
         var paths = e.DataTransfer.TryGetFiles()?.Select(file => file.TryGetLocalPath()).OfType<string>().ToArray() ?? Array.Empty<string>();
+        if (Workspace.SelectedItem == RenameTab)
+        {
+            if (paths.FirstOrDefault() is { } source) RenameInputPath.Text = source;
+            return;
+        }
         if (paths.Length == 1 && File.Exists(paths[0]) && IsBatchPackage(paths[0]) && Workspace.SelectedItem != BatchTab)
         { await OpenFileAsync(paths[0]); return; }
         if (paths.Length == 0 || _batchCancellation != null) return;
         Workspace.SelectedItem = BatchTab;
         if (paths.Length == 1) { BatchInputPath.Text = paths[0]; StartBatch(_preferences.AutoVerifyBatchDrop ? BatchHashButton : BatchStartButton, new RoutedEventArgs()); return; }
-        using var workspaceJob = LockWorkspace(BatchTab);
-        using var cancellation = new System.Threading.CancellationTokenSource(); _batchCancellation = cancellation; SetBatchBusy(true);
-        var keys = _keysPath; var verify = _preferences.AutoVerifyBatchDrop; _batchRows.Clear();
-        try
-        {
-            foreach (var path in paths)
-                foreach (var source in EnumerateBatchSources(path, true, true, cancellation.Token))
-                {
-                    var row = await Task.Run(() => ReadBatchRow(source.Path, source.DisplayPath, keys, verify, cancellation.Token));
-                    if (_closed) return; _batchRows.Add(row); LogBatchFile(row); RefreshBatchFilter(followResult: row);
-                }
-        }
-        catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { StatusText.Text = ex.Message; }
-        finally { _batchCancellation = null; if (!_closed) SetBatchBusy(false); }
+        await RunBatchAsync(paths, _preferences.AutoVerifyBatchDrop, forceRecursive: true);
     }
 }

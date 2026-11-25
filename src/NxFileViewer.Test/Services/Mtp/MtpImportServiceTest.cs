@@ -15,6 +15,43 @@ public sealed class MtpImportServiceTest : IDisposable
     private readonly string _root = Path.Combine(Path.GetTempPath(), "MtpTest-" + Guid.NewGuid().ToString("N"));
     private readonly Capture _progress = new();
     [Fact]
+    public void DiscoversDeviceContentsAndGamesWithoutScanningGames()
+    {
+        var backend = new FakeBackend();
+        backend.Add("device", "Nintendo Switch", true, null);
+        backend.Add("active", "Contents (microSD card)", true, "device");
+        backend.Add("games", "Games", true, "device");
+        backend.Add("sd", "microSD card", true, "device");
+        backend.Add("nintendo", "Nintendo", true, "sd");
+        backend.Add("contents", "Contents", true, "nintendo");
+        backend.Add("emu", "emuMMC", true, "sd");
+        foreach (var slot in new[] { "RAW1", "SD00" })
+        {
+            backend.Add(slot, slot, true, "emu");
+            backend.Add(slot + "-nintendo", "Nintendo", true, slot);
+            backend.Add(slot + "-contents", "Contents", true, slot + "-nintendo");
+        }
+
+        var paths = MtpLocations.Discover(backend, backend.List("device")).Select(source => source.Label).ToArray();
+        Assert.Equal(new[] { "Contents (microSD card)", "Games", "microSD card/Nintendo/Contents",
+            "microSD card/emuMMC/RAW1/Nintendo/Contents", "microSD card/emuMMC/SD00/Nintendo/Contents" }, paths);
+        Assert.Equal(0, backend.OpenCount);
+    }
+    [Fact]
+    public void GeneralImportTreatsContentsAsAnOrdinaryFolder()
+    {
+        var backend = new FakeBackend();
+        backend.Add("folder", "Contents", true, null);
+        backend.Add("game", "game.nsp", false, "folder", [1, 2, 3]);
+        var service = new MtpImportService(backend, _root);
+        var result = service.Import(backend.Entries["folder"], _progress, TestContext.Current.CancellationToken, switchMode: false).Run();
+        Assert.Equal("source", Path.GetFileName(result));
+        Assert.Equal(backend.Bytes["game"], File.ReadAllBytes(Path.Combine(result, "game.nsp")));
+        Assert.False(File.Exists(Path.Combine(result, ".nxfileviewer-mtp")));
+        service.Cleanup();
+    }
+
+    [Fact]
     public void SdImportPreservesNaxPathsAndSplitPartsAndDoesNotCopyPhotos()
     {
         var backend = SdBackend(); var service = new MtpImportService(backend, _root);
@@ -78,7 +115,7 @@ public sealed class MtpImportServiceTest : IDisposable
         backend.Add("game", "game.nsp", false, "folder", "PFS0"u8.ToArray().Concat(new byte[12]).ToArray());
         backend.Add("nca", "game.nca", false, "folder", Enumerable.Range(0, 256).Select(i => (byte)i).ToArray());
         var service = new MtpImportService(backend, _root);
-        var path = service.PrepareDirect(backend.Entries["folder"], _progress, TestContext.Current.CancellationToken);
+        var path = service.PrepareDirect(backend.Entries["folder"], _progress, TestContext.Current.CancellationToken, bufferInMemory: true);
         Assert.Equal(0, backend.OpenCount);
         var file = Path.Combine(path, "game.nca");
         Assert.Equal(0, new FileInfo(file).Length);

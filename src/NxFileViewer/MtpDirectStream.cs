@@ -47,7 +47,8 @@ internal sealed class MtpDirectStream : Stream
             var completion = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
             _requests.Enqueue(() => { try { completion.SetResult(action()); } catch (Exception ex) { completion.SetException(ex); } });
             _wake.Set();
-            return completion.Task.GetAwaiter().GetResult();
+            try { return completion.Task.GetAwaiter().GetResult(); }
+            catch (COMException error) { throw new IOException(error.Message, error); }
         }
     }
     private void Stop() { _stopping = true; _wake.Set(); _worker.Join(); _wake.Dispose(); }

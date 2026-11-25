@@ -24,7 +24,9 @@
 
   <ItemGroup>
     <Compile Include="../NxFileViewer/Updates/AvaloniaAppUpdater.cs" Link="Avalonia/AvaloniaAppUpdater.cs" />
+    <Compile Include="../NxFileViewer/Updates/AvaloniaAppUpdater.Backups.cs" Link="Avalonia/AvaloniaAppUpdater.Backups.cs" />
     <Compile Include="..\NxFileViewer\SupportIdentityState.cs" Link="Avalonia\SupportIdentityState.cs" />
+    <Compile Include="..\NxFileViewer\Nax0Contents.cs" Link="Avalonia\Nax0Contents.cs" />
     <Compile Include="..\NxFileViewer.Transition\LegacyDataMigration.cs" Link="Transition\LegacyDataMigration.cs" />
     <Compile Include="..\NxFileViewer.Transition\TransitionRelease.cs" Link="Transition\TransitionRelease.cs" />
     <ProjectReference Include="..\NxFileViewer.WPF\NxFileViewer.WPF.csproj" />

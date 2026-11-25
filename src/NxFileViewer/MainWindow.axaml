@@ -1,4 +1,31 @@
 <Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="NxFileViewer.Avalonia.MainWindow" Title="NxFileViewer Fork" Icon="/Icons/Icon.ico" Width="1400" Height="850" MinWidth="1000" MinHeight="600" DragDrop.AllowDrop="True">
+  <Window.Resources>
+    <DataTemplate x:Key="MissingKeysWarningTemplate">
+    <Border Classes="overview-group" BorderBrush="{DynamicResource FontBrush.Error}">
+      <Expander x:Name="OverviewMissingKeysExpander" IsExpanded="False" HorizontalAlignment="Stretch"
+                Background="{DynamicResource Window.Static.Background}">
+        <Expander.Styles>
+          <Style Selector="Expander#OverviewMissingKeysExpander /template/ ToggleButton">
+            <Setter Property="Background" Value="{DynamicResource Window.Static.Background}" />
+          </Style>
+          <Style Selector="Expander#OverviewMissingKeysExpander /template/ ToggleButton /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource Window.Static.Background}" />
+          </Style>
+        </Expander.Styles>
+        <Expander.Header>
+          <TextBlock Text="{Binding Heading}" FontWeight="Bold" Foreground="{DynamicResource FontBrush.Error}" />
+        </Expander.Header>
+        <StackPanel Spacing="8">
+          <ScrollViewer MaxHeight="180" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <SelectableTextBlock Text="{Binding Entries}" TextWrapping="Wrap" />
+          </ScrollViewer>
+          <TextBlock Text="{Binding Help}" TextWrapping="Wrap" />
+          <Button Content="{Binding CopyLabel}" Click="CopyOverviewMissingKeys" HorizontalAlignment="Left" />
+        </StackPanel>
+      </Expander>
+    </Border>
+    </DataTemplate>
+  </Window.Resources>
   <Window.Styles>
     <StyleInclude Source="/WorkspaceStyles.axaml" />
   </Window.Styles>
@@ -27,7 +54,7 @@
             </Border>
             <StackPanel HorizontalAlignment="Center" Margin="0,0,0,10" Spacing="4">
               <TextBlock x:Name="HomePollNotice" HorizontalAlignment="Center" IsVisible="False" Foreground="{DynamicResource FontBrush.Warning}" />
-              <Button x:Name="HomePollButton" Click="OpenPolls" HorizontalAlignment="Center" />
+              <Button x:Name="HomePollButton" Click="OpenPolls" HorizontalAlignment="Center" IsVisible="False" />
             </StackPanel>
             <StackPanel x:Name="HomeUpdatePanel" IsVisible="False" Margin="14,0,14,12" Spacing="6">
               <TextBlock x:Name="HomeUpdateText" HorizontalAlignment="Center" IsVisible="False" Classes="update-available" TextWrapping="Wrap" />
@@ -78,9 +105,9 @@
                 </StackPanel>
               </Button>
               <Button Classes="home-navigation" Tag="InfoTab" Click="NavigateWorkspace">
-                <StackPanel>
-                  <TextBlock Text="Info" HorizontalAlignment="Center" />
-                  <TextBlock x:Name="HomeReportLabel" HorizontalAlignment="Center" />
+                <StackPanel Orientation="Horizontal" Spacing="8" MinHeight="20">
+                  <TextBlock Text="Info" VerticalAlignment="Center" />
+                  <TextBlock x:Name="HomeReportLabel" VerticalAlignment="Center" />
                 </StackPanel>
               </Button>
             </WrapPanel>
@@ -136,7 +163,7 @@
             <TextBlock Text="{Binding Workspace_File}" VerticalAlignment="Center" />
           </StackPanel>
         </TabItem.Header>
-        <Grid RowDefinitions="Auto,*">
+        <Grid RowDefinitions="Auto,Auto,*">
           <WrapPanel Margin="8,8,8,0">
             <Button Click="OpenClicked" ToolTip.Tip="Ctrl+O" Margin="0,0,8,0">
               <StackPanel Orientation="Horizontal" Spacing="7">
@@ -157,23 +184,38 @@
               </StackPanel>
             </Button>
             <Button x:Name="FileMtpButton" Content="{Binding Mtp_Title}" Click="OpenMtp" Margin="0,0,8,0" ToolTip.Tip="{Binding Mtp_Tip}" />
+            <Button Content="{Binding OpenSdContents}" ToolTip.Tip="{Binding OpenSdContentsTip}" Click="OpenSdContentsClicked" Margin="0,0,8,0" />
             <Button x:Name="MtpCancelButton" Content="{Binding CancelAction}" Click="CancelMtp" IsVisible="False" Margin="0,0,8,0" />
-            <Button IsEnabled="{Binding IsEnabled, ElementName=VerifyFileButton}" Content="{Binding MenuItem_CheckIntegrity}" Click="VerifyOpenedFile" Margin="0,0,8,0" ToolTip.Tip="F5" />
+            <Button x:Name="VerifyFileButton" IsEnabled="False" Content="{Binding MenuItem_CheckIntegrity}" Click="VerifyOpenedFile" Margin="0,0,8,0" ToolTip.Tip="F5" />
+            <Button x:Name="VerifyFileCancelButton" IsEnabled="False" IsVisible="False" Content="{Binding CancelAction}" Click="CancelFileVerification" Margin="0,0,8,0" />
             <Button x:Name="FileCompressButton" IsEnabled="False" Content="{Binding Nsz_Compress}" Tag="Compress" Click="RunOpenedPackageAction" Margin="0,0,8,0" />
             <Button x:Name="FileDecompressButton" IsEnabled="False" Content="{Binding Nsz_Decompress}" Tag="Decompress" Click="RunOpenedPackageAction" Margin="0,0,8,0" />
             <Button x:Name="FileTitlePageButton" IsVisible="False" Content="{Binding MenuItem_OpenTitleWebPage}" Click="OpenTitlePage" Margin="0,0,8,0" />
             <Button x:Name="FilePackageCancelButton" IsVisible="False" Content="{Binding CancelAction}" Click="CancelBatch" Margin="0,0,8,0" />
             <Button Content="{Binding MenuItem_ReloadKeys}" Click="ReloadKeysClicked" ToolTip.Tip="F10" />
           </WrapPanel>
-          <StackPanel x:Name="FileEmpty" Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
+          <ComboBox x:Name="FileSdContentsChoice" Grid.Row="1" IsVisible="False" Margin="8,6,8,0"
+                    HorizontalAlignment="Left" MaxWidth="850" DisplayMemberBinding="{Binding DisplayName}"
+                    SelectionChanged="FileSdContentsChanged" />
+          <StackPanel x:Name="FileEmpty" Grid.Row="2" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
             <TextBlock Text="{Binding DragMeAFile}" FontSize="16" FontStyle="Italic" Opacity="0.45" HorizontalAlignment="Center" />
             <TextBlock x:Name="FileKeysWarning" Text="{Binding WarnNoProdKeysFileFound}" Foreground="{DynamicResource FontBrush.Warning}" HorizontalAlignment="Center" />
           </StackPanel>
-          <TabControl x:Name="FileBody" Grid.Row="1" IsVisible="False">
-            <TabItem Header="{Binding TabOverview}">
+          <TabControl x:Name="FileBody" Grid.Row="2" IsVisible="False" SelectionChanged="FileContentTabSelected">
+            <TabItem>
+              <TabItem.Header>
+                <TextBlock Text="{Binding TabOverview}">
+                  <TextBlock.ContextMenu>
+                    <ContextMenu Opening="OverviewLocationMenuOpening">
+                      <MenuItem Header="{Binding ContextMenu_OpenFileLocation}" Click="OpenOverviewLocation" />
+                    </ContextMenu>
+                  </TextBlock.ContextMenu>
+                </TextBlock>
+              </TabItem.Header>
               <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel>
                   <TextBlock x:Name="MetadataStatus" TextWrapping="Wrap" Foreground="{DynamicResource FontBrush.Warning}" Margin="8" />
+                  <ContentControl x:Name="OverviewMissingKeys" IsVisible="False" ContentTemplate="{StaticResource MissingKeysWarningTemplate}" />
                   <Border Classes="overview-group">
                     <StackPanel>
                       <TextBlock Text="{Binding FileInfo_Title}" FontWeight="Bold" Margin="0,0,0,4" />
@@ -224,13 +266,6 @@
                       </Grid>
                     </StackPanel>
                   </Border>
-                  <Border x:Name="OverviewMissingKeys" Classes="overview-group" IsVisible="False">
-                    <StackPanel Spacing="4">
-                      <TextBlock Text="{Binding File_MissingKeysHeader}" FontWeight="Bold" />
-                      <SelectableTextBlock x:Name="OverviewMissingKeysText" TextWrapping="Wrap" />
-                      <Button Content="{Binding File_CopyMissingKeys}" Click="CopyOverviewMissingKeys" HorizontalAlignment="Left" />
-                    </StackPanel>
-                  </Border>
                   <Border x:Name="OverviewMultiPackage" Classes="overview-group" IsVisible="False">
                     <StackPanel Spacing="4">
                       <TextBlock Text="{Binding Packages_Title}" FontWeight="Bold" />
@@ -243,7 +278,7 @@
                       </StackPanel>
                     </StackPanel>
                   </Border>
-                  <Border Classes="overview-group">
+                  <Border x:Name="OverviewPackageFields" Classes="overview-group">
                     <StackPanel>
                       <TextBlock Text="{Binding CnmtOverview_Title}" FontWeight="Bold" Margin="0,0,0,4" />
                       <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
@@ -293,7 +328,7 @@
                       </Grid>
                     </StackPanel>
                   </Border>
-                  <Border Classes="overview-group">
+                  <Border x:Name="OverviewSecurityFields" Classes="overview-group">
                     <StackPanel>
                       <TextBlock Text="{Binding Security_Title}" FontWeight="Bold" Margin="0,0,0,4" />
                       <Grid ColumnDefinitions="*,*,*">
@@ -329,7 +364,11 @@
                   </Border>
                   <Border Classes="overview-group">
                     <StackPanel>
-                      <TextBlock Text="{Binding Presentation_Title}" FontWeight="Bold" Margin="0,0,0,4" />
+                      <TextBlock x:Name="OverviewPresentationHeading" Text="{Binding Presentation_Title}" FontWeight="Bold" Margin="0,0,0,4" />
+                      <StackPanel x:Name="OverviewHomebrewBuild" IsVisible="False" Margin="0,0,4,4">
+                        <TextBlock Classes="overview-label" Text="{Binding CnmtOverview_BuildID}" />
+                        <TextBox Classes="overview-value" x:Name="OverviewHomebrewBuildId" IsReadOnly="True" />
+                      </StackPanel>
                       <Grid RowDefinitions="Auto,Auto,*" ColumnDefinitions="160,*">
                         <StackPanel Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="2" Margin="0,0,4,4">
                           <TextBlock Classes="overview-label" Text="{Binding DisplayVersion}" />
@@ -369,14 +408,7 @@
             <TabItem Header="{Binding TabContent}">
               <Grid x:Name="ContentBody" Margin="8" RowDefinitions="Auto,*,5,*">
                 <TextBlock Text="{Binding GroupBoxStructure}" FontWeight="Bold" Margin="4,0,0,2" />
-                <TreeView Grid.Row="1" x:Name="Entries" SelectionChanged="EntrySelected" PointerPressed="EntryPointerPressed">
-                  <TreeView.ContextMenu>
-                    <ContextMenu>
-                      <MenuItem Header="{Binding ContextMenu_SaveFileItem}" Click="ExtractSelectedEntry" />
-                      <MenuItem Header="{Binding ContextMenu_SaveDirectoryItem}" Click="ExtractAllEntries" />
-                      <MenuItem Header="NCA / NCZ" Click="BrowseNcaContents" />
-                    </ContextMenu>
-                  </TreeView.ContextMenu>
+                <TreeView Grid.Row="1" x:Name="Entries" SelectionChanged="EntrySelected" ContextRequested="OpenContentMenu">
                   <TreeView.Styles>
                     <Style Selector="TreeViewItem">
                       <Setter Property="IsExpanded" Value="{Binding IsRoot}" />
@@ -386,44 +418,34 @@
                     <TreeDataTemplate ItemsSource="{Binding Children}">
                       <StackPanel Orientation="Horizontal" Spacing="6">
                         <Image Source="{Binding Icon}" Width="16" Height="16" />
-                        <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center" />
+                        <TextBlock Text="⚠" IsVisible="{Binding HasErrors}" Foreground="{DynamicResource FontBrush.Error}"
+                                   ToolTip.Tip="{Binding $parent[Window].DataContext.ContextMenu_ShowItemErrors}"
+                                   VerticalAlignment="Center" />
                       </StackPanel>
                     </TreeDataTemplate>
                   </TreeView.ItemTemplate>
                 </TreeView>
                 <GridSplitter ResizeDirection="Rows" HorizontalAlignment="Stretch" Grid.Row="2" />
-                <ScrollViewer Margin="4" Grid.Row="3">
-                  <StackPanel Spacing="8">
-                    <TextBlock Text="{Binding GroupBoxProperties}" FontWeight="Bold" />
-                    <DataGrid x:Name="EntryProperties" IsReadOnly="True" AutoGenerateColumns="False" HeadersVisibility="None" GridLinesVisibility="All" FontSize="12" RowHeight="18" MaxHeight="300">
-                      <DataGrid.Columns>
-                        <DataGridTextColumn Binding="{Binding Name}" Width="135" />
-                        <DataGridTextColumn Binding="{Binding Value}" Width="*" />
-                      </DataGrid.Columns>
-                    </DataGrid>
-                    <TextBlock x:Name="FileNameText" FontSize="12" TextWrapping="Wrap" />
-                    <TextBlock x:Name="FileInfoText" TextWrapping="Wrap" />
-                    <TextBlock x:Name="EntryInfoText" TextWrapping="Wrap" />
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                      <Button x:Name="ExtractEntryButton" Content="{Binding ContextMenu_SaveFileItem}" IsEnabled="False" Click="ExtractSelectedEntry" />
-                      <Button x:Name="ExtractAllButton" Content="{Binding ContextMenu_SaveDirectoryItem}" Click="ExtractAllEntries" />
-                      <Button x:Name="ExtractCancelButton" Content="{Binding CancelAction}" IsEnabled="False" Click="CancelExtraction" />
-                    </StackPanel>
-                    <CheckBox x:Name="ExtractOriginalNca" Content="NCZ → NCA" />
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                      <Button x:Name="VerifyFileButton" Content="{Binding Batch_VerifyAll}" IsEnabled="False" Click="VerifyOpenedFile" />
-                      <Button x:Name="VerifyFileCancelButton" Content="{Binding CancelAction}" IsEnabled="False" Click="CancelFileVerification" />
-                    </StackPanel>
-                    <TextBox x:Name="FileVerificationResult" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" IsVisible="False" />
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                      <Button x:Name="BrowseNcaButton" Content="NCA / NCZ" IsVisible="False" Click="BrowseNcaContents" />
-                      <Button x:Name="BrowseNcaCancel" Content="{Binding CancelAction}" IsVisible="False" Click="CancelNcaContents" />
-                    </StackPanel>
-                    <ListBox x:Name="NcaContentsList" IsVisible="False" MaxHeight="350" SelectionChanged="NcaContentSelected" />
-                    <Button x:Name="SaveNcaContentButton" Content="{Binding ContextMenu_SaveFileItem}" IsVisible="False" IsEnabled="False" Click="SaveNcaContent" />
-                    <TextBlock x:Name="NcaContentsStatus" TextWrapping="Wrap" />
-                  </StackPanel>
-                </ScrollViewer>
+                <Grid Grid.Row="3" Margin="4" RowDefinitions="Auto,*,Auto">
+                  <TextBlock Text="{Binding GroupBoxProperties}" FontWeight="Bold" Margin="0,0,0,4" />
+                  <DataGrid Grid.Row="1" x:Name="EntryProperties" IsReadOnly="True" AutoGenerateColumns="False"
+                            HeadersVisibility="None" GridLinesVisibility="All" FontSize="12" RowHeight="18">
+                    <DataGrid.Columns>
+                      <DataGridTextColumn Binding="{Binding Name}" Width="135" />
+                      <DataGridTextColumn Binding="{Binding Value}" Width="*" />
+                    </DataGrid.Columns>
+                  </DataGrid>
+                  <WrapPanel x:Name="EntryActions" Grid.Row="2" IsVisible="False" Margin="0,6,0,0" />
+                </Grid>
+              </Grid>
+            </TabItem>
+            <TabItem x:Name="FileFirmwareTab" Header="{Binding Firmware_Title}" IsVisible="False">
+              <Grid Margin="12" RowDefinitions="Auto,Auto,*" RowSpacing="6">
+                <TextBlock Text="{Binding Firmware_Versions}" FontWeight="Bold" />
+                <TextBox x:Name="FileFirmwareVersions" Grid.Row="1" IsReadOnly="True" TextWrapping="Wrap" />
+                <TextBox x:Name="FileFirmwareDetails" Grid.Row="2" IsReadOnly="True" TextWrapping="Wrap"
+                         ScrollViewer.VerticalScrollBarVisibility="Auto" />
               </Grid>
             </TabItem>
           </TabControl>
@@ -436,11 +458,12 @@
             <TextBlock Text="{Binding BatchIntegrity_Title}" VerticalAlignment="Center" />
           </StackPanel>
         </TabItem.Header>
-        <Grid RowDefinitions="Auto,Auto,*,Auto,Auto" Margin="10" RowSpacing="8">
-          <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
+        <Grid RowDefinitions="Auto,Auto,*,Auto,Auto,Auto" Margin="10" RowSpacing="8">
+          <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto" ColumnSpacing="8">
             <TextBox x:Name="BatchInputPath" PlaceholderText="{Binding BatchIntegrity_Path}" TextChanged="BatchPathChanged" ToolTip.Tip="{Binding BatchIntegrity_SelectDirectory}" />
-            <Button Grid.Column="1" Content="{Binding BatchIntegrity_Browse}" Click="ChooseBatchFolder" />
-            <Button Grid.Column="2" Content="{Binding Firmware_BrowseZip}" Click="ChooseBatchArchive" /><Button x:Name="BatchMtpButton" Grid.Column="3" Content="{Binding Mtp_Title}" Click="OpenMtp" Tag="Batch" ToolTip.Tip="{Binding Mtp_Tip}"/>
+            <ComboBox x:Name="BatchSourceMode" Grid.Column="1" MinWidth="155" ToolTip.Tip="{Binding SdBatch_SourceTip}" SelectionChanged="BatchSourceModeChanged" />
+            <Button Grid.Column="2" Content="{Binding BatchIntegrity_Browse}" Click="ChooseBatchFolder" />
+            <Button Grid.Column="3" Content="{Binding Firmware_BrowseZip}" Click="ChooseBatchArchive" /><Button x:Name="BatchMtpButton" Grid.Column="4" Content="{Binding Mtp_Title}" Click="OpenMtp" Tag="Batch" ToolTip.Tip="{Binding Mtp_Tip}"/>
           </Grid>
           <StackPanel Grid.Row="1" Spacing="4">
             <WrapPanel>
@@ -459,53 +482,30 @@
               <CheckBox x:Name="BatchIncludeArchives" Content="{Binding Batch_IncludeArchives}" IsChecked="True" Margin="0,0,14,0" />
               <CheckBox x:Name="BatchErrorsOnly" Content="{Binding BatchIntegrity_ShowOnlyErrors}" IsCheckedChanged="BatchFilterChanged" Margin="0,0,14,0" />
               <CheckBox x:Name="BatchSeparatePackages" Content="{Binding BatchPackages_Display}" IsCheckedChanged="BatchFilterChanged" Margin="0,0,14,0"/>
+              <CheckBox x:Name="BatchExpandPackages" Content="{Binding BatchPackages_ExpandAll}" IsEnabled="{Binding !#BatchSeparatePackages.IsChecked}" IsCheckedChanged="BatchExpandPackagesChanged" Margin="0,0,14,0" />
               <CheckBox x:Name="BatchGroupFiles" Content="{Binding Batch_GroupFiles}" IsCheckedChanged="BatchFilterChanged" Margin="0,0,14,0" />
               <CheckBox x:Name="BatchAlphabetical" Content="{Binding Batch_GameSortAlphabetical}" IsCheckedChanged="BatchFilterChanged" />
             </WrapPanel>
           </StackPanel>
           <Grid x:Name="BatchTableLayout" Grid.Row="2" ColumnDefinitions="3*,5,2*">
-            <DataGrid x:Name="BatchResults" FontSize="12" RowHeight="18" ColumnHeaderHeight="18" IsReadOnly="True" AutoGenerateColumns="False" ContextRequested="OpenBatchContextMenu" DoubleTapped="OpenBatchResult" SelectionChanged="BatchSelectionChanged" SelectionMode="Extended" RowDetailsVisibilityMode="VisibleWhenSelected" CanUserReorderColumns="True" CanUserResizeColumns="True" GridLinesVisibility="All">
+            <DataGrid x:Name="BatchResults" LoadingRowDetails="LoadBatchPackageTable" UnloadingRowDetails="UnloadBatchPackageTable" FontSize="12" RowHeight="18" ColumnHeaderHeight="18" IsReadOnly="True" AutoGenerateColumns="False" ContextRequested="OpenBatchContextMenu" DoubleTapped="OpenBatchResult" SelectionChanged="BatchSelectionChanged" SelectionMode="Extended" RowDetailsVisibilityMode="VisibleWhenSelected" AreRowDetailsFrozen="True" CanUserReorderColumns="True" CanUserResizeColumns="True" GridLinesVisibility="All">
               <DataGrid.Styles>
                 <Style Selector="DataGridRowGroupHeader">
                   <Setter Property="IsPropertyNameVisible" Value="False" />
                 </Style>
+                <Style Selector="DataGridCell > TextBlock">
+                  <Setter Property="ToolTip.Tip" Value="{Binding Text, RelativeSource={RelativeSource Self}}" />
+                </Style>
               </DataGrid.Styles>
               <DataGrid.RowDetailsTemplate>
                 <DataTemplate>
-                  <StackPanel IsVisible="{Binding ShowPackageDetails}" Margin="8,3" Spacing="2">
-                    <ItemsControl ItemsSource="{Binding PackageDetails}">
-                      <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                          <Grid ColumnDefinitions="85,140,80,*" Margin="8,1">
-                            <TextBlock Text="{Binding ContentType}" />
-                            <TextBlock Grid.Column="1" Text="{Binding TitleId}" />
-                            <TextBlock Grid.Column="2" Text="{Binding Version}" />
-                            <TextBlock Grid.Column="3" Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
-                          </Grid>
-                        </DataTemplate>
-                      </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                  </StackPanel>
+                  <DataGrid Classes="batch-package-table" IsVisible="{Binding ShowPackageDetails}" Margin="8,3" IsReadOnly="True" AutoGenerateColumns="False" GridLinesVisibility="All" RowHeight="18" ColumnHeaderHeight="20" MaxHeight="230" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" FrozenColumnCount="1" />
                 </DataTemplate>
               </DataGrid.RowDetailsTemplate>
-              <DataGrid.Columns>
-                <DataGridTextColumn Header="Datei" Binding="{Binding FileName}" Width="280" />
-                <DataGridTextColumn Header="Dateityp" Binding="{Binding FileType}" Width="75" />
-                <DataGridTextColumn Header="{Binding Title_FileInfo_FileType}" Binding="{Binding ContainerType}" Width="85" />
-                <DataGridTextColumn Header="Paketstruktur" Binding="{Binding Structure}" Width="110" />
-                <DataGridTextColumn Header="NCA-Signatur" Binding="{Binding Signature}" Width="110" />
-                <DataGridTextColumn Header="Integrität" Binding="{Binding Integrity}" Width="110" />
-                <DataGridTextColumn Header="Dateigröße" Binding="{Binding Size}" Width="100" />
-                <DataGridTextColumn Header="Titel" Binding="{Binding Title}" Width="200" />
-                <DataGridTextColumn Header="TitelID" Binding="{Binding TitleId}" Width="150" />
-                <DataGridTextColumn Header="{Binding CnmtOverview_TitleVersion}" Binding="{Binding Version}" Width="80" />
-                <DataGridTextColumn Header="{Binding BatchNaming_Title}" Binding="{Binding Naming}" Width="120" />
-                <DataGridTextColumn Header="{Binding BatchIntegrity_Error}" Binding="{Binding Error}" Width="220" />
-              </DataGrid.Columns>
             </DataGrid>
             <GridSplitter x:Name="BatchDetailsSplitter" Grid.Column="1" ResizeDirection="Columns" HorizontalAlignment="Stretch" />
             <TabControl x:Name="BatchDetailsTabs" Grid.Column="2">
-              <TabItem Header="{Binding TabOverview}">
+              <TabItem x:Name="BatchOverviewTab" Header="{Binding TabOverview}" IsVisible="False">
                 <ScrollViewer>
                   <StackPanel Margin="8" Spacing="8">
                     <TextBox x:Name="BatchDetailPath" Classes="overview-value" IsReadOnly="True" />
@@ -513,19 +513,17 @@
                   </StackPanel>
                 </ScrollViewer>
               </TabItem>
-              <TabItem x:Name="FirmwareTab" Header="{Binding Firmware_Title}">
-                <Grid RowDefinitions="Auto,Auto,*" RowSpacing="8" Margin="12">
-                  <StackPanel x:Name="FirmwareActions" Orientation="Horizontal" Spacing="8">
-                    <Button Content="{Binding BatchIntegrity_SelectDirectory}" Click="ChooseFirmwareFolder" />
-                    <Button Content="{Binding Firmware_BrowseZip}" Click="ChooseFirmwareArchive" />
-                    <Button Content="NCA…" ToolTip.Tip="{Binding Firmware_NcaMatches}" Click="ChooseFirmwareNca" />
-                  </StackPanel>
-                  <Button x:Name="FirmwareCancel" Grid.Row="1" Content="{Binding CancelAction}" IsEnabled="False" Click="CancelFirmware" />
-                  <TextBox x:Name="FirmwareResult" Grid.Row="2" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" ScrollViewer.VerticalScrollBarVisibility="Auto" />
+              <TabItem x:Name="FirmwareTab" Header="{Binding Firmware_Title}" IsVisible="False">
+                <Grid RowDefinitions="Auto,*" RowSpacing="8" Margin="8">
+                  <TextBox x:Name="BatchFirmwarePath" Classes="overview-value" IsReadOnly="True" />
+                  <TextBox x:Name="FirmwareResult" Grid.Row="1" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" ScrollViewer.VerticalScrollBarVisibility="Auto" />
                 </Grid>
               </TabItem>
               <TabItem x:Name="BatchNandTab" Header="NAND" IsVisible="False">
-                <TextBox x:Name="BatchNandInformation" Margin="8" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" />
+                <Grid RowDefinitions="Auto,*" RowSpacing="8" Margin="8">
+                  <TextBox x:Name="BatchNandPath" Classes="overview-value" IsReadOnly="True" />
+                  <TextBox x:Name="BatchNandInformation" Grid.Row="1" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" />
+                </Grid>
               </TabItem>
             </TabControl>
           </Grid>
@@ -548,9 +546,20 @@
           <Grid Grid.Row="4" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
             <TextBlock Text="{Binding BatchHistory_Title}" VerticalAlignment="Center" />
             <ComboBox x:Name="BatchHistoryChoice" MinWidth="420" Grid.Column="1" />
-            <Button Grid.Column="2" Content="{Binding BatchHistory_Resume}" Click="ResumeBatchHistory" />
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
+              <Button Content="{Binding BatchHistory_Show}" Click="ShowBatchHistory" />
+              <Button Content="{Binding BatchHistory_Resume}" Click="ResumeBatchHistory" />
+            </StackPanel>
           </Grid>
           <TextBlock x:Name="BatchStatus" Grid.Row="4" IsVisible="False" />
+          <StackPanel x:Name="BatchMemoryPanel" Grid.Row="5" IsVisible="False" Spacing="3">
+            <WrapPanel>
+              <TextBlock x:Name="BatchMemoryMode" VerticalAlignment="Center" Margin="0,0,8,0" />
+              <Button x:Name="BatchMeasureMemory" Click="MeasureBatchMemory" />
+            </WrapPanel>
+            <TextBlock x:Name="BatchMemoryStatus" TextWrapping="Wrap" />
+            <TextBox x:Name="BatchMemoryPath" Classes="overview-value" IsReadOnly="True" />
+          </StackPanel>
           <TextBlock x:Name="BatchFolderText" IsVisible="False" />
         </Grid>
       </TabItem>
@@ -616,6 +625,11 @@
             <Button x:Name="RenameBatchPreviewButton" Click="PreviewRenameBatch" />
             <Button x:Name="RenameBatchApplyButton" Content="{Binding RenamingTool_Button_Rename}" IsEnabled="False" Click="ApplyRenameBatch" />
             <Button x:Name="RenameBatchCancelButton" Content="{Binding CancelAction}" IsEnabled="False" Click="CancelRenameBatch" />
+            <ProgressBar x:Name="RenameBatchProgress" Width="100" Height="16" ShowProgressText="True" IsVisible="False">
+              <ProgressBar.ContextMenu>
+                <ContextMenu><MenuItem Header="{Binding CancelAction}" Click="CancelRenameBatch" /></ContextMenu>
+              </ProgressBar.ContextMenu>
+            </ProgressBar>
           </StackPanel>
         </Grid>
       </TabItem>
@@ -630,12 +644,10 @@
           <TextBlock Text="{Binding Nand_Tip}" TextWrapping="Wrap" />
           <WrapPanel Grid.Row="1">
             <Button Content="{Binding Nand_Open}" Click="OpenNand" Margin="0,0,8,0" />
+            <Button x:Name="NandCloseButton" IsEnabled="False" Content="{Binding MenuItem_Close}" Click="CloseNand" Margin="0,0,8,0" />
             <Button x:Name="NandInfoButton" IsEnabled="False" Content="{Binding Nand_Info}" Click="ReadNand" Margin="0,0,8,0" />
             <Button Content="{Binding Nand_OpenDrive}" Click="OpenNandDrive" Margin="0,0,8,0" />
-            <Button Content="{Binding Nand_Explorer}" Click="BrowseNandExplorer" Margin="0,0,8,0" />
             <ComboBox x:Name="NandPartitions" MinWidth="180" DisplayMemberBinding="{Binding Name}" SelectionChanged="NandPartitionSelected" />
-            <Button x:Name="NandUpButton" IsEnabled="False" Content="{Binding Nand_ExplorerUp}" Click="NandUp" Margin="8,0" />
-            <Button x:Name="NandExportFileButton" IsEnabled="False" Content="{Binding Nand_ExportFile}" Click="ExportNandFile" />
             <Button x:Name="NandExportPartitionButton" IsEnabled="False" Content="{Binding Nand_Export}" Click="ExportNandPartition" Margin="8,0"/>
             <Button x:Name="NandCancelButton" IsEnabled="False" Content="{Binding CancelAction}" Click="CancelNand"/>
           </WrapPanel>
@@ -646,8 +658,10 @@
             <TabItem Header="{Binding Nand_Explorer}">
               <Grid RowDefinitions="Auto,Auto,*" RowSpacing="6">
                 <WrapPanel>
+                  <Button x:Name="NandUpButton" IsEnabled="False" Content="{Binding Nand_ExplorerUp}" Click="NandUp" Margin="0,0,8,0" />
                   <Button x:Name="NandOpenSaveButton" IsEnabled="False" Content="{Binding Nand_OpenSave}" Click="OpenNandSave" Margin="0,0,8,0" />
-                  <Button x:Name="NandLeaveSaveButton" IsEnabled="False" Content="{Binding Nand_LeaveSave}" Click="LeaveNandSave" Margin="0,0,8,0" />
+                  <Button x:Name="NandLeaveSaveButton" IsEnabled="False" Content="{Binding Nand_LeaveSave}" Click="LeaveNandSave" Margin="0,0,16,0" />
+                  <Button x:Name="NandExportFileButton" IsEnabled="False" Content="{Binding Nand_ExportFile}" Click="ExportNandFile" Margin="0,0,8,0" />
                   <Button x:Name="NandExportSaveButton" IsEnabled="False" Content="{Binding Nand_ExportSave}" Click="ExportNandSave" />
                 </WrapPanel>
                 <TextBox x:Name="NandLocation" Grid.Row="1" IsReadOnly="True" />
@@ -682,7 +696,7 @@
           </StackPanel>
         </TabItem.Header>
         <Grid RowDefinitions="*,Auto,Auto">
-          <TabControl x:Name="SettingsPages">
+          <TabControl x:Name="SettingsPages" SelectionChanged="UpdateSettingsPageChanged">
             <TabItem x:Name="ProgramSettingsTab" Header="{Binding Settings_Program}">
               <ScrollViewer>
                 <StackPanel x:Name="ProgramSettingsHost" Margin="8,4" Spacing="4" MaxWidth="1100" HorizontalAlignment="Left">
@@ -756,7 +770,7 @@
                       <TextBlock Text="{Binding Settings_GroupHistory}" FontWeight="Bold" />
                       <CheckBox x:Name="HistoryEnabledSetting" Content="{Binding BatchHistory_Enable}" />
                       <TextBlock Text="{Binding BatchHistory_Limit}" />
-                      <NumericUpDown x:Name="HistoryLimitSetting" Minimum="1" Maximum="100" Value="5" Width="130" HorizontalAlignment="Left" ToolTip.Tip="{Binding BatchHistory_RetentionTip}" />
+                      <NumericUpDown x:Name="HistoryLimitSetting" Classes="settings-count" Minimum="1" Maximum="100" Value="5" Width="80" ShowButtonSpinner="False" HorizontalAlignment="Left" ToolTip.Tip="{Binding BatchHistory_RetentionTip}" />
                     </StackPanel>
                   </Border>
                   <Border Classes="overview-group">
@@ -775,13 +789,13 @@
                         <ComboBoxItem Content="ERROR" Tag="ERROR" /><ComboBoxItem Content="CRITICAL" Tag="CRITICAL" /><ComboBoxItem Content="{Binding PluginLog_Off}" Tag="OFF" />
                       </ComboBox>
                       <TextBlock Text="{Binding SettingsView_LogFileRetention}" />
-                      <NumericUpDown x:Name="LogRetentionSetting" Minimum="1" Maximum="100" Value="14" Width="130" HorizontalAlignment="Left" />
+                      <NumericUpDown x:Name="LogRetentionSetting" Classes="settings-count" Minimum="1" Maximum="100" Value="14" Width="80" ShowButtonSpinner="False" HorizontalAlignment="Left" />
                     </StackPanel>
                   </Border>
                 </StackPanel>
               </ScrollViewer>
             </TabItem>
-            <TabItem Header="{Binding SettingsView_GroupBoxKeys}">
+            <TabItem x:Name="KeySettingsTab" Header="{Binding SettingsView_GroupBoxKeys}">
               <ScrollViewer>
                 <StackPanel Margin="16" Spacing="12">
                   <Border Classes="overview-group">
@@ -827,6 +841,8 @@
                       <TextBlock Text="{Binding SettingsView_Title_KeysCustomFilePath}" Classes="overview-label" />
                       <DockPanel>
                         <Button DockPanel.Dock="Right" Content="…" Click="LoadKeysClicked" />
+                        <Button DockPanel.Dock="Right" Content="{Binding ContextMenu_OpenFileLocation}"
+                                ToolTip.Tip="{Binding SettingsView_ToolTip_OpenKeysLocation}" Tag="prod.keys" Click="OpenCustomKeyLocation" />
                         <TextBox x:Name="SettingsKeysPath" LostFocus="ValidateKeys" />
                       </DockPanel>
                       <TextBlock x:Name="KeyValidationText" TextWrapping="Wrap" />
@@ -846,6 +862,8 @@
                       <TextBlock Text="{Binding SettingsView_Title_KeysCustomFilePath}" Classes="overview-label" />
                       <DockPanel>
                         <Button DockPanel.Dock="Right" Content="…" Click="ChooseTitleKeys" />
+                        <Button DockPanel.Dock="Right" Content="{Binding ContextMenu_OpenFileLocation}"
+                                ToolTip.Tip="{Binding SettingsView_ToolTip_OpenKeysLocation}" Tag="title.keys" Click="OpenCustomKeyLocation" />
                         <TextBox x:Name="TitleKeysPath" LostFocus="ValidateKeys" />
                       </DockPanel>
                       <TextBlock x:Name="TitleKeyValidationText" TextWrapping="Wrap" />
@@ -891,6 +909,9 @@
                         <TextBlock x:Name="ApplicationUpdateMessage" TextWrapping="Wrap" IsVisible="False" />
                         <WrapPanel x:Name="ApplicationUpdateActions">
                           <Button x:Name="ApplicationInstallUpdate" Content="{Binding Update_Install}" IsVisible="False" Click="InstallApplicationUpdate" Margin="0,0,8,0" />
+                          <Button x:Name="ApplicationSwitchToX64" Content="{Binding Update_SwitchToX64}" IsVisible="False" Click="InstallApplicationUpdate" Margin="0,0,8,0" />
+                          <Button x:Name="ApplicationRollback" Content="{Binding Nsz_Rollback}" IsEnabled="False" Click="InstallApplicationUpdate" Margin="0,0,8,0" />
+                          <Button x:Name="ApplicationCleanup" Content="{Binding Update_Cleanup}" IsEnabled="False" Click="CleanApplicationUpdates" Margin="0,0,8,0" />
                         </WrapPanel>
                         <Separator Margin="0,4" />
                         <TextBlock x:Name="UpdateTitleDbSummary" />
@@ -1090,17 +1111,18 @@
         </TabItem.Header>
         <Grid Margin="10" RowDefinitions="Auto,*" RowSpacing="8">
           <StackPanel Orientation="Horizontal" Spacing="14">
-            <TextBlock Text="● INFO" Foreground="LightSkyBlue" />
-            <TextBlock Text="▲ WARN" Foreground="Orange" />
-            <TextBlock Text="■ ERROR" Foreground="Salmon" />
-            <CheckBox IsVisible="False" x:Name="LogInfo" Content="● INFO" IsChecked="True" IsCheckedChanged="LogFilterChanged" />
-            <CheckBox IsVisible="False" x:Name="LogWarn" Content="▲ WARN" IsChecked="True" IsCheckedChanged="LogFilterChanged" />
-            <CheckBox IsVisible="False" x:Name="LogError" Content="■ ERROR" IsChecked="True" IsCheckedChanged="LogFilterChanged" />
+            <CheckBox x:Name="LogTrace" Content="TRACE" IsChecked="True" IsCheckedChanged="LogFilterChanged" />
+            <CheckBox x:Name="LogDebug" Content="DEBUG" IsChecked="True" IsCheckedChanged="LogFilterChanged" />
+            <CheckBox x:Name="LogInfo" Content="INFO" IsChecked="True" IsCheckedChanged="LogFilterChanged" />
+            <CheckBox x:Name="LogWarn" Content="WARN" IsChecked="True" IsCheckedChanged="LogFilterChanged" />
+            <CheckBox x:Name="LogError" Content="ERROR" IsChecked="True" IsCheckedChanged="LogFilterChanged" />
+            <CheckBox x:Name="LogCritical" Content="CRITICAL" IsChecked="True" IsCheckedChanged="LogFilterChanged" />
           </StackPanel>
           <ListBox x:Name="SessionLog" Grid.Row="1">
             <ListBox.ContextMenu>
               <ContextMenu>
                 <MenuItem Header="Kopieren" Click="CopySelectedLog" />
+                <MenuItem Header="{Binding Log_ClearView}" Click="ClearLogView" />
               </ContextMenu>
             </ListBox.ContextMenu>
             <ListBox.ItemTemplate>
@@ -1159,14 +1181,17 @@
             <TextBlock Text="{Binding Info_Credits}" FontWeight="Bold" Margin="0,12" />
             <TextBlock x:Name="CreditsText" TextWrapping="Wrap" />
             <TextBlock Text="{Binding Info_Licenses}" FontWeight="Bold" Margin="0,12" />
-            <Expander Header="LICENSE">
-              <TextBox x:Name="LicenseText" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="320" />
-            </Expander>
-            <Expander Header="Third-party notices">
-              <TextBox x:Name="ThirdPartyText" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="320" />
-            </Expander>
+            <StackPanel Spacing="4">
+
+              <ToggleButton x:Name="LicenseToggle" Classes="neutral-disclosure" />
+              <TextBox x:Name="LicenseText" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="320"
+                       IsVisible="{Binding IsChecked, ElementName=LicenseToggle}" />
+              <ToggleButton x:Name="ThirdPartyToggle" Classes="neutral-disclosure" />
+              <TextBox x:Name="ThirdPartyText" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="320"
+                       IsVisible="{Binding IsChecked, ElementName=ThirdPartyToggle}" />
+            </StackPanel>
             <TextBlock Text="{Binding Info_Shortcuts}" FontWeight="Bold" Margin="0,16,0,12" />
-            <Grid ColumnDefinitions="160,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="10">
+            <Grid ColumnDefinitions="160,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="10">
               <TextBlock Text="Ctrl+O" FontWeight="Bold" />
               <TextBlock Grid.Column="1" Text="{Binding MenuItem_Open}" />
               <TextBlock Grid.Row="1" Text="Ctrl+Shift+O" FontWeight="Bold" />
@@ -1181,16 +1206,40 @@
               <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding RenamingTool_WindowTitle}" />
               <TextBlock Grid.Row="6" Text="Alt+S" FontWeight="Bold" />
               <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding SettingsView_Title}" />
+              <TextBlock Grid.Row="7" Text="F9" FontWeight="Bold" />
+              <TextBlock Grid.Row="7" Grid.Column="1" Text="{Binding MenuItem_OpenTitleWebPage}" />
             </Grid>
           </StackPanel>
         </ScrollViewer>
       </TabItem>
     </TabControl>
     <Border Grid.Row="1" Padding="3,2" MinHeight="22" Background="{DynamicResource StatusBar.Static.Background}" BorderBrush="{DynamicResource Control.Static.Border}" BorderThickness="0,1,0,0">
-      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
         <TextBlock x:Name="StatusText" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" ToolTip.Tip="{Binding Text, RelativeSource={RelativeSource Self}}" />
-        <ProgressBar x:Name="FileStatusProgress" Grid.Column="1" Width="80" Height="12" IsVisible="False" IsIndeterminate="True" />
-        <ProgressBar x:Name="BatchProgress" Grid.Column="1" Width="80" Height="12" IsVisible="False" IsIndeterminate="True" />
+        <Border x:Name="StatusKeyWarning" Grid.Column="1" IsVisible="False" Padding="5,0" Background="Transparent" DoubleTapped="OpenKeySettings">
+          <Border.ContextMenu>
+            <ContextMenu>
+              <MenuItem Header="{Binding File_CopyMissingKeys}" Click="CopyStatusKeyWarning" />
+            </ContextMenu>
+          </Border.ContextMenu>
+          <TextBlock Text="⚠" Foreground="{DynamicResource FontBrush.Warning}" VerticalAlignment="Center" />
+        </Border>
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6">
+          <ProgressBar x:Name="FileStatusProgress" Width="80" Height="16" ShowProgressText="True" IsVisible="False" IsIndeterminate="True">
+            <ProgressBar.ContextMenu>
+              <ContextMenu Opening="FileProgressMenuOpening">
+                <MenuItem Header="{Binding CancelAction}" Click="CancelFileProgress" />
+              </ContextMenu>
+            </ProgressBar.ContextMenu>
+          </ProgressBar>
+          <ProgressBar x:Name="BatchProgress" Width="80" Height="16" ShowProgressText="True" IsVisible="False" IsIndeterminate="True">
+            <ProgressBar.ContextMenu>
+              <ContextMenu>
+                <MenuItem Header="{Binding CancelAction}" Click="CancelBatch" />
+              </ContextMenu>
+            </ProgressBar.ContextMenu>
+          </ProgressBar>
+        </StackPanel>
       </Grid>
     </Border>
   </Grid>

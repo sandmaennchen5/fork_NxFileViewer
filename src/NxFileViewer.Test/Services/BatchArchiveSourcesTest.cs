@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -42,6 +43,20 @@ public sealed class BatchArchiveSourcesTest : IDisposable
         var cache = Path.Combine(_root, "cache");
         Assert.Throws<OperationCanceledException>(() => BatchArchiveSources.Enumerate(zip, false, true, cache, cancellation.Token).ToArray());
         Assert.False(Directory.Exists(cache));
+    }
+    [Fact] public void CopyProgressIdentifiesEachArchiveMemberBeforeItIsPublished()
+    {
+        var zip = Archive(("first.nsp", "abc"), ("second.nsz", "12345"));
+        var events = new List<BatchArchiveSources.CopyProgress>();
+        foreach (var source in BatchArchiveSources.Enumerate(zip, false, true, Path.Combine(_root, "cache"),
+            CancellationToken.None, copyProgress: events.Add))
+        {
+            var steps = events.Where(step => step.DisplayPath == source.DisplayPath).ToArray();
+            Assert.Equal(0, steps[0].Copied);
+            Assert.Equal(new FileInfo(source.Path).Length, steps[^1].Copied);
+            Assert.Equal(steps[^1].Total, steps[^1].Copied);
+        }
+        Assert.Equal(2, events.Select(step => step.DisplayPath).Distinct().Count());
     }
     [Fact] public void RecursiveFolderChoiceHonorsSupportedTypes()
     {

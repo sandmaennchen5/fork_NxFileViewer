@@ -61,8 +61,10 @@ public partial class MainWindow
                 !System.Linq.Enumerable.SequenceEqual(batchLayout.Sort, oldLayout.Sort);
             if (!_preferences.RequiresFormatMigration && placement == _preferences.WindowPlacement && renameInputs == _preferences.RenameInputs &&
                 batchPath == _preferences.LastBatchPath && _lastOpenedPath == _preferences.LastOpenedPath &&
-                groupFiles == _preferences.SharedSettings.BatchGroupFiles && !layoutChanged) return;
+                groupFiles == _preferences.SharedSettings.BatchGroupFiles &&
+                _batchSourceMode == _preferences.SharedSettings.SdBatchSourceMode && !layoutChanged) return;
             _preferences.SharedSettings.BatchGroupFiles = groupFiles;
+            _preferences.SharedSettings.SdBatchSourceMode = _batchSourceMode;
             _preferences = _preferences with
             {
                 WindowPlacement = placement, RenameInputs = renameInputs,

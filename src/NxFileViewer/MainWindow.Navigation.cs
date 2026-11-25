@@ -2,6 +2,8 @@ using System;
 using System.IO;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
+using Emignatik.NxFileViewer.Services.FileLocationOpening;
 
 namespace NxFileViewer.Avalonia;
 
@@ -9,6 +11,43 @@ public partial class MainWindow
 {
     private string? _lastOpenedPath;
     private string? _openedDisplayPath;
+
+    private string? OpenedLocalSource()
+    {
+        var source = _openedDisplayPath?.Split(" :: ", 2)[0] ?? _openedPath;
+        if (source == null || source.StartsWith("MTP: ", StringComparison.Ordinal)) return null;
+        return Directory.Exists(source) || File.Exists(source) ? source : null;
+    }
+
+    private void OverviewLocationMenuOpening(object? sender, System.ComponentModel.CancelEventArgs e) =>
+        e.Cancel = OpenedLocalSource() == null;
+
+    private async void OpenOverviewLocation(object? sender, RoutedEventArgs e)
+    {
+        if (OpenedLocalSource() is { } source) await RevealLocalSourceAsync(source);
+    }
+
+    private async System.Threading.Tasks.Task RevealLocalSourceAsync(string source)
+    {
+        if (Directory.Exists(source))
+        {
+            await OpenLocalDirectoryAsync(source);
+            return;
+        }
+        if (OperatingSystem.IsWindows() && File.Exists(source))
+        {
+            try
+            {
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    if (OperatingSystem.IsWindows()) WindowsFileLocation.Reveal(source);
+                }, DispatcherPriority.Background);
+                return;
+            }
+            catch (System.Runtime.InteropServices.COMException error) { LogSession("WARN", error.Message); }
+        }
+        if (Path.GetDirectoryName(source) is { } directory && Directory.Exists(directory)) await OpenLocalDirectoryAsync(directory);
+    }
 
     private void NavigateWorkspace(object? sender, RoutedEventArgs e)
     {
@@ -30,6 +69,7 @@ public partial class MainWindow
     {
         var missingKeys = string.IsNullOrWhiteSpace(_keysPath) || !File.Exists(_keysPath);
         HomeKeysWarning.IsVisible = FileKeysWarning.IsVisible = missingKeys;
+        RefreshStatusKeyWarning();
         HomeNszLaunch.IsVisible = _preferences.NszDirectStart;
         HomeNandLaunch.IsVisible = _preferences.NandDirectStart;
         HomeRustLaunch.IsVisible = _preferences.RustDirectStart;
@@ -40,15 +80,18 @@ public partial class MainWindow
         HomePluginPanel.IsVisible = HomeNandLaunch.IsVisible || HomeNszLaunch.IsVisible ||
             HomeRustLaunch.IsVisible || HomeKronosLaunch.IsVisible;
         FileCloseButton.IsEnabled = _openedPath != null;
-        OpenLastButton.IsEnabled = _lastOpenedPath != null && File.Exists(_lastOpenedPath);
+        OpenLastButton.IsEnabled = _lastOpenedPath != null && IsReopenableSource(_lastOpenedPath);
     }
 
     private void RememberOpenedPath(string path)
     {
-        if (!File.Exists(path)) { RefreshHome(); return; }
+        if (!IsReopenableSource(path)) { RefreshHome(); return; }
         _lastOpenedPath = Path.GetFullPath(path);
         RefreshHome();
     }
+
+    private static bool IsReopenableSource(string path) =>
+        File.Exists(path) || Directory.Exists(Path.Combine(path, "registered"));
 
     private async System.Threading.Tasks.Task<global::Avalonia.Platform.Storage.IStorageFolder?> GetStartFolderAsync(string? path)
     {

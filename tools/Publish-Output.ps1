@@ -8,7 +8,7 @@ function Get-AvaloniaUpdateChecksum([string]$Zip) {
 }
 function Write-AvaloniaUpdateChecksum([string]$Zip, [switch]$PassThru) {
     $marker = Get-AvaloniaUpdateChecksum $Zip
-    [IO.File]::WriteAllText(($Zip + '.avalonia.json'),($marker | ConvertTo-Json),[Text.UTF8Encoding]::new($false))
+    [IO.File]::WriteAllText(($Zip + '.viewer.json'),($marker | ConvertTo-Json),[Text.UTF8Encoding]::new($false))
     if ($PassThru) { $marker }
 }
 function Add-PublishSizeRow($Rows, [string]$Name, [string]$Directory, [string]$Executable, [string]$Zip) {

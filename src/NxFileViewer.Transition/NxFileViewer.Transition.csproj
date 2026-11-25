@@ -10,15 +10,15 @@
     <Product>NxFileViewer Fork</Product>
     <Authors>sandmaennchen5</Authors>
     <RepositoryUrl>https://github.com/sandmaennchen5/fork_NxFileViewer</RepositoryUrl>
-    <ApplicationIcon>../NxFileViewer.WPF/Styling/Icons/Icon.ico</ApplicationIcon>
+    <ApplicationIcon>../NxFileViewer/Shared/Styling/Icons/Icon.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="../NxFileViewer.WPF/Services/Updates/ViewerUpdateService.cs" Link="ViewerUpdateService.cs" />
-    <Compile Include="../NxFileViewer.WPF/Services/Updates/ViewerPackageLayout.cs" Link="ViewerPackageLayout.cs" />
-    <Compile Include="../NxFileViewer.WPF/Services/Updates/ViewerVersion.cs" Link="ViewerVersion.cs" />
-    <Compile Include="../NxFileViewer.WPF/Services/Updates/ViewerUpdateMetadata.cs" Link="ViewerUpdateMetadata.cs" />
-    <Compile Include="../NxFileViewer.WPF/Services/Updates/ViewerUpdateSource.cs" Link="ViewerUpdateSource.cs" />
-    <Compile Include="../NxFileViewer.WPF/Services/Updates/ViewerRemoteReleaseSource.cs" Link="ViewerRemoteReleaseSource.cs" />
+    <Compile Include="../NxFileViewer/Shared/Services/Updates/ViewerUpdateService.cs" Link="ViewerUpdateService.cs" />
+    <Compile Include="../NxFileViewer/Shared/Services/Updates/ViewerPackageLayout.cs" Link="ViewerPackageLayout.cs" />
+    <Compile Include="../NxFileViewer/Shared/Services/Updates/ViewerVersion.cs" Link="ViewerVersion.cs" />
+    <Compile Include="../NxFileViewer/Shared/Services/Updates/ViewerUpdateMetadata.cs" Link="ViewerUpdateMetadata.cs" />
+    <Compile Include="../NxFileViewer/Shared/Services/Updates/ViewerUpdateSource.cs" Link="ViewerUpdateSource.cs" />
+    <Compile Include="../NxFileViewer/Shared/Services/Updates/ViewerRemoteReleaseSource.cs" Link="ViewerRemoteReleaseSource.cs" />
     <EmbeddedResource Include="../NxFileViewer.WPF/Services/Updates/InstallUpdate.ps1" LogicalName="ViewerUpdate.InstallUpdate.ps1" />
     <AssemblyMetadata Include="ViewerSelfContained" Value="$(SelfContained)" />
   </ItemGroup>

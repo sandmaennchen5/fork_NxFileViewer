@@ -214,3 +214,78 @@ jobs:
           archive: true
           if-no-files-found: error
           retention-days: 7
+
+  native:
+    name: Build Avalonia native packages (${{ matrix.package }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            package: AppImage
+            runtimes: '["linux-x64", "linux-arm64"]'
+          - os: macos-latest
+            package: App
+            runtimes: '["osx-x64", "osx-arm64"]'
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: src/global.json
+
+      - name: Install appimagetool
+        if: matrix.package == 'AppImage'
+        shell: bash
+        run: |
+          tool_dir="$RUNNER_TEMP/appimage-tools"
+          mkdir -p "$tool_dir"
+          curl --fail --location --retry 3 \
+            https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage \
+            --output "$tool_dir/appimagetool"
+          echo "ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0  $tool_dir/appimagetool" | sha256sum --check
+          chmod +x "$tool_dir/appimagetool"
+          echo "$tool_dir" >> "$GITHUB_PATH"
+
+      - name: Package Avalonia Viewer and LogViewer
+        shell: pwsh
+        env:
+          PACKAGE_FORMAT: ${{ matrix.package }}
+          PACKAGE_RUNTIMES: ${{ matrix.runtimes }}
+        run: |
+          $runtimes = @($env:PACKAGE_RUNTIMES | ConvertFrom-Json)
+          $formats = @($runtimes | ForEach-Object { "$_-$($env:PACKAGE_FORMAT.ToLowerInvariant())" })
+          ./tools/Publish-Applications.ps1 -Framework Avalonia -Applications Viewer,LogViewer -RuntimeIdentifiers $runtimes -RuntimeVariants @($true) -NativePackage $env:PACKAGE_FORMAT -FormatTargets $formats -ExecutableOnly -SkipFirmwareHashes -NoCopy -OutputDirectory Publish-Native
+          $extension = if ($env:PACKAGE_FORMAT -eq 'AppImage') { '*.AppImage' } else { '*.app.zip' }
+          if (@(Get-ChildItem -LiteralPath Publish-Native -File -Filter $extension).Count -ne ($runtimes.Count * 2)) {
+            throw "Expected a ${extension} package for each app and architecture."
+          }
+
+      - name: Archive AppImages with executable permissions
+        if: matrix.package == 'AppImage'
+        shell: bash
+        working-directory: Publish-Native
+        run: tar -czf avalonia-appimages.tar.gz -- *.AppImage
+
+      - name: Upload AppImages
+        if: matrix.package == 'AppImage'
+        uses: actions/upload-artifact@v7
+        with:
+          path: Publish-Native/avalonia-appimages.tar.gz
+          archive: false
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload macOS apps
+        if: matrix.package == 'App'
+        uses: actions/upload-artifact@v7
+        with:
+          name: avalonia-macos-apps
+          path: Publish-Native/*.app.zip
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 7

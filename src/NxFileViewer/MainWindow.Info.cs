@@ -2,15 +2,21 @@ using Avalonia.Input.Platform;
 using System.Linq;
 using System.Diagnostics;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Interactivity;
 using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Threading;
+using System.Threading.Tasks;
+using Emignatik.NxFileViewer.Services;
 
 namespace NxFileViewer.Avalonia;
 
 public partial class MainWindow
 {
+    private CancellationTokenSource? _homePollCancellation;
+
     private void InitializeInfo()
     {
         var german = _text.CultureName.StartsWith("de", System.StringComparison.OrdinalIgnoreCase);
@@ -30,11 +36,28 @@ public partial class MainWindow
         CreditsText.Text = ReadInfoResource("Viewer.Credits");
         LicenseText.Text = ReadInfoResource("Viewer.License");
         ThirdPartyText.Text = ReadInfoResource("Viewer.ThirdPartyNotices");
+        (string License, string ThirdParty) labels = _text switch
+        {
+            Emignatik.NxFileViewer.Localization.Keys.LocalizationKeys_DE => ("Programmlizenz", "Hinweise zu Drittkomponenten"),
+            Emignatik.NxFileViewer.Localization.Keys.LocalizationKeys_FR => ("Licence du programme", "Mentions relatives aux composants tiers"),
+            Emignatik.NxFileViewer.Localization.Keys.LocalizationKeys_ES => ("Licencia del programa", "Avisos de componentes de terceros"),
+            _ => ("Program license", "Third-party notices")
+        };
+        SetDisclosureToggle(LicenseToggle, labels.License);
+        SetDisclosureToggle(ThirdPartyToggle, labels.ThirdParty);
         ShowSupportIdentity();
+        Opened += async (_, _) => await RefreshHomePollsAsync();
         InfoTab.PropertyChanged += (_, change) =>
         {
             if (change.Property == TabItem.IsSelectedProperty && InfoTab.IsSelected) RefreshSupportIdentity(null, new RoutedEventArgs());
         };
+    }
+
+    private static void SetDisclosureToggle(ToggleButton button, string label)
+    {
+        void UpdateLabel() => button.Content = (button.IsChecked == true ? "▾  " : "▸  ") + label;
+        button.IsCheckedChanged += (_, _) => UpdateLabel();
+        UpdateLabel();
     }
 
     private async void InstallLinuxShortcut(object? sender, RoutedEventArgs e)
@@ -91,13 +114,47 @@ public partial class MainWindow
     {
         var dialog = new PollsWindow(_text.CultureName.StartsWith("de", System.StringComparison.OrdinalIgnoreCase), _preferences.SharedSettings.PollEndpoint) { RequestedThemeVariant = ActualThemeVariant };
         await dialog.ShowDialog(this);
+        if (_closed) return;
         if (dialog.OpenPollCount is { } count)
         {
-            HomePollNotice.IsVisible = count > 0;
-            HomePollNotice.Text = _text.CultureName.StartsWith("de", System.StringComparison.OrdinalIgnoreCase)
-                ? (count == 1 ? "Eine offene Umfrage" : $"{count} offene Umfragen")
-                : (count == 1 ? "One open poll" : $"{count} open polls");
+            _homePollCancellation?.Cancel();
+            ShowHomePollCount(count);
         }
+        else await RefreshHomePollsAsync();
+    }
+
+    private async Task RefreshHomePollsAsync()
+    {
+        _homePollCancellation?.Cancel();
+        ShowHomePollCount(0);
+        if (CommunityPollService.Endpoint(_preferences.SharedSettings.PollEndpoint) is not { } endpoint) return;
+
+        using var cancellation = new CancellationTokenSource();
+        _homePollCancellation = cancellation;
+        try
+        {
+            var language = _text.CultureName.StartsWith("de", System.StringComparison.OrdinalIgnoreCase) ? "de" : "en";
+            var polls = await CommunityPollService.LoadAsync(endpoint, cancellation.Token, language: language);
+            if (!_closed && !cancellation.IsCancellationRequested)
+                ShowHomePollCount(polls.Count(poll => poll.ShowInApp && poll.AwaitingResponse));
+        }
+        catch (System.Exception error) when (error is System.Net.Http.HttpRequestException or IOException or
+                                            System.UnauthorizedAccessException or System.OperationCanceledException or System.Text.Json.JsonException)
+        {
+            // The start page can be used without a poll response.
+        }
+        finally
+        {
+            if (ReferenceEquals(_homePollCancellation, cancellation)) _homePollCancellation = null;
+        }
+    }
+
+    private void ShowHomePollCount(int count)
+    {
+        HomePollNotice.IsVisible = HomePollButton.IsVisible = count > 0;
+        HomePollNotice.Text = _text.CultureName.StartsWith("de", System.StringComparison.OrdinalIgnoreCase)
+            ? (count == 1 ? "Eine offene Umfrage" : $"{count} offene Umfragen")
+            : (count == 1 ? "One open poll" : $"{count} open polls");
     }
     private void OpenInfoLink(object? sender, RoutedEventArgs e)
     {

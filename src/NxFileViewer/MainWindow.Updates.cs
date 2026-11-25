@@ -29,6 +29,8 @@ public partial class MainWindow
         public bool ShowStatus => !string.Equals(Installed, Status, StringComparison.Ordinal);
     }
     private static string CurrentUpdateRuntime => (OperatingSystem.IsWindows() ? "win-" : OperatingSystem.IsLinux() ? "linux-" : OperatingSystem.IsMacOS() ? "osx-" : throw new PlatformNotSupportedException()) + RuntimeInformation.ProcessArchitecture.ToString().ToLowerInvariant();
+    private static bool CanSwitchUpdateToX64 => OperatingSystem.IsWindows() &&
+        RuntimeInformation.ProcessArchitecture == Architecture.X86 && RuntimeInformation.OSArchitecture == Architecture.X64;
     private CancellationTokenSource? _updateCancellation;
     private bool _applicationUpdatePending;
     private const string ApplicationUpdateName = "NxFileViewer Fork · Avalonia";
@@ -118,6 +120,52 @@ public partial class MainWindow
         SetUpdateHeading(ApplicationUpdateHeading, ApplicationUpdateName, InstalledUpdateLabel(version));
         ApplicationUpdateActions.Children.Add(CreateReleaseButton(ApplicationUpdateRepository()));
         UpdateStatus.Text = _text.Status_Ready;
+        _ = RefreshApplicationBackupsAsync();
+    }
+
+    private async Task RefreshApplicationBackupsAsync()
+    {
+        try
+        {
+            var state = await Task.Run(() => (
+                HasRollback: Environment.ProcessPath is { } current && AvaloniaAppUpdater.FindRollback(current) != null,
+                HasBackups: AvaloniaAppUpdater.CompletedStages(AppContext.BaseDirectory).Length > 0));
+            if (_closed) return;
+            ApplicationRollback.IsEnabled = state.HasRollback;
+            ApplicationCleanup.IsEnabled = state.HasBackups;
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+        {
+            if (!_closed) LogSession("WARN", error.Message);
+        }
+    }
+
+    private void UpdateSettingsPageChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (ReferenceEquals(e.Source, SettingsPages) && ReferenceEquals(SettingsPages.SelectedItem, UpdatesTab) && ApplicationRollback != null)
+            _ = RefreshApplicationBackupsAsync();
+    }
+
+    private async void CleanApplicationUpdates(object? sender, RoutedEventArgs e)
+    {
+        if (_updateCancellation != null || _applicationUpdatePending) return;
+        ApplicationCleanup.IsEnabled = false;
+        try
+        {
+            var stages = await Task.Run(() => AvaloniaAppUpdater.CompletedStages(AppContext.BaseDirectory));
+            if (_closed || stages.Length == 0) return;
+            if (!await ConfirmPluginCleanupAsync(_text.Update_Cleanup,
+                string.Format(_text.Update_CleanupConfirm, string.Join(Environment.NewLine, stages.Select(Path.GetFileName))),
+                _text.Update_Cleanup) || _closed || _updateCancellation != null) return;
+            using var workspaceJob = LockWorkspace(SettingsTab);
+            await Task.Run(() => AvaloniaAppUpdater.CleanCompletedStages(AppContext.BaseDirectory, stages));
+            if (!_closed) UpdateStatus.Text = _text.Status_Ready;
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+        {
+            if (!_closed) UpdateStatus.Text = error.Message;
+        }
+        finally { if (!_closed) await RefreshApplicationBackupsAsync(); }
     }
 
     private void RefreshUpdateDataSummaries()
@@ -251,6 +299,7 @@ public partial class MainWindow
                     ? typeof(MainWindow).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion.Split('+')[0]
                     : ReadInstalledVersion(component.Path);
                 UpdateRow row;
+                AvaloniaRelease? x64Release = null;
                 try
                 {
                     var endpoint = "https://api.github.com/repos/" + component.Repository +
@@ -258,8 +307,13 @@ public partial class MainWindow
                     var response = await requests.GetAsync(endpoint, automatic, cancellation.Token);
                     using var json = JsonDocument.Parse(response.Body);
                     var releases = component.IsApplication ? json.RootElement.EnumerateArray().ToArray() : new[] { json.RootElement };
-                    var release = releases.OrderByDescending(item => AvaloniaAppUpdater.ParseVersion(item.GetProperty("tag_name").GetString() ?? "")).FirstOrDefault(item => !item.GetProperty("draft").GetBoolean() && (_preferences.IncludePreReleases || !item.GetProperty("prerelease").GetBoolean()) &&
-                        (!component.IsApplication || AvaloniaAppUpdater.SelectRelease(item, component.Repository, CurrentUpdateRuntime, ViewerDistribution.IsSelfContained) != null));
+                    var candidates = releases.Where(item => !item.GetProperty("draft").GetBoolean() &&
+                            (_preferences.IncludePreReleases || !item.GetProperty("prerelease").GetBoolean()))
+                        .OrderByDescending(item => AvaloniaAppUpdater.ParseVersion(item.GetProperty("tag_name").GetString() ?? "")).ToArray();
+                    var release = candidates.FirstOrDefault(item => !component.IsApplication ||
+                        AvaloniaAppUpdater.SelectRelease(item, component.Repository, CurrentUpdateRuntime, ViewerDistribution.IsSelfContained) != null);
+                    if (component.IsApplication && CanSwitchUpdateToX64)
+                        x64Release = AvaloniaAppUpdater.SelectX64SwitchRelease(candidates, component.Repository, installed, ViewerDistribution.IsSelfContained);
                     if (release.ValueKind == JsonValueKind.Undefined)
                     {
                         row = new UpdateRow(installed, _text.Update_Current);
@@ -291,6 +345,8 @@ public partial class MainWindow
                     ApplicationInstallUpdate.DataContext = row;
                     ApplicationInstallUpdate.Content = row.InstallText;
                     ApplicationInstallUpdate.IsVisible = row.CanInstall;
+                    ApplicationSwitchToX64.Tag = x64Release;
+                    ApplicationSwitchToX64.IsVisible = x64Release != null;
                     SetUpdateMessage(ApplicationUpdateMessage, statusMessage, row.Available);
                     _applicationUpdateAvailable = row.CanInstall;
                     HomeUpdateText.Text = "NxFileViewer: " + row.Status;
@@ -334,7 +390,11 @@ public partial class MainWindow
 
     private async void InstallApplicationUpdate(object? sender, RoutedEventArgs e)
     {
-        if (_updateCancellation != null || (sender as Button)?.DataContext is not UpdateRow { ApplicationRelease: { } release }) return;
+        if (_updateCancellation != null || sender is not Button button) return;
+        var rollback = ReferenceEquals(button, ApplicationRollback);
+        var switchToX64 = ReferenceEquals(button, ApplicationSwitchToX64);
+        var release = switchToX64 ? button.Tag as AvaloniaRelease : (button.DataContext as UpdateRow)?.ApplicationRelease;
+        if ((!rollback && release == null) || (switchToX64 && !CanSwitchUpdateToX64)) return;
         Workspace.SelectedItem = SettingsTab;
         SettingsPages.SelectedItem = UpdatesTab;
         if (ViewerDataDirectory.IsAppImage)
@@ -344,8 +404,8 @@ public partial class MainWindow
                 : "AppImage updates are available via GitHub Releases. Download the new AppImage there.";
             return;
         }
-        if (_batchCancellation != null || _extractionCancellation != null || _firmwareCancellation != null || _mtpCancellation != null ||
-            _nandCancellation != null || _ncaContentsCancellation != null || _renameBatchCancellation != null || _fileVerificationCancellation != null)
+        if (_batchCancellation != null || _extractionCancellation != null || _fileFirmwareCancellation != null || _mtpCancellation != null ||
+            _nandCancellation != null || _contentReads > 0 || _renameBatchCancellation != null || _fileVerificationCancellation != null)
         {
             UpdateStatus.Text = _text.CultureName.StartsWith("de") ? "Bitte laufende Aufgaben vor dem Update abschließen." : "Finish running tasks before updating.";
             return;
@@ -355,6 +415,11 @@ public partial class MainWindow
             UpdateStatus.Text = _text.CultureName.StartsWith("de") ? "Automatische Updates benötigen die veröffentlichte Einzeldatei-Version." : "Automatic updates require the published single-file application.";
             return;
         }
+        if (switchToX64 && !await ConfirmPluginCleanupAsync(_text.Update_SwitchToX64,
+                string.Format(ViewerDistribution.IsSelfContained ? _text.Update_SwitchToX64Confirm : _text.Update_SwitchToX64ConfirmAvaloniaRuntime, release!.Version),
+                _text.Update_SwitchToX64)) return;
+        if (rollback && !await ConfirmPluginCleanupAsync(_text.Nsz_Rollback, _text.Update_RollbackConfirm, _text.Nsz_Rollback)) return;
+        if (_closed || _updateCancellation != null) return;
         using var cancellation = new CancellationTokenSource();
         _updateCancellation = cancellation;
         _applicationUpdatePending = true;
@@ -362,12 +427,24 @@ public partial class MainWindow
         using var workspaceJob = LockWorkspace(SettingsTab);
         try
         {
-            UpdateStatus.Text = _text.Update_Downloading;
-            using var client = new HttpClient { Timeout = TimeSpan.FromMinutes(15) };
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("NxFileViewerFork-Avalonia-Updater/1.0");
-            var stage = await AvaloniaAppUpdater.DownloadAsync(client, release, AppContext.BaseDirectory, CurrentUpdateRuntime, ViewerDistribution.IsSelfContained, cancellation.Token);
+            var executable = Environment.ProcessPath ?? throw new IOException("Executable path unavailable.");
+            string job;
+            if (rollback)
+            {
+                UpdateStatus.Text = _text.Nsz_Rollback;
+                job = await Task.Run(() => AvaloniaAppUpdater.PrepareRollback(executable), cancellation.Token);
+            }
+            else
+            {
+                UpdateStatus.Text = _text.Update_Downloading;
+                using var client = new HttpClient { Timeout = TimeSpan.FromMinutes(15) };
+                client.DefaultRequestHeaders.UserAgent.ParseAdd("NxFileViewerFork-Avalonia-Updater/1.0");
+                var stage = await AvaloniaAppUpdater.DownloadAsync(client, release!, AppContext.BaseDirectory,
+                    switchToX64 ? "win-x64" : CurrentUpdateRuntime, ViewerDistribution.IsSelfContained, cancellation.Token);
+                cancellation.Token.ThrowIfCancellationRequested();
+                job = AvaloniaAppUpdater.CreateJob(stage, executable);
+            }
             cancellation.Token.ThrowIfCancellationRequested();
-            var job = AvaloniaAppUpdater.CreateJob(stage, Environment.ProcessPath ?? throw new IOException("Executable path unavailable."));
             UpdateStatus.Text = _text.Update_Installing;
             AvaloniaAppUpdater.StartWorker(job);
             if (global::Avalonia.Application.Current?.ApplicationLifetime is global::Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop) desktop.Shutdown();

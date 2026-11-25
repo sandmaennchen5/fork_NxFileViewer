@@ -29,13 +29,6 @@ public partial class MainWindow
         NandLocation.Text = "";
     }
 
-    private async void BrowseNandExplorer(object? sender, RoutedEventArgs e)
-    {
-        if (_nandBusy || _nandSource == null) return;
-        if (NandViews.SelectedIndex == 1) await ListNandDirectory(_nandDirectory, _nandSave);
-        else NandViews.SelectedIndex = 1;
-    }
-
     private async void NandViewSelected(object? sender, SelectionChangedEventArgs e)
     {
         if (ReferenceEquals(e.Source, NandViews) && NandViews.SelectedIndex == 1)
