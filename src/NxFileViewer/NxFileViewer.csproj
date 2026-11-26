@@ -12,7 +12,6 @@
     <ApplicationIcon>Shared/Styling/Icons/Icon.ico</ApplicationIcon>
     <!-- Preserve the reflection bindings used by the converted views. -->
     <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
-    <AvaloniaVersion>12.2.0</AvaloniaVersion>
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="NxFileViewer.Test" />
