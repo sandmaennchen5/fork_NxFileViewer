@@ -8,6 +8,25 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+## [4.1.2-beta4] - 2026-11-26
+
+### Added
+
+- Publish versioned Linux `.AppImage.zip` downloads containing a fixed `NxFileViewerFork.AppImage` filename. The updater verifies the ZIP and replaces the installed AppImage at its existing path. Direct AppImage downloads remain available for older updaters.
+- Offer separate GitHub Actions downloads: `win.zip`, `linux.zip`, `macos.zip` and `firmware-hashes.zip`. Platform archives include the selected Viewer and LogViewer builds. The Windows archive also includes the Explorer packages.
+
+### Changed
+
+- Store macOS app bundle data in `~/Library/Application Support/NxFileViewer Fork/`. The first launch copies existing settings, keys, plugins, logs and per-scan history ZIPs from the old bundle without overwriting files at the destination.
+- Standardize new package names for AppImage, DMG, Explorer and firmware hashes. The application is displayed as **NxFileViewer Fork**.
+- Publish the Viewer only in tagged releases and prereleases. The standalone LogViewer remains available in the GitHub Actions platform archives.
+- Document which older versions can update automatically and when a manual upgrade is needed.
+
+### Fixed
+
+- Remove the Linux release check for the retired shortcut template.
+- Use the same Avalonia 12.2.0 version for the applications and headless UI tests.
+
 ## [4.1.2-beta3] - 2026-11-26
 
 ### Added
