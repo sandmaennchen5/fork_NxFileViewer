@@ -66,5 +66,30 @@ public sealed class ViewerDataDirectoryTest : IDisposable
         Assert.True(ViewerDataMigration.WasCopied(legacy.FullName, current.FullName));
     }
 
+
+    [Fact]
+    public void MacBundleMigrationKeepsTheSourceAndDoesNotRepeat()
+    {
+        var bundle = _root.CreateSubdirectory("NxFileViewerFork.app/Contents/MacOS");
+        var destination = _root.CreateSubdirectory("Library/Application Support/NxFileViewer Fork");
+        var oldSettings = Path.Combine(bundle.FullName, ViewerPreferences.FileName);
+        var newSettings = Path.Combine(destination.FullName, ViewerPreferences.FileName);
+        File.WriteAllText(oldSettings, "legacy");
+        File.WriteAllText(newSettings, "existing");
+        var history = bundle.CreateSubdirectory("History");
+        File.WriteAllText(Path.Combine(history.FullName, "scan-123.zip"), "scan");
+        File.WriteAllText(Path.Combine(bundle.CreateSubdirectory("Logs").FullName, "NxFileViewer-test.log"), "log");
+
+        ViewerDataDirectory.MigrateMacBundleData(bundle.FullName, destination.FullName);
+
+        Assert.Equal("existing", File.ReadAllText(newSettings));
+        Assert.Equal("legacy", File.ReadAllText(oldSettings));
+        Assert.Equal("scan", File.ReadAllText(Path.Combine(destination.FullName, "History", "scan-123.zip")));
+        Assert.Equal("log", File.ReadAllText(Path.Combine(destination.FullName, "Logs", "NxFileViewer-test.log")));
+        File.WriteAllText(Path.Combine(history.FullName, "scan-456.zip"), "new legacy data");
+        ViewerDataDirectory.MigrateMacBundleData(bundle.FullName, destination.FullName);
+        Assert.False(File.Exists(Path.Combine(destination.FullName, "History", "scan-456.zip")));
+    }
+
     public void Dispose() => _root.Delete(recursive: true);
 }

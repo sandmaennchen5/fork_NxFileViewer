@@ -24,7 +24,7 @@ Windows file associations and Explorer integration are optional. [Explorer integ
 
 ### AppImage
 
-Save the `.AppImage` to a writable folder such as `~/Applications`. In that folder, mark the file as executable and start it. Substitute your actual download filename in both commands.
+Extract the `.AppImage.zip` into a writable folder such as `~/Applications` to get `NxFileViewerFork.AppImage`. A direct `.AppImage` can also be saved there. In that folder, mark the file as executable and start it. Substitute your actual download filename in both commands.
 
 ```sh
 chmod +x './NxFileViewerFork.AppImage'
@@ -58,9 +58,9 @@ The installed app needs write access to its data directory inside the bundle. Th
 | Windows ZIP | `NxFileViewerFork-Daten\` next to `NxFileViewerFork.exe` |
 | Linux AppImage | `NxFileViewerFork-Daten/` next to the original `.AppImage` |
 | Linux ZIP | `NxFileViewerFork-Daten/` next to the `NxFileViewerFork` executable |
-| macOS DMG or App ZIP | `Contents/MacOS/` **inside the installed `.app`** |
+| macOS DMG or App ZIP | `~/Library/Application Support/NxFileViewer Fork/` |
 
-On macOS, right-click the installed app in Finder, choose **Show Package Contents**, and open **Contents → MacOS**. For example, a bundle installed in Applications uses `/Applications/NxFileViewerFork Avalonia.app/Contents/MacOS/`. Back up this data before manually replacing the bundle in Finder.
+On the first launch after upgrading, the viewer copies known data from the old bundle into Application Support. Existing files there take precedence. Before manually replacing an older bundle, keep a copy of it. In Finder, choose **Show Package Contents** and open **Contents → MacOS** to recover settings, scan ZIPs under History, logs, plugins and keys.
 
 The data location holds `NxFileViewerFork.settings.json`, plus folders such as `Logs`, `History` and `Plugins` as they are used. Key files can also live there. A custom path configured under **Settings → Keys** points to the location you selected.
 

@@ -269,27 +269,39 @@ public sealed class AvaloniaUpdaterTest : IDisposable
             Assert.True(File.Exists(Path.Combine(stage, "payload", "NxFileViewerFork.Avalonia")));
         }
     }
-    [Fact]
-    public async Task SelectsAndStagesOnlyTheMatchingStandaloneAppImage()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SelectsAndStagesMatchingAppImage(bool zipped)
     {
-        const string asset = "v4.1.1-beta6_linux-x64-with-net.AppImage";
+        const string directAsset = "v4.1.1-beta6_linux-x64-with-net.AppImage";
+        var asset = zipped ? "NxFileViewerFork_" + directAsset + ".zip" : directAsset;
         const string localName = "Mein Viewer.AppImage";
         var bytes = Elf();
         bytes[8] = (byte)'A';
         bytes[9] = (byte)'I';
         bytes[10] = 2;
-        var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes));
+        var download = bytes;
+        if (zipped)
+        {
+            using var archiveBytes = new MemoryStream();
+            using (var zip = new ZipArchive(archiveBytes, ZipArchiveMode.Create, leaveOpen: true))
+            using (var entry = zip.CreateEntry("NxFileViewerFork.AppImage").Open())
+                entry.Write(bytes);
+            download = archiveBytes.ToArray();
+        }
+        var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(download));
         using var json = JsonDocument.Parse(JsonSerializer.Serialize(new
         {
             tag_name = "v4.1.1-beta6",
-            assets = new[] { "NxFileViewerFork.LogViewer_" + asset, asset.Replace("x64", "arm64"), asset }
+            assets = new[] { "NxFileViewerFork.LogViewer_" + directAsset, asset.Replace("x64", "arm64"), asset, directAsset }.Distinct()
                 .Select(name => new { name, digest = "sha256:" + hash })
         }));
         var release = AvaloniaAppUpdater.SelectRelease(json.RootElement, "owner/repo", "linux-x64", true, appImage: true);
         Assert.Equal(asset, release?.AssetName);
         Assert.Null(AvaloniaAppUpdater.SelectRelease(json.RootElement, "owner/repo", "linux-x64", false, appImage: true));
         Assert.Null(AvaloniaAppUpdater.SelectRelease(json.RootElement, "owner/repo", "linux-x64", true));
-        using var client = new System.Net.Http.HttpClient(new FixtureHandler(bytes));
+        using var client = new System.Net.Http.HttpClient(new FixtureHandler(download));
         var stage = await AvaloniaAppUpdater.DownloadAsync(client, release!, _root, "linux-x64", true, TestContext.Current.CancellationToken, localName);
         Assert.Equal(bytes, File.ReadAllBytes(Path.Combine(stage, "payload", localName)));
         Assert.Throws<InvalidDataException>(() => AvaloniaAppUpdater.ValidateAppImage(Path.Combine(stage, "payload", localName), "linux-arm64"));

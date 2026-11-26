@@ -6,11 +6,13 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <AssemblyName>NxFileViewerFork</AssemblyName>
+    <AssemblyTitle>NxFileViewer Fork</AssemblyTitle>
+    <Product>NxFileViewer Fork</Product>
     <RootNamespace>NxFileViewer.Avalonia</RootNamespace>
     <ApplicationIcon>Shared/Styling/Icons/Icon.ico</ApplicationIcon>
     <!-- Preserve the reflection bindings used by the converted views. -->
     <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
-    <AvaloniaVersion>12.1.6</AvaloniaVersion>
+    <AvaloniaVersion>12.2.0</AvaloniaVersion>
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="NxFileViewer.Test" />

@@ -55,8 +55,8 @@ The **Remove file associations** button unregisters only this fork's ProgID, Ope
 
 Running `./Publish.ps1` creates signed Explorer packages alongside the viewer ZIPs in `Publish/`:
 
-- `NxFileViewerFork.Exploder_1.0.1.0_win-x64.zip` contains `NxFileViewerFork.Explorer_1.0.1.0_x64.msix`.
-- `NxFileViewerFork.Exploder_1.0.1.0_win-arm64.zip` contains `NxFileViewerFork.Explorer_1.0.1.0_arm64.msix`.
+- `NxFileViewerFork.Explorer_1.0.1.0_win-x64.zip` contains `NxFileViewerFork.Explorer_1.0.1.0_x64.msix`.
+- `NxFileViewerFork.Explorer_1.0.1.0_win-arm64.zip` contains `NxFileViewerFork.Explorer_1.0.1.0_arm64.msix`.
 
 Upload both `_x64_setup.zip` and `_arm64_setup.zip` as assets of the official GitHub release. Keep their generated names so the in-app installer can find them. The downloader requires the GitHub SHA-256 asset digest (available on current uploads); re-upload an older asset if GitHub does not supply one. App ZIPs and Explorer setup ZIPs remain separate downloads.
 

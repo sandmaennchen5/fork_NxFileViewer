@@ -4,6 +4,35 @@ Open **Settings → Updates** to check for an application update or download and
 
 By default only stable releases are offered. Enable **Include pre-releases in application updates** and apply settings to include published previews. Drafts and older/equal semantic versions are ignored; changing the channel invalidates the current offer.
 
+
+## How the viewer finds updates
+
+1. The Avalonia viewer requests up to 30 releases from its configured GitHub repository. The default channel includes stable releases. Enable **Include pre-releases in application updates** to also consider GitHub pre-releases. Drafts are excluded.
+2. It sorts the candidates by the version in the Git tag, such as `4.1.2` or `4.1.2-beta3`. The display title can be edited without changing update detection.
+3. It selects the newest candidate with a matching download. If that release lacks a package for the running platform, process architecture, .NET variant or installation format, it can fall back to an older compatible release that is still newer than the installed version.
+4. Before installation, the updater verifies the SHA-256 checksum. It prefers GitHub's asset digest. The release manifest, package index and per-ZIP metadata provide checksum fallbacks where applicable.
+
+| Running installation | Download it looks for |
+| --- | --- |
+| Portable viewer on Windows, Linux or macOS | A ZIP such as `NxFileViewerFork_v4.1.2_win-x64-with-net.zip`. The architecture and `with-net` / `without-net` variant must match. |
+| Linux AppImage | A matching `.AppImage.zip` containing `NxFileViewerFork.AppImage`, or a direct `.AppImage`. For example, `NxFileViewerFork_v4.1.2_linux-x64-with-net.AppImage.zip` identifies the version and variant while the file inside keeps a fixed name. Updates replace the AppImage at its existing path. Older AppImage updaters require the direct asset. |
+| Installed macOS app bundle | A matching `.dmg` if available, otherwise a matching `.app.zip` from that release. |
+
+GitHub Actions artifacts and source archives are separate from the files attached to a release. For example, a beta with Linux and macOS packages only will not appear as a Windows application update.
+
+## Which installed versions can update?
+
+| Installed version | Update path |
+| --- | --- |
+| `3.0.4` and earlier | Install a newer version manually. These versions predate the built-in viewer updater. |
+| Windows `4.0.0-beta.1` through the `4.0.x` line | The original updater expects a single `NxFileViewer.exe` in a legacy `NxFileViewer_v…` ZIP. The release workflow can supply a bridge for x86 and x64 on stable releases. The earliest 4.0 beta builds may require a manual upgrade if their version comparison rejects the update. |
+| Windows WPF `4.1.x` | Early 4.1 previews look for the original `NxFileViewerFork_v…_<architecture>.zip` names. Manifest-aware releases such as `4.1.0` and `4.1.1` can find the matching Avalonia ZIP through `nxfileviewer-update.json`. |
+| Avalonia `4.1.2-beta1` | Requires the old `NxFileViewerFork_Avalonia_v…` filename and compatible contents. A newer release must include the compatibility ZIP for the installed platform and .NET variant, or the user must upgrade manually. |
+| Avalonia `4.1.2-beta2` and later | Recognizes the current platform-specific portable ZIP names. The published beta2 had Linux and macOS packages, so Windows users need a release with a Windows asset. |
+| Avalonia `4.1.2-beta3` and later | Also supports updating a running Linux AppImage or installed macOS app bundle when the newer release has the corresponding native package. |
+
+The last stable WPF release was [4.1.1](https://github.com/sandmaennchen5/fork_NxFileViewer/releases/tag/4.1.1). [4.1.2-beta1](https://github.com/sandmaennchen5/fork_NxFileViewer/releases/tag/4.1.2-beta1) was the last preview with both WPF and Avalonia packages. See [beta2 files](https://github.com/sandmaennchen5/fork_NxFileViewer/releases/expanded_assets/4.1.2-beta2) and the [beta3 release notes](https://github.com/sandmaennchen5/fork_NxFileViewer/releases/tag/4.1.2-beta3) for the package changes.
+
 ## When x86 releases are discontinued
 
 An x86 application additionally checks for newer x64 releases in the same runtime
@@ -27,26 +56,28 @@ from subsequent releases. Previously installed versions do not acquire this disc
 behavior retroactively. No test or startup check downloads or installs a release ZIP
 without the normal user-initiated installation and confirmation.
 
+
 ## Automatic releases from version tags
 
-Push a tag such as `v4.2.0` (or `4.2.0`) to build and publish a stable GitHub Release. Tags such as `v4.2.0-beta`, `v4.2.0-beta1` and `v4.2.0-beta2` create pre-releases. Other version suffixes are not accepted by the release workflow.
+Push a tag such as `4.1.2` or `v4.1.2` for a stable release. A tag such as `4.1.2-beta3` selects the pre-release channel. The tagged commit supplies both the workflow and its package selections.
 
-`.github/workflows/release.yml` checks out the tagged commit and passes the tag version to `Publish.ps1 -Version`. The main application, LogViewer and legacy transition executables and their ZIP names therefore use the same version even if the project files still contain a different development version. Explorer MSIX packages retain their separately configured package version. Local publishing without `-Version` continues to use the main project version.
+Edit `RELEASE_TARGETS` and `PRERELEASE_TARGETS` in `.github/workflows/release.yml`, or open **Publish.ps1 → GitHub-Workflows…**. The lists control the platform, ZIP or native format, and .NET variant independently. The tag sets the viewer version. Explorer keeps its separately configured version. The notes come from the matching section of the tagged `CHANGELOG.md`.
 
-Before building, `.github/scripts/Prepare-Release.ps1` compares the application project version with the tag and corrects it in the workflow checkout if necessary. The tag is authoritative for the application, LogViewer, transition executables and package manifests. The correction is local to that workflow run: it does not commit, push or move the tag, and it does not change the independently configured Explorer MSIX version.
+Stable releases wait for the selected platform builds. A pre-release can publish successful packages first. Re-running an unsuccessful job can add its packages to the same tag and refresh the manifests. GitHub re-runs use the original workflow from the tagged commit.
 
-Release notes come from the matching version section in the tagged `CHANGELOG.md`, for example `## [4.2.0] - 2026-10-19` or `## [4.2.0-beta1]`. A `v` prefix inside the brackets is also accepted. Only that section body is used, preserving its Markdown subsections and lists; `Unreleased` and other versions are excluded. Add the version section before pushing the tag. A missing, duplicate or empty matching section stops the workflow before building or creating a release. There is no fallback to generated commit notes or to `Unreleased`.
-All generated ZIPs, including the legacy transition packages, are uploaded to a draft release before it is published. A failed upload does not expose a partial release to the updater; inspect or remove any remaining draft before retrying a failed run. Existing published releases are not overwritten. The workflow needs Actions permission to write repository contents.
+For local compatibility packages, select **Kompatibilitaets-Updates + Manifest** in Publish or run the following after building the portable ZIPs:
 
-The package manifest is generated from the tagged source by `Publish.ps1` and is included in each application ZIP. Merely committing changes to `master` continues to build Actions artifacts; it does not publish a release or affect installed applications. Git tags must be pushed to trigger publication. The release descriptor and package migration instructions described below are generated from this same tagged source.
+```powershell
+./Publish.ps1 -Version 4.1.2 -OutputDirectory Publish -Extras UpdateCompatibility
+```
 
-After building the release packages, the workflow appends a **Which ZIP file do I need?** guide to the changelog notes. It uses the generated release descriptor and actual ZIP filenames, including the independently versioned Explorer assets. Runtime requirements are read from the project target frameworks: self-contained ZIPs include .NET; standard ZIPs require the corresponding Desktop Runtime. Optional LogViewer, firmware hashes, transition updaters and update metadata are explained separately. Re-running the guide step replaces its own footer instead of duplicating it.
+The compatibility step creates old-name Avalonia ZIPs with the manifest format beta1 expects, plus the Windows compatibility names and manifest entries for older WPF updaters. A stable version with matching Windows x86 or x64 ZIPs also builds the self-contained bridge EXE. Its version must match the release because the old updater checks the downloaded EXE before launching it.
 
-## Manifest-driven updates and repository moves
+## Windows package manifests and legacy update sources
 
-Edit `src/config/package-manifest.json` in the repository. `Publish.ps1` validates this template, fills in `Version` and `Executable`, and embeds it as `nxfileviewer-package.json` in every application ZIP. `-ExecutableName NewName.exe -PackageName NewName` changes the executable and ZIP prefix while keeping the internal `ApplicationId` stable.
+Windows Avalonia ZIPs include `nxfileviewer-package.json` for older manifest-aware Windows installers and `nxfileviewer-viewer.json` for the current Avalonia updater. The release manifest `nxfileviewer-update.json` lists portable Avalonia packages and, when compatibility packages are enabled, maps Windows architectures and .NET variants to the appropriate ZIP for older updaters. Keep the application ID `NxFileViewerFork` stable across releases.
 
-Publishing also generates `nxfileviewer-update.json` next to the ZIPs. The release workflow uploads this small JSON asset alongside the packages; no additional ZIP or helper EXE is required. It maps each architecture/runtime distribution to its actual ZIP name. The updater verifies the descriptor against its GitHub asset SHA-256 digest, checks identity and version, and uses the chosen ZIP's own GitHub SHA-256 digest. Older releases without a descriptor continue to use the original naming convention. If the latest stable release lacks a matching distribution, the new updater searches older releases for a compatible version newer than the installed version. Explicit architecture checks never substitute a different package. The application can separately offer an explicitly confirmed x86-to-x64 switch, as described below; the runtime distribution remains unchanged.
+The following repository-move and migration settings describe the manifest-aware Windows updater and compatibility installer.
 
 `UpdateSources` accepts legacy GitHub names and typed GitHub, GitLab, Forgejo or independent HTTPS-manifest sources. See [update source configuration](../src/config/Update-sources.md) for formats and portable hosting. To prepare a move, publish an update containing both the new and old repositories before moving. After successful installation they are remembered in `NxFileViewerFork.update-state.json`; failed installations roll this state back. Checks try the remembered sources and choose the highest eligible version found. GitHub downloads must belong to the supplying repository. Native GitLab/Forgejo addresses use the configured origin; independent HTTPS manifests can explicitly name download hosts/CDNs. A nonempty UpdateSources list replaces the remembered list after installation. Include both repositories during the transition; a later release can explicitly remove the old source. Without local update state, the original repository is the initial source. Installations that missed the preparatory update still need a working old location or a manual update; keep the old source available during the transition. This uses the existing GitHub/HTTPS trust model and asset digests, not a separate developer-signature system.
 
@@ -116,7 +147,7 @@ GitHub API limits are detected from 403/429 responses and rate-limit headers. Th
 
 ## Download, verification and replacement
 
-Installation requires an idle viewer and a writable program directory. The matching Windows release ZIP is staged under `Updates/<unique-id>` beside the executable. GitHub's SHA-256 asset digest, the full EXE product version (including preview suffix) and PE architecture are checked before installation. Missing digests are rejected.
+The following describes the manifest-aware Windows ZIP installer. Installation requires an idle viewer and a writable program directory. The matching release ZIP is staged under `Updates/<unique-id>` beside the executable. GitHub's SHA-256 asset digest, the full EXE product version (including preview suffix) and PE architecture are checked before installation. Missing digests are rejected.
 
 Release ZIPs contain their files directly at the archive root. Additional files and subdirectories are installed at the same relative paths beside the main executable. Existing files absent from the ZIP remain untouched. Unsafe paths, directory links, keys and settings files are rejected.
 
@@ -129,34 +160,6 @@ Release ZIPs contain their files directly at the archive root. Additional files 
 Keep the application ID stable. `./Publish.ps1 -ExecutableName NxFileViewerFork.exe` publishes a renamed executable and records its name automatically. File associations use a stable launcher with a sibling target reference. Settings use `NxFileViewerFork.settings.json`.
 
 A hidden PowerShell helper waits for process exit, verifies all staged file hashes, backs up overwritten files and installs the complete package. On failure it restores the previous files and removes newly added files. A renamed previous main executable is removed only as part of this transaction. Backups and a journal remain under `Updates/<GUID>` for package rollback and diagnosis. No elevation is used.
-
-Older single-executable archives remain readable by the new updater. Publishing includes legacy-compatible transition ZIPs by default, alongside the normal new-name application ZIPs:
-
-```powershell
-./Publish.ps1
-# Optional: omit transition ZIPs when legacy upgrades are no longer needed.
-./Publish.ps1 -IncludeLegacyTransition:$false
-```
-
-`NxFileViewer_v<version>_<variant/architecture>.zip` contains only a transition `NxFileViewer.exe`, compatible with old single-file updaters. The transition window uses Avalonia and the executable bundles its own .NET runtime. Before migration it reads IncludeViewerPrereleases from NxFileViewerFork.settings.json, or from NxFileViewer.settings.json when the fork file is absent. An explicit boolean true enables stable and pre-release candidates; otherwise it requests the latest stable release, independently of the transition EXE's build version. It selects the matching `NxFileViewerFork_v*` package, verifies its SHA-256 digest, architecture, package identity and actual target release version, then migrates data and installs the renamed application. Failed downloads stay visible with a Retry button. It selects the highest compatible semantic version. Drafts, old-name transition packages and another runtime variant are not substituted; previews require the explicit setting.
-
-The transition stays running beyond older helpers' early-startup check. Its own embedded version must still match the release advertising it: old updaters check the downloaded EXE version before starting it. Therefore a transition ZIP cannot simply be renamed and reused unchanged in a later release. `Publish.ps1` rebuilds all four transition variants with the current application version automatically. Upload those generated old-name ZIPs with each new release, together with the new-name application packages. A user who skipped 4.1.0-beta1 can then update directly through a later release; manually starting a transition EXE also follows its supported release-selection behavior (older transition builds may still be stable-only).
-
-Only the transition moves `Cache/TitleDB`, `Cache/Updates` and `fw/hashes` into `Plugins/TitleDB`, `Plugins/CacheUpdates` and `Plugins/fwhashes`, and renames `NxFileViewer.settings.json` to `NxFileViewerFork.settings.json`. Existing destination files take precedence; conflicting legacy files remain intact. The normal application does not inspect or migrate legacy locations. Manual upgrades from older versions must use the transition EXE or move these files once themselves.
-
-## Publishing 4.1.0-beta1
-
-The project uses package version `4.1.0-beta1`. Run `Publish.ps1` and create a GitHub Release with tag `v4.1.0-beta1` with the GitHub pre-release flag enabled. Attach:
-
-- `NxFileViewerFork_v4.1.0-beta1_x64.zip`
-- `NxFileViewerFork_v4.1.0-beta1_x86.zip`
-- `NxFileViewerFork_v4.1.0-beta1_self-contained_x64.zip` (compressed, includes .NET)
-- `NxFileViewerFork_v4.1.0-beta1_self-contained_x86.zip` (compressed, includes .NET)
-- `NxFileViewerFork_v4.1.0-beta1_firmware-hashes.zip` (optional reference add-on)
-
-Also attach the four NxFileViewer_v4.1.0-beta1_<variant/architecture>.zip transition packages for older installations. The transition installs this beta when IncludeViewerPrereleases is true in the existing configuration; false or an absent setting keeps stable-only selection. If both old and fork settings files exist, the fork file takes precedence. Malformed or unreadable configuration stops the transition with its retry/error view; files are not migrated before a package is downloaded and verified.
-
-Application ZIPs include the portable executable with embedded debug symbols; firmware references stay in their separate ZIP. GitHub Actions artifacts alone are not releases available to the updater. Architecture selection follows the running viewer process.
 
 ## Preview version ordering
 

@@ -215,7 +215,7 @@ public sealed class RepositoryMirrors(HttpClient? client = null, GitHubUpdateReq
         if (assets.ValueKind != JsonValueKind.Array) throw new InvalidDataException("Expected release assets.");
         var entries = assets.EnumerateArray().ToArray();
         if (!entries.Any(e => Text(e, "name") is { } name &&
-            ((name.StartsWith("NxFileViewerFork.Exploder_", StringComparison.Ordinal) && name.EndsWith("_win-" + arch + ".zip", StringComparison.Ordinal)) ||
+            (((name.StartsWith("NxFileViewerFork.Explorer_", StringComparison.Ordinal) || name.StartsWith("NxFileViewerFork.Exploder_", StringComparison.Ordinal)) && name.EndsWith("_win-" + arch + ".zip", StringComparison.Ordinal)) ||
              (name.StartsWith("NxFileViewerFork.Explorer_", StringComparison.Ordinal) && name.EndsWith("_" + arch + "_setup.zip", StringComparison.Ordinal))))) return null;
         string? Url(JsonElement e) => source.Kind == ViewerUpdateSourceKind.GitLab ? Text(e,"direct_asset_url") ?? Text(e,"url") : Text(e,"browser_download_url");
         var descriptor = entries.Where(e => Text(e,"name") == ViewerUpdateMetadata.ReleaseManifestName).ToArray();

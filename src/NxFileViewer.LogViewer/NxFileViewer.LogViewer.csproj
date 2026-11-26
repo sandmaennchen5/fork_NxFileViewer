@@ -9,7 +9,7 @@
     <ApplicationIcon>../NxFileViewer/Shared/Styling/Icons/Icon.ico</ApplicationIcon>
     <!-- Preserve the reflection bindings used by the converted views. -->
     <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
-    <AvaloniaVersion>12.1.6</AvaloniaVersion>
+    <AvaloniaVersion>12.2.0</AvaloniaVersion>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Avalonia.Desktop" Version="$(AvaloniaVersion)" />

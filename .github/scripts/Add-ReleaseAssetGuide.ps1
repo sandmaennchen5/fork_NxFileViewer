@@ -64,7 +64,7 @@ foreach ($package in $explorer) {
 $escaped = [regex]::Escape($Version)
 $zipFiles = @(Get-ChildItem -LiteralPath $PackageDirectory -Filter '*.zip' -File)
 $transition = @($zipFiles | Where-Object { $_.Name -cmatch ('^NxFileViewer_v' + $escaped + '(?:_self-contained)?_(?:x64|x86|arm64)\.zip$') -and !$names.Contains($_.Name) } | Sort-Object Name)
-$firmware = @($zipFiles | Where-Object { $_.Name -cmatch ('^[A-Za-z0-9._-]+_v' + $escaped + '_firmware-hashes\.zip$') } | Sort-Object Name)
+$firmware = @($zipFiles | Where-Object { $_.Name -cmatch ('^(?:NxFileViewerFork\.FirmwareHashes_v' + $escaped + '|[A-Za-z0-9._-]+_v' + $escaped + '_firmware-hashes)\.zip$') } | Sort-Object Name)
 $avalonia = @($zipFiles | Where-Object { $_.Name -cmatch ('^NxFileViewerFork_Avalonia_v' + $escaped + '(?:_self-contained)?_(?:x64|x86|arm64|linux-(?:x64|arm64)|osx-(?:x64|arm64))\.zip$') } | Sort-Object Name)
 $modern = @($zipFiles | Where-Object Name -CMatch ('^NxFileViewerFork_v' + $escaped + '_(?:win|linux|osx)-(?:x64|x86|arm64)-(?:with|without)-net(?:-appimage|-dmg)?\.zip$') | Sort-Object Name)
 if (!$packages.Count -and !$modern.Count -and !$avalonia.Count) { throw 'No viewer packages found.' }

@@ -55,7 +55,7 @@ internal static partial class AvaloniaAppUpdater
             if (!rid.StartsWith(appImage ? "linux-" : "osx-", StringComparison.Ordinal)) return null;
             var version = tag.TrimStart('v', 'V');
             var nativeName = $"v{version}_{rid}-{variant}";
-            var extensions = appImage ? new[] { ".AppImage" } : new[] { ".dmg", ".app.zip" };
+            var extensions = appImage ? new[] { ".AppImage.zip", ".AppImage" } : new[] { ".dmg", ".app.zip" };
             foreach (var extension in extensions)
             foreach (var name in new[] { "NxFileViewerFork_" + nativeName + extension, nativeName + extension })
             {
@@ -100,7 +100,8 @@ internal static partial class AvaloniaAppUpdater
         var stage = NewStagePath(updates);
         Directory.CreateDirectory(stage);
         var diskImage = macBundle && release.AssetName.EndsWith(".dmg", StringComparison.OrdinalIgnoreCase);
-        var zipPath = Path.Combine(stage, appImageName != null ? "package.AppImage" : diskImage ? "package.dmg" : "package.zip");
+        var appImageZip = appImageName != null && release.AssetName.EndsWith(".AppImage.zip", StringComparison.OrdinalIgnoreCase);
+        var zipPath = Path.Combine(stage, appImageName != null && !appImageZip ? "package.AppImage" : diskImage ? "package.dmg" : "package.zip");
         try
         {
             var expected = release.Digest;
@@ -175,9 +176,13 @@ internal static partial class AvaloniaAppUpdater
             if (appImageName != null)
             {
                 if (!IsAppImageName(appImageName)) throw new InvalidDataException("Invalid AppImage filename.");
-                ValidateAppImage(zipPath, rid);
                 var payload = Directory.CreateDirectory(Path.Combine(stage, "payload")).FullName;
-                File.Move(zipPath, Path.Combine(payload, appImageName));
+                var target = Path.Combine(payload, appImageName);
+                if (appImageZip)
+                    await ExtractAppImageZipAsync(zipPath, target, cancellation);
+                else
+                    File.Move(zipPath, target);
+                ValidateAppImage(target, rid);
                 return stage;
             }
             using var archive = File.OpenRead(zipPath);
@@ -185,6 +190,27 @@ internal static partial class AvaloniaAppUpdater
             return stage;
         }
         catch { Directory.Delete(stage, true); throw; }
+    }
+
+    private static async Task ExtractAppImageZipAsync(string path, string target, CancellationToken cancellation)
+    {
+        using var archive = ZipFile.OpenRead(path);
+        if (archive.Entries.Count != 1 || archive.Entries[0] is not { FullName: "NxFileViewerFork.AppImage" } entry ||
+            entry.Length <= 0 || entry.Length > MaximumBytes || ((entry.ExternalAttributes >> 16) & 0xF000) == 0xA000)
+            throw new InvalidDataException("Expected a ZIP containing only NxFileViewerFork.AppImage.");
+
+        await using var input = entry.Open();
+        await using var output = new FileStream(target, FileMode.CreateNew, FileAccess.Write);
+        var buffer = new byte[81920];
+        long total = 0;
+        int count;
+        while ((count = await input.ReadAsync(buffer, cancellation)) > 0)
+        {
+            total += count;
+            if (total > entry.Length) throw new InvalidDataException("AppImage exceeds its declared size.");
+            await output.WriteAsync(buffer.AsMemory(0, count), cancellation);
+        }
+        if (total != entry.Length) throw new InvalidDataException("Incomplete AppImage.");
     }
 
     private static string ReadChecksum(JsonElement package, string name)

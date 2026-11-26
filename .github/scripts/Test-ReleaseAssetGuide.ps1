@@ -39,7 +39,7 @@ function Fixture([string]$name, [bool]$optional = $true, [int]$runtime = 10) {
             [IO.File]::WriteAllBytes((Join-Path $out $file), [byte[]]@())
             $explorer += @{Architecture=$architecture;SelfContained=$false;AssetName=$file}
         }
-        [IO.File]::WriteAllBytes((Join-Path $out "NxFileViewerFork_v$($version)_firmware-hashes.zip"), [byte[]]@())
+        [IO.File]::WriteAllBytes((Join-Path $out "NxFileViewerFork.FirmwareHashes_v$($version).zip"), [byte[]]@())
     }
     $descriptor = @{SchemaVersion=1;ApplicationId='NxFileViewerFork';Version=$version;Packages=@($packages | Where-Object Architecture -ne 'arm64');Arm64Packages=@($packages | Where-Object Architecture -eq 'arm64');ExplorerPackages=$explorer}
     [IO.File]::WriteAllText((Join-Path $out 'nxfileviewer-update.json'), ($descriptor | ConvertTo-Json -Depth 6))

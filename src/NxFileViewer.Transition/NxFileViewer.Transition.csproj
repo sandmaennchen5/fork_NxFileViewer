@@ -2,7 +2,7 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
-    <AvaloniaVersion>12.1.6</AvaloniaVersion>
+    <AvaloniaVersion>12.2.0</AvaloniaVersion>
     <Nullable>enable</Nullable>
     <AssemblyName>NxFileViewer</AssemblyName>
     <RootNamespace>NxFileViewer.Transition</RootNamespace>

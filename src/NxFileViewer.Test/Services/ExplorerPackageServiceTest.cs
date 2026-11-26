@@ -71,10 +71,12 @@ public sealed class ExplorerPackageServiceTest : IDisposable
         Assert.Null(ExplorerPackageService.SelectRelease(Release(arch, draft: true), arch, true));
         Assert.Null(ExplorerPackageService.SelectRelease(Release(arch == "x64" ? "arm64" : "x64"), arch, true));
     }
-    [Fact]
-    public void SelectsRenamedExploderZip()
+    [Theory]
+    [InlineData("Explorer")]
+    [InlineData("Exploder")]
+    public void SelectsCurrentAndLegacyExplorerZip(string component)
     {
-        var name = $"NxFileViewerFork.Exploder_{PackageVersion}_win-x64.zip";
+        var name = $"NxFileViewerFork.{component}_{PackageVersion}_win-x64.zip";
         var release = JsonSerializer.SerializeToElement(new
         {
             tag_name = "v4.0.1", prerelease = false, draft = false,

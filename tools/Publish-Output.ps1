@@ -11,6 +11,15 @@ function Write-AvaloniaUpdateChecksum([string]$Zip, [switch]$PassThru) {
     [IO.File]::WriteAllText(($Zip + '.viewer.json'),($marker | ConvertTo-Json),[Text.UTF8Encoding]::new($false))
     if ($PassThru) { $marker }
 }
+function New-PublishFirmwareHashesZip([string]$RepositoryRoot, [string]$StagingRoot, [string]$Zip) {
+    $hashRoot = (New-Item -ItemType Directory -Path (Join-Path $StagingRoot ('firmware-hashes-' + [guid]::NewGuid().ToString('N')))).FullName
+    $hashDirectory = (New-Item -ItemType Directory -Path (Join-Path $hashRoot 'Plugins/fwhashes') -Force).FullName
+    $hashFiles = @(Get-ChildItem -LiteralPath (Join-Path $RepositoryRoot 'fw/hashes') -Filter '*.json' -File)
+    if ($hashFiles.Count -eq 0) { throw 'No firmware hash references found.' }
+    Copy-Item -LiteralPath @($hashFiles.FullName) -Destination $hashDirectory
+    Compress-Archive -LiteralPath (Join-Path $hashRoot 'Plugins') -DestinationPath $Zip -Force
+    return $hashRoot
+}
 function Add-PublishSizeRow($Rows, [string]$Name, [string]$Directory, [string]$Executable, [string]$Zip) {
     $files = @(Get-ChildItem -LiteralPath $Directory -File -Recurse)
     $total = ($files | Measure-Object -Property Length -Sum).Sum

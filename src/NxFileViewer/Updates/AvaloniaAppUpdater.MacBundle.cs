@@ -232,7 +232,8 @@ internal static partial class AvaloniaAppUpdater
 
         var previousDirectory = Path.GetDirectoryName(previous)!;
         var nextDirectory = Path.Combine(payload, "Contents", "MacOS");
-        if (ViewerDataMigration.HasData(previousDirectory))
+        if (ViewerDataMigration.HasData(previousDirectory) &&
+            (!OperatingSystem.IsMacOS() || !ViewerDataMigration.WasCopied(previousDirectory, ViewerDataDirectory.GetMacBundleDataRoot())))
         {
             var result = ViewerDataMigration.Copy(previousDirectory, nextDirectory);
             if (result.Conflicts != 0) throw new IOException("The new bundle conflicts with existing program data.");

@@ -98,7 +98,7 @@ jobs:
         run: |
           $runtimes = @($env:RELEASE_RUNTIMES | ConvertFrom-Json)
           $variants = @($env:RELEASE_VARIANTS | ConvertFrom-Json | ForEach-Object { $_ -eq 'with-net' })
-          ./tools/Publish-Applications.ps1 -Framework Avalonia -Applications Viewer,LogViewer -Version $env:RELEASE_VERSION -OutputDirectory Publish-Avalonia -RuntimeIdentifiers $runtimes -RuntimeVariants $variants -SkipFirmwareHashes:(!$IsWindows) -AllTargets -NoCopy
+          ./tools/Publish-Applications.ps1 -Framework Avalonia -Applications Viewer -Version $env:RELEASE_VERSION -OutputDirectory Publish-Avalonia -RuntimeIdentifiers $runtimes -RuntimeVariants $variants -SkipFirmwareHashes:(!$IsWindows) -AllTargets -NoCopy
       - name: Upload Avalonia packages
         if: matrix.zipVariants[0] != null
         uses: actions/upload-artifact@v7
@@ -128,10 +128,10 @@ jobs:
           $runtimes = @($env:RELEASE_RUNTIMES | ConvertFrom-Json)
           $variants = @($env:RELEASE_VARIANTS | ConvertFrom-Json | ForEach-Object { $_ -eq 'with-net' })
           $formats = @($runtimes | ForEach-Object { "$_-$($env:NATIVE_FORMAT.ToLowerInvariant())" })
-          ./tools/Publish-Applications.ps1 -Framework Avalonia -Applications Viewer,LogViewer -Version $env:RELEASE_VERSION -OutputDirectory Publish-Native -RuntimeIdentifiers $runtimes -RuntimeVariants $variants -NativePackage $env:NATIVE_FORMAT -FormatTargets $formats -ExecutableOnly -SkipFirmwareHashes -NoCopy -IncludeDmg:($env:NATIVE_FORMAT -eq 'App')
+          ./tools/Publish-Applications.ps1 -Framework Avalonia -Applications Viewer -Version $env:RELEASE_VERSION -OutputDirectory Publish-Native -RuntimeIdentifiers $runtimes -RuntimeVariants $variants -NativePackage $env:NATIVE_FORMAT -FormatTargets $formats -ExecutableOnly -SkipFirmwareHashes -NoCopy -IncludeDmg:($env:NATIVE_FORMAT -eq 'App') -IncludeAppImageZip:($env:NATIVE_FORMAT -eq 'AppImage')
           $extension = if ($env:NATIVE_FORMAT -eq 'AppImage') { '*.AppImage' } else { '*.app.zip' }
-          if (@(Get-ChildItem -LiteralPath Publish-Native -File -Filter $extension).Count -ne ($runtimes.Count * $variants.Count * 2)) {
-              throw "Expected one $($env:NATIVE_FORMAT) package per application and architecture."
+          if (@(Get-ChildItem -LiteralPath Publish-Native -File -Filter $extension).Count -ne ($runtimes.Count * $variants.Count)) {
+              throw "Expected one $($env:NATIVE_FORMAT) package per runtime and .NET variant."
           }
 
       - name: Upload native Avalonia packages
@@ -141,6 +141,7 @@ jobs:
           name: release-avalonia-${{ matrix.platform }}-native
           path: |
             Publish-Native/*.AppImage
+            Publish-Native/*.AppImage.zip
             Publish-Native/*.app.zip
             Publish-Native/*.dmg
           if-no-files-found: error
@@ -214,11 +215,12 @@ jobs:
                   if ($release.tag_name -ceq $env:RELEASE_TAG) { $release }
               }
           }
-          $existingPackageNames = @($existing.assets | Where-Object { $_.name -like '*.zip' -or $_.name -like '*.AppImage' -or $_.name -like '*.dmg' } | ForEach-Object name)
+          $existingPackageNames = @($existing.assets | Where-Object { $_.name -notlike 'NxFileViewerFork.LogViewer_*' -and [IO.Path]::GetExtension($_.name) -in @('.zip','.AppImage','.dmg') } | ForEach-Object name)
           if ($existing) {
               if ($existing.immutable) { throw 'This release is immutable and cannot accept additional packages.' }
               if ($existingPackageNames.Count) {
-                  gh release download $env:RELEASE_TAG --dir Publish-Release --pattern '*.zip' --pattern '*.AppImage' --pattern '*.dmg' --clobber
+                  $patterns = @($existingPackageNames | ForEach-Object { "--pattern=$_" })
+                  gh release download $env:RELEASE_TAG --dir Publish-Release --clobber @patterns
                   if ($LASTEXITCODE -ne 0) { throw 'Could not retrieve the existing release packages.' }
               }
           }
@@ -232,13 +234,11 @@ jobs:
                   foreach ($variant in $group.nativeVariants) {
                       $suffix = "v$($env:RELEASE_VERSION)_$rid-$variant"
                       if ($group.native -eq 'AppImage') {
-                          "$suffix.AppImage"
-                          "NxFileViewerFork.LogViewer_$suffix.AppImage"
+                          "NxFileViewerFork_$suffix.AppImage"
+                          "NxFileViewerFork_$suffix.AppImage.zip"
                       } else {
                           "NxFileViewerFork_$suffix.app.zip"
-                          "NxFileViewerFork.LogViewer_$suffix.app.zip"
                           "NxFileViewerFork_$suffix.dmg"
-                          "NxFileViewerFork.LogViewer_$suffix.dmg"
                       }
                   }
               })
@@ -248,11 +248,9 @@ jobs:
               }
               if ($nativeAvailable.Count) { $platformCount++ }
               if (!$group.zipVariants.Count) { continue }
-              $expected = @(foreach ($app in 'NxFileViewerFork','NxFileViewerFork.LogViewer') {
-                  foreach ($rid in $group.runtimes) {
-                      foreach ($variant in $group.zipVariants) {
-                          "${app}_v$($env:RELEASE_VERSION)_$rid-$variant.zip"
-                      }
+              $expected = @(foreach ($rid in $group.runtimes) {
+                  foreach ($variant in $group.zipVariants) {
+                      "NxFileViewerFork_v$($env:RELEASE_VERSION)_$rid-$variant.zip"
                   }
               })
               $available = @($expected | Where-Object { Test-Path -LiteralPath (Join-Path Publish-Release $_) -PathType Leaf })
@@ -278,7 +276,7 @@ jobs:
           if (!$platformCount) { throw 'No platform completed successfully.' }
 
           if ($hasWindows) {
-              $explorer = @(Get-ChildItem -LiteralPath Publish-Release -Filter 'NxFileViewerFork.Exploder_*.zip' -File)
+              $explorer = @(Get-ChildItem -LiteralPath Publish-Release -Filter 'NxFileViewerFork.Explo?er_*.zip' -File)
               if (!($explorer.Name -like '*_win-x64.zip') -or !($explorer.Name -like '*_win-arm64.zip')) {
                   ./Publish.ps1 -Version $env:RELEASE_VERSION -OutputDirectory Publish-Release -Extras Explorer
               }
@@ -287,7 +285,7 @@ jobs:
               ./Publish.ps1 -Version $env:RELEASE_VERSION -OutputDirectory Publish-Release -Extras UpdateCompatibility
               $descriptor = Get-Content -LiteralPath Publish-Release/nxfileviewer-update.json -Raw | ConvertFrom-Json
               $index = Get-Content -LiteralPath Publish-Release/nxfileviewer-packages.json -Raw | ConvertFrom-Json
-              $avalonia = @(Get-ChildItem -LiteralPath Publish-Release -File | Where-Object Name -Match "^NxFileViewerFork(?:\.LogViewer)?_v${version}_(?:win|linux|osx)-.*-net\.zip$")
+              $avalonia = @(Get-ChildItem -LiteralPath Publish-Release -File | Where-Object Name -Match "^NxFileViewerFork_v${version}_(?:win|linux|osx)-.*-net\.zip$")
               if (@($descriptor.AvaloniaPackages).Count -ne $avalonia.Count) { throw 'Missing Avalonia manifest entries.' }
               foreach ($zip in $avalonia) {
                   $item = @($descriptor.AvaloniaPackages | Where-Object AssetName -eq $zip.Name)

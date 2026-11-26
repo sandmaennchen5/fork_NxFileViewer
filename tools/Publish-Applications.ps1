@@ -10,7 +10,7 @@ param(
     [Nullable[bool]]$CopyRuntimeIncludesDotNet=$null,
     [switch]$SkipFirmwareHashes, [switch]$AllTargets, [switch]$NoCopy,
     [ValidateSet('AppImage','Dmg','App')][string]$NativePackage,
-    [switch]$SkipAvaloniaZipMetadata, [switch]$IncludeDmg,
+    [switch]$SkipAvaloniaZipMetadata, [switch]$IncludeDmg, [switch]$IncludeAppImageZip,
     [string[]]$FormatTargets=@(),
     $TargetOutputs,
     [hashtable]$ApplicationVersions=@{}
@@ -157,7 +157,6 @@ try {
         foreach ($target in $targets) {
             $rid = $target.Rid
             $withRuntime = $target.WithRuntime
-            $frameworkSuffix = if ($Framework -eq 'Avalonia') { '_Avalonia' } else { '' }
             $dotnetVariant = if ($withRuntime) { 'with-net' } else { 'without-net' }
             $prefix = $applicationNames[$Framework+$app.Kind]
             $name = "${prefix}_v${appVersion}_$rid-$dotnetVariant"
@@ -229,33 +228,39 @@ try {
             }
             Add-PublishSizeRow $sizes $name $reportDirectory $executable $zip
             if ($buildNative) {
-                $nativeName = if ($app.Kind -eq 'Viewer') { "v${appVersion}_$rid-$dotnetVariant" } else { $name }
+                $nativeName = $name
                 $nativeOutput = $output
                 $nativeZipSelected = $CreateZipArchives -and $app.Project -eq 'NxFileViewer.Avalonia'
                 if ($NativePackage -eq 'App') {
-                    $nativeName = $name
                     $nativeZipSelected = $false
                 }
                 if ($null -ne $TargetOutputs) {
-                    $nativeName = "$name-$($NativePackage.ToLowerInvariant())"
+                    $formatName = "$name-$($NativePackage.ToLowerInvariant())"
                     $nativeZipSelected = $target.Native -in @('Zip','Both')
-                    $nativeOutput = if ($target.Native -in @('Folder','Both')) { Join-Path $output $nativeName } else { Join-Path $stage 'native-output' }
+                    $nativeOutput = if ($target.Native -in @('Folder','Both')) { Join-Path $output $formatName } else { Join-Path $stage 'native-output' }
                     New-Item -ItemType Directory -Path $nativeOutput -Force | Out-Null
                 }
                 $nativeAsset = & (Join-Path $PSScriptRoot 'Publish-NativePackage.ps1') -Format $NativePackage -Tool $nativeTool -RuntimeIdentifier $rid -Version $appVersion -AppName $app.Name -AssetName $nativeName -PublishDirectory $publish -ExecutableName $executableName -OutputDirectory $nativeOutput -IncludeDmg:($IncludeDmg -and $NativePackage -eq 'App')
                 if ($null -eq $TargetOutputs -or $target.Native -in @('Folder','Both')) {
                     Write-Host "$NativePackage package: $nativeAsset"
                 }
-                if ($nativeZipSelected) {
+                if ($NativePackage -eq 'AppImage' -and ($nativeZipSelected -or $IncludeAppImageZip)) {
+                    Add-Type -AssemblyName System.IO.Compression.FileSystem
+                    $fileName = "$name.AppImage.zip"
+                    $entryName = "$($app.Name).AppImage"
+                    $stagedZip = Join-Path $stage $fileName
+                    $archive = [IO.Compression.ZipFile]::Open($stagedZip,[IO.Compression.ZipArchiveMode]::Create)
+                    try {
+                        $entry = [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($archive, $nativeAsset, $entryName)
+                        $entry.ExternalAttributes = -2115174400
+                    } finally { $archive.Dispose() }
+                    Set-ZipUnixCreator $stagedZip @($entryName)
+                    $nativeZip = Join-Path $output $fileName
+                    Move-Item -LiteralPath $stagedZip -Destination $nativeZip -Force
+                    Write-Host "ZIP: $nativeZip"
+                } elseif ($nativeZipSelected) {
                     $nativeZip = Join-Path $output "$name-$($NativePackage.ToLowerInvariant()).zip"
                     Compress-Archive -LiteralPath $nativeAsset -DestinationPath $nativeZip -Force
-                    if ($NativePackage -eq 'AppImage') {
-                        Add-Type -AssemblyName System.IO.Compression.FileSystem
-                        $archive = [IO.Compression.ZipFile]::Open($nativeZip,[IO.Compression.ZipArchiveMode]::Update)
-                        try { $archive.Entries[0].ExternalAttributes = -2115174400 }
-                        finally { $archive.Dispose() }
-                        Set-ZipUnixCreator $nativeZip @([IO.Path]::GetFileName($nativeAsset))
-                    }
                     Write-Host "ZIP: $nativeZip"
                 }
             }
@@ -268,13 +273,8 @@ try {
         }
     }
     if ($CreateZipArchives -and !$SkipFirmwareHashes) {
-        $hashRoot = Join-Path $stage 'firmware-hashes'
-        $hashDirectory = (New-Item -ItemType Directory -Path (Join-Path $hashRoot 'Plugins/fwhashes') -Force).FullName
-        $hashFiles = @(Get-ChildItem -LiteralPath (Join-Path $RepositoryRoot 'fw/hashes') -Filter '*.json' -File)
-        if ($hashFiles.Count -eq 0) { throw 'No firmware hash references found.' }
-        Copy-Item -LiteralPath @($hashFiles.FullName) -Destination $hashDirectory
-        $hashZip = Join-Path $output "NxFileViewerFork${frameworkSuffix}_v${Version}_firmware-hashes.zip"
-        Compress-Archive -LiteralPath (Join-Path $hashRoot 'Plugins') -DestinationPath $hashZip -Force
+        $hashZip = Join-Path $output "NxFileViewerFork.FirmwareHashes_v${Version}.zip"
+        $hashRoot = New-PublishFirmwareHashesZip $RepositoryRoot $stage $hashZip
         Write-Host "ZIP: $hashZip"
         Add-PublishSizeRow $sizes ([IO.Path]::GetFileName($hashZip)) $hashRoot $null $hashZip
     }

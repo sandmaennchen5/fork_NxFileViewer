@@ -136,6 +136,7 @@ function Publish-AvaloniaSelection {
     }
     if ($nativePackage) {
         $options.NativePackage = if ($AppImage) { 'AppImage' } else { 'Dmg' }
+        if ($AppImage) { $options.IncludeAppImageZip = $true }
         if (!$WithDotNet -and !$WithoutDotNet) { $options.RuntimeVariants = @($true) }
         if (!$AvaloniaOnly -and !$AvaloniaLogViewer -and !$Avalonia) { $options.Applications = @('Viewer') }
     }
@@ -334,7 +335,7 @@ Danach NxFileViewer Fork normal starten und unter Einstellungen > Programm das m
             $suffix = if ($UnsignedExplorerPackages) { '.unsigned' } else { '' }
             $setupFiles = @(Join-Path $ExplorerOutput "NxFileViewerFork.Explorer_${ExplorerPackageVersion}_${shellArchitecture}${suffix}.msix")
         }
-        Write-PublishExtraPackage "NxFileViewerFork.Exploder_${ExplorerPackageVersion}_win-$shellArchitecture" $setupFiles $ExplorerOutputFormat
+        Write-PublishExtraPackage "NxFileViewerFork.Explorer_${ExplorerPackageVersion}_win-$shellArchitecture" $setupFiles $ExplorerOutputFormat
     }
 }
 
@@ -407,8 +408,16 @@ function Write-ReleaseDescriptor([switch]$IncludeExplorer, [switch]$RequireExplo
     $ExplorerReleasePackages = @()
     if ($IncludeExplorer) {
         foreach ($architecture in @('x64','arm64')) {
-            $assetName = "NxFileViewerFork.Exploder_${ExplorerPackageVersion}_win-$architecture.zip"
+            $assetName = "NxFileViewerFork.Explorer_${ExplorerPackageVersion}_win-$architecture.zip"
             $zip = Join-Path $OutDirRoot $assetName
+            if (!(Test-Path -LiteralPath $zip -PathType Leaf)) {
+                $legacyName = "NxFileViewerFork.Exploder_${ExplorerPackageVersion}_win-$architecture.zip"
+                $legacyZip = Join-Path $OutDirRoot $legacyName
+                if (Test-Path -LiteralPath $legacyZip -PathType Leaf) {
+                    $assetName = $legacyName
+                    $zip = $legacyZip
+                }
+            }
             if (!(Test-Path -LiteralPath $zip -PathType Leaf)) {
                 if ($RequireExplorerPackages) { throw "Explorer ZIP missing after packaging: $assetName" }
                 continue

@@ -16,7 +16,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $utf8 = [Text.UTF8Encoding]::new($false)
 $stage = Split-Path -Parent $PublishDirectory
-$displayName = "$AppName Avalonia"
+$displayName = if ($AppName -eq 'NxFileViewerFork.LogViewer') { 'NxFileViewer Fork LogViewer' } else { 'NxFileViewer Fork' }
 $iconSource = Join-Path $PSScriptRoot '../src/Resources/nxfv-xci.png'
 
 if ($Format -eq 'AppImage') {
@@ -58,7 +58,7 @@ Terminal=false
     }
 } else {
     $imageRoot = Join-Path $stage "$AssetName-bundle"
-    $bundle = Join-Path $imageRoot "$displayName.app"
+    $bundle = Join-Path $imageRoot "$AppName.app"
     $contents = Join-Path $bundle 'Contents'
     $bin = (New-Item -ItemType Directory -Path (Join-Path $contents 'MacOS') -Force).FullName
     Get-ChildItem -LiteralPath $PublishDirectory -Force | Copy-Item -Destination $bin -Recurse
@@ -91,6 +91,7 @@ Terminal=false
     <key>CFBundleExecutable</key><string>$ExecutableName</string>
     <key>CFBundleIdentifier</key><string>io.github.nxfileviewer.$($AppName.ToLowerInvariant()).avalonia</string>
     <key>CFBundleName</key><string>$displayName</string>
+    <key>CFBundleDisplayName</key><string>$displayName</string>
     <key>CFBundleIconFile</key><string>AppIcon.icns</string>
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleShortVersionString</key><string>$bundleVersion</string>

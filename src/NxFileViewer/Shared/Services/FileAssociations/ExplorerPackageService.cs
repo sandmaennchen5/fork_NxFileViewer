@@ -69,7 +69,7 @@ public sealed class ExplorerPackageService
         foreach (var asset in release.GetProperty("assets").EnumerateArray())
         {
             var name = asset.GetProperty("name").GetString() ?? "";
-            var match = Regex.Match(name, @"^NxFileViewerFork\.Exploder_(\d+\.\d+\.\d+\.\d+)_win-" + architecture + @"\.zip$");
+            var match = Regex.Match(name, @"^NxFileViewerFork\.(?:Explorer|Exploder)_(\d+\.\d+\.\d+\.\d+)_win-" + architecture + @"\.zip$");
             if (!match.Success)
                 match = Regex.Match(name, @"^NxFileViewerFork\.Explorer_(\d+\.\d+\.\d+\.\d+)_" + architecture + @"_setup\.zip$");
             if (!match.Success || !Version.TryParse(match.Groups[1].Value, out var version) || version.Major == 0 ||
