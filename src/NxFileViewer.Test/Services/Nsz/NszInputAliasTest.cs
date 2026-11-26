@@ -25,7 +25,7 @@ public sealed class NszInputAliasTest : IDisposable
         string inputAlias;
         using (var alias = new NszInputAlias(source, staging, keys, TestContext.Current.CancellationToken))
         {
-            var args = NszCliPlugin.BuildArguments(alias.SourceArgument, ".", alias.KeysArgument, operation, 18, useRelativePaths: true);
+            var args = NszCommandArguments.BuildArguments(alias.SourceArgument, ".", alias.KeysArgument, operation, 18, useRelativePaths: true);
             Assert.All(args, arg => Assert.All(arg, character => Assert.True(character < 128)));
             Assert.False(Path.IsPathRooted(alias.SourceArgument));
             inputAlias = Path.Combine(staging, alias.SourceArgument);

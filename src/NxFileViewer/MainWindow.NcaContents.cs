@@ -14,9 +14,9 @@ namespace NxFileViewer.Avalonia;
 
 public partial class MainWindow
 {
-    private enum ContentKind { Placeholder, Package, PartitionFile, Nca, Section, Directory, File, Archive, ArchiveDirectory, ArchiveFile }
+    internal enum ContentKind { Placeholder, Package, PartitionFile, Nca, Section, Directory, File, Archive, ArchiveDirectory, ArchiveFile }
 
-    private sealed class ContentNode(string name, ContentKind kind, long size = 0, string? member = null,
+    internal sealed class ContentNode(string name, ContentKind kind, long size = 0, string? member = null,
         int section = -1, string? innerPath = null) : System.ComponentModel.INotifyPropertyChanged
     {
         public string Name { get; } = name;
@@ -83,7 +83,7 @@ public partial class MainWindow
     private static bool IsNcaName(string name) => Path.GetExtension(name).Equals(".nca", StringComparison.OrdinalIgnoreCase) ||
         Path.GetExtension(name).Equals(".ncz", StringComparison.OrdinalIgnoreCase);
 
-    private void ShowContentTree(PackageFile package)
+    internal void ShowContentTree(PackageFile package)
     {
         var name = Path.GetFileName(Nax0Contents.LogicalPath(package.Path));
         var sdContents = package.Structure == Emignatik.NxFileViewer.Services.PackageAnalysis.PackageStructure.Filesystem;

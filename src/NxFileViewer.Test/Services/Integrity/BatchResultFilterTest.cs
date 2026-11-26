@@ -1,66 +1,67 @@
-using Emignatik.NxFileViewer.Models.Overview;
-using Emignatik.NxFileViewer.Services.Integrity;
+using System;
+using System.Collections.Generic;
+using Emignatik.NxFileViewer.Localization.Keys;
+using NxFileViewer.Avalonia;
 using Xunit;
 
 namespace Emignatik.NxFileViewer.Test.Services.Integrity;
 
 public sealed class BatchResultFilterTest
 {
-    [Theory]
-    [InlineData(true, null, "Matches", true)]
-    [InlineData(false, null, "Differs", true)]
-    [InlineData(null, null, "Unchecked", true)]
-    [InlineData(true, "failure", "Error", true)]
-    [InlineData(false, null, "Matches", false)]
-    [InlineData(null, null, "Differs", false)]
-    public void FiltersNamingState(bool? matches, string? error, string filter, bool expected) =>
-        Assert.Equal(expected, BatchResultFilter.Matches(Result with { NamingMatches = matches, NamingError = error }, "until", "NSZ", "Original", false, filter));
+    private static readonly ILocalizationKeys Labels = new LocalizationKeys_EN();
+    private static MainWindow.BatchRow Row(string type = "NSZ", string? archive = null) =>
+        new("game.nsz", "")
+        {
+            DisplayPath = archive == null ? "game.nsz" : archive + " :: nested/game.nsz",
+            Integrity = Labels.NcasIntegrity_Original,
+            Naming = "Matches",
+            StoredMetadata = new Dictionary<string, string>
+            {
+                ["RawFileType"] = type, ["Title"] = "Until Then", ["TitleId"] = "010019C023004000",
+                ["Publisher"] = "Maximum Entertainment", ["MinimumSystemVersion"] = "20.0.1.0"
+            }
+        };
 
-    private static readonly BatchIntegrityResult Result = new("games/game.nsz", "NSZ", "NSZ", "Cdn", "Blockless", NcasIntegrity.Original, null)
-    { Title = "Until Then", TitleId = "010019C023004000", Publisher = "Maximum Entertainment", SystemVersion = "20.0.1.0" };
-
     [Theory]
-    [InlineData("until maximum", "NSZ", "Original", false, true)]
-    [InlineData("010019c023004000", "", "", false, true)]
-    [InlineData("20.0.1.0", "", "", false, true)]
-    [InlineData("until unknown", "", "", false, false)]
-    [InlineData("", "NSP", "", false, false)]
-    [InlineData("", "NSZ", "Error", false, false)]
-    [InlineData("", "", "", true, false)]
-    [InlineData("   ", "", "", false, true)]
-    public void CombinesSearchTypeIntegrityAndErrorFilters(string search, string type, string integrity, bool errors, bool expected) =>
-        Assert.Equal(expected, BatchResultFilter.Matches(Result, search, type, integrity, errors));
+    [InlineData("until maximum", "NSZ", false, true)]
+    [InlineData("010019c023004000", null, false, true)]
+    [InlineData("20.0.1.0", null, false, true)]
+    [InlineData("until unknown", null, false, false)]
+    [InlineData("", "NSP", false, false)]
+    [InlineData("", null, true, false)]
+    [InlineData("   ", null, false, true)]
+    public void CombinesSearchTypeAndErrorFilters(string search, string? type, bool errorsOnly, bool expected) =>
+        Assert.Equal(expected, MainWindow.MatchesBatchFilters(Row(), search.Split(' ', StringSplitOptions.RemoveEmptyEntries),
+            type, Labels.NcasIntegrity_Original, "Matches", errorsOnly, Labels));
 
     [Theory]
     [InlineData("NSP", true)]
     [InlineData("NSZ", true)]
     [InlineData("XCI", true)]
     [InlineData("XCZ", true)]
-    [InlineData("NSP (ZIP)", true)]
-    [InlineData("XCZ (7z)", true)]
     [InlineData("NRO", false)]
-    [InlineData("NAND (ZIP)", false)]
+    [InlineData("NAND", false)]
     [InlineData("ZIP", false)]
     [InlineData("NAX0", false)]
-    public void GamesFilterIncludesOnlyGameContainersAndTheirArchiveMembers(string type, bool expected) =>
-        Assert.Equal(expected, BatchResultFilter.Matches(Result with { FileType = type }, "", "Games", "", false));
+    public void GamesFilterIncludesGameContainersInArchives(string type, bool expected) =>
+        Assert.Equal(expected, MainWindow.MatchesBatchFilters(Row(type, "a.zip"), [],
+            Labels.BatchTable_Games, null, null, false, Labels));
 
-    [Fact] public void GamesFilterCombinesWithOtherFilters()
-    {
-        Assert.True(BatchResultFilter.Matches(Result, "until", "Games", "Original", false));
-        Assert.False(BatchResultFilter.Matches(Result, "other", "Games", "Original", false));
-        Assert.False(BatchResultFilter.Matches(Result, "", "Games", "Error", false));
-    }
-
-    [Fact] public void ConversionFailureRemainsVisibleInErrorFilter() =>
-        Assert.True(BatchResultFilter.Matches(Result with { ConversionFailed = true }, "", "", "", true));
     [Theory]
-    [InlineData("NSZ (ZIP)", "NSZ", true)]
-    [InlineData("NSZ (ZIP)", "ZIP", true)]
-    [InlineData("NSZ (7z)", "7Z", true)]
-    [InlineData("NSZ (7z)", "NSZ", true)]
-    [InlineData("NSZ (ZIP)", "NSP", false)]
-    [InlineData("NSZ (ZIP)", "7Z", false)]
-    public void ArchiveMembersCanBeFilteredByPackageTypeAndArchiveOrigin(string displayedType, string filter, bool expected) =>
-        Assert.Equal(expected, BatchResultFilter.Matches(Result with { FileType = displayedType }, "", filter, "", false));
+    [InlineData("a.zip", "NSZ", true)]
+    [InlineData("a.zip", "ZIP", true)]
+    [InlineData("a.7z", "7Z", true)]
+    [InlineData("a.7z", "NSP", false)]
+    [InlineData("a.zip", "7Z", false)]
+    public void ArchiveMembersCanBeFilteredByPackageTypeOrArchiveOrigin(string archive, string type, bool expected) =>
+        Assert.Equal(expected, MainWindow.MatchesBatchFilters(Row(archive: archive), [], type, null, null, false, Labels));
+
+    [Fact]
+    public void IntegrityAndNamingCombineWithTheErrorFilter()
+    {
+        var row = Row() with { NamingError = "failure", Naming = "Error" };
+        Assert.True(MainWindow.MatchesBatchFilters(row, [], null, Labels.NcasIntegrity_Original, "Error", true, Labels));
+        Assert.False(MainWindow.MatchesBatchFilters(row, [], null, Labels.NcasIntegrity_Error, "Error", true, Labels));
+        Assert.False(MainWindow.MatchesBatchFilters(row, [], null, Labels.NcasIntegrity_Original, "Matches", true, Labels));
+    }
 }

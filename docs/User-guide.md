@@ -128,7 +128,7 @@ See [classic and modern Explorer menus](Explorer-integration.md).
 
 ## Feedback and polls
 
-In the WPF viewer, **Info → Report a bug / request a feature** accepts both types
+In the Viewer, **Info → Report a bug / request a feature** accepts both types
 of report. It shows the public Support ID and independent public-anonymized/private-
 original log options. **Info → Polls** supports bilingual choices, private free text
 and **Not participating** / undo. Optional startup reminders exclude declined,

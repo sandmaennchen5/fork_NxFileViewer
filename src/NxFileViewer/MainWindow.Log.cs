@@ -41,7 +41,7 @@ public partial class MainWindow
         }
     }
 
-    private void LogSession(string level, string message, string? plugin = null)
+    internal void LogSession(string level, string message, string? plugin = null)
     {
         LogSessionEntries([(level, message)], EffectiveLogLevel(plugin));
     }

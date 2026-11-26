@@ -64,7 +64,7 @@ Each setup ZIP contains its MSIX, the public `NxFileViewerFork.Explorer.cer`, `T
 
 Publishing creates a five-year self-signed code-signing certificate in **Current User > Personal** on first use and reuses it on later runs. Publishing never adds it to a trust store. The private key stays on the publishing machine and is never included in release files. Keep this certificate and its private key; an encrypted PFX backup may be made separately using Windows certificate management. Do not commit or distribute private keys or PFX files. A new signing certificate requires a new trust confirmation. Certificate expiry alone does not stop an installed extension. Previously timestamped packages can still be accepted after expiry while trust remains in place; Windows validates the timestamp. A valid signing certificate is needed to sign new packages. With the same valid certificate, later releases require no further certificate import. This is individual user trust, not globally recognized publisher trust.
 
-The numeric version is set by `ExplorerPackageVersion` in `NxFileViewer.WPF.csproj` (currently `1.0.5.0`). Increment this property when packaged Explorer contents change, independently of the viewer version. If absent, it is derived from the viewer version (`4.0.1-beta4` becomes `4.0.1.4`; the final release uses revision 65535). Use `-ExplorerPackageVersion` to override it. Increment it when updating an installed package with different contents. Signatures receive an RFC 3161 timestamp using DigiCert by default; use `-ExplorerTimestampServer` to override the endpoint.
+The numeric version is set by `ExplorerPackageVersion` in `NxFileViewer.csproj` (currently `1.0.5.0`). Increment this property when packaged Explorer contents change, independently of the viewer version. If absent, it is derived from the viewer version (`4.0.1-beta4` becomes `4.0.1.4`; the final release uses revision 65535). Use `-ExplorerPackageVersion` to override it. Increment it when updating an installed package with different contents. Signatures receive an RFC 3161 timestamp using DigiCert by default; use `-ExplorerTimestampServer` to override the endpoint.
 
 To use an existing signing identity instead:
 
@@ -81,7 +81,7 @@ Rebuild all native architectures with Zig 0.13.0 (the same toolchain used for th
 ```powershell
 ./src/NxFileViewer.Explorer/build.ps1 -ZigExe C:/tools/zig/zig.exe
 cd src
-dotnet build ./NxFileViewer.WPF/NxFileViewer.WPF.csproj
+dotnet build ./NxFileViewer/NxFileViewer.csproj
 ```
 
 The checked-in native DLLs are embedded in the viewer, so standard builds and single-file updates do not require a C++ toolchain. The x64/ARM64 package hosts are also checked in, so publishing MSIX does not need Zig either. Update these binaries together with the C++ source. Build a modern package separately using an existing code-signing certificate whose subject matches Publisher:

@@ -8,7 +8,7 @@ namespace NxFileViewer.Avalonia;
 
 public partial class MainWindow
 {
-    private sealed record SinglePackageOutput(string Path, bool Replace);
+    internal sealed record SinglePackageOutput(string Path, bool Replace);
 
     private async Task<SinglePackageOutput?> ChooseSinglePackageOutputAsync(string source, string displaySource, string action, int defaultMode)
     {

@@ -1,6 +1,6 @@
 using System;
 using System.IO;
-using Emignatik.NxFileViewer.Services.FileOpening;
+using NxFileViewer.Avalonia;
 using Xunit;
 
 namespace Emignatik.NxFileViewer.Test.Services;
@@ -14,14 +14,14 @@ public sealed class LoadingSpaceWarningTest
     [InlineData(unchecked((int)0x80070020), false)]
     public void RecognizesDiskFullWithoutMistakingOtherIoErrors(int code, bool expected)
     {
-        Assert.Equal(expected, LoadingSpaceWarning.IsDiskFull(new IOException("test", code)));
+        Assert.Equal(expected, MainWindow.IsDiskFull(new IOException("test", code)));
     }
     [Fact]
     public void RecognizesWrappedErrors()
     {
         var error = new IOException("test", unchecked((int)0x80070070));
-        Assert.True(LoadingSpaceWarning.IsDiskFull(new InvalidOperationException("wrapped", error)));
-        Assert.True(LoadingSpaceWarning.IsDiskFull(new AggregateException(new Exception("other"), error)));
-        Assert.False(LoadingSpaceWarning.IsDiskFull(new OutOfMemoryException()));
+        Assert.True(MainWindow.IsDiskFull(new InvalidOperationException("wrapped", error)));
+        Assert.True(MainWindow.IsDiskFull(new AggregateException(new Exception("other"), error)));
+        Assert.False(MainWindow.IsDiskFull(new OutOfMemoryException()));
     }
 }

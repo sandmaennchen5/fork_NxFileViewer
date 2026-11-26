@@ -24,11 +24,14 @@ public static class TransitionRelease
     }
 
     public static async Task<ViewerRelease> ResolveAsync(HttpClient client, string architecture, bool bundled,
-        CancellationToken token, bool includePrereleases = false)
+        CancellationToken token, bool includePrereleases = false, Version? minimumVersion = null)
     {
-        var release = await new ViewerUpdateService(client).CheckAsync(new Version(0, 0, 0), architecture,
-            token, includePrereleases: includePrereleases, selfContained: bundled)
-            ?? throw new InvalidDataException("Transition package unavailable.");
+        var updater = new ViewerUpdateService(client);
+        var release = await updater.CheckAsync(minimumVersion ?? new Version(0, 0, 0), architecture,
+            token, includePrereleases: includePrereleases, selfContained: bundled, allowSameVersion: minimumVersion != null);
+        release ??= await updater.CheckAsync(minimumVersion ?? new Version(0, 0, 0), architecture,
+            token, includePrereleases: includePrereleases, selfContained: !bundled, allowSameVersion: minimumVersion != null);
+        if (release == null) throw new InvalidDataException("Transition package unavailable.");
         _ = ViewerUpdateService.ExpectedHash(release.Digest);
         return release;
     }

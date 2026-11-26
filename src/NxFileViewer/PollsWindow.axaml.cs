@@ -71,7 +71,7 @@ public partial class PollsWindow : Window
         }
     }
 
-    private static TextBlock PollText(string value, double size = 14)
+    internal static TextBlock PollText(string value, double size = 14)
     {
         var label = new TextBlock { Text = value, TextWrapping = TextWrapping.Wrap, FontSize = size };
         return label;

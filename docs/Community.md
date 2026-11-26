@@ -2,9 +2,7 @@
 
 [Documentation index](README.md) · [Logging](Logging.md) · [Application updates](Application-updates.md)
 
-These features belong to the WPF viewer. They require a compatible, separately
-deployed HTTPS companion service configured in the application settings. The
-experimental Avalonia viewer does not yet provide these community features.
+The Viewer provides these features through a compatible HTTPS companion service configured in the application settings.
 
 ## Bugs and feature requests
 

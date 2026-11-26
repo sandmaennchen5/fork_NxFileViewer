@@ -13,7 +13,7 @@ internal static partial class AvaloniaAppUpdater
     private const string CompletedBackup = "backup-complete.json";
     private static readonly string[] UpdateExecutables =
         ["NxFileViewer", "NxFileViewer.exe", "NxFileViewerFork.Avalonia", "NxFileViewerFork.Avalonia.exe", "NxFileViewerFork", "NxFileViewerFork.exe"];
-    private static string[] UpdateNames(string executable) => [executable, ManifestName, LegacyManifestName, "LICENSE.txt", "start.sh", "install-shortcut.sh", "nxfileviewer-package.json"];
+    private static string[] UpdateNames(string executable) => IsAppImageName(executable) ? [executable] : [executable, ManifestName, LegacyManifestName, "LICENSE.txt", "start.sh", "install-shortcut.sh", "nxfv-icon.png", "nxfileviewer-package.json"];
     private static string NewStagePath(string root) => Path.Combine(root, "update-" + Guid.NewGuid().ToString("N"));
     private static bool IsStageName(string path) => Regex.IsMatch(Path.GetFileName(path), @"\A(?:update|avalonia)-[a-f0-9]{32}\z");
     private static FileStream OpenUpdateLock(string updates) =>
@@ -41,7 +41,7 @@ internal static partial class AvaloniaAppUpdater
             {
                 var receipt = Path.Combine(stage, CompletedBackup);
                 var (backup, legacyExecutable) = ReadBackup(stage, receipt, install);
-                if (backup == null || !UpdateExecutables.Contains(backup.Executable) ||
+                if (backup == null || (!UpdateExecutables.Contains(backup.Executable) && !(IsAppImageName(backup.Executable) && backup.Executable == Path.GetFileName(currentExecutable))) ||
                     backup.InstalledExecutable != Path.GetFileName(currentExecutable) ||
                     !ValidFiles(backup.InstalledFiles, backup.InstalledExecutable, install) ||
                     !ValidFiles(backup.Files, backup.Executable, Path.Combine(stage, "backup"), legacyExecutable))
@@ -103,7 +103,7 @@ internal static partial class AvaloniaAppUpdater
             });
     }
 
-    internal static string PrepareRollback(string currentExecutable)
+    internal static string PrepareRollback(string currentExecutable, string? workerExecutable = null)
     {
         var install = Path.GetDirectoryName(currentExecutable)!;
         var (previous, backup, legacyExecutable) = FindRollback(currentExecutable) ?? throw new IOException("No matching update backup is available.");
@@ -119,7 +119,7 @@ internal static partial class AvaloniaAppUpdater
                     ? legacyExecutable : Path.Combine(previous, "backup", file.Name), Path.Combine(payload, file.Name));
             if (!ValidFiles(backup.Files, backup.Executable, payload)) throw new InvalidDataException("Update backup changed.");
             var remove = backup.InstalledFiles.Where(file => !backup.Files.Any(saved => saved.Name == file.Name)).ToArray();
-            return CreateJob(stage, currentExecutable, backup.Executable, remove, backup.InstalledFiles);
+            return CreateJob(stage, currentExecutable, backup.Executable, remove, backup.InstalledFiles, workerExecutable);
         }
         catch { Directory.Delete(stage, true); throw; }
     }

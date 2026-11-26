@@ -71,8 +71,9 @@ try{
 <p><?=webT('Meldungskennung: ')?><code><?=adminEscape($selected['ticket'])?></code></p>
 <?php if($selected['number']):?><p><a href="https://github.com/<?=FEEDBACK_REPOSITORY?>/issues/<?=(int)$selected['number']?>">GitHub-Issue #<?=(int)$selected['number']?></a></p><?php endif ?>
 <pre><?=adminEscape($selected['body'])?></pre>
-<?php $system=feedbackQuery($db,'SELECT u.*,m.report_type,m.system_reports_enabled FROM usage_statistics u LEFT JOIN usage_report_modes m ON m.internal_id=u.internal_id WHERE u.internal_id=?',[$selected['internal_id']])->fetch(PDO::FETCH_ASSOC);if($system):?>
+<?php $system=feedbackQuery($db,'SELECT u.*,m.report_type,m.system_reports_enabled,d.program_delivery FROM usage_statistics u LEFT JOIN usage_report_modes m ON m.internal_id=u.internal_id LEFT JOIN usage_program_delivery d ON d.internal_id=u.internal_id WHERE u.internal_id=?',[$selected['internal_id']])->fetch(PDO::FETCH_ASSOC);if($system):?>
 <h3><?=webT('Aktueller Systemstand über Support-ID')?></h3>
+<p><?=webT('Programmauslieferung')?> · <?=adminEscape(usageProgramDeliveryLabel($system['program_delivery']))?></p>
 <p><?=adminEscape(usageModeLabel($system['report_type'],$system['system_reports_enabled']===null?null:(int)$system['system_reports_enabled']))?> · <?=gmdate('Y-m-d H:i:s',(int)$system['last_seen'])?> UTC</p>
 <pre><?=adminEscape(implode("\n",array_map(fn($key)=>$key.': '.$system[$key],['version','build_version','platform','os_description','process_architecture','os_architecture','ui_framework','distribution','runtime_version','runtime_identifier'])))?></pre>
 <?php endif ?>

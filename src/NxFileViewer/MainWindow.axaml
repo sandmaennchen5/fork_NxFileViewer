@@ -548,7 +548,7 @@
             <ComboBox x:Name="BatchHistoryChoice" MinWidth="420" Grid.Column="1" />
             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
               <Button Content="{Binding BatchHistory_Show}" Click="ShowBatchHistory" />
-              <Button Content="{Binding BatchHistory_Resume}" Click="ResumeBatchHistory" />
+              <Button x:Name="BatchResumeButton" Content="{Binding BatchHistory_Resume}" Click="ResumeBatchHistory" />
             </StackPanel>
           </Grid>
           <TextBlock x:Name="BatchStatus" Grid.Row="4" IsVisible="False" />
@@ -910,6 +910,7 @@
                         <WrapPanel x:Name="ApplicationUpdateActions">
                           <Button x:Name="ApplicationInstallUpdate" Content="{Binding Update_Install}" IsVisible="False" Click="InstallApplicationUpdate" Margin="0,0,8,0" />
                           <Button x:Name="ApplicationSwitchToX64" Content="{Binding Update_SwitchToX64}" IsVisible="False" Click="InstallApplicationUpdate" Margin="0,0,8,0" />
+                          <Button x:Name="MigrateDataButton" IsVisible="False" Click="MigrateData" Margin="0,0,8,0" />
                           <Button x:Name="ApplicationRollback" Content="{Binding Nsz_Rollback}" IsEnabled="False" Click="InstallApplicationUpdate" Margin="0,0,8,0" />
                           <Button x:Name="ApplicationCleanup" Content="{Binding Update_Cleanup}" IsEnabled="False" Click="CleanApplicationUpdates" Margin="0,0,8,0" />
                         </WrapPanel>
@@ -1097,7 +1098,7 @@
           <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4" Margin="4">
             <Button Content="{Binding SettingsView_Button_Reset}" Click="ResetSettings" Margin="0,0,120,0" />
             <Button Content="{Binding SettingsView_Button_Apply}" Click="SavePreferences" />
-            <Button Content="{Binding SettingsView_Button_Cancel}" Click="CancelSettings" />
+            <Button x:Name="CancelSettingsButton" Content="{Binding SettingsView_Button_Cancel}" Click="CancelSettings" />
           </StackPanel>
           <TextBlock x:Name="SettingsStatus" TextWrapping="Wrap" Grid.Row="1" />
         </Grid>
@@ -1162,8 +1163,6 @@
               <TextBlock Text="UI: Avalonia" Margin="0,0,0,8" />
             </StackPanel>
             <TextBlock Text="{Binding Info_Description}" TextWrapping="Wrap" Margin="0,0,0,12" />
-            <Button x:Name="LinuxShortcutButton" IsVisible="False" Content="Linux-Starter erstellen" Click="InstallLinuxShortcut" HorizontalAlignment="Left" Margin="0,0,0,8" />
-            <TextBlock x:Name="LinuxShortcutStatus" TextWrapping="Wrap" />
             <Button Content="GitHub: sandmaennchen5/fork_NxFileViewer" Tag="https://github.com/sandmaennchen5/fork_NxFileViewer" Click="OpenInfoLink" HorizontalAlignment="Left" Margin="0,0,0,8" />
             <WrapPanel Margin="0,0,0,16">
               <Button Content="Fehler / Funktionswunsch melden" Click="OpenFeedback" Margin="0,0,8,0" />

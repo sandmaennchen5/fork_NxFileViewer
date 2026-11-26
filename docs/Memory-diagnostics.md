@@ -16,4 +16,4 @@ For a regular memory investigation, enable Trace, scan the affected folder, wait
 
 Use the same executable, folder, scan options and History settings in both runs. First enable Trace, scan the folder and wait 30 seconds after completion before using the manual GC button. Then close and restart the application, load the same completed History entry without scanning, wait 30 seconds and measure again. Compare the result counts, private memory and managed heap in the session logs and CSVs.
 
-A reduction after manual GC points toward collectible allocations. Persistently high private memory with a small managed heap warrants a native/WPF profile. Working set alone does not prove a leak. Divide byte values by 1048576 for MiB. The CSV mode is `trace`; diagnostics stop when the general level is raised above Trace.
+A reduction after manual GC points toward collectible allocations. Persistently high private memory with a small managed heap warrants a native memory profile. Working set alone does not prove a leak. Divide byte values by 1048576 for MiB. The CSV mode is `trace`; diagnostics stop when the general level is raised above Trace.

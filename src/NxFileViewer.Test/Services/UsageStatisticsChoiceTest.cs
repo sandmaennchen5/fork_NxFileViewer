@@ -19,7 +19,7 @@ public sealed class UsageStatisticsChoiceTest
     public void SavedValuesDistinguishDefaultsFromAConfirmedChoice(string json, bool expected)
     {
         using var document = JsonDocument.Parse(json);
-        Assert.Equal(expected, AppSettingsManager.IsUsageStatisticsChoiceConfirmed(document.RootElement));
+        Assert.Equal(expected, SystemReportChoice.IsUsageStatisticsChoiceConfirmed(document.RootElement));
     }
 
     [Theory]
@@ -35,7 +35,7 @@ public sealed class UsageStatisticsChoiceTest
         var json = JsonSerializer.Serialize(settings);
         using var document = JsonDocument.Parse(json);
         var reopened = JsonSerializer.Deserialize<AppSettings>(json)!;
-        Assert.True(AppSettingsManager.IsUsageStatisticsChoiceConfirmed(document.RootElement));
+        Assert.True(SystemReportChoice.IsUsageStatisticsChoiceConfirmed(document.RootElement));
         Assert.True(reopened.UsageStatisticsChoiceConfirmed);
         Assert.Equal(enabled, reopened.SendAnonymousUsageStatistics);
     }
@@ -58,7 +58,7 @@ public sealed class UsageStatisticsChoiceTest
         });
         var reopened = JsonSerializer.Deserialize<AppSettings>(saved)!;
 
-        Assert.Equal(expected, AppSettingsManager.ShouldConfirmSystemReport(reopened, currentVersion));
+        Assert.Equal(expected, SystemReportChoice.ShouldConfirmSystemReport(reopened, currentVersion));
     }
 
     [Fact]
@@ -66,6 +66,6 @@ public sealed class UsageStatisticsChoiceTest
     {
         var json = JsonSerializer.Serialize(new AppSettings());
         using var document = JsonDocument.Parse(json);
-        Assert.False(AppSettingsManager.IsUsageStatisticsChoiceConfirmed(document.RootElement));
+        Assert.False(SystemReportChoice.IsUsageStatisticsChoiceConfirmed(document.RootElement));
     }
 }

@@ -98,6 +98,16 @@ public sealed class AvaloniaUpdaterTest : IDisposable
         Assert.Equal("NxFileViewerFork.Avalonia", Path.GetFileName(Assert.Single(Directory.GetFiles(destination))));
     }
     [Fact]
+    public void StagesLinuxShortcutIconFromUpdateZip()
+    {
+        byte[] icon = [137, 80, 78, 71];
+        using var zip = Zip(("NxFileViewerFork.Avalonia", Elf()), ("nxfv-icon.png", icon));
+        var destination = Path.Combine(_root, "with-icon");
+        AvaloniaAppUpdater.Extract(zip, destination, Release(), "linux-x64", false);
+        Assert.Equal(icon, File.ReadAllBytes(Path.Combine(destination, "nxfv-icon.png")));
+    }
+
+    [Fact]
     public void ValidatesManifestAndSupportsFutureExecutableName()
     {
         var package=new AvaloniaPackage(1,"Avalonia","4.1.1-beta6","linux-x64",false,"NxFileViewerFork");
@@ -259,5 +269,128 @@ public sealed class AvaloniaUpdaterTest : IDisposable
             Assert.True(File.Exists(Path.Combine(stage, "payload", "NxFileViewerFork.Avalonia")));
         }
     }
+    [Fact]
+    public async Task SelectsAndStagesOnlyTheMatchingStandaloneAppImage()
+    {
+        const string asset = "v4.1.1-beta6_linux-x64-with-net.AppImage";
+        const string localName = "Mein Viewer.AppImage";
+        var bytes = Elf();
+        bytes[8] = (byte)'A';
+        bytes[9] = (byte)'I';
+        bytes[10] = 2;
+        var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes));
+        using var json = JsonDocument.Parse(JsonSerializer.Serialize(new
+        {
+            tag_name = "v4.1.1-beta6",
+            assets = new[] { "NxFileViewerFork.LogViewer_" + asset, asset.Replace("x64", "arm64"), asset }
+                .Select(name => new { name, digest = "sha256:" + hash })
+        }));
+        var release = AvaloniaAppUpdater.SelectRelease(json.RootElement, "owner/repo", "linux-x64", true, appImage: true);
+        Assert.Equal(asset, release?.AssetName);
+        Assert.Null(AvaloniaAppUpdater.SelectRelease(json.RootElement, "owner/repo", "linux-x64", false, appImage: true));
+        Assert.Null(AvaloniaAppUpdater.SelectRelease(json.RootElement, "owner/repo", "linux-x64", true));
+        using var client = new System.Net.Http.HttpClient(new FixtureHandler(bytes));
+        var stage = await AvaloniaAppUpdater.DownloadAsync(client, release!, _root, "linux-x64", true, TestContext.Current.CancellationToken, localName);
+        Assert.Equal(bytes, File.ReadAllBytes(Path.Combine(stage, "payload", localName)));
+        Assert.Throws<InvalidDataException>(() => AvaloniaAppUpdater.ValidateAppImage(Path.Combine(stage, "payload", localName), "linux-arm64"));
+    }
+
+    [Fact]
+    public void RestoresAppImageAtTheSamePathWhenRestartFails()
+    {
+        const string name = "Mein Viewer.AppImage";
+        var installed = Path.Combine(_root, name);
+        var bytes = Elf(System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture == System.Runtime.InteropServices.Architecture.Arm64);
+        bytes[8] = (byte)'A';
+        bytes[9] = (byte)'I';
+        bytes[10] = 2;
+        File.WriteAllBytes(installed, bytes);
+        var original = AvaloniaAppUpdater.Hash(installed);
+        var data = Directory.CreateDirectory(Path.Combine(_root, "NxFileViewerFork-Daten"));
+        var settings = Path.Combine(data.FullName, "settings.json");
+        File.WriteAllText(settings, "{}");
+        var stage = Path.Combine(_root, "Updates", "update-" + Guid.NewGuid().ToString("N"));
+        var payload = Directory.CreateDirectory(Path.Combine(stage, "payload"));
+        var replacement = Path.Combine(payload.FullName, name);
+        bytes[^1] = 1;
+        File.WriteAllBytes(replacement, bytes);
+        var updated = AvaloniaAppUpdater.Hash(replacement);
+        var job = new UpdateJob(1, 1, name, name, [new UpdateFile(name, updated)], original);
+
+        Assert.Throws<IOException>(() => AvaloniaAppUpdater.Apply(stage, _root, job, start =>
+        {
+            Assert.Equal(installed, start.FileName);
+            Assert.Equal(updated, AvaloniaAppUpdater.Hash(installed));
+            throw new IOException("Restart failed");
+        }));
+        Assert.Equal(original, AvaloniaAppUpdater.Hash(installed));
+        Assert.Equal("{}", File.ReadAllText(settings));
+    }
+
+    [Theory]
+    [InlineData(true, true, ".dmg")]
+    [InlineData(true, false, ".dmg")]
+    [InlineData(false, true, ".app.zip")]
+    public void SelectsMacBundleUpdateWhetherTheReleaseHasZipOrDmg(bool dmg, bool zip, string extension)
+    {
+        const string asset = "NxFileViewerFork_v4.1.1-beta6_osx-arm64-with-net";
+        var names = new[] { asset.Replace("arm64", "x64") + ".dmg", asset + ".zip", asset.Replace("Fork", "Fork.LogViewer") + ".dmg" }.ToList();
+        if (dmg) names.Add(asset + ".dmg");
+        if (zip) names.Add(asset + ".app.zip");
+        using var json = JsonDocument.Parse(JsonSerializer.Serialize(new { tag_name = "v4.1.1-beta6", assets = names.Select(name => new { name }) }));
+        Assert.Equal(asset + extension, AvaloniaAppUpdater.SelectRelease(json.RootElement, "owner/repo", "osx-arm64", true, macBundle: true)?.AssetName);
+        Assert.Null(AvaloniaAppUpdater.SelectRelease(json.RootElement, "owner/repo", "osx-arm64", false, macBundle: true));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ReplacesMacBundleAtItsCurrentPathAndRestoresItOnFailure(bool restartFails)
+    {
+        const string rid = "osx-arm64";
+        const string executableName = "NxFileViewerFork";
+        const string bundleRoot = "NxFileViewerFork Avalonia.app/Contents/";
+        const string plist = "<plist><dict><key>CFBundleIdentifier</key><string>io.github.nxfileviewer.nxfileviewerfork.avalonia</string><key>CFBundleExecutable</key><string>NxFileViewerFork</string></dict></plist>";
+        var executable = new byte[32];
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(executable, 0xfeedfacf);
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(executable.AsSpan(4), 0x100000c);
+        var bundle = Path.Combine(_root, "Mein Viewer.app");
+        using (var oldZip = CreateBundleZip())
+            AvaloniaAppUpdater.ExtractMacBundle(oldZip, bundle, rid, TestContext.Current.CancellationToken);
+        var previous = Path.Combine(bundle, "Contents", "MacOS", executableName);
+        var settings = Path.Combine(Path.GetDirectoryName(previous)!, "NxFileViewerFork.settings.json");
+        File.WriteAllText(settings, "{}");
+        Assert.Equal(bundle, AvaloniaAppUpdater.GetMacBundle(previous));
+        var stage = Path.Combine(_root, "Updates", "update-" + Guid.NewGuid().ToString("N"));
+        executable[^1] = 1;
+        using (var newZip = CreateBundleZip())
+            AvaloniaAppUpdater.ExtractMacBundle(newZip, Path.Combine(stage, "bundle"), rid, TestContext.Current.CancellationToken);
+        var jobPath = AvaloniaAppUpdater.CreateMacBundleJob(stage, bundle, previous, rid);
+        var job = JsonSerializer.Deserialize<UpdateJob>(File.ReadAllText(jobPath))!;
+
+        void Install() => AvaloniaAppUpdater.ApplyMacBundle(stage, _root, job, rid, start =>
+        {
+            Assert.Equal(previous, start.FileName);
+            Assert.Equal(executable, File.ReadAllBytes(previous));
+            Assert.Equal("{}", File.ReadAllText(settings));
+            if (restartFails) throw new IOException("Restart failed.");
+        });
+        if (restartFails) Assert.Throws<IOException>(Install);
+        else Install();
+        Assert.Equal(restartFails ? 0 : 1, File.ReadAllBytes(previous)[^1]);
+        Assert.Equal("{}", File.ReadAllText(settings));
+        Assert.Equal(!restartFails, Directory.Exists(Path.Combine(stage, "previous.app")));
+
+        MemoryStream CreateBundleZip() => Zip((bundleRoot + "Info.plist", System.Text.Encoding.UTF8.GetBytes(plist)),
+            (bundleRoot + "MacOS/" + executableName, executable));
+    }
+
+    [Fact]
+    public void RejectsTraversalInMacBundleZip()
+    {
+        using var zip = Zip(("Viewer.app/Contents/../../../outside", new byte[] { 1 }));
+        Assert.Throws<InvalidDataException>(() => AvaloniaAppUpdater.ExtractMacBundle(zip, Path.Combine(_root, "bundle"), "osx-arm64", TestContext.Current.CancellationToken));
+    }
+
     public void Dispose()=>Directory.Delete(_root,true);
 }

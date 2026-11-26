@@ -39,7 +39,7 @@ internal static partial class UsageStatisticsService
             var endpoint = new Uri(report, "usage.php").AbsoluteUri;
             var environment = SessionEnvironment.Capture();
             var fingerprint = Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(new
-            { environment.Platform, environment.ProcessArchitecture, environment.OsArchitecture, environment.UiFramework, environment.Distribution })));
+            { environment.Platform, environment.ProcessArchitecture, environment.OsArchitecture, environment.UiFramework, environment.Distribution, environment.ProgramDelivery })));
             var enabled = settings.UsageStatisticsChoiceConfirmed && settings.SendAnonymousUsageStatistics;
             await SendOnceAsync(directory, new UsageState(day, buildVersion, endpoint, participant, fingerprint, enabled), async kind =>
             {

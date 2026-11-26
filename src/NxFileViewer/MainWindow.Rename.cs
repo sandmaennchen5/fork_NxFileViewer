@@ -98,7 +98,7 @@ public partial class MainWindow
             });
     });
 
-    private string CreateRenameName(string source, string? keysPath, string? customPattern,
+    internal string CreateRenameName(string source, string? keysPath, string? customPattern,
         PackageFile? existingPackage = null, Func<string, string?>? lookup = null, System.Threading.CancellationToken token = default)
     {
         if (Emignatik.NxFileViewer.Services.Mtp.MtpDirectSource.IsDirect(source)) throw new IOException("MTP direct sources cannot be renamed.");
@@ -131,6 +131,11 @@ public partial class MainWindow
         var webBase = pattern.Contains("{WAppTitle", StringComparison.OrdinalIgnoreCase)
             ? (content.ApplicationTitleId == content.TitleId && webTitle != null ? webTitle : lookup(content.ApplicationTitleId))
             : null;
+        if (_preferences.SharedSettings.TitleInfoProvider == Emignatik.NxFileViewer.Settings.TitleInfoProvider.Tinfoil)
+        {
+            if (webTitle != null) webTitle = FileNameTextNormalizer.RestoreMissingWordSeparators(webTitle);
+            if (webBase != null) webBase = FileNameTextNormalizer.RestoreMissingWordSeparators(webBase);
+        }
         var values = new System.Collections.Generic.Dictionary<string, string>
         {
             ["Title"] = titleName,

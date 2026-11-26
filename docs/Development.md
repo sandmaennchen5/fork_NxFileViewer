@@ -42,16 +42,12 @@ python -B -m unittest discover -s .github/scripts -p test_update_download_badge.
 Use the explicit release mode from the **repository root**:
 
 ```powershell
-.\Publish.ps1 -ReleasePackages -SkipAvalonia
+.\Publish.ps1 -ReleasePackages
 ```
 
-It builds x64/x86/ARM64 WPF viewer and standalone LogViewer ZIPs, plus x64/x86
-legacy transition ZIPs, in standard and self-contained variants, with firmware hashes, the update descriptor and
-optional Explorer packages. `-LogViewerOnly` selects the LogViewer packages;
-`-SkipLogViewer` omits them. Explorer signing and packaging options are described
-in [Explorer integration](Explorer-integration.md#publishing).
+It builds Viewer and LogViewer ZIPs for Windows, Linux and macOS, in standard and self-contained variants. It also produces firmware references, the update descriptor and optional Explorer packages. Use -LogViewerOnly to select the LogViewer or -SkipLogViewer to omit it. See [Explorer integration](Explorer-integration.md#publishing) for signing options.
 
-Application ZIPs contain NxFileViewerFork.exe, nxfileviewer-package.json and LICENSE.txt.
+Windows Viewer ZIPs include NxFileViewerFork.exe, nxfileviewer-viewer.json, nxfileviewer-package.json and LICENSE.txt.
 
 The Build workflow provides separate artifacts retained for seven days. Release
 ZIPs belong in GitHub Releases for permanent downloads and application updates.
@@ -63,8 +59,8 @@ Select any of these switches to build only the requested EXEs:
 
 | Program | x64 | x86 | ARM64 |
 | --- | --- | --- | --- |
-| WPF viewer | `-ViewerX64` | `-ViewerX86` | `-ViewerArm64` |
-| WPF LogViewer | `-LogViewerX64` | `-LogViewerX86` | `-LogViewerArm64` |
+| Viewer | `-ViewerX64` | `-ViewerX86` | `-ViewerArm64` |
+| LogViewer | `-LogViewerX64` | `-LogViewerX86` | `-LogViewerArm64` |
 | Legacy transition updater | `-TransitionX64` | `-TransitionX86` | Not built |
 
 Append `WithRuntime` to any selector for a self-contained variant. Selectors can
@@ -80,25 +76,14 @@ These modes write EXEs into versioned output subfolders. They create no ZIPs,
 release descriptors, firmware archives or Explorer packages. Without `WithRuntime`,
 the target machine needs .NET 10 Desktop Runtime for the selected architecture.
 
-## 4.1.2-beta1 development version and local test copies
+## Development versions and local test copies
 
-The viewer, WPF/Avalonia LogViewers, Avalonia viewer and transition project use
-`4.1.2-beta1` for direct builds. Publish/release commands still take their version
-from the main viewer project or an explicit `-Version`; the Explorer package keeps
-its independent version. Tag `v4.1.2-beta1` or `4.1.2-beta1` creates a prerelease through the release workflow.
-Beta-suffixed tags create prereleases, which also include the early Avalonia viewer packages. Preparing local files does not create a tag
-or publish a release.
-
-Use `./Publish.ps1 -Profile 'Test Win'` for local test executables. This profile
-builds the four Windows x64 applications without .NET, creates no ZIPs and copies
-the executables to `C:\tmp\NxFileViewerTest`. Close running test executables before
-replacement. Configure the profile in the GUI to change these choices. See
-[first converted Avalonia applications (early beta)](Avalonia.md).
+Publish commands read the version from the Viewer project or an explicit -Version. The Explorer extension has an independent version. Configure a local executable-copy target in the publish profile for testing.
 
 ## Publish menu, saved configuration and CI
 
 `./Publish.ps1` is the common entry point. Without selectors it opens the Windows
-GUI and loads `publish.ps1.conf` beside the script, when present; otherwise it uses all four viewer
+GUI and loads `publish.ps1.conf` beside the script, when present; otherwise it uses both viewer
 and LogViewer applications, all seven targets and both .NET variants. The `.conf`
 file is validated JSON, never an executable PowerShell script. Use the built-in
 profiles or save your own selections through the GUI; no example file is needed.
@@ -108,23 +93,18 @@ Local configuration is ignored by Git.
 ./Publish.ps1                       # GUI; auto-build after 10 seconds without input
 ./Publish.ps1 -Gui                  # Explicit GUI, also with the 10-second countdown
 ./Publish.ps1 -NoGui                # Run saved/default settings immediately, without GUI
-./Publish.ps1 -Wpf                  # Both WPF applications, configured variants
 ./Publish.ps1 -Avalonia             # Both Avalonia applications, configured variants
-./Publish.ps1 -Wpf -Avalonia         # Both frameworks
 ./Publish.ps1 -All                  # Reset this run to the default complete application set
 ./Publish.ps1 -ConfigFile my.conf    # Alternative JSON configuration
 ./Publish.ps1 -GitHub               # Full unattended CI artifact build; ignore .conf
-./Publish.ps1 -ViewerX64            # Existing WPF x64 EXE-only selector
+./Publish.ps1 -ViewerX64            # Viewer x64 EXE-only selector
 ./Publish.ps1 --ViewerX64           # Same selector, double-dash spelling
 ./Publish.ps1 -AvaloniaViewer -AvaloniaRuntimeIdentifiers linux-x64 -WithDotNet
 ```
 
 The menu configures applications, OS/architectures, with/without .NET, ZIP or
 executable-only output, firmware references and a specific executable-copy variant.
-The optional release-extras checkbox adds Explorer, transition and update-descriptor
-packages through the established full release builder. It requires both WPF apps,
-all Windows architectures, both .NET variants, ZIPs and firmware hashes, with test
-copying disabled.
+Select optional Explorer, transition and update-descriptor packages in the Extras section.
 **Profil speichern** saves the current named profile without building; **Bauen** builds the current selection;
 **Abbrechen** closes without saving or building. After the window appears, a visible
 10-second countdown automatically starts a build with the loaded configuration or
@@ -136,15 +116,7 @@ the menu. Command
 line options override saved configuration for that run; individual legacy selectors
 and release/CI modes retain their own selection rules.
 
-GitHub **Build** runs `Publish.ps1 -GitHub` for pushes to `master`/`beta` and pull
-requests to `master`. It builds the full existing WPF release artifact set (including
-transition and Explorer packages), plus every Avalonia package. It never opens a
-menu, reads local `.conf` files or copies programs into a local test folder.
-
-**Release** remains a separate version-tag workflow. Its Windows job uses
-`-ReleasePackages -SkipAvalonia` for the established WPF release packages. Beta tags
-additionally build Avalonia on native Windows/Linux/macOS runners, explicitly
-ignoring editable local target/copy defaults. Stable tags keep WPF packages only.
+GitHub Build runs Publish.ps1 -GitHub and publishes Avalonia Viewer and LogViewer artifacts, firmware hashes, update metadata and legacy transition packages. The separate Release workflow builds Avalonia packages for tags and can generate migration aliases for existing WPF installations.
 
 ## Named selection profiles
 
@@ -156,40 +128,7 @@ profile to use on future runs without `-Profile`. Saving or loading another prof
 does not change that start profile. An explicit `-Profile` takes precedence for
 that run. Changing either selector counts as input and stops the ten-second autostart.
 
-```powershell
-./Publish.ps1 -Profile WPF            # Open GUI with the built-in WPF profile
-./Publish.ps1 -NoGui -Profile Avalonia # Build the built-in Avalonia profile immediately
-```
-
-The four built-in selections are **Standard**, **WPF**, **Avalonia** and **Test Win**.
-Create any additional profiles in the GUI.
-An existing flat schema-1 configuration still loads as **Standard**. Saving a named
-profile converts the file to the schema-2 profile container while preserving the
-original selection and other profiles. Profile names support up to 60 letters,
-numbers, spaces, dots, underscores and hyphens. `-GitHub` ignores local profiles.
-
-## Predefined publish profiles
-
-Four built-in profiles are available automatically, including in existing configuration
-files. Existing custom profiles with the same names are preserved. **Standard** is
-the default start profile for a new configuration.
-
-| Profile | Applications / targets | .NET | Output | Firmware hashes | Test copies |
-| --- | --- | --- | --- | --- | --- |
-| Standard | All four apps; all seven targets | With and without | ZIPs in `Publish` | Yes | No |
-| WPF | Both WPF apps; Windows x64/x86/ARM64 | With and without | ZIPs in `Publish/WPF` | No | No |
-| Avalonia | Both Avalonia apps; all seven targets | With and without | ZIPs in `Publish/Avalonia` | No | No |
-| Test Win | All four apps; Windows x64 | Without | Executables only in `Publish` | No | Windows x64 without .NET to `C:\tmp\NxFileViewerTest` |
-
-```powershell
-./Publish.ps1 -Profile WPF
-./Publish.ps1 -Profile Avalonia
-./Publish.ps1 -NoGui -Profile 'Test Win'
-```
-
-All application packages now use the internal `tools/Publish-Applications.ps1`
-backend. GitHub/native release jobs use explicit arguments, without local profile
-or test-copy preferences. The full tag-release builder remains separate.
+The built-in profiles are **Release** and **Prerelease**. Existing profiles with WPF selections are converted to their Avalonia counterparts when loaded. A flat schema-1 configuration loads as **Standard** and is saved in the schema-2 profile format when edited.
 
 ## Executable-only output, test copies and size reports
 
@@ -204,8 +143,7 @@ Close running test applications before replacing their executables. Executable-o
 mode omits firmware ZIPs and outputs program executables without installer or
 package metadata. Unix builds use extensionless program files.
 
-Every successful run writes `publish-sizes-WPF-v<Version>.txt` or
-`publish-sizes-Avalonia-v<Version>.txt` to the output folder. The report lists each
+Every successful run writes `publish-sizes-v<Version>.txt` to the output folder. The report lists each
 variant's executable, unpacked output and ZIP sizes in MB, with two decimal places
 (1 MB = 1,000,000 bytes). Tabs and padding align the longest filename/value.
 `-` marks ZIPs not created. Firmware ZIPs are included when enabled.

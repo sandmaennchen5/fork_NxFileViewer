@@ -1,21 +1,12 @@
-# First converted Avalonia applications — early beta
+# Avalonia applications
 
-[Documentation index](README.md) · [Development and publishing](Development.md)
+[Documentation index](README.md) · [Installation and data paths](Installation.md) · [Development and publishing](Development.md)
 
-**4.1.1** includes the first converted Avalonia applications: the viewer and
-standalone LogViewer. The conversion is still in progress. **All Avalonia packages
-are early beta versions; not all functions are implemented or tested.** They do not
-yet provide complete WPF appearance or feature parity.
-
-Prereleases publish the Avalonia viewer for Windows, Linux and macOS; the LogViewer remains available through local builds and Build artifacts. Building a
-package for a platform does not mean every function has been tested on that platform.
-Windows-specific components and external tools can have additional limitations.
-Use the Windows WPF viewer for the existing full application workflows.
+The Viewer and LogViewer use Avalonia. Release packages target Windows, Linux and macOS. Windows Explorer integration and some external tools require Windows.
 
 ## Applications and settings
 
 - Viewer project: `src/NxFileViewer/NxFileViewer.csproj`; Windows executable: `NxFileViewerFork.exe`.
-- WPF reference project for testing: `src/NxFileViewer.WPF/NxFileViewer.WPF.csproj`.
 
 Release ZIPs use `NxFileViewerFork_v<version>_<runtime>-with-net.zip` or `NxFileViewerFork_v<version>_<runtime>-without-net.zip`. ZIPs containing a native AppImage or DMG add `-appimage` or `-dmg` before `.zip`.
 
@@ -23,7 +14,18 @@ For a release that switches installed WPF copies to Avalonia, run `Publish.ps1 -
 - LogViewer project: `src/NxFileViewer.LogViewer`; Windows executable: `NxFileViewerFork.LogViewer.exe`.
 - Viewer preferences are stored in `NxFileViewerFork.settings.json`. Shared settings use the WPF layout and Avalonia-specific preferences are stored under `AvaloniaPreferences`. Avalonia reads the previous settings filenames for migration.
   beside the executable. Existing WPF preferences can supply the initial settings.
-- Use separate test directories for WPF and Avalonia because their executable names are identical.
+
+## Data directory on Windows and Linux
+
+The Viewer stores data in `NxFileViewerFork-Daten` next to the executable or
+AppImage. Existing installations with program data directly beside the
+executable keep using that directory until the new data folder exists.
+
+In **Settings → Updates**, **Migrate application data** appears when eligible
+data is found. It copies missing files and keeps the originals and existing
+destination files. Restart the Viewer after migration. On Linux, the previous
+data folders in the user's data directory are also considered as sources.
+
 
 ## Build and test publishing
 
@@ -51,11 +53,11 @@ in the GUI, then save the profile. The default Avalonia preset includes:
 Local builds can package both applications with and without .NET (28 ZIPs). GitHub releases publish only the viewer (14 Avalonia ZIPs), without standalone LogViewer packages. Windows ZIPs retain
 `_x64`, `_x86` and `_arm64`; Linux/macOS use `_linux-x64`, `_linux-arm64`, `_osx-x64`
 and `_osx-arm64`. Native Unix ZIP packaging preserves executable permissions.
-The macOS packages are unsigned executable ZIPs, not signed `.app` installers.
+The native macOS build provides unsigned app bundles in direct DMGs and App ZIPs.
 
 Beta-tag releases build on native Windows/Linux/macOS runners using the common
 internal publisher, wait for every platform and verify expected ZIPs before release
-publication. Stable tags retain WPF releases. For a targeted headless build:
+publication. For a targeted headless build:
 
 ```powershell
 ./Publish.ps1 -AvaloniaViewer -AvaloniaRuntimeIdentifiers linux-x64,linux-arm64 -WithDotNet
@@ -63,16 +65,28 @@ publication. Stable tags retain WPF releases. For a targeted headless build:
 
 ## Application updates
 
-New Avalonia configurations enable prerelease checks by default. An explicitly saved
-prerelease preference is retained. The update page selects the matching OS,
+The Viewer checks stable releases by default. Enable prereleases in the update
+settings to include them. The update page selects the matching OS,
 architecture and self-contained/framework-dependent package, verifies its SHA-256,
 then installs it after the current process exits and restarts the application.
 File operations must finish before installing an update. The app verifies that the
 new main window opens; installation/restart failures restore backed-up program
 files and restart the previous intact executable. Update backups and diagnostics
-are retained under `Updates/avalonia-*/` beside the application. Settings, keys and
+are retained under `Updates/update-*/` beside the application. Settings, keys and
 plugins are outside the set of files an update may replace. The install folder
 must be writable by the user. Debug/non-single-file builds use manual updates.
+
+On Linux, an AppImage uses the same update page. It selects the matching standalone
+AppImage from the release, verifies its SHA-256, and replaces the running AppImage
+at its existing path. Desktop shortcuts and the adjacent `NxFileViewerFork-Daten`
+directory continue to work. The parent directory must be writable.
+
+macOS releases provide the app bundle in both a direct `.dmg` and an `.app.zip`.
+The in-app updater prefers the matching DMG and uses the ZIP when the release
+offers no matching DMG. It verifies the download, mounts the disk image read-only
+when applicable, and replaces the bundle at its original path. If the updated app
+fails to open, the previous bundle is restored. Copy the app out of a mounted DMG
+to a writable location before updating.
 
 The current ZIP and executable names retain `Avalonia`. A later transition to
 `NxFileViewerFork_v...zip` / `NxFileViewerFork` is supported only with both a
@@ -85,19 +99,16 @@ their GitHub SHA-256 digest is required if no sidecar is available.
 
 ## Linux launchers
 
-Extract the complete Linux ZIP into a writable folder. Both executables and the
-included `start.sh` and `install-shortcut.sh` carry executable permission bits,
-including ZIPs built on Windows. A desktop that permits executable files to run
-can launch the executable directly with a double-click. File-manager policy varies.
+Extract the Linux ZIP into a writable folder and launch the executable directly.
+If your archive tool drops executable permissions, run chmod +x NxFileViewerFork
+in the extracted folder. For the LogViewer, use NxFileViewerFork.LogViewer.
 
-For a menu/desktop launcher, start the viewer once and choose **Info → Create Linux
-launcher**, or run `sh ./install-shortcut.sh` in the extracted folder. This creates
-a `.desktop` entry with the absolute path to `start.sh`, so paths containing spaces
-work and later app updates can keep the same launcher. Some desktops require
-**Allow Launching** once for a new desktop shortcut. After that, double-clicking it
-starts the application without a terminal. Keep the application folder in place;
-recreate the shortcut after moving it. Framework-dependent packages still require
-.NET 10; self-contained packages bundle the runtime.
+In the Viewer, open **Settings → Program → Shortcuts** to create a launcher
+in the applications menu, on the desktop, or in both places. This also works
+when the Viewer runs from an AppImage. Some desktop environments require
+**Allow Launching** once for a new desktop shortcut. Recreate the shortcut
+after moving the application.
+
 
 ## Updater validation
 

@@ -19,9 +19,18 @@ internal sealed class FirmwareComparison
     private readonly Func<string, IReadOnlyList<string>> _archiveEntries;
     private readonly ArchiveReader _readArchive;
 
-    internal static void ValidateManifests(IEnumerable<string> manifests) =>
-        _ = new FirmwareComparison(manifests, _ => throw new NotSupportedException(),
-            (_, _, _, _) => throw new NotSupportedException());
+    internal static void ValidateManifests(IEnumerable<string> manifests)
+    {
+        try
+        {
+            _ = new FirmwareComparison(manifests, _ => throw new NotSupportedException(),
+                (_, _, _, _) => throw new NotSupportedException());
+        }
+        catch (Exception error) when (error is KeyNotFoundException or InvalidOperationException or FormatException or ArgumentException)
+        {
+            throw new InvalidDataException("Invalid firmware reference manifest.", error);
+        }
+    }
 
     internal FirmwareComparison(IEnumerable<string> manifests, Func<string, IReadOnlyList<string>> archiveEntries, ArchiveReader readArchive)
     {

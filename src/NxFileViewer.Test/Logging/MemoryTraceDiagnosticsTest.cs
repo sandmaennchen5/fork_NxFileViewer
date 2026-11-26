@@ -25,7 +25,7 @@ public class MemoryTraceDiagnosticsTest
     [Fact]
     public void SamplerFiltersLiveAndStopsOnDispose()
     {
-        var logger = new LoggerSource { Level = LogLevel.Information };
+        var logger = new RecordingLogger { Level = LogLevel.Information };
         var messages = new ConcurrentQueue<string>();
         using var received = new ManualResetEventSlim();
         logger.Log += (level, message) => { Assert.Equal(LogLevel.Trace, level); messages.Enqueue(message); received.Set(); };
@@ -49,7 +49,7 @@ public class MemoryTraceDiagnosticsTest
         var path = Path.Combine(Path.GetTempPath(), "NxMemoryTrace-" + Guid.NewGuid(), "memory.csv");
         try
         {
-            var logger = new LoggerSource { Level = LogLevel.Information };
+            var logger = new RecordingLogger { Level = LogLevel.Information };
             var messages = new ConcurrentQueue<string>();
             logger.Log += (_, message) => messages.Enqueue(message);
             var diagnostics = new BatchMemoryDiagnostics(logger, path);
@@ -76,5 +76,18 @@ public class MemoryTraceDiagnosticsTest
             Assert.Equal(3, File.ReadAllLines(path).Length);
         }
         finally { if (Directory.Exists(Path.GetDirectoryName(path))) Directory.Delete(Path.GetDirectoryName(path)!, true); }
+    }
+
+    private sealed class RecordingLogger : ILogger
+    {
+        public LogLevel Level { get; set; }
+        public event Action<LogLevel, string>? Log;
+        public bool IsEnabled(LogLevel level) => level >= Level && Level != LogLevel.None;
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        void ILogger.Log<TState>(LogLevel level, EventId eventId, TState state, Exception? exception,
+            Func<TState, Exception?, string> format)
+        {
+            if (IsEnabled(level)) Log?.Invoke(level, format(state, exception));
+        }
     }
 }

@@ -275,7 +275,7 @@ public sealed class ViewerUpdateTest : IDisposable
         var plan = Path.Combine(stage, "plan.json");
         File.WriteAllText(plan, JsonSerializer.Serialize(new { Target = target, ProcessId = 999999999, ExecutableHash = validHash ? digest : new string('0',64) }));
         var script = Path.Combine(stage, "install.ps1");
-        using (var input = typeof(ViewerUpdateService).Assembly.GetManifestResourceStream("ViewerUpdate.InstallUpdate.ps1")!)
+        using (var input = typeof(ViewerUpdateTest).Assembly.GetManifestResourceStream("ViewerUpdate.InstallUpdate.ps1")!)
         using (var output = File.Create(script)) input.CopyTo(output);
         var start = new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "WindowsPowerShell", "v1.0", "powershell.exe"))
         { UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true, RedirectStandardOutput = true };

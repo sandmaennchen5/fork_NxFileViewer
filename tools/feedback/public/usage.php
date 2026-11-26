@@ -41,6 +41,9 @@ try {
             usageReply(['error' => $key], 400);
         $values[] = $value;
     }
+    $delivery = $environment['programDelivery'] ?? 'unknown';
+    if (!in_array($delivery, ['exe', 'bin', 'appimage', 'app', 'unknown'], true))
+        usageReply(['error' => 'programDelivery'], 400);
     $config = require dirname(__DIR__) . '/store/config.php';
     require_once dirname(__DIR__) . '/store/database.php';
     require_once dirname(__DIR__) . '/store/support.php';
@@ -65,6 +68,7 @@ try {
         runtime_version=VALUES(runtime_version), runtime_identifier=VALUES(runtime_identifier), last_seen=VALUES(last_seen)'));
     $s->execute(array_merge([$internal], $values, [$now]));
     usageRecordDay($db, $internal, $values, $now);
+    usageRecordProgramDelivery($db, $internal, $delivery);
     usageRecordMode($db,$internal,$reportType,$enabled,$now);
     $db->commit();
     usageReply(['ok' => true], 200);

@@ -57,8 +57,8 @@ public partial class MainWindow
             var batchLayout = CaptureBatchLayout();
             var oldLayout = _preferences.BatchLayout;
             var layoutChanged = oldLayout == null || batchLayout.DetailsVisible != oldLayout.DetailsVisible ||
-                !System.Linq.Enumerable.SequenceEqual(batchLayout.Columns, oldLayout.Columns) ||
-                !System.Linq.Enumerable.SequenceEqual(batchLayout.Sort, oldLayout.Sort);
+                !System.Linq.Enumerable.SequenceEqual(batchLayout.Columns, oldLayout.Columns ?? []) ||
+                !System.Linq.Enumerable.SequenceEqual(batchLayout.Sort, oldLayout.Sort ?? []);
             if (!_preferences.RequiresFormatMigration && placement == _preferences.WindowPlacement && renameInputs == _preferences.RenameInputs &&
                 batchPath == _preferences.LastBatchPath && _lastOpenedPath == _preferences.LastOpenedPath &&
                 groupFiles == _preferences.SharedSettings.BatchGroupFiles &&

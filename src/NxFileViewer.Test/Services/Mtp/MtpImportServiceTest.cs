@@ -6,6 +6,7 @@ using System.Threading;
 using Emignatik.NxFileViewer.FileLoading;
 using Emignatik.NxFileViewer.Services.BackgroundTask;
 using Emignatik.NxFileViewer.Services.Mtp;
+using NxFileViewer.Avalonia;
 using Xunit;
 
 namespace Emignatik.NxFileViewer.Test.Services.Mtp;
@@ -72,7 +73,7 @@ public sealed class MtpImportServiceTest : IDisposable
         var result = service.Import(backend.Entries["00"], _progress, TestContext.Current.CancellationToken).Run();
         Assert.True(Directory.Exists(result));
         Assert.True(File.Exists(Path.Combine(result, "01")));
-        var single = SphairaMtpActions.SinglePath(result);
+        var single = Path.Combine(result, "00");
         Assert.True(SdCardSource.IsNax0(single));
         Assert.NotNull(SdCardSource.ContentsForFile(single));
         service.Cleanup();
@@ -119,7 +120,6 @@ public sealed class MtpImportServiceTest : IDisposable
         Assert.Equal(0, backend.OpenCount);
         var file = Path.Combine(path, "game.nca");
         Assert.Equal(0, new FileInfo(file).Length);
-        Assert.True(MtpDirectSource.IsDirect(SphairaMtpActions.SinglePath(path)));
         Assert.True(MtpDirectSource.IsDirect(file));
         using (var stream = MtpDirectSource.OpenRead(file)) {
             Assert.Equal(256, stream.Length);
@@ -128,22 +128,13 @@ public sealed class MtpImportServiceTest : IDisposable
             stream.Seek(0, SeekOrigin.Begin); Assert.Equal(0, stream.ReadByte());
             Assert.False(stream.CanWrite);
         }
-        using (var logger = Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance) {
-            Assert.Equal(PackageType.NSP, new PackageTypeAnalyzer(logger).GetType(Path.Combine(path, "game.nsp")));
-        }
+        var game = Path.Combine(path, "game.nsp");
         var disposedBefore = backend.DisposeCount;
-        using (var item = Emignatik.NxFileViewer.Models.TreeItems.Impl.NspItem.FromFile(Path.Combine(path, "game.nsp"), new LibHac.Common.Keys.KeySet())) {
-            Assert.Equal("game.nsp", item.Name);
-            var opens = backend.OpenCount; Assert.Equal(16, MtpDirectSource.Length(Path.Combine(path, "game.nsp"))); Assert.Equal(opens, backend.OpenCount);
-        }
+        Assert.Equal("NSP", PackageFile.Read(game, null).Type);
+        var opens = backend.OpenCount;
+        Assert.Equal(16, MtpDirectSource.Length(game));
+        Assert.Equal(opens, backend.OpenCount);
         Assert.True(backend.DisposeCount > disposedBefore);
-        Assert.False(Emignatik.NxFileViewer.Services.Nsz.PackageConversionService.Supports(Path.Combine(path, "game.nsp"), Emignatik.NxFileViewer.Services.Nsz.NszOperation.Compress));
-        var loader = new DiscoveryLoader();
-        var rows = new Emignatik.NxFileViewer.Services.BackgroundTask.RunnableImpl.VerifyDirectoryIntegrityRunnable(loader, null!, new Emignatik.NxFileViewer.Settings.AppSettings(),
-            Microsoft.Extensions.Logging.Abstractions.NullLogger<Emignatik.NxFileViewer.Services.BackgroundTask.RunnableImpl.VerifyDirectoryIntegrityRunnable>.Instance)
-            .Setup(path, true, verifyIntegrity: false).Run(_progress, TestContext.Current.CancellationToken);
-        Assert.Equal(2, rows.Count); Assert.Equal(2, loader.Calls);
-        Assert.All(rows, row => Assert.False(row.IsFirmware));
         service.Cleanup(); Assert.False(MtpDirectSource.IsDirect(file)); Assert.False(File.Exists(file));
     }
     [Fact]
@@ -237,10 +228,6 @@ public sealed class MtpImportServiceTest : IDisposable
         backend.Add("00", "00", false, "nca", bytes);
         backend.Add("01", "01", false, "nca", new byte[] { 4, 5, 6 });
         backend.Add("photo", "photo.jpg", false, "sd", new byte[] { 1 }); return backend;
-    }
-    private sealed class DiscoveryLoader : IFileLoader {
-        public int Calls;
-        public Emignatik.NxFileViewer.Models.NxFile Load(string path) { Calls++; throw new InvalidDataException("Synthetic discovery probe"); }
     }
     private sealed class FakeBackend : IMtpBackend
     {

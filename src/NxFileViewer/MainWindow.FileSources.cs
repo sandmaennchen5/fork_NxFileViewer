@@ -17,6 +17,14 @@ public partial class MainWindow
     private CancellationTokenSource? _sourceCancellation;
     private bool _updatingSdContentsChoice;
 
+    internal static bool IsDiskFull(Exception error) =>
+        error is IOException && (error.HResult & 0xffff) is 112 or 39 ||
+        error is AggregateException aggregate && aggregate.InnerExceptions.Any(IsDiskFull) ||
+        error.InnerException != null && IsDiskFull(error.InnerException);
+
+    private string DescribeFileLoadingError(Exception error) =>
+        IsDiskFull(error) ? _text.LoadingError_DiskFull : error.Message;
+
     private async void OpenSdContentsClicked(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
     {
         var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions { Title = _text.OpenSdContents });

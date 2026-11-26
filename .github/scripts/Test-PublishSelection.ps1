@@ -50,7 +50,7 @@ try {
     if (!$single.ViewerX64 -or '--ViewerX64' -notin $double.AdditionalSwitches) { throw 'ViewerX64 switch/alias binding failed.' }
     $rejected = $false
     try { & $script --ViewerX64 -AvaloniaViewer } catch { $rejected = $_.Exception.Message -like '*Do not combine Avalonia-only*' }
-    if (!$rejected) { throw 'Double-dash WPF selection was not applied before conflict validation.' }
+    if (!$rejected) { throw 'Double-dash Windows selection was not applied before conflict validation.' }
     $rejected = $false
     try { & $script --ViewerX6 } catch { $rejected = $_.Exception.Message -like '*Unknown switch*' }
     if (!$rejected) { throw 'Unknown selection was accepted.' }
@@ -63,8 +63,6 @@ try {
     $before=$global:publishSelectionCalls.Count
     & $script -NoGui -ConfigFile $configPath -Version 4.1.1-beta9
     if($global:publishSelectionCalls.Count -ne ($before+1) -or $global:publishSelectionCalls[$before].Project -notlike '*NxFileViewer.LogViewer.csproj'){throw 'Bare configured dispatch failed.'}
-    & $script -Wpf -ConfigFile $configPath -Version 4.1.1-beta9
-    if($global:publishSelectionCalls.Count -ne ($before+3) -or $global:publishSelectionCalls[$before+1].Project -notlike '*NxFileViewer.WPF.csproj'){throw '-Wpf group dispatch failed.'}
     $named=New-PublishConfiguration
     $named.Applications=@('AvaloniaViewer');$named.RuntimeIdentifiers=@('linux-arm64');$named.WithDotNet=$true;$named.WithoutDotNet=$false;$named.FirmwareHashes=$false
     $named.OutputDirectory=Join-Path $root 'profile-output'

@@ -164,7 +164,7 @@ public partial class MainWindow
         }
     }
 
-    private static string? ResolveKeyFile(string? custom, string name)
+    internal static string? ResolveKeyFile(string? custom, string name)
     {
         if (!string.IsNullOrWhiteSpace(custom) && File.Exists(custom)) return Path.GetFullPath(custom);
         var local = Path.Combine(ViewerDataDirectory.Root, name);
@@ -255,7 +255,7 @@ public partial class MainWindow
         { SettingsStatus.Text = error.Message; }
     }
 
-    private string DescribeKeyValidation(KeyFileValidationResult result)
+    internal string DescribeKeyValidation(KeyFileValidationResult result)
     {
         if (!result.FileExists) return _text.KeysValidation_MissingFile;
         var lines = new System.Collections.Generic.List<string>();

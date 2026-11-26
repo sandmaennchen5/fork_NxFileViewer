@@ -41,7 +41,7 @@ numeric assembly version, OS description/platform, process/OS architecture, UI
 framework, runtime distribution, runtime version and RID. This distinguishes x86,
 x64 and ARM64, WPF/Avalonia and bundled/system .NET without relying on an EXE name.
 
-The WPF report dialog can share a locally anonymized, editable excerpt publicly,
+The Viewer report dialog can share a locally anonymized, editable excerpt publicly,
 upload the unchanged current session file privately, or do both. Anonymization is
 applied to the public excerpt; it does not alter the local file or private original.
 See [community features](Community.md) for privacy, Support IDs and service receipts.

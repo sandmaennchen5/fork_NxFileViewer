@@ -1,7 +1,7 @@
 # License inventory maintenance
 
 CREDITS.txt lists direct and transitive runtime packages from
-src/NxFileViewer.WPF/obj/project.assets.json. When updating a package, review its
+src/NxFileViewer/obj/project.assets.json. When updating a package, review its
 NuGet metadata and upstream notices, update CREDITS.txt and the files here, then
 regenerate docs/THIRD-PARTY-NOTICES.txt. Build/test tools and optional external
 plugins are outside this runtime inventory.

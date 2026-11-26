@@ -8,6 +8,25 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+## [4.1.2-beta3] - 2026-11-26
+
+### Added
+
+- Add in-app updates for Linux AppImages and installed macOS app bundles. Updates verify the package checksum, keep the existing app path and restore the previous version if the updated app fails to open.
+- Publish macOS apps in a direct DMG and an app ZIP. Both include a Finder and Dock icon. The updater uses the matching DMG when available.
+- Add Linux application-menu and desktop shortcuts for both the AppImage and the standalone executable.
+- Add an installation guide for Windows, Linux and macOS with package selection, update instructions and data paths.
+
+### Changed
+
+- Use `NxFileViewerFork-Daten` beside the executable on Windows and Linux, or beside the AppImage. Offer to copy existing data from eligible older locations.
+- Use Avalonia for the Viewer, standalone LogViewer and transition application distribution.
+- Expand Avalonia single-file and batch inspection for SD contents, firmware, NAND, multipackages and MTP sources. Improve operation progress, batch history and log display.
+
+### Fixed
+
+- Respect the saved prerelease setting in Avalonia, including settings carried over from older installations. New configurations check stable releases by default.
+
 ## [4.1.2-beta2] - 2026-11-23
 
 Release only for Linux and MacOS.

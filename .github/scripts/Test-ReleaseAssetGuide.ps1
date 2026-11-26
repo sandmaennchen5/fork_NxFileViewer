@@ -12,7 +12,7 @@ function Fixture([string]$name, [bool]$optional = $true, [int]$runtime = 10) {
     $root = Join-Path $testRoot $name
     $out = Join-Path $root 'packages'
     New-Item -ItemType Directory -Path $out -Force | Out-Null
-    foreach ($project in @('NxFileViewer.WPF', 'NxFileViewer.LogViewer')) {
+    foreach ($project in @('NxFileViewer', 'NxFileViewer.LogViewer')) {
         $path = Join-Path $root "src/$project"
         New-Item -ItemType Directory -Path $path -Force | Out-Null
         [IO.File]::WriteAllText((Join-Path $path "$project.csproj"), "<Project><PropertyGroup><TargetFramework>net$runtime.0-windows7.0</TargetFramework></PropertyGroup></Project>")

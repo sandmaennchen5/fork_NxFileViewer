@@ -159,18 +159,17 @@ public sealed class XciPartitionIntegrityTest : IDisposable
         public void SetText(string value) { }
         public void SetPercentage(double value) => PercentageChanged?.Invoke(value);
     }
-    private sealed class RepairVerifier : IConversionVerifier
+    private sealed class RepairVerifier
     {
         public int Calls;
         public bool Reject;
-        public Emignatik.NxFileViewer.Services.Integrity.BatchIntegrityResult Verify(string path,
+        public void Verify(string path,
             Emignatik.NxFileViewer.Services.BackgroundTask.IProgressReporter progress, CancellationToken token)
         {
             Calls++;
             XciPartitionIntegrity.Verify(path, token);
             XciPartitionIntegrity.VerifyGamecardHeader(path, token);
-            return new(path, "XCI", "Application", "XCI", "None",
-                Reject ? Emignatik.NxFileViewer.Models.Overview.NcasIntegrity.Error : Emignatik.NxFileViewer.Models.Overview.NcasIntegrity.Original, null);
+            if (Reject) throw new InvalidDataException("Test verifier rejected the repaired copy.");
         }
     }
 
@@ -180,7 +179,7 @@ public sealed class XciPartitionIntegrityTest : IDisposable
         var fixture = Fixture(false);
         var original = File.ReadAllBytes(fixture.Output);
         var verifier = new RepairVerifier();
-        var service = new XciRepairService(verifier);
+        var service = new XciRepairService(verifier.Verify);
         var candidate = Assert.IsType<XciRepairCandidate>(service.Inspect(fixture.Output, new RepairProgress(), TestContext.Current.CancellationToken));
         Assert.True(candidate.HeaderRepair);
         Assert.Equal(0, candidate.LayoutChanges);
@@ -203,7 +202,7 @@ public sealed class XciPartitionIntegrityTest : IDisposable
         File.Copy(fixture.Source, companion);
         var original = File.ReadAllBytes(fixture.Output);
         var compressed = File.ReadAllBytes(companion);
-        var service = new XciRepairService(new RepairVerifier());
+        var service = new XciRepairService(new RepairVerifier().Verify);
         var candidate = Assert.IsType<XciRepairCandidate>(service.Inspect(fixture.Output, new RepairProgress(), TestContext.Current.CancellationToken));
         Assert.True(candidate.LayoutChanges > 0);
         Assert.Equal(companion, candidate.SourceXcz);
@@ -220,7 +219,7 @@ public sealed class XciPartitionIntegrityTest : IDisposable
     public void MissingCompanionOrUnknownPayloadCorruptionDoesNotOfferRepair()
     {
         var broken = Fixture(true);
-        var service = new XciRepairService(new RepairVerifier());
+        var service = new XciRepairService(new RepairVerifier().Verify);
         Assert.Null(service.Inspect(broken.Output, new RepairProgress(), TestContext.Current.CancellationToken));
         var fixture = Fixture(false);
         var bytes = File.ReadAllBytes(fixture.Output);
@@ -239,7 +238,7 @@ public sealed class XciPartitionIntegrityTest : IDisposable
         var logo = source.AsSpan().IndexOf("nxfv-logo-payload-unique"u8);
         source[logo] ^= 1;
         File.WriteAllBytes(companion, source);
-        var service = new XciRepairService(new RepairVerifier());
+        var service = new XciRepairService(new RepairVerifier().Verify);
         Assert.Null(service.Inspect(fixture.Output, new RepairProgress(), TestContext.Current.CancellationToken));
     }
 
@@ -248,7 +247,7 @@ public sealed class XciPartitionIntegrityTest : IDisposable
     {
         var fixture = Fixture(false);
         var original = File.ReadAllBytes(fixture.Output);
-        var service = new XciRepairService(new RepairVerifier());
+        var service = new XciRepairService(new RepairVerifier().Verify);
         var candidate = service.Inspect(fixture.Output, new RepairProgress(), TestContext.Current.CancellationToken)!;
         Assert.Throws<IOException>(() => service.RepairCopy(candidate, fixture.Output, new RepairProgress(), TestContext.Current.CancellationToken));
         var destination = Path.Combine(_root, "existing.xci");
@@ -267,7 +266,7 @@ public sealed class XciPartitionIntegrityTest : IDisposable
         var original = File.ReadAllBytes(fixture.Output);
         using var cancellation = new CancellationTokenSource();
         var verifier = new RepairVerifier { Reject = !cancel };
-        var service = new XciRepairService(verifier);
+        var service = new XciRepairService(verifier.Verify);
         var candidate = service.Inspect(fixture.Output, new RepairProgress(), TestContext.Current.CancellationToken)!;
         var destination = Path.Combine(_root, "must-not-exist.xci");
         var progress = new RepairProgress { PercentageChanged = value => { if (cancel && value > 0) cancellation.Cancel(); } };
@@ -284,7 +283,7 @@ public sealed class XciPartitionIntegrityTest : IDisposable
     public void SourceChangedAfterConfirmationRequiresANewInspection()
     {
         var fixture = Fixture(false);
-        var service = new XciRepairService(new RepairVerifier());
+        var service = new XciRepairService(new RepairVerifier().Verify);
         var candidate = service.Inspect(fixture.Output, new RepairProgress(), TestContext.Current.CancellationToken)!;
         File.SetLastWriteTimeUtc(fixture.Output, File.GetLastWriteTimeUtc(fixture.Output).AddSeconds(2));
         var destination = Path.Combine(_root, "changed.xci");
@@ -297,7 +296,7 @@ public sealed class XciPartitionIntegrityTest : IDisposable
     {
         var fixture = Fixture(false);
         using (var append = new FileStream(fixture.Output, FileMode.Append)) append.Write(new byte[512]);
-        var service = new XciRepairService(new RepairVerifier());
+        var service = new XciRepairService(new RepairVerifier().Verify);
         Assert.Null(service.Inspect(fixture.Output, new RepairProgress(), TestContext.Current.CancellationToken));
     }
 

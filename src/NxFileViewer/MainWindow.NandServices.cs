@@ -73,7 +73,7 @@ public partial class MainWindow
             _keysPath, ResolveKeyFile(_preferences.TitleKeysPath, "title.keys")));
     }
 
-    private sealed class NandKeyProvider(string? prod, string? title) : IKeySetProviderService
+    internal sealed class NandKeyProvider(string? prod, string? title) : IKeySetProviderService
     {
         public event PropertyChangedEventHandler? PropertyChanged { add { } remove { } }
         public string AppDirProdKeysFilePath => Path.Combine(ViewerDataDirectory.Root, "prod.keys");

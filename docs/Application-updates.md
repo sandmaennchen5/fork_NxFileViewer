@@ -116,7 +116,7 @@ GitHub API limits are detected from 403/429 responses and rate-limit headers. Th
 
 ## Download, verification and replacement
 
-Installation requires an idle viewer and a writable program directory. The matching x64/x86/ARM64 WPF release ZIP is staged under `Updates/<unique-id>` beside the executable. GitHub's SHA-256 asset digest, the full EXE product version (including preview suffix) and PE architecture are checked before installation. Missing digests are rejected.
+Installation requires an idle viewer and a writable program directory. The matching Windows release ZIP is staged under `Updates/<unique-id>` beside the executable. GitHub's SHA-256 asset digest, the full EXE product version (including preview suffix) and PE architecture are checked before installation. Missing digests are rejected.
 
 Release ZIPs contain their files directly at the archive root. Additional files and subdirectories are installed at the same relative paths beside the main executable. Existing files absent from the ZIP remain untouched. Unsafe paths, directory links, keys and settings files are rejected.
 
@@ -138,7 +138,7 @@ Older single-executable archives remain readable by the new updater. Publishing 
 ./Publish.ps1 -IncludeLegacyTransition:$false
 ```
 
-`NxFileViewer_v<version>_<variant/architecture>.zip` contains only a transition `NxFileViewer.exe`, compatible with old single-file updaters. Before migration it reads IncludeViewerPrereleases from NxFileViewerFork.settings.json, or from NxFileViewer.settings.json when the fork file is absent. An explicit boolean true enables stable and pre-release candidates; otherwise it requests the latest stable release, independently of the transition EXE's build version. It selects the matching `NxFileViewerFork_v*` package, verifies its SHA-256 digest, architecture, package identity and actual target release version, then migrates data and installs the renamed application. Failed downloads stay visible with a Retry button. It selects the highest compatible semantic version. Drafts, old-name transition packages and another runtime variant are not substituted; previews require the explicit setting.
+`NxFileViewer_v<version>_<variant/architecture>.zip` contains only a transition `NxFileViewer.exe`, compatible with old single-file updaters. The transition window uses Avalonia and the executable bundles its own .NET runtime. Before migration it reads IncludeViewerPrereleases from NxFileViewerFork.settings.json, or from NxFileViewer.settings.json when the fork file is absent. An explicit boolean true enables stable and pre-release candidates; otherwise it requests the latest stable release, independently of the transition EXE's build version. It selects the matching `NxFileViewerFork_v*` package, verifies its SHA-256 digest, architecture, package identity and actual target release version, then migrates data and installs the renamed application. Failed downloads stay visible with a Retry button. It selects the highest compatible semantic version. Drafts, old-name transition packages and another runtime variant are not substituted; previews require the explicit setting.
 
 The transition stays running beyond older helpers' early-startup check. Its own embedded version must still match the release advertising it: old updaters check the downloaded EXE version before starting it. Therefore a transition ZIP cannot simply be renamed and reused unchanged in a later release. `Publish.ps1` rebuilds all four transition variants with the current application version automatically. Upload those generated old-name ZIPs with each new release, together with the new-name application packages. A user who skipped 4.1.0-beta1 can then update directly through a later release; manually starting a transition EXE also follows its supported release-selection behavior (older transition builds may still be stable-only).
 
@@ -178,13 +178,13 @@ Tests use mocked releases/downloads, corrupt and unsafe archives, and isolated d
 
 ## Runtime variants
 
-Each x64/x86/ARM64 WPF release offers a standard ZIP requiring .NET 10 Desktop Runtime and a compressed self-contained ZIP with .NET included. Standard names remain NxFileViewerFork_v<VERSION>_<ARCH>.zip; bundled-runtime names are NxFileViewerFork_v<VERSION>_self-contained_<ARCH>.zip. Both contain exactly NxFileViewerFork.exe, nxfileviewer-package.json and LICENSE.txt. Credits and third-party notices are embedded and available offline on the Info page.
+Windows packages are published for x64, x86 and ARM64 with or without .NET.
+The ZIP name includes the runtime identifier and ends in `-with-net.zip` or
+`-without-net.zip`. See [Avalonia releases](Avalonia.md) for the package matrix.
 
-The executable records its runtime distribution at build time. Normal updates preserve this distribution and architecture, including preview releases; the separately confirmed x86-to-x64 switch is the explicit exception. A missing compatible package is reported or skipped while listing previews; another runtime distribution is never substituted. Previously installed standard builds continue using the original ZIP names.
-
-On x64 Windows, an x86 viewer offers **Switch to 64-bit** in the Update Center. This explicit action searches the configured update sources for the newest eligible x64 package in the installed runtime distribution, including the installed version. The prerelease preference still applies. Standard builds require the x64 .NET 10 Desktop Runtime. Confirming uses the regular verified installer and restart. Future updates follow the selected x64 distribution. The switch remains available even after releases stop including x86 packages.
-
-The Info tab displays the application version, process architecture and whether .NET is bundled. Standard builds explicitly show the .NET 10 Desktop Runtime requirement.
+Normal updates preserve the installed architecture and runtime distribution.
+On x64 Windows, the x86 viewer can offer **Switch to 64-bit** in the Update Center.
+This action asks for confirmation and uses the verified installer.
 
 ## Removing old versions
 
@@ -215,22 +215,11 @@ For older sessions without tracking, cleanup is conservative: it does not offer
 sessions while any cmd, Python, py or NSCB process is running. Close those
 consoles first. Eligibility is checked again immediately before deletion.
 
-## Windows ARM64 (WPF)
+## Windows ARM64
 
-Publish.ps1 now builds the WPF viewer and standalone WPF LogViewer for x64, x86
-and ARM64, each with and without the bundled .NET runtime. Build and tagged-release
-workflows include the ARM64 ZIPs. Avalonia publishing is unchanged. Legacy
-transition ZIPs remain x64/x86 only because there was no legacy ARM64 application.
-
-Individual EXE selections are available through -ViewerArm64,
--ViewerArm64WithRuntime, -LogViewerArm64 and -LogViewerArm64WithRuntime.
-The standard ZIP names end in _arm64.zip or _self-contained_arm64.zip.
-
-The release descriptor keeps its original four x64/x86 distributions under
-Packages and adds the two viewer ARM64 distributions under Arm64Packages.
-Older clients ignore the extension; new clients validate and combine both lists.
-Update selection preserves ARM64 and runtime distribution, and downloaded
-executables must have a native ARM64 PE header. No x64 package is substituted.
+The Viewer and standalone LogViewer have native Windows ARM64 packages. Updates
+preserve architecture and runtime distribution. See [Avalonia releases](Avalonia.md)
+for package names and publishing options.
 
 NSZ already selects nsz-cli-windows-arm64.exe on Windows ARM64. The other external
 plugins do not currently provide equivalent native Windows ARM64 packages;

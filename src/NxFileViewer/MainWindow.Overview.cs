@@ -1,3 +1,4 @@
+using Emignatik.NxFileViewer.Localization.Keys;
 using System;
 using System.IO;
 using System.Linq;
@@ -15,7 +16,7 @@ namespace NxFileViewer.Avalonia;
 
 public partial class MainWindow
 {
-    private sealed record OverviewLanguage(string Name, string AppName, string Publisher, byte[]? Icon,
+    internal sealed record OverviewLanguage(string Name, string AppName, string Publisher, byte[]? Icon,
         Emignatik.NxFileViewer.Services.Integrity.BatchIconReference? IconReference = null)
     {
         public override string ToString() => Name;
@@ -117,22 +118,24 @@ public partial class MainWindow
     private string OverviewLanguageName(NacpLanguage language) =>
         _text.TryGetValue("Lng_" + language, out var translated) ? translated : language.ToString();
 
-    private sealed record MissingKeysWarning(string Heading, string Entries, string Help, string CopyLabel, string KeyNames);
+    internal sealed record MissingKeysWarning(string Heading, string Entries, string Help, string CopyLabel, string KeyNames);
 
-    private MissingKeysWarning? CreateMissingKeysWarning(string[] names)
+    private MissingKeysWarning? CreateMissingKeysWarning(string[] names) => CreateMissingKeysWarning(names, _text);
+
+    internal static MissingKeysWarning? CreateMissingKeysWarning(string[] names, ILocalizationKeys text)
     {
         if (names.Length == 0) return null;
         var titleKeyCount = names.Count(IsTitleKeyName);
         var hasSystemKeys = names.Length > titleKeyCount;
-        var heading = hasSystemKeys ? _text.File_MissingKeysHeader : _text.File_MissingTitleKeysHeading;
+        var heading = hasSystemKeys ? text.File_MissingKeysHeader : text.File_MissingTitleKeysHeading;
         var entries = string.Join(Environment.NewLine, names.Select(name =>
-            "• " + (IsTitleKeyName(name) ? string.Format(_text.File_MissingTitleKeyEntry, name.ToUpperInvariant()) : name)));
+            "• " + (IsTitleKeyName(name) ? string.Format(text.File_MissingTitleKeyEntry, name.ToUpperInvariant()) : name)));
         var help = string.Join(Environment.NewLine + Environment.NewLine, new[]
         {
-            titleKeyCount > 0 ? _text.File_MissingTitleKeysHelp : "",
-            hasSystemKeys ? _text.File_MissingSystemKeysHelp : ""
+            titleKeyCount > 0 ? text.File_MissingTitleKeysHelp : "",
+            hasSystemKeys ? text.File_MissingSystemKeysHelp : ""
         }.Where(value => value.Length > 0));
-        return new MissingKeysWarning(heading, entries, help, _text.File_CopyMissingKeys, string.Join(Environment.NewLine, names));
+        return new MissingKeysWarning(heading, entries, help, text.File_CopyMissingKeys, string.Join(Environment.NewLine, names));
     }
 
     private async void CopyOverviewMissingKeys(object? sender, RoutedEventArgs e)

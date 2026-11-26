@@ -1,5 +1,4 @@
 using System;
-using System.Text.Json;
 using Emignatik.NxFileViewer.Models.Overview;
 using Emignatik.NxFileViewer.Services.Integrity;
 using Emignatik.NxFileViewer.Services.Security;
@@ -41,16 +40,4 @@ public sealed class BatchContentMetadataTest
         Assert.Equal(LibHac.Common.Validity.Invalid, BatchContentMetadata.Signature(new[] { LibHac.Common.Validity.Valid, LibHac.Common.Validity.Invalid }));
     }
 
-    [Fact]
-    public void HistoryRetainsMetadataAndOlderEntriesStayUnknown()
-    {
-        var original = new BatchIntegrityResult("game.nsp", "NSP", "NSP", "", "", default, null)
-            { ContentType = "Base / Update", Permission = ProgramSecurityLevel.Unsafe };
-        var restored = JsonSerializer.Deserialize<BatchIntegrityResult>(JsonSerializer.Serialize(original))!;
-        Assert.Equal(original.ContentType, restored.ContentType);
-        Assert.Equal(original.Permission, restored.Permission);
-        var old = JsonSerializer.Deserialize<BatchIntegrityResult>("{\"FilePath\":\"old.nsp\"}")!;
-        Assert.Null(old.Permission);
-        Assert.Equal("", old.ContentType);
-    }
 }

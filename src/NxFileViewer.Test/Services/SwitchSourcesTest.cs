@@ -3,7 +3,6 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using Emignatik.NxFileViewer.FileLoading;
-using Emignatik.NxFileViewer.Models.Overview;
 using Emignatik.NxFileViewer.Models.TreeItems.Impl;
 using LibHac.Common;
 using LibHac.Common.Keys;
@@ -12,14 +11,8 @@ using LibHac.Fs.Fsa;
 using LibHac.FsSystem;
 using LibHac.Tools.Fs;
 using LibHac.Tools.FsSystem;
-using Microsoft.Extensions.Logging.Abstractions;
+using NxFileViewer.Avalonia;
 using Xunit;
-using Emignatik.NxFileViewer.Services.KeysManagement;
-using Emignatik.NxFileViewer.Services.BackgroundTask.RunnableImpl;
-using Emignatik.NxFileViewer.Services.BackgroundTask;
-using Emignatik.NxFileViewer.Settings;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Path = System.IO.Path;
 
 namespace Emignatik.NxFileViewer.Test.Services;
@@ -39,8 +32,7 @@ public sealed class SwitchSourcesTest : IDisposable
         Assert.Equal("Test homebrew", item.Titles.Single().AppName);
         Assert.Equal("Test author", item.Titles.Single().Publisher);
         Assert.Equal("1.2.3", item.DisplayVersion);
-        Assert.Equal(NxFileType.NRO, new FileOverview(item).FileType);
-        Assert.Equal(PackageType.NRO, new PackageTypeAnalyzer(NullLoggerFactory.Instance).GetType(path));
+        Assert.Equal("NRO", PackageFile.Read(path, null, null, TestContext.Current.CancellationToken).Type);
     }
     [Theory]
     [InlineData(0x98, ulong.MaxValue)]
@@ -64,42 +56,6 @@ public sealed class SwitchSourcesTest : IDisposable
         File.WriteAllText(path, "sd_seed = 00112233445566778899aabbccddeeff\n");
         var keys = KeySet.CreateDefaultKeySet(); ExternalKeyReader.ReadKeyFile(keys, filename: path);
         Assert.Equal("00112233445566778899aabbccddeeff", Convert.ToHexString(keys.SdCardEncryptionSeed.Data).ToLowerInvariant());
-    }
-    [Fact]
-    public void NroBatchVerificationWorksWithoutKeysOrNcaVerifier()
-    {
-        var path = Path.Combine(_root, "homebrew.nro"); File.WriteAllBytes(path, Nro());
-        var settings = new AppSettings();
-        var provider = new KeySetProviderService(settings, NullLoggerFactory.Instance, _root, _root);
-        var loader = (IFileLoader)Activator.CreateInstance(typeof(IFileLoader).Assembly.GetType("Emignatik.NxFileViewer.FileLoading.FileLoader")!,
-            NullLoggerFactory.Instance, new PackageTypeAnalyzer(NullLoggerFactory.Instance),
-            new FileItemLoader(provider, NullLoggerFactory.Instance, settings), new FileOverviewLoader(NullLoggerFactory.Instance, settings), null)!;
-        using var services = new ServiceCollection().BuildServiceProvider();
-        var batch = new VerifyDirectoryIntegrityRunnable(loader, services, settings, NullLogger<VerifyDirectoryIntegrityRunnable>.Instance);
-        var result = Assert.Single(batch.Setup(_root, false, verifyIntegrity: true).Run(new Progress(), TestContext.Current.CancellationToken));
-        Assert.Equal("NRO", result.FileType); Assert.Equal(NcasIntegrity.NoNca, result.Integrity); Assert.Null(result.Error);
-        Assert.Equal("Test homebrew", result.Title); Assert.Equal("Homebrew", result.Distribution);
-    }
-    [Fact]
-    public void MtpProvidedNcaContentsBypassNaxLayerWithoutSdSeedAndRemainReadOnly()
-    {
-        var registered = Directory.CreateDirectory(Path.Combine(_root, "registered")).FullName;
-        var bytes = Encoding.UTF8.GetBytes("synthetic MTP-provided NCA bytes");
-        File.WriteAllBytes(Path.Combine(registered, "content.nca"), bytes);
-        using var sd = SdCardItem.Open(_root, KeySet.CreateDefaultKeySet(), allowPlainNca: true);
-        using var denied = new UniqueRef<IFile>();
-        Assert.True(sd.PartitionFileSystem.OpenFile(ref denied.Ref, "/registered/content.nca".ToU8Span(), OpenMode.Write).IsFailure());
-        using var opened = new UniqueRef<IFile>();
-        sd.PartitionFileSystem.OpenFile(ref opened.Ref, "/registered/content.nca".ToU8Span(), OpenMode.Read).ThrowIfFailure();
-        var actual = new byte[bytes.Length];
-        opened.Get.Read(out var read, 0, actual).ThrowIfFailure();
-        Assert.Equal(bytes.Length, read); Assert.Equal(bytes, actual);
-    }
-    [Fact]
-    public void SdRequiresSeedInProdKeys()
-    {
-        Directory.CreateDirectory(Path.Combine(_root, "registered"));
-        Assert.Throws<InvalidDataException>(() => { using var sd = SdCardItem.Open(_root, KeySet.CreateDefaultKeySet()); });
     }
     [Fact]
     public void SdDiscoversOfwAndEverySupportedEmuMmcSlot()
@@ -128,29 +84,6 @@ public sealed class SwitchSourcesTest : IDisposable
         Assert.Equal(contents, SdCardSource.FindContents(_root));
         Assert.Equal(contents, SdCardSource.ContentsForFile(path));
         Assert.Single(SdCardSource.FindAllContents(contents));
-    }
-    [Fact]
-    public void BatchScansOfwAndEmuMmcSeparatelyWithoutTreatingThemAsFirmware()
-    {
-        foreach (var path in new[] { Path.Combine(_root, "Nintendo"), Path.Combine(_root, "emuMMC", "RAW1", "Nintendo"), Path.Combine(_root, "emuMMC", "SD99", "Nintendo") })
-            Directory.CreateDirectory(Path.Combine(path, "Contents", "registered"));
-        var settings = new AppSettings();
-        var provider = new KeySetProviderService(settings, NullLoggerFactory.Instance, _root, _root);
-        var loader = (IFileLoader)Activator.CreateInstance(typeof(IFileLoader).Assembly.GetType("Emignatik.NxFileViewer.FileLoading.FileLoader")!,
-            NullLoggerFactory.Instance, new PackageTypeAnalyzer(NullLoggerFactory.Instance), new FileItemLoader(provider, NullLoggerFactory.Instance, settings),
-            new FileOverviewLoader(NullLoggerFactory.Instance, settings), null)!;
-        using var services = new ServiceCollection().BuildServiceProvider();
-        var batch = new VerifyDirectoryIntegrityRunnable(loader, services, settings, NullLogger<VerifyDirectoryIntegrityRunnable>.Instance);
-        var results = batch.Setup(_root, false, verifyIntegrity: false).Run(new Progress(), TestContext.Current.CancellationToken);
-        Assert.Equal(3, results.Count);
-        Assert.Equal(3, results.Select(r => r.FilePath).Distinct().Count());
-        Assert.All(results, result => { Assert.Equal("NAX0", result.FileType); Assert.False(result.IsFirmware); Assert.Contains("sd_seed", result.Error); });
-    }
-    private sealed class Progress : IProgressReporter
-    {
-        public void SetText(string text) { }
-        public void SetMode(bool isIndeterminate) { }
-        public void SetPercentage(double value) { }
     }
     [Theory]
     [InlineData(false)]
@@ -195,16 +128,6 @@ public sealed class SwitchSourcesTest : IDisposable
             stream.CopyTo(buffer);
             return buffer.ToArray();
         });
-        Assert.Equal(expected, avaloniaBytes);
-        using var sd = SdCardItem.Open(contents, keys);
-        using var denied = new UniqueRef<IFile>();
-        Assert.True(sd.PartitionFileSystem.OpenFile(ref denied.Ref, relative.ToU8Span(), OpenMode.Write).IsFailure());
-        using var opened = new UniqueRef<IFile>();
-        sd.PartitionFileSystem.OpenFile(ref opened.Ref, relative.ToU8Span(), OpenMode.Read).ThrowIfFailure();
-        var actual = new byte[expected.Length]; opened.Get.Read(out var read, 0, actual).ThrowIfFailure();
-        Assert.Equal(expected.Length, read); Assert.Equal(expected, actual);
-        var entry = Assert.Single(sd.EnumerateContent(TestContext.Current.CancellationToken));
-        Assert.Equal(relative, entry.FullPath);
     }
     private static byte[] Nro()
     {

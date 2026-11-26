@@ -1,4 +1,4 @@
-# Shared output helpers for the configurable WPF/Avalonia publishers (PowerShell 5.1+).
+# Shared output helpers for the configurable publishers (PowerShell 5.1+).
 function Get-AvaloniaUpdateChecksum([string]$Zip) {
     [ordered]@{
         Framework='Avalonia'

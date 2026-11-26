@@ -6,9 +6,7 @@ updates:
       - "/src/LibHac.NSZ"
       - "/src/LibHac.NSZ.Test"
       - "/src/NxFileViewer"
-      - "/src/NxFileViewer.WPF"
       - "/src/NxFileViewer.LogViewer"
-      - "/src/NxFileViewer.LogViewer.WPF"
       - "/src/NxFileViewer.Test"
     schedule:
       interval: "weekly"

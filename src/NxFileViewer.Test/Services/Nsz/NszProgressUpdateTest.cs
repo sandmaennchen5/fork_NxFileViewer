@@ -3,8 +3,6 @@ using System.IO;
 using System.Collections.Generic;
 using Emignatik.NxFileViewer.Services.Nsz;
 using Emignatik.NxFileViewer.Services.BackgroundTask;
-using Emignatik.NxFileViewer.Services.WindowPlacement;
-using Emignatik.NxFileViewer.Settings;
 using Xunit;
 
 namespace Emignatik.NxFileViewer.Test.Services.Nsz;
@@ -50,19 +48,6 @@ public sealed class NszProgressUpdateTest
         Assert.Contains("2/3", sink.Text);
     }
 
-    [Theory]
-    [InlineData(false, true, false, true)]
-    [InlineData(true, true, false, false)]
-    [InlineData(true, true, true, true)]
-    [InlineData(true, false, false, true)]
-    public void StartsMaximizedUnlessValidSavedPlacementSaysNormal(bool defined, bool remember, bool maximized, bool expected)
-    {
-        var settings = new AppSettings { RememberWindowPlacement = remember };
-        if (defined) { settings.MainWindowPlacement.Width = 1200; settings.MainWindowPlacement.Height = 800; }
-        settings.MainWindowPlacement.IsMaximized = maximized;
-        var roundTrip = System.Text.Json.JsonSerializer.Deserialize<AppSettings>(System.Text.Json.JsonSerializer.Serialize(settings))!;
-        Assert.Equal(expected, WindowPlacementService.ShouldStartMaximized(roundTrip));
-    }
 
     [Theory]
     [InlineData(false)]

@@ -7,10 +7,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Emignatik.NxFileViewer.Services.OnlineServices;
 using Emignatik.NxFileViewer.Settings;
-using Emignatik.NxFileViewer.Tools;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace Emignatik.NxFileViewer.Test.Services.OnlineServices;
@@ -133,24 +129,8 @@ public class TitleProviderTest : IDisposable
         Assert.Equal(settings.TitleInfoProvider, restored.TitleInfoProvider);
         Assert.Equal(settings.NLibApiUrl, restored.NLibApiUrl);
         Assert.Equal(settings.TitleDbRegion, restored.TitleDbRegion);
-        IAppSettings copied = new AppSettings();
-        new ShallowCopier().Copy<IAppSettings>(settings, copied);
-        Assert.Equal(settings.TitleInfoProvider, copied.TitleInfoProvider);
-        Assert.Equal(settings.NLibApiUrl, copied.NLibApiUrl);
-        Assert.Equal(settings.TitleDbRegion, copied.TitleDbRegion);
     }
 
-    [Fact]
-    public void ServicesResolveUsingApplicationRegistrations()
-    {
-        using var provider = new ServiceCollection()
-            .AddSingleton<IAppSettings>(new AppSettings())
-            .AddSingleton<ILoggerFactory>(NullLoggerFactory.Instance)
-            .AddSingleton<IOnlineTitleInfoService, OnlineTitleInfoService>()
-            .AddSingleton<ICachedOnlineTitleInfoService, CachedOnlineTitleInfoService>()
-            .BuildServiceProvider();
-        Assert.NotNull(provider.GetRequiredService<ICachedOnlineTitleInfoService>());
-    }
 
     [Fact]
     public async Task ManualTitleDbRefreshBypassesFreshCacheAndClearsTitleResponses()

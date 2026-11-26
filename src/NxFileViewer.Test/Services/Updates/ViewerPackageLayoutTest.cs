@@ -86,7 +86,7 @@ public sealed class ViewerPackageLayoutTest : IDisposable
     private async Task<int> Install(PreparedViewerUpdate prepared, string previous = "NxFileViewer.exe")
     {
         var script = Path.Combine(prepared.Directory, "install.ps1");
-        using (var input = typeof(ViewerUpdateService).Assembly.GetManifestResourceStream("ViewerUpdate.InstallUpdate.ps1")!)
+        using (var input = typeof(ViewerPackageLayoutTest).Assembly.GetManifestResourceStream("ViewerUpdate.InstallUpdate.ps1")!)
         using (var output = File.Create(script)) input.CopyTo(output);
         var plan = Path.Combine(prepared.Directory, "plan.json");
         File.WriteAllText(plan, JsonSerializer.Serialize(new {

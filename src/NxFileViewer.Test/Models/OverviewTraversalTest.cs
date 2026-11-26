@@ -1,59 +1,52 @@
-using System.Collections.Generic;
 using System.Linq;
-using Emignatik.NxFileViewer.Models.Overview;
-using Emignatik.NxFileViewer.Models.TreeItems;
+using System.Threading.Tasks;
+using Avalonia.Controls;
+using Emignatik.NxFileViewer.Test.Views;
+using NxFileViewer.Avalonia;
 using Xunit;
 
 namespace Emignatik.NxFileViewer.Test.Models;
 
+[Collection("Avalonia desktop")]
 public sealed class OverviewTraversalTest
 {
     [Fact]
-    public void EstimatedSizeDoesNotRescanContentWhenDisplayedAgain()
-    {
-        var root = new CountingItem("root");
-        _ = new CountingItem("leaf", root);
-        var overview = new FileOverview(root) { FileSize = 20 };
-        Assert.Equal(20, overview.EstimatedUncompressedSize);
-        Assert.Equal(20, overview.EstimatedUncompressedSize);
-        Assert.Equal(1, root.ChildReads);
-        overview.FileSize = 30;
-        Assert.Equal(30, overview.EstimatedUncompressedSize);
-        Assert.Equal(1, root.ChildReads);
-    }
+    public Task ContentTreePreservesEntryOrderAndSizeAndDefersReadingNcaContents() =>
+        AvaloniaWorkspace.RunAsync(() =>
+        {
+            var package = new PackageFile("archive.nsp", "NSP", 400, [
+                new PackageEntry("program.nca", 300), new PackageEntry("ticket.tik", 100)
+            ], [], false, null);
+            var window = new MainWindow();
+            try
+            {
+                window.ShowContentTree(package);
+                var tree = window.FindControl<TreeView>("Entries")!;
+                var root = Assert.IsType<MainWindow.ContentNode>(Assert.Single(tree.Items));
+                Assert.Same(root, tree.SelectedItem);
+                Assert.Equal(400, root.Size);
+                Assert.Equal(new[] { "program.nca", "ticket.tik" }, root.Children.Select(node => node.Name));
+                Assert.Equal(MainWindow.ContentKind.Placeholder, Assert.Single(root.Children[0].Children).Kind);
+                Assert.Empty(root.Children[1].Children);
+                Assert.Equal(300, root.Children[0].Size);
+                Assert.False(root.Children[0].Loaded);
+            }
+            finally { window.Close(); }
+        }, TestContext.Current.CancellationToken);
 
     [Fact]
-    public void TraversalKeepsBreadthFirstOrderAndIncludeRootBehavior()
-    {
-        var root = new CountingItem("root");
-        var a = new CountingItem("a", root);
-        var b = new CountingItem("b", root);
-        _ = new CountingItem("a1", a);
-        _ = new CountingItem("b1", b);
-        Assert.Equal(new[] { "root", "a", "b", "a1", "b1" },
-            root.FindChildrenOfType<IItem>(true).Select(item => item.Name));
-        Assert.Equal(new[] { "a", "b", "a1", "b1" },
-            root.FindChildrenOfType<IItem>(false).Select(item => item.Name));
-    }
-
-    [Fact]
-    public void WideTreeVisitsEveryNodeOnce()
-    {
-        var root = new CountingItem("root");
-        var children = Enumerable.Range(0, 20000).Select(i => new CountingItem(i.ToString(), root)).ToArray();
-        Assert.Equal(20001, root.FindChildrenOfType<IItem>(true).Count());
-        Assert.Equal(1, root.ChildReads);
-        Assert.All(children, child => Assert.Equal(1, child.ChildReads));
-    }
-
-    private sealed class CountingItem : ItemBase, IItem
-    {
-        public CountingItem(string name, CountingItem? parent = null) : base(parent) { Name = name; }
-        public int ChildReads { get; private set; }
-        public new IReadOnlyList<IItem> ChildItems { get { ChildReads++; return base.ChildItems; } }
-        public override string Name { get; }
-        public override string DisplayName => Name;
-        public override string Format => "test";
-        public override string LibHacTypeName => "test";
-    }
+    public Task WideTreeBuildsOneNodePerPackageEntry() =>
+        AvaloniaWorkspace.RunAsync(() =>
+        {
+            var entries = Enumerable.Range(0, 2000).Select(index => new PackageEntry($"fixture-{index}.dat", index)).ToArray();
+            var window = new MainWindow();
+            try
+            {
+                window.ShowContentTree(new PackageFile("archive.nsp", "NSP", 5000, entries, [], false, null));
+                var root = Assert.IsType<MainWindow.ContentNode>(Assert.Single(window.FindControl<TreeView>("Entries")!.Items));
+                Assert.Equal(entries.Select(entry => entry.Name), root.Children.Select(node => node.Name));
+                Assert.All(root.Children, node => Assert.Empty(node.Children));
+            }
+            finally { window.Close(); }
+        }, TestContext.Current.CancellationToken);
 }

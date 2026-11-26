@@ -246,6 +246,7 @@ return json_decode(<<<'TRANSLATIONS'
   "Architektur": "Architecture",
   "Oberfläche": "UI framework",
   ".NET-Auslieferung": ".NET distribution",
+  "Programmauslieferung": "Application package",
   "Kennungen": "Identities",
   "Letzte Meldung (UTC)": "Last report (UTC)",
   "Versionen": "Versions",

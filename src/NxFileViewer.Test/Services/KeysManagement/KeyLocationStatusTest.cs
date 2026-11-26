@@ -1,50 +1,53 @@
-using System;
 using System.IO;
-using Emignatik.NxFileViewer.Views.Windows;
+using System.Linq;
+using System.Threading.Tasks;
+using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.LogicalTree;
+using Emignatik.NxFileViewer.Test.Views;
+using NxFileViewer.Avalonia;
 using Xunit;
 
 namespace Emignatik.NxFileViewer.Test.Services.KeysManagement;
 
-public sealed class KeyLocationStatusTest : IDisposable
+[Collection("Avalonia desktop")]
+public sealed class KeyLocationStatusTest
 {
-    private readonly string _root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "KeyLocations-" + Guid.NewGuid())).FullName;
-
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void ReportsAllLocationsIndependentlyWithoutChangingActiveSelection(bool titleKeys)
-    {
-        var program = Path.Combine(_root, "program.keys");
-        var shared = Path.Combine(_root, "shared.keys");
-        var custom = Path.Combine(_root, "custom.keys");
-        File.WriteAllText(program, "invalid synthetic line");
-        File.WriteAllText(shared, "");
-        File.WriteAllText(custom, titleKeys
-            ? "00000000000000000000000000000012 = 00000000000000000000000000000000"
-            : "header_key = " + new string('0', 64));
-        var results = KeyLocationStatus.Inspect(program, shared, custom, shared, titleKeys);
-        Assert.Equal(3, results.Count);
-        Assert.NotEmpty(results[0].Validation.InvalidLineNumbers);
-        Assert.Empty(results[1].Validation.InvalidLineNumbers);
-        Assert.Equal(0, results[1].Validation.ValidEntryCount);
-        Assert.Equal(1, results[2].Validation.ValidEntryCount);
-        Assert.False(results[0].IsActive);
-        Assert.True(results[1].IsActive);
-        Assert.False(results[2].IsActive);
-        File.Delete(shared);
-        Assert.False(KeyLocationStatus.Inspect(program, shared, custom, null, titleKeys)[1].Validation.FileExists);
-    }
+    public Task ReportsDefaultAndCustomLocationsWithIndependentValidation(bool titleKeys) =>
+        AvaloniaWorkspace.RunAsync(() =>
+        {
+            var name = titleKeys ? "title.keys" : "prod.keys";
+            var program = Path.Combine(ViewerDataDirectory.Root, name);
+            var custom = Path.Combine(ViewerDataDirectory.Root, "custom.keys");
+            File.WriteAllText(program, "invalid synthetic line");
+            File.WriteAllText(custom, titleKeys
+                ? "00000000000000000000000000000012 = 00000000000000000000000000000000"
+                : "header_key = " + new string('0', 64));
+            var window = new MainWindow();
+            try
+            {
+                var locations = window.FindControl<StackPanel>(titleKeys ? "TitleKeyLocations" : "ProdKeyLocations")!;
+                var customPath = window.FindControl<TextBox>(titleKeys ? "TitleKeysPath" : "SettingsKeysPath")!;
+                var customStatus = window.FindControl<TextBlock>(titleKeys ? "TitleKeyValidationText" : "KeyValidationText")!;
+                customPath.Text = "";
+                customPath.RaiseEvent(new RoutedEventArgs(InputElement.LostFocusEvent));
+                Assert.Equal(2, locations.Children.Count);
+                var programPanel = locations.Children[0];
+                Assert.Equal(program, programPanel.GetLogicalDescendants().OfType<TextBox>().Single().Text);
+                Assert.Contains(programPanel.GetLogicalDescendants().OfType<TextBlock>(), label => label.Classes.Contains("key-invalid"));
+                Assert.False(customStatus.IsVisible);
 
-    [Fact]
-    public void UnsetCustomPathIsOmittedButMissingDefaultPathsRemainVisible()
-    {
-        var result = KeyLocationStatus.Inspect(Path.Combine(_root, "prod.keys"), Path.Combine(_root, "home.keys"), "", null, false);
-        Assert.Equal(2, result.Count);
-        Assert.All(result, location => Assert.False(location.Validation.FileExists));
-        var configured = KeyLocationStatus.Inspect(result[0].FilePath, result[1].FilePath, Path.Combine(_root, "missing-custom.keys"), null, false);
-        Assert.Equal(3, configured.Count);
-        Assert.False(configured[2].Validation.FileExists);
-    }
-
-    public void Dispose() => Directory.Delete(_root, true);
+                customPath.Text = custom;
+                customPath.RaiseEvent(new RoutedEventArgs(InputElement.LostFocusEvent));
+                Assert.True(customStatus.IsVisible);
+                Assert.Contains(Emignatik.NxFileViewer.Localization.LocalizationManager.Instance.Current.Keys.Keys_InUse, customStatus.Text);
+                Assert.Equal(custom, MainWindow.ResolveKeyFile(customPath.Text, name));
+                Assert.Equal(2, locations.Children.Count);
+            }
+            finally { window.Close(); }
+        }, TestContext.Current.CancellationToken);
 }

@@ -142,7 +142,7 @@ public partial class MainWindow
         ManagedPluginRows.Children.Add(row);
     }
 
-    private StackPanel CreateManagedPluginSection(string name, string repository, string installed, bool canInstall,
+    internal StackPanel CreateManagedPluginSection(string name, string repository, string installed, bool canInstall,
         Func<IProgressReporter, CancellationToken, Task> install, bool canRollback, Action rollback,
         Func<IReadOnlyList<string>> oldVersions, Action<IReadOnlyList<string>> remove, Action apply, string? nszRoot = null,
         bool supportsManagement = true, string? sessionsRoot = null)

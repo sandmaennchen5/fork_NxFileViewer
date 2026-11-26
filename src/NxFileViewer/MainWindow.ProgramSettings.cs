@@ -99,6 +99,7 @@ public partial class MainWindow
         var language = new StackPanel { Spacing = 4 }; ProgramLabel(language, _text.SettingsView_Title_Language); language.Children.Add(LanguageChoice); LanguageChoice.MinWidth = 100; LanguageChoice.HorizontalAlignment = HorizontalAlignment.Left;
         var theme = new StackPanel { Spacing = 4 }; ProgramLabel(theme, _text.SettingsView_Title_Theme); theme.Children.Add(ThemeChoice); ThemeChoice.MinWidth = 100; ThemeChoice.HorizontalAlignment = HorizontalAlignment.Left;
         Grid.SetColumn(theme, 1); grid.Children.Add(language); grid.Children.Add(theme); general.Children.Add(grid); AddSystemReportControls(general);
+        if (OperatingSystem.IsLinux()) AddLinuxShortcutSettings();
         var verification = ProgramGroup(_text.Workspace_File);
         ProgramLabel(verification, _text.Settings_AutoVerifyTitle);
         verification.Children.Add(WithSettingsTip(VerifyOnOpenSetting, _text.Settings_AutoVerifyProgramTip));

@@ -5,6 +5,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Themes.Fluent;
 using Avalonia.Threading;
 using Emignatik.NxFileViewer.Services.FileAssociations;
+using NxFileViewer.Avalonia.Updates;
 
 namespace NxFileViewer.Avalonia;
 
@@ -69,8 +70,10 @@ internal sealed class App(ExplorerInstance? instance, ExplorerLaunchRequest? req
             {
                 var full = Path.GetFullPath(readyFile);
                 var updates = Path.Combine(AppContext.BaseDirectory,"Updates") + Path.DirectorySeparatorChar;
-                if (full.StartsWith(updates, OperatingSystem.IsWindows()?StringComparison.OrdinalIgnoreCase:StringComparison.Ordinal) &&
-                    System.IO.Path.GetFileName(full)=="ready")
+                if ((AvaloniaAppUpdater.GetRunningAppImage() ?? AvaloniaAppUpdater.GetRunningMacBundle()) is { } package
+                    ? AvaloniaAppUpdater.IsNativePackageReadyPath(full, package)
+                    : full.StartsWith(updates, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal) &&
+                      Path.GetFileName(full) == "ready")
                     window.Opened += (_, _) => System.IO.File.WriteAllText(full,"ready");
             }
             window.InitializeExplorerQueue(request, startupError);

@@ -5,9 +5,8 @@ using System.Linq;
 using System.Threading;
 using Emignatik.NxFileViewer.Services.BackgroundTask;
 using Emignatik.NxFileViewer.Services.Nand;
-using Emignatik.NxFileViewer.Services.KeysManagement;
-using Microsoft.Extensions.Logging.Abstractions;
 using Emignatik.NxFileViewer.Settings;
+using NxFileViewer.Avalonia;
 using Xunit;
 
 namespace Emignatik.NxFileViewer.Test.Services.Nand;
@@ -57,22 +56,21 @@ public sealed class NandCliPluginTest : IDisposable
         File.WriteAllText(prodKeys, hasBisKeys ? "bis_key_02 = " + new string('1', 64) : "master_key_00 = " + new string('1', 32));
         _settings.ProdKeysFilePath = prodKeys;
         if (customOverride) _settings.NandBisKeysPath = _source;
-        var provider = new KeySetProviderService(_settings, NullLoggerFactory.Instance, _directory, _directory);
+        var provider = new MainWindow.NandKeyProvider(prodKeys, null);
         var process = new FakeProcess((start, _) =>
         {
             if (hasBisKeys || customOverride)
-                Assert.Equal(new[] { "-i", _source, "--info", "-keyset", customOverride ? _source : provider.ActualProdKeysFilePath! }, start.ArgumentList);
+                Assert.Equal(new[] { "-i", _source, "--info", "-keyset", customOverride ? _source : _settings.ProdKeysFilePath }, start.ArgumentList);
             else Assert.Equal(new[] { "-i", _source, "--info" }, start.ArgumentList);
             return "NAND type : BOOT0";
         });
         var plugin = new NandCliPlugin(_settings, process, keyProvider: provider);
         plugin.ReadInformation(_source, _progress, CancellationToken.None);
-        // Changing the viewer's selected file affects the next request without recreating the plugin.
+        // Each new NAND request uses the currently selected key file.
         var secondKeys = Path.Combine(_directory, "second.keys");
         File.Copy(prodKeys, secondKeys);
         _settings.ProdKeysFilePath = secondKeys;
-        Assert.Equal(secondKeys, provider.ActualProdKeysFilePath);
-        plugin.ReadInformation(_source, _progress, CancellationToken.None);
+        new NandCliPlugin(_settings, process, keyProvider: new MainWindow.NandKeyProvider(secondKeys, null)).ReadInformation(_source, _progress, CancellationToken.None);
     }
 
     [Fact]

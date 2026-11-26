@@ -1,104 +1,64 @@
 using System;
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Threading;
-using Microsoft.Win32.SafeHandles;
-using Emignatik.NxFileViewer.Services.PackageOperations;
+using NxFileViewer.Avalonia;
 using Xunit;
 
 namespace Emignatik.NxFileViewer.Test.Services;
 
 public sealed class PackageOutputPublisherTest : IDisposable
 {
-    private readonly string _root = Path.Combine(Path.GetTempPath(), "PackagePublish-" + Guid.NewGuid().ToString("N"));
-    private string Ready => Path.Combine(_root, "ready");
-    private string Output => Path.Combine(_root, "published");
-    public PackageOutputPublisherTest()
-    {
-        Directory.CreateDirectory(Ready);
-        File.WriteAllText(Path.Combine(Ready, "base.nsp"), "validated base");
-        Directory.CreateDirectory(Path.Combine(Ready, "dlc"));
-        File.WriteAllText(Path.Combine(Ready, "dlc", "addon.nsp"), "validated dlc");
-    }
+    private readonly DirectoryInfo _root = Directory.CreateTempSubdirectory("nx-package-output-");
 
-    [Fact]
-    public void PublishesFilesWithoutRenamingOpenSourceDirectory()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void SingleOutputReplacesAnExistingFileOnlyWhenConfirmed(bool replace)
     {
-        // Keep the source directory open as a sync client/indexer would.
-        using var handle = CreateFile(Ready, 0x80, 3, IntPtr.Zero, 3, 0x02000000, IntPtr.Zero);
-        Assert.False(handle.IsInvalid);
-        PackageOutputPublisher.Publish(Ready, Output, TestContext.Current.CancellationToken);
-        Assert.Equal("validated base", File.ReadAllText(Path.Combine(Output, "base.nsp")));
-        Assert.Equal("validated dlc", File.ReadAllText(Path.Combine(Output, "dlc", "addon.nsp")));
-        Assert.False(File.Exists(Path.Combine(Output, "NXFV-INCOMPLETE.txt")));
-        Assert.True(Directory.Exists(Ready)); // the directory itself was never renamed
-        Assert.Empty(Directory.GetFiles(Ready, "*", SearchOption.AllDirectories));
-    }
-
-    [Fact]
-    public void TransientAccessDenialIsRetried()
-    {
-        var denials = 0;
-        PackageOutputPublisher.Publish(Ready, Output, TestContext.Current.CancellationToken, (source, target) =>
+        var staged = _root.CreateSubdirectory("stage").FullName;
+        var source = Path.Combine(staged, "game.nsp");
+        var target = Path.Combine(_root.FullName, "game.nsp");
+        File.WriteAllText(source, "validated");
+        File.WriteAllText(target, "existing");
+        string Publish() => MainWindow.PublishPackageOutput(staged, _root.FullName, "Decompress",
+            new(target, replace), TestContext.Current.CancellationToken);
+        if (replace)
         {
-            if (denials++ < 2) throw new UnauthorizedAccessException("Temporary sharing conflict");
-            File.Move(source, target);
-        });
-        Assert.Equal(4, denials); // two transient failures, two successful file moves
-        Assert.False(File.Exists(Path.Combine(Output, "NXFV-INCOMPLETE.txt")));
+            Assert.Equal(target, Publish());
+            Assert.False(File.Exists(source));
+            Assert.Equal("validated", File.ReadAllText(target));
+        }
+        else
+        {
+            Assert.Throws<IOException>(() => Publish());
+            Assert.Equal("validated", File.ReadAllText(source));
+            Assert.Equal("existing", File.ReadAllText(target));
+        }
     }
 
     [Fact]
-    public void PermanentFailureRetainsAllValidatedFilesAndMarksPartialOutput()
+    public void SplitPublishesAllStagedOutputsTogetherInANewFolder()
     {
-        var moved = 0;
-        Assert.Throws<UnauthorizedAccessException>(() => PackageOutputPublisher.Publish(Ready, Output,
-            TestContext.Current.CancellationToken, (source, target) =>
-            {
-                if (moved != 0) throw new UnauthorizedAccessException("Persistent lock");
-                File.Move(source, target); moved++;
-            }));
-        Assert.True(File.Exists(Path.Combine(Output, "NXFV-INCOMPLETE.txt")));
-        Assert.Single(Directory.GetFiles(Ready, "*.nsp", SearchOption.AllDirectories));
-        Assert.Single(Directory.GetFiles(Output, "*.nsp", SearchOption.AllDirectories));
-        Assert.Contains(Ready, File.ReadAllText(Path.Combine(Output, "NXFV-INCOMPLETE.txt")));
+        var staged = _root.CreateSubdirectory("stage").FullName;
+        File.WriteAllText(Path.Combine(staged, "base.nsp"), "base");
+        File.WriteAllText(Path.Combine(staged, "update.nsp"), "update");
+        var destination = MainWindow.PublishPackageOutput(staged, _root.FullName, "Split", null,
+            TestContext.Current.CancellationToken);
+        Assert.False(Directory.Exists(staged));
+        Assert.Equal("base", File.ReadAllText(Path.Combine(destination, "base.nsp")));
+        Assert.Equal("update", File.ReadAllText(Path.Combine(destination, "update.nsp")));
     }
 
     [Fact]
-    public void CancellationDuringPublicationKeepsValidatedFiles()
+    public void CancelledPublicationRetainsStagedFiles()
     {
-        using var cancellation = new CancellationTokenSource();
-        Assert.Throws<OperationCanceledException>(() => PackageOutputPublisher.Publish(Ready, Output,
-            cancellation.Token, (source, target) => { File.Move(source, target); cancellation.Cancel(); }));
-        Assert.True(File.Exists(Path.Combine(Output, "NXFV-INCOMPLETE.txt")));
-        Assert.Single(Directory.GetFiles(Ready, "*.nsp", SearchOption.AllDirectories));
-        Assert.Single(Directory.GetFiles(Output, "*.nsp", SearchOption.AllDirectories));
+        var staged = _root.CreateSubdirectory("stage").FullName;
+        File.WriteAllText(Path.Combine(staged, "base.nsp"), "base");
+        Assert.ThrowsAny<OperationCanceledException>(() => MainWindow.PublishPackageOutput(staged, _root.FullName,
+            "Split", null, new CancellationToken(true)));
+        Assert.Single(_root.GetDirectories());
+        Assert.Single(Directory.GetFiles(staged));
     }
 
-    [Fact]
-    public void OnlySelectedValidatedPackagesArePublished()
-    {
-        File.WriteAllText(Path.Combine(Ready, "temporary.nca"), "scratch data");
-        var selected = Directory.GetFiles(Ready, "*.nsp", SearchOption.AllDirectories);
-        PackageOutputPublisher.Publish(Ready, Output, TestContext.Current.CancellationToken, files: selected);
-        Assert.True(File.Exists(Path.Combine(Ready, "temporary.nca")));
-        Assert.False(File.Exists(Path.Combine(Output, "temporary.nca")));
-        Assert.Equal(2, Directory.GetFiles(Output, "*.nsp", SearchOption.AllDirectories).Length);
-    }
-
-    [Fact]
-    public void ExistingDestinationIsNeverOverwritten()
-    {
-        Directory.CreateDirectory(Output);
-        File.WriteAllText(Path.Combine(Output, "base.nsp"), "existing");
-        Assert.Throws<IOException>(() => PackageOutputPublisher.Publish(Ready, Output, TestContext.Current.CancellationToken));
-        Assert.Equal("existing", File.ReadAllText(Path.Combine(Output, "base.nsp")));
-        Assert.Equal(2, Directory.GetFiles(Ready, "*.nsp", SearchOption.AllDirectories).Length);
-    }
-
-    [DllImport("kernel32.dll", EntryPoint = "CreateFileW", CharSet = CharSet.Unicode, SetLastError = true)]
-    private static extern SafeFileHandle CreateFile(string path, uint access, uint share, IntPtr security,
-        uint disposition, uint flags, IntPtr template);
-
-    public void Dispose() => Directory.Delete(_root, true);
+    public void Dispose() => _root.Delete(recursive: true);
 }

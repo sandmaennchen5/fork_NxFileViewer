@@ -27,8 +27,8 @@ public static class NszProcess
         start.Environment["TEMP"] = temporary.Path;
         start.Environment["TMP"] = temporary.Path;
         start.Environment["TMPDIR"] = temporary.Path;
-        start.Environment["KIVY_HOME"] = System.IO.Path.Combine(AppContext.BaseDirectory, "Cache", "NSZ", "Kivy");
-        start.Environment["XDG_CACHE_HOME"] = System.IO.Path.Combine(AppContext.BaseDirectory, "Cache", "NSZ");
+        start.Environment["KIVY_HOME"] = System.IO.Path.Combine(global::NxFileViewer.Avalonia.ViewerDataDirectory.Root, "Cache", "NSZ", "Kivy");
+        start.Environment["XDG_CACHE_HOME"] = System.IO.Path.Combine(global::NxFileViewer.Avalonia.ViewerDataDirectory.Root, "Cache", "NSZ");
         foreach (var argument in arguments) start.ArgumentList.Add(argument);
         using var process = new Process { StartInfo = start };
         cancellationToken.ThrowIfCancellationRequested();
@@ -85,7 +85,7 @@ public static class NszProcess
 
     private sealed class NszTemporaryDirectory : IDisposable
     {
-        public string Path { get; } = System.IO.Path.Combine(AppContext.BaseDirectory, "Temp", "NSZ", Guid.NewGuid().ToString("N"));
+        public string Path { get; } = System.IO.Path.Combine(global::NxFileViewer.Avalonia.ViewerDataDirectory.Root, "Temp", "NSZ", Guid.NewGuid().ToString("N"));
         public NszTemporaryDirectory() => Directory.CreateDirectory(Path);
         public void Dispose()
         {

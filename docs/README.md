@@ -6,6 +6,7 @@
 
 | Topic | Documentation |
 | --- | --- |
+| Install on Windows, Linux or macOS and find the data folder | [Installation](Installation.md) |
 | Workspace, supported files and integrity checks | [User guide](User-guide.md) |
 | Batch scans, selected-file actions and filters | [Batch workflows](User-guide.md#batch-check) · [History](Batch-history.md) |
 | Naming presets, variables and simulation | [Renaming](Renaming.md) |

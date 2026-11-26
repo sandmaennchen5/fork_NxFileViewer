@@ -45,7 +45,7 @@ function Asset-Lines([string[]]$assetNames) {
         $line
     }
 }
-$runtime = Get-RuntimeVersion 'src/NxFileViewer.WPF/NxFileViewer.WPF.csproj'
+$runtime = Get-RuntimeVersion 'src/NxFileViewer/NxFileViewer.csproj'
 $packages = @($descriptor.Packages) + @($descriptor.Arm64Packages | Where-Object { $null -ne $_ })
 $names = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
 foreach ($package in $packages) {

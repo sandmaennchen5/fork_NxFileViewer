@@ -11,7 +11,7 @@ namespace Emignatik.NxFileViewer.Test.Logging;
 public sealed class PrivateSessionLogTest
 {
     private static MethodInfo CompressionMethod => typeof(SessionFileLog).Assembly
-        .GetType("Emignatik.NxFileViewer.Views.Windows.FeedbackWindow", true)!
+        .GetType("NxFileViewer.Avalonia.FeedbackWindow", true)!
         .GetMethod("CompressPrivateLog", BindingFlags.NonPublic | BindingFlags.Static)!;
 
     [Fact]

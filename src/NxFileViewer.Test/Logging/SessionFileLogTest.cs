@@ -12,6 +12,17 @@ public sealed class SessionFileLogTest : IDisposable
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), "NxSessionLog-" + Guid.NewGuid());
 
+    [Theory]
+    [InlineData("Windows", "NxFileViewerFork.exe", null, "exe")]
+    [InlineData("Linux", "/opt/NxFileViewerFork", null, "bin")]
+    [InlineData("Linux", "/tmp/.mount_viewer/NxFileViewerFork", "/home/user/NxFileViewer.AppImage", "appimage")]
+    [InlineData("macOS", "/Applications/NxFileViewer.app/Contents/MacOS/NxFileViewerFork", null, "app")]
+    [InlineData("macOS", "/opt/NxFileViewerFork", null, "bin")]
+    public void DetectsProgramDeliveryIndependentlyOfDotNetDistribution(string platform, string executable, string? appImage, string expected)
+    {
+        Assert.Equal(expected, SessionEnvironment.GetProgramDelivery(platform, executable, appImage));
+    }
+
     [Fact]
     public void SevenLaunchesRetainFiveSessionsAndLeaveUnrelatedFiles()
     {
@@ -88,7 +99,7 @@ public sealed class SessionFileLogTest : IDisposable
         Assert.Contains("OS: ", firstLine);
         Assert.Contains("Process: " + System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture, firstLine);
         Assert.Contains("OS architecture: " + System.Runtime.InteropServices.RuntimeInformation.OSArchitecture, firstLine);
-        Assert.Contains("UI: WPF;", firstLine);
+        Assert.Contains("UI: Avalonia;", firstLine);
         Assert.Contains("Distribution: ", firstLine);
         Assert.Contains("Runtime: " + System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription, firstLine);
         Assert.Contains("RID: " + System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier, firstLine);

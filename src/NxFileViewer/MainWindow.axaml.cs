@@ -179,7 +179,7 @@ public partial class MainWindow : Window
         catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException or LibHac.Common.LibHacException or LibHac.NSZ.NczFormatException or ZstdSharp.ZstdException or InvalidOperationException)
         {
             if (!_closed && version == _openVersion)
-                { StatusText.Text = ex.Message; LogFileSection(path, [("ERROR", ex.Message)]); }
+                { StatusText.Text = DescribeFileLoadingError(ex); LogFileSection(path, [("ERROR", ex.Message)]); }
         }
         finally
         {

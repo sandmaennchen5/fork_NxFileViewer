@@ -20,7 +20,7 @@ using LibHac.Ncm;
 namespace NxFileViewer.Avalonia;
 public partial class MainWindow
 {
-    private sealed record BatchRow(string Path, string Summary, bool HasError = false)
+    internal sealed record BatchRow(string Path, string Summary, bool HasError = false)
     {
         public PackageFile? Package { get; init; }
         public Dictionary<string, string>? StoredMetadata { get; init; }
@@ -578,7 +578,7 @@ public partial class MainWindow
     }
     private void BatchFilterChanged(object? sender, RoutedEventArgs e) { if (_batchReady) RefreshBatchFilter(); }
     private void BatchChoiceChanged(object? sender, SelectionChangedEventArgs e) { if (_batchReady) RefreshBatchFilter(); }
-    private static IEnumerable<BatchRow> ExpandedBatchRows(IEnumerable<BatchRow> rows, bool separate)
+    internal static IEnumerable<BatchRow> ExpandedBatchRows(IEnumerable<BatchRow> rows, bool separate)
     {
         foreach (var row in rows)
         {
@@ -594,19 +594,25 @@ public partial class MainWindow
         var fileType = BatchTypeFilter.SelectedIndex > 0 ? BatchTypeFilter.SelectedItem as string : null;
         var sourceRows = _batchVerifyingPath == null ? (IEnumerable<BatchRow>)_batchRows :
             _batchRows.Select(row => row.Path == _batchVerifyingPath ? row with { Integrity = _text.NcasIntegrity_InProgress } : row);
+        var naming = BatchNamingFilter.SelectedIndex > 0 ? BatchNamingFilter.SelectedItem as string : null;
+        var integrity = BatchIntegrityFilter.SelectedIndex > 0 ? BatchIntegrityFilter.SelectedItem as string : null;
+        var errorsOnly = BatchErrorsOnly.IsChecked == true;
         var rows = ExpandedBatchRows(sourceRows, BatchSeparatePackages.IsChecked == true).Where(row =>
-            (BatchErrorsOnly.IsChecked != true || row.HasError || row.Integrity != _text.NcasIntegrity_Original || row.NamingError.Length > 0) &&
-            (BatchNamingFilter.SelectedIndex <= 0 || row.Naming == BatchNamingFilter.SelectedItem as string) &&
-            MatchesBatchType(row, fileType) &&
-            (BatchIntegrityFilter.SelectedIndex <= 0 || row.Integrity == BatchIntegrityFilter.SelectedItem as string) &&
-            MatchesBatchSearch(row, words));
-        if (BatchAlphabetical.IsChecked == true) rows = rows.OrderBy(row => row.Title, StringComparer.CurrentCultureIgnoreCase).ThenBy(row => row.TitleId);
-        return rows.ToArray();
+            MatchesBatchFilters(row, words, fileType, integrity, naming, errorsOnly, _text));
+        return BatchAlphabetical.IsChecked == true ? SortBatchGameFamilies(rows) : rows.ToArray();
     }
-    private bool MatchesBatchType(BatchRow row, string? type)
+    internal static bool MatchesBatchFilters(BatchRow row, string[] words, string? type, string? integrity,
+        string? naming, bool errorsOnly, Emignatik.NxFileViewer.Localization.Keys.ILocalizationKeys text) =>
+        (!errorsOnly || row.HasError || row.Integrity != text.NcasIntegrity_Original || row.NamingError.Length > 0) &&
+        (naming == null || row.Naming == naming) &&
+        (integrity == null || row.Integrity == integrity) &&
+        MatchesBatchType(row, type, text.BatchTable_Games) &&
+        MatchesBatchSearch(row, words);
+
+    private static bool MatchesBatchType(BatchRow row, string? type, string games)
     {
         if (type == null) return true;
-        if (type == _text.BatchTable_Games) return row.RawFileType is "NSP" or "NSZ" or "XCI" or "XCZ" or "NUP";
+        if (type == games) return row.RawFileType is "NSP" or "NSZ" or "XCI" or "XCZ" or "NUP";
         return row.RawFileType.Equals(type, StringComparison.OrdinalIgnoreCase) ||
             row.ContainerType.Equals(type, StringComparison.OrdinalIgnoreCase) ||
             row.FileType.EndsWith(" (" + type + ")", StringComparison.OrdinalIgnoreCase);

@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -34,7 +35,21 @@ internal static class SessionEnvironment
             ? "self-contained (bundled .NET)" : "framework-dependent (system .NET)";
         return new EnvironmentDetails(platform, os, RuntimeInformation.ProcessArchitecture.ToString(),
             RuntimeInformation.OSArchitecture.ToString(), ui, distribution,
-            RuntimeInformation.FrameworkDescription, RuntimeInformation.RuntimeIdentifier);
+            RuntimeInformation.FrameworkDescription, RuntimeInformation.RuntimeIdentifier,
+            GetProgramDelivery(platform, Environment.ProcessPath, Environment.GetEnvironmentVariable("APPIMAGE")));
+    }
+
+    internal static string GetProgramDelivery(string platform, string? executablePath, string? appImage)
+    {
+        if (platform == "Windows") return "exe";
+        if (platform == "Linux") return string.IsNullOrEmpty(appImage) ? "bin" : "appimage";
+        if (platform != "macOS" || executablePath == null) return "unknown";
+
+        var macOs = Path.GetDirectoryName(executablePath);
+        var contents = macOs == null ? null : Path.GetDirectoryName(macOs);
+        var bundle = contents == null ? null : Path.GetDirectoryName(contents);
+        return Path.GetFileName(macOs) == "MacOS" && Path.GetFileName(contents) == "Contents" &&
+            bundle?.EndsWith(".app", StringComparison.OrdinalIgnoreCase) == true ? "app" : "bin";
     }
 
     internal static string Describe()
@@ -42,9 +57,9 @@ internal static class SessionEnvironment
         var details = Capture();
         return $"OS: {details.OsDescription}; Platform: {details.Platform}; Process: {details.ProcessArchitecture}; " +
             $"OS architecture: {details.OsArchitecture}; UI: {details.UiFramework}; Distribution: {details.Distribution}; " +
-            $"Runtime: {details.RuntimeVersion}; RID: {details.RuntimeIdentifier}.";
+            $"Program delivery: {details.ProgramDelivery}; Runtime: {details.RuntimeVersion}; RID: {details.RuntimeIdentifier}.";
     }
 
     public sealed record EnvironmentDetails(string Platform, string OsDescription, string ProcessArchitecture,
-        string OsArchitecture, string UiFramework, string Distribution, string RuntimeVersion, string RuntimeIdentifier);
+        string OsArchitecture, string UiFramework, string Distribution, string RuntimeVersion, string RuntimeIdentifier, string ProgramDelivery);
 }

@@ -2,11 +2,11 @@
 function New-PublishConfiguration {
     [pscustomobject][ordered]@{
         SchemaVersion=1
-        Applications=@('WpfViewer','WpfLogViewer','AvaloniaViewer','AvaloniaLogViewer')
+        Applications=@('AvaloniaViewer','AvaloniaLogViewer')
         RuntimeIdentifiers=@('win-x64','win-x86','win-arm64','linux-x64','linux-arm64','osx-x64','osx-arm64')
         WithDotNet=$true; WithoutDotNet=$true; CreateZipArchives=$true
         TargetOutputs=$null
-        ExplorerOutputFormat='Zip'; TransitionOutputFormat='Zip'
+        ExplorerOutputFormat='Zip'
         OutputDirectory='Publish'; FirmwareHashes=$true; IncludeReleaseExtras=$false; Extras=@(); Versions=[pscustomobject]@{}
         CopyExecutables=$false; CopyDirectory='C:\tmp\NxFileViewerTest'
         CopyRuntimeIdentifier='win-x64'; CopyWithDotNet=$false
@@ -19,7 +19,7 @@ function New-PredefinedPublishProfiles {
         $profile = New-PublishConfiguration
         $profile.Applications = @('AvaloniaViewer','AvaloniaLogViewer')
         $profile.OutputDirectory = "Publish/$name"
-        $profile.Extras = @('Explorer','WpfMigration')
+        $profile.Extras = @('Explorer','UpdateCompatibility')
         $profiles[$name] = $profile
     }
     return [pscustomobject]$profiles
@@ -35,21 +35,16 @@ function Add-PredefinedPublishProfiles($Store) {
 }
 function Get-ViewerProjectPath([string]$Project) {
     switch ($Project) {
-        'NxFileViewer' { 'src/NxFileViewer.WPF/NxFileViewer.WPF.csproj' }
         'NxFileViewer.Avalonia' { 'src/NxFileViewer/NxFileViewer.csproj' }
-        'NxFileViewer.LogViewer' { 'src/NxFileViewer.LogViewer.WPF/NxFileViewer.LogViewer.WPF.csproj' }
         'NxFileViewer.LogViewer.Avalonia' { 'src/NxFileViewer.LogViewer/NxFileViewer.LogViewer.csproj' }
         default { "src/$Project/$Project.csproj" }
     }
 }
 function Get-PublishVersionProjects {
     [ordered]@{
-        WpfViewer='NxFileViewer'
-        WpfLogViewer='NxFileViewer.LogViewer'
         AvaloniaViewer='NxFileViewer.Avalonia'
         AvaloniaLogViewer='NxFileViewer.LogViewer.Avalonia'
-        Transition='NxFileViewer.Transition'
-        Explorer='NxFileViewer'
+        Explorer='NxFileViewer.Avalonia'
     }
 }
 function Get-PublishProjectVersions([string]$RepositoryRoot) {
@@ -99,8 +94,6 @@ function Get-PublishFormatTargets {
 
 function Get-PublishApplicationNames {
     [ordered]@{
-        WpfViewer='NxFileViewerFork.WPF'
-        WpfLogViewer='NxFileViewerFork.WPF.LogViewer'
         AvaloniaViewer='NxFileViewerFork'
         AvaloniaLogViewer='NxFileViewerFork.LogViewer'
     }
@@ -133,12 +126,12 @@ function Assert-PublishConfiguration($Config) {
         if ($property.Name -notin $defaults.PSObject.Properties.Name) { throw "Unknown publish setting: $($property.Name)" }
     }
     foreach ($name in $defaults.PSObject.Properties.Name) {
-        if ($name -notin @('Extras','Versions','TargetOutputs','ExplorerOutputFormat','TransitionOutputFormat') -and $name -notin $Config.PSObject.Properties.Name) { throw "Missing publish setting: $name" }
+        if ($name -notin @('Extras','Versions','TargetOutputs','ExplorerOutputFormat') -and $name -notin $Config.PSObject.Properties.Name) { throw "Missing publish setting: $name" }
     }
     foreach ($name in @('WithDotNet','WithoutDotNet','CreateZipArchives','FirmwareHashes','CopyExecutables','CopyWithDotNet','IncludeReleaseExtras')) {
         if ($Config.$name -isnot [bool]) { throw "$name must be true or false." }
     }
-    foreach ($name in @('ExplorerOutputFormat','TransitionOutputFormat')) {
+    foreach ($name in @('ExplorerOutputFormat')) {
         if ($Config.PSObject.Properties[$name] -and ($Config.$name -isnot [string] -or $Config.$name -notin @('Zip','Folder','Both'))) {
             throw "Invalid $name."
         }
@@ -146,7 +139,7 @@ function Assert-PublishConfiguration($Config) {
     if ($Config.PSObject.Properties['Extras']) {
         if ($Config.Extras -isnot [array] -or $Config.Extras.Count -gt 5) { throw 'Invalid release extras selection.' }
         foreach ($extra in $Config.Extras) {
-            if ($extra -notin @('Explorer','Transition','Updater','UpdateManifest','AvaloniaZipMetadata','WpfMigration')) { throw "Unknown release extra: $extra" }
+            if ($extra -notin @('Explorer','Updater','UpdateManifest','AvaloniaZipMetadata','UpdateCompatibility')) { throw "Unknown release extra: $extra" }
         }
     }
     if ($Config.PSObject.Properties['Versions']) {
@@ -184,31 +177,15 @@ function Assert-PublishConfiguration($Config) {
     if ($Config.Applications.Count -and !$selectedTargets.Count) { throw 'Select at least one publish target.' }
     if ($Config.Applications.Count -and @($selectedTargets | Where-Object { $_ -match '-(appimage|dmg)$' }).Count -and
         !@($Config.Applications | Where-Object { $_ -like 'Avalonia*' }).Count) { throw 'AppImage and DMG targets require an Avalonia application.' }
-    if (@($Config.Applications | Where-Object { $_ -like 'Wpf*' }).Count -and !@($selectedTargets | Where-Object { $_ -like 'win-*' }).Count) { throw 'WPF applications need at least one Windows architecture.' }
-    if ($Config.IncludeReleaseExtras) {
-        if ('WpfViewer' -notin $Config.Applications -or 'WpfLogViewer' -notin $Config.Applications -or
-            @(@('win-x64','win-x86','win-arm64') | Where-Object { $_ -notin $selectedTargets }).Count -or
-            ($null -ne $matrix -and @(@('win-x64','win-x86','win-arm64') | Where-Object {
-                $matrix.$_.WithDotNet -ne 'Zip' -or $matrix.$_.WithoutDotNet -ne 'Zip'
-            }).Count) -or
-            ($null -eq $matrix -and (!$Config.WithDotNet -or !$Config.WithoutDotNet -or !$Config.CreateZipArchives)) -or !$Config.FirmwareHashes -or $Config.CopyExecutables) {
-            throw 'Release extras require both WPF apps, all Windows architectures, both .NET variants, ZIPs and firmware hashes, with test copying disabled.'
-        }
-    }
     foreach ($name in @('OutputDirectory','CopyDirectory','CopyRuntimeIdentifier')) {
         if ($Config.$name -isnot [string] -or [string]::IsNullOrWhiteSpace($Config.$name) -or $Config.$name.Length -gt 2048 -or $Config.$name -match '[\x00-\x1f]') { throw "Invalid $name." }
     }
     if ($Config.CopyRuntimeIdentifier -notin $defaults.RuntimeIdentifiers) { throw 'Invalid copy runtime.' }
     if ($Config.CopyExecutables -and $Config.Applications.Count) {
-        if (('WpfViewer' -in $Config.Applications -and 'AvaloniaViewer' -in $Config.Applications) -or
-            ('WpfLogViewer' -in $Config.Applications -and 'AvaloniaLogViewer' -in $Config.Applications)) {
-            throw 'WPF and Avalonia use the same executable names. Copy them using separate profiles with separate test directories.'
-        }
         $copyVariant = if ($Config.CopyWithDotNet) { 'WithDotNet' } else { 'WithoutDotNet' }
         $copyTargets = @($selectedTargets | Where-Object { $null -eq $matrix -or $matrix.$_.$copyVariant -ne 'Off' })
         if ($Config.CopyRuntimeIdentifier -notin @($copyTargets -replace '-(exe|appimage|dmg)$') -or
             ($null -eq $matrix -and (($Config.CopyWithDotNet -and !$Config.WithDotNet) -or (!$Config.CopyWithDotNet -and !$Config.WithoutDotNet)))) { throw 'The copied variant must also be selected for building.' }
-        if (@($Config.Applications | Where-Object { $_ -like 'Wpf*' }).Count -and $Config.CopyRuntimeIdentifier -notlike 'win-*') { throw 'Copying WPF applications requires a Windows copy target.' }
     }
 }
 function Assert-PublishProfileName([string]$Name) {
@@ -221,6 +198,7 @@ function Read-PublishProfileStore([string]$Path) {
     if ((Get-Item -LiteralPath $Path).Length -gt 65536) { throw 'Publish configuration exceeds 64 KiB.' }
     $store=Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json
     if ($store.SchemaVersion -eq 1) {
+        Update-RetiredPublishProfile $store
         Assert-PublishConfiguration $store
         return Add-PredefinedPublishProfiles ([pscustomobject]@{SchemaVersion=2;ActiveProfile='Standard';Profiles=[pscustomobject]@{Standard=$store}})
     }
@@ -230,10 +208,35 @@ function Read-PublishProfileStore([string]$Path) {
     Assert-PublishProfileName $store.ActiveProfile
     foreach ($property in $store.Profiles.PSObject.Properties) {
         Assert-PublishProfileName $property.Name
+        Update-RetiredPublishProfile $property.Value
         Assert-PublishConfiguration $property.Value
     }
     if ($null -eq $store.Profiles.PSObject.Properties[$store.ActiveProfile]) { throw "Active publish profile not found: $($store.ActiveProfile)" }
     return Add-PredefinedPublishProfiles $store
+}
+function Update-RetiredPublishProfile($Config) {
+    if ($Config.Applications -is [array]) {
+        $Config.Applications = @($Config.Applications | ForEach-Object {
+            switch ($_) { 'WpfViewer' { 'AvaloniaViewer' } 'WpfLogViewer' { 'AvaloniaLogViewer' } default { $_ } }
+        } | Select-Object -Unique)
+    }
+    if ($Config.Versions -is [pscustomobject]) {
+        $Config.Versions.PSObject.Properties.Remove('WpfViewer')
+        $Config.Versions.PSObject.Properties.Remove('WpfLogViewer')
+        $Config.Versions.PSObject.Properties.Remove('Transition')
+    }
+    $Config.PSObject.Properties.Remove('TransitionOutputFormat')
+    if ($Config.Extras -is [array] -and 'Transition' -in $Config.Extras) {
+        $Config.Extras = @($Config.Extras | Where-Object { $_ -ne 'Transition' })
+        if (!$Config.Extras.Count -and !$Config.Applications.Count) { $Config.Extras = @('UpdateManifest') }
+    }
+    if ($Config.Extras -is [array] -and 'WpfMigration' -in $Config.Extras) {
+        $Config.Extras = @($Config.Extras | ForEach-Object { if ($_ -eq 'WpfMigration') { 'UpdateManifest' } else { $_ } } | Select-Object -Unique)
+    }
+    if ($Config.IncludeReleaseExtras -is [bool] -and $Config.IncludeReleaseExtras) {
+        $Config.IncludeReleaseExtras = $false
+        $Config.Extras = @((@($Config.Extras) + @('Explorer','UpdateManifest')) | Select-Object -Unique)
+    }
 }
 function Read-PublishConfiguration([string]$Path, [string]$Profile) {
     $store=Read-PublishProfileStore $Path
@@ -288,7 +291,7 @@ function Invoke-PublishConfiguration($Config,[string]$RepositoryRoot,[string]$Ve
     if (!$runnableTargets.Count -and !$Config.Extras.Count) { throw 'The selected profile has no build targets for this host.' }
     $projects = Get-PublishVersionProjects
     $versions = @{}
-    if (Test-Path -LiteralPath (Join-Path $RepositoryRoot 'src/NxFileViewer.WPF/NxFileViewer.WPF.csproj')) {
+    if (Test-Path -LiteralPath (Join-Path $RepositoryRoot 'src/NxFileViewer/NxFileViewer.csproj')) {
         $versions = Get-PublishProjectVersions $RepositoryRoot
         foreach ($key in $projects.Keys) {
             $override = if ($null -ne $Config.Versions) { $Config.Versions.PSObject.Properties[$key] }
@@ -297,19 +300,12 @@ function Invoke-PublishConfiguration($Config,[string]$RepositoryRoot,[string]$Ve
         }
     }
     $firmwareBuilt=$false
-    foreach($framework in @('Wpf','Avalonia')) {
+    foreach($framework in @('Avalonia')) {
         $apps=@()
         if(($framework+'Viewer') -in $Config.Applications){$apps+='Viewer'}
         if(($framework+'LogViewer') -in $Config.Applications){$apps+='LogViewer'}
         if(!$apps.Count){continue}
-        if($framework -eq 'Wpf' -and $Config.IncludeReleaseExtras) {
-            $releaseOptions=@{OutputDirectory=$Config.OutputDirectory;ReleasePackages=$true;SkipAvalonia=$true}
-            if($Version){$releaseOptions.Version=$Version}
-            & (Join-Path $RepositoryRoot 'Publish.ps1') @releaseOptions
-            $firmwareBuilt=$true
-            continue
-        }
-        $targets = @($runnableTargets | Where-Object { $framework -ne 'Wpf' -or $_ -like 'win-*' })
+        $targets = $runnableTargets
         if (!$targets.Count) { continue }
         $rids = @($targets -replace '-(exe|appimage|dmg)$' | Select-Object -Unique)
         $options=@{OutputDirectory=$Config.OutputDirectory;Applications=$apps;RuntimeIdentifiers=$rids;RuntimeVariants=$runtimeVariants;AllTargets=$true;NoCopy=(!$Config.CopyExecutables);SkipFirmwareHashes=(!$Config.FirmwareHashes -or $firmwareBuilt)}
@@ -343,24 +339,23 @@ function Invoke-PublishConfiguration($Config,[string]$RepositoryRoot,[string]$Ve
                 Where-Object { $_ -like 'win-*' } | ForEach-Object { ($_ -split '-')[1] } | Select-Object -Unique)
         }
         if ($versions.Explorer) { $extraOptions.ExplorerPackageVersion = $versions.Explorer }
-        $metadataExtras = @(foreach ($extra in @('UpdateManifest','AvaloniaZipMetadata','WpfMigration')) {
+        $metadataExtras = @(foreach ($extra in @('UpdateManifest','AvaloniaZipMetadata','UpdateCompatibility')) {
             if ($extra -in $Config.Extras -or ($extra -eq 'UpdateManifest' -and 'Updater' -in $Config.Extras)) { $extra }
         })
-        foreach ($extra in @('Explorer','Transition','Metadata')) {
+        foreach ($extra in @('Explorer','Metadata')) {
             $selectedExtras = if ($extra -eq 'Metadata') { $metadataExtras } elseif ($extra -in $Config.Extras) { @($extra) }
             if (!$selectedExtras) { continue }
             $extraOptions.Extras = @($selectedExtras)
             $outputFormat = "${extra}OutputFormat"
             if ($extra -ne 'Metadata' -and $Config.$outputFormat) { $extraOptions[$outputFormat] = $Config.$outputFormat }
-            $extraOptions.Version = if ($extra -eq 'Transition') { $versions.Transition } else { $versions.WpfViewer }
+            $extraOptions.Version = $versions.AvaloniaViewer
             if ($extra -eq 'Metadata') {
-                if ('WpfMigration' -in $selectedExtras) { $extraOptions.Version = $versions.AvaloniaViewer }
                 $extraOptions.AvaloniaUpdateVersions = @{
                     'NxFileViewerFork'=$versions.AvaloniaViewer
                     'NxFileViewerFork.LogViewer'=$versions.AvaloniaLogViewer
                 }
                 if ($Config.Applications.Count) {
-                    $extraOptions.UpdateFrameworks = @(foreach ($framework in @('Wpf','Avalonia')) {
+                    $extraOptions.UpdateFrameworks = @(foreach ($framework in @('Avalonia')) {
                         if ($Config.Applications -like "$framework*") { $framework }
                     })
                 }
@@ -379,7 +374,7 @@ function Get-PublishAutoStartRemaining([double]$ElapsedSeconds, [bool]$HasInput)
 # through module-bound methods so callbacks never depend on the caller's scope.
 function New-PublishGuiApi {
     $definitions=@{}
-    foreach($name in @('New-PublishConfiguration','Get-ViewerProjectPath','Get-PublishVersionProjects','Set-PublishProjectVersions','Get-PublishFormatTargets','Get-PublishOutputMatrix','New-PredefinedPublishProfiles','Add-PredefinedPublishProfiles','Assert-PublishConfiguration','Assert-PublishProfileName','Read-PublishProfileStore','Read-PublishConfiguration','Save-PublishConfiguration','Set-PublishStartProfile')) {
+    foreach($name in @('New-PublishConfiguration','Get-ViewerProjectPath','Get-PublishVersionProjects','Set-PublishProjectVersions','Get-PublishFormatTargets','Get-PublishOutputMatrix','New-PredefinedPublishProfiles','Add-PredefinedPublishProfiles','Assert-PublishConfiguration','Assert-PublishProfileName','Read-PublishProfileStore','Update-RetiredPublishProfile','Read-PublishConfiguration','Save-PublishConfiguration','Set-PublishStartProfile')) {
         $definitions[$name]=(Get-Command $name -CommandType Function -ErrorAction Stop).Definition
     }
     New-Module -AsCustomObject -ArgumentList $definitions -ScriptBlock {
@@ -483,6 +478,96 @@ function Show-PublishVersionDialog($Owner, $GuiApi, $ProjectVersions, $ProfileVe
         $dialog.Dispose()
     }
 }
+
+function Show-PublishWorkflowDialog($Owner, [string]$RepositoryRoot) {
+    . (Join-Path $RepositoryRoot 'tools/Publish-WorkflowTargets.ps1')
+    $paths = @{
+        BUILD_TARGETS = Join-Path $RepositoryRoot '.github/workflows/build.yml'
+        RELEASE_TARGETS = Join-Path $RepositoryRoot '.github/workflows/release.yml'
+        PRERELEASE_TARGETS = Join-Path $RepositoryRoot '.github/workflows/release.yml'
+    }
+    $sources = @{}
+    foreach ($path in ($paths.Values | Select-Object -Unique)) { $sources[$path] = [IO.File]::ReadAllText($path) }
+    $targets = @(Get-WorkflowPublishTargets)
+    $columns = [ordered]@{ BUILD_TARGETS='Build'; RELEASE_TARGETS='Release'; PRERELEASE_TARGETS='Prerelease' }
+    $dialog = New-Object System.Windows.Forms.Form
+    $dialog.Text = 'GitHub-Workflows bearbeiten'
+    $dialog.StartPosition = 'CenterParent'
+    $dialog.ClientSize = New-Object System.Drawing.Size(575, 375)
+    $dialog.FormBorderStyle = 'FixedDialog'
+    $dialog.MaximizeBox = $false
+    $dialog.MinimizeBox = $false
+    $fields = @{}
+    $initial = @{}
+    $x = 300
+    try {
+        foreach ($key in $columns.Keys) {
+            $path = $paths[$key]
+            $selection = (Get-WorkflowTargetBlock $sources[$path] $key).Value
+            $null = Get-WorkflowPublishMatrix $selection
+            $enabled = @($selection -split '\r?\n' | ForEach-Object { (($_ -replace '#.*$').Trim()) -replace '\s+', ' ' })
+            $initial[$key] = @($targets | Where-Object { $_ -in $enabled })
+            $header = New-Object System.Windows.Forms.Label
+            $header.Text = $columns[$key]
+            $header.TextAlign = 'MiddleCenter'
+            $header.SetBounds($x, 12, 85, 24)
+            $dialog.Controls.Add($header)
+            $fields[$key] = @{}
+            for ($i=0; $i -lt $targets.Count; $i++) {
+                $target = $targets[$i]
+                $check = New-Object System.Windows.Forms.CheckBox
+                $check.SetBounds(($x+34), (40+26*$i), 23, 24)
+                $check.AccessibleName = "$($columns[$key]): $target"
+                $check.Checked = $target -in $enabled
+                $dialog.Controls.Add($check)
+                $fields[$key][$target] = $check
+            }
+            $x += 85
+        }
+        for ($i=0; $i -lt $targets.Count; $i++) {
+            $target = $targets[$i] -replace ' without-net$', ' / ohne .NET' -replace ' with-net$', ' / mit .NET'
+            $label = New-Object System.Windows.Forms.Label
+            $label.Text = $target
+            $label.SetBounds(15, (43+26*$i), 275, 24)
+            $dialog.Controls.Add($label)
+        }
+        $save = New-Object System.Windows.Forms.Button
+        $save.Text = 'YAML speichern'
+        $save.DialogResult = 'OK'
+        $save.SetBounds(285, 322, 130, 32)
+        $dialog.Controls.Add($save)
+        $dialog.AcceptButton = $save
+        $cancel = New-Object System.Windows.Forms.Button
+        $cancel.Text = 'Abbrechen'
+        $cancel.DialogResult = 'Cancel'
+        $cancel.SetBounds(425, 322, 130, 32)
+        $dialog.Controls.Add($cancel)
+        $dialog.CancelButton = $cancel
+        while ($dialog.ShowDialog($Owner) -eq 'OK') {
+            try {
+                $selected = @{}
+                foreach ($key in $columns.Keys) {
+                    $selected[$key] = @($targets | Where-Object { $fields[$key][$_].Checked })
+                    if (!$selected[$key].Count) { throw "$($columns[$key]): mindestens ein Ziel auswaehlen." }
+                }
+                $updates = @{}
+                foreach ($key in $columns.Keys) {
+                    if (($selected[$key] -join "|") -ceq ($initial[$key] -join "|")) { continue }
+                    $path = $paths[$key]
+                    if (!$updates.ContainsKey($path)) { $updates[$path] = [IO.File]::ReadAllText($path) }
+                    $updates[$path] = Set-WorkflowTargetBlock $updates[$path] $key $selected[$key]
+                }
+                foreach ($path in $updates.Keys) { [IO.File]::WriteAllText($path, $updates[$path]) }
+                return $true
+            } catch {
+                [void][System.Windows.Forms.MessageBox]::Show($dialog, $_.Exception.GetBaseException().Message, $dialog.Text)
+            }
+        }
+        return $false
+    } finally {
+        $dialog.Dispose()
+    }
+}
 function Show-PublishConfigurationMenu($Config,[string]$ConfigPath,[string]$Profile,[string]$RepositoryRoot,[string]$Version) {
     if([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT){throw '-Gui requires Windows. Edit publish.ps1.conf or use command-line selectors on other platforms.'}
     $guiApi=New-PublishGuiApi
@@ -557,7 +642,7 @@ function Show-PublishConfigurationMenu($Config,[string]$ConfigPath,[string]$Prof
     $extras.IntegralHeight=$false
     $extraPackageFields = [ordered]@{}
     $extraPackageTop = 94
-    foreach ($extra in @('Explorer','Transition')) {
+    foreach ($extra in @('Explorer')) {
         Add-Label $extra 656 ($extraPackageTop+2) 155
         $field = New-Object System.Windows.Forms.ComboBox
         $field.SetBounds(812,$extraPackageTop,176,24)
@@ -582,7 +667,7 @@ function Show-PublishConfigurationMenu($Config,[string]$ConfigPath,[string]$Prof
     & $loadExtraPackageFormats $Config
     $extraItems = [ordered]@{
         'Updatemanifest' = 'Updatemanifest'
-        'WPF-Migrations-ZIPs + Updatemanifest' = 'WpfMigration'
+        'Kompatibilitaets-Updates + Manifest' = 'UpdateCompatibility'
         'Avalonia-JSON je ZIP' = 'AvaloniaZipMetadata'
         'Firmware-Hash-ZIP' = $null
     }
@@ -590,7 +675,7 @@ function Show-PublishConfigurationMenu($Config,[string]$ConfigPath,[string]$Prof
         param($Value)
         foreach ($item in $extraItems.Keys) {
             if ($null -eq $extraItems[$item]) { [bool]$Value.FirmwareHashes }
-            elseif ($extraItems[$item] -in @('AvaloniaZipMetadata','WpfMigration')) { $extraItems[$item] -in $Value.Extras }
+            elseif ($extraItems[$item] -in @('AvaloniaZipMetadata','UpdateCompatibility')) { $extraItems[$item] -in $Value.Extras }
             else { $Value.IncludeReleaseExtras -or $extraItems[$item] -in $Value.Extras -or ($item -eq 'Updatemanifest' -and 'Updater' -in $Value.Extras) }
         }
     }.GetNewClosure()
@@ -603,9 +688,8 @@ function Show-PublishConfigurationMenu($Config,[string]$ConfigPath,[string]$Prof
     $extras.SetBounds(656,($extraPackageTop+4),332,($extras.Items.Count * $extras.ItemHeight + 6))
     $form.Controls.Add($extras)
     $extraNotesTop = $extras.Bottom + 5
-    Add-Label 'Explorer: Windows x64/ARM64, WPF und Avalonia' 656 $extraNotesTop 332
-    Add-Label 'Transition: Windows x64/x86' 656 ($extraNotesTop+20) 332
-    Add-Label 'Update-Dateien verwenden vorhandene ZIPs.' 656 ($extraNotesTop+40) 332
+    Add-Label 'Explorer: Windows x64/ARM64' 656 $extraNotesTop 332
+    Add-Label 'Update-Dateien verwenden vorhandene ZIPs.' 656 ($extraNotesTop+20) 332
     Add-Label 'AppImage auf Linux, DMG auf macOS bauen' 304 ($rowTop+4) 332
 
     $foldersTop = [Math]::Max($rowTop+32, $extraNotesTop+68)
@@ -629,11 +713,8 @@ function Show-PublishConfigurationMenu($Config,[string]$ConfigPath,[string]$Prof
     $form.Controls.Add($editVersions)
     $projectVersions = Get-PublishProjectVersions $RepositoryRoot
     $versionLabels = [ordered]@{
-        WpfViewer=$applicationNames.WpfViewer
-        WpfLogViewer=$applicationNames.WpfLogViewer
         AvaloniaViewer=$applicationNames.AvaloniaViewer
         AvaloniaLogViewer=$applicationNames.AvaloniaLogViewer
-        Transition='Transition'
         Explorer='Explorer'
     }
     $versionColumns = [ordered]@{ Projekt=192; Profil=460; Build=728 }
@@ -669,6 +750,11 @@ function Show-PublishConfigurationMenu($Config,[string]$ConfigPath,[string]$Prof
     $status=New-Object System.Windows.Forms.Label
     $status.SetBounds(16,($y+30),972,30);$form.Controls.Add($status)
     $buttonsTop = $status.Bottom
+    $editWorkflows = New-Object System.Windows.Forms.Button
+    $editWorkflows.Text = 'GitHub-Workflows...'
+    $editWorkflows.SetBounds(496,$buttonsTop,175,36)
+    $form.Controls.Add($editWorkflows)
+
     Add-Label 'Auswahlprofil / neuer Profilname' 16 6 620
     $profileStore=Read-PublishProfileStore $ConfigPath
     if(!$Profile){$Profile=$profileStore.ActiveProfile}
@@ -787,6 +873,15 @@ function Show-PublishConfigurationMenu($Config,[string]$ConfigPath,[string]$Prof
             $status.Text='Autostart beendet. Einstellungen bearbeiten oder Bauen waehlen.'
         }
     }.GetNewClosure()
+    $workflowDialog = ${function:Show-PublishWorkflowDialog}
+    $editWorkflows.Add_Click($stopAuto)
+    $editWorkflows.Add_Click({
+        try {
+            if (& $workflowDialog $form $RepositoryRoot) {
+                $status.Text = 'build.yml und release.yml lokal gespeichert.'
+            }
+        } catch { $status.Text = $_.Exception.GetBaseException().Message }
+    }.GetNewClosure())
     $editVersions.Add_Click($stopAuto)
     $editVersions.Add_Click({
         $profileValues = @{}

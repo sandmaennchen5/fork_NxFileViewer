@@ -16,7 +16,7 @@ namespace NxFileViewer.Avalonia.Updates;
 
 internal sealed record AvaloniaRelease(string Version, string AssetName, string DownloadUrl, string? Digest, bool RequiresManifest, bool HasReleaseManifest = false);
 internal sealed record UpdateFile(string Name, string Sha256);
-internal sealed record UpdateJob(int ParentId, long ParentStarted, string Executable, string PreviousExecutable, UpdateFile[] Files, string? PreviousSha256 = null, UpdateFile[]? Remove = null, UpdateFile[]? ExpectedInstalled = null);
+internal sealed record UpdateJob(int ParentId, long ParentStarted, string Executable, string PreviousExecutable, UpdateFile[] Files, string? PreviousSha256 = null, UpdateFile[]? Remove = null, UpdateFile[]? ExpectedInstalled = null, string? MacBundle = null);
 internal sealed record UpdateBackup(string Executable, string InstalledExecutable, UpdateFile[] Files, UpdateFile[] InstalledFiles);
 internal sealed record AvaloniaPackage(int SchemaVersion, string Framework, string Version, string RuntimeIdentifier, bool SelfContained, string Executable);
 
@@ -41,7 +41,7 @@ internal static partial class AvaloniaAppUpdater
             .FirstOrDefault();
     }
 
-    internal static AvaloniaRelease? SelectRelease(JsonElement release, string repository, string rid, bool selfContained)
+    internal static AvaloniaRelease? SelectRelease(JsonElement release, string repository, string rid, bool selfContained, bool appImage = false, bool macBundle = false)
     {
         var tag = release.GetProperty("tag_name").GetString()!;
         if (!ViewerVersion.TryParse(tag, out _)) return null;
@@ -50,6 +50,23 @@ internal static partial class AvaloniaAppUpdater
         var assets = release.GetProperty("assets").EnumerateArray().ToArray();
         var hasReleaseManifest = assets.Any(a => a.GetProperty("name").GetString() == ReleaseManifestName);
         var variant = selfContained ? "with-net" : "without-net";
+        if (appImage || macBundle)
+        {
+            if (!rid.StartsWith(appImage ? "linux-" : "osx-", StringComparison.Ordinal)) return null;
+            var version = tag.TrimStart('v', 'V');
+            var nativeName = $"v{version}_{rid}-{variant}";
+            var extensions = appImage ? new[] { ".AppImage" } : new[] { ".dmg", ".app.zip" };
+            foreach (var extension in extensions)
+            foreach (var name in new[] { "NxFileViewerFork_" + nativeName + extension, nativeName + extension })
+            {
+                var asset = assets.FirstOrDefault(item => item.GetProperty("name").GetString() == name);
+                if (asset.ValueKind == JsonValueKind.Undefined) continue;
+                var url = $"https://github.com/{repository}/releases/download/{Uri.EscapeDataString(tag)}/{Uri.EscapeDataString(name)}";
+                var digest = asset.TryGetProperty("digest", out var value) ? value.GetString() : null;
+                return new(tag, name, url, digest, false);
+            }
+            return null;
+        }
         var platformName = $"v{tag.TrimStart('v', 'V')}_{rid}-{variant}.zip";
         foreach (var currentName in new[] { "NxFileViewerFork_" + platformName, platformName })
         {
@@ -75,14 +92,15 @@ internal static partial class AvaloniaAppUpdater
         return null;
     }
 
-    internal static async Task<string> DownloadAsync(HttpClient client, AvaloniaRelease release, string install, string rid, bool selfContained, CancellationToken cancellation)
+    internal static async Task<string> DownloadAsync(HttpClient client, AvaloniaRelease release, string install, string rid, bool selfContained, CancellationToken cancellation, string? appImageName = null, bool macBundle = false)
     {
         CheckDirectory(install);
         var updates = Path.Combine(install, "Updates");
         Directory.CreateDirectory(updates); CheckDirectory(updates);
         var stage = NewStagePath(updates);
         Directory.CreateDirectory(stage);
-        var zipPath = Path.Combine(stage, "package.zip");
+        var diskImage = macBundle && release.AssetName.EndsWith(".dmg", StringComparison.OrdinalIgnoreCase);
+        var zipPath = Path.Combine(stage, appImageName != null ? "package.AppImage" : diskImage ? "package.dmg" : "package.zip");
         try
         {
             var expected = release.Digest;
@@ -143,6 +161,25 @@ internal static partial class AvaloniaAppUpdater
                 }
             }
             if (!Hash(zipPath).Equals(expected![7..], StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("Update checksum mismatch.");
+            if (macBundle)
+            {
+                var bundle = Path.Combine(stage, "bundle");
+                if (diskImage) await ExtractMacDiskImageAsync(zipPath, bundle, rid, cancellation);
+                else
+                {
+                    using var bundleArchive = File.OpenRead(zipPath);
+                    ExtractMacBundle(bundleArchive, bundle, rid, cancellation);
+                }
+                return stage;
+            }
+            if (appImageName != null)
+            {
+                if (!IsAppImageName(appImageName)) throw new InvalidDataException("Invalid AppImage filename.");
+                ValidateAppImage(zipPath, rid);
+                var payload = Directory.CreateDirectory(Path.Combine(stage, "payload")).FullName;
+                File.Move(zipPath, Path.Combine(payload, appImageName));
+                return stage;
+            }
             using var archive = File.OpenRead(zipPath);
             await Task.Run(() => ExtractCore(archive, Path.Combine(stage, "payload"), release, rid, selfContained, cancellation), cancellation);
             return stage;
@@ -195,7 +232,7 @@ internal static partial class AvaloniaAppUpdater
             if (release.RequiresManifest) throw new InvalidDataException("A generic package must explicitly identify itself as Avalonia.");
             package = new(1, "Avalonia", release.Version.TrimStart('v', 'V'), rid, selfContained, defaultExe);
         }
-        var allowed = new HashSet<string>(StringComparer.Ordinal) { package.Executable, ManifestName, LegacyManifestName, "LICENSE.txt", "start.sh", "install-shortcut.sh" };
+        var allowed = new HashSet<string>(StringComparer.Ordinal) { package.Executable, ManifestName, LegacyManifestName, "LICENSE.txt", "start.sh", "install-shortcut.sh", "nxfv-icon.png" };
         if (windows) allowed.Add("nxfileviewer-package.json");
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase); long total = 0;
         Directory.CreateDirectory(destination);
@@ -254,7 +291,7 @@ internal static partial class AvaloniaAppUpdater
         }
     }
 
-    internal static string CreateJob(string stage, string currentExecutable, string? rollbackExecutable = null, UpdateFile[]? remove = null, UpdateFile[]? expectedInstalled = null)
+    internal static string CreateJob(string stage, string currentExecutable, string? rollbackExecutable = null, UpdateFile[]? remove = null, UpdateFile[]? expectedInstalled = null, string? workerExecutable = null)
     {
         var payload = Path.Combine(stage, "payload");
         var manifestPath = Path.Combine(payload, ManifestName);
@@ -265,8 +302,8 @@ internal static partial class AvaloniaAppUpdater
         var files = Directory.GetFiles(payload).Select(p => new UpdateFile(Path.GetFileName(p), Hash(p))).ToArray();
         var job = new UpdateJob(process.Id, process.StartTime.ToUniversalTime().Ticks, executable, Path.GetFileName(currentExecutable), files, Hash(currentExecutable), remove, expectedInstalled);
         var worker = Path.Combine(stage, "worker"); Directory.CreateDirectory(worker);
-        var workerExe = Path.Combine(worker, Path.GetFileName(currentExecutable));
-        File.Copy(currentExecutable, workerExe);
+        var workerExe = Path.Combine(worker, Path.GetFileName(workerExecutable ?? currentExecutable));
+        File.Copy(workerExecutable ?? currentExecutable, workerExe);
         MakeExecutable(workerExe);
         var path = Path.Combine(stage, "job.json"); File.WriteAllText(path, JsonSerializer.Serialize(job));
         return path;
@@ -277,6 +314,7 @@ internal static partial class AvaloniaAppUpdater
         var stage = Path.GetDirectoryName(jobPath)!;
         var worker = Directory.GetFiles(Path.Combine(stage, "worker")).Single();
         var start = new ProcessStartInfo(worker) { UseShellExecute = false, CreateNoWindow = true, WorkingDirectory = stage };
+        start.Environment.Remove("APPIMAGE"); start.Environment.Remove("APPDIR");
         start.ArgumentList.Add("--apply-avalonia-update"); start.ArgumentList.Add(jobPath);
         using var process = Process.Start(start) ?? throw new IOException("Could not start the update worker.");
     }
@@ -312,7 +350,7 @@ internal static partial class AvaloniaAppUpdater
             catch (InvalidOperationException) { }
             var ready = Path.Combine(stage,"ready");
             if (File.Exists(ready)) File.Delete(ready);
-            Apply(stage, install, job, start =>
+            void Launch(ProcessStartInfo start)
             {
                 start.ArgumentList.Add("--avalonia-update-ready"); start.ArgumentList.Add(ready);
                 using var app = Process.Start(start) ?? throw new IOException("Restart failed.");
@@ -325,7 +363,14 @@ internal static partial class AvaloniaAppUpdater
                 }
                 app.Kill(true);app.WaitForExit();
                 throw new IOException("The updated app did not open its window. The previous version was restored.");
-            });
+            }
+            if (job.MacBundle != null)
+            {
+                if (!OperatingSystem.IsMacOS()) throw new InvalidDataException("App bundle updates require macOS.");
+                var rid = "osx-" + System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.ToString().ToLowerInvariant();
+                ApplyMacBundle(stage, install, job, rid, Launch);
+            }
+            else Apply(stage, install, job, Launch);
             return 0;
         }
         catch (Exception error)
@@ -334,12 +379,14 @@ internal static partial class AvaloniaAppUpdater
             {
                 File.WriteAllText(Path.Combine(stage, "update-error.txt"), error.ToString());
                 // Restart only an intact previous executable after rollback.
-                if (install is not null && job?.PreviousSha256 is { } previousHash &&
-                    File.Exists(Path.Combine(install,job.PreviousExecutable)) && Hash(Path.Combine(install,job.PreviousExecutable))==previousHash)
+                var previousPath = install == null || job == null ? null : job.MacBundle == null
+                    ? Path.Combine(install, job.PreviousExecutable) : GetMacBundleExecutable(install, job);
+                if (previousPath != null && job?.PreviousSha256 is { } previousHash &&
+                    File.Exists(previousPath) && Hash(previousPath) == previousHash)
                 {
                     try
                     {
-                        var restart=new ProcessStartInfo(Path.Combine(install,job.PreviousExecutable)){UseShellExecute=false,WorkingDirectory=install};
+                        var restart=new ProcessStartInfo(previousPath){UseShellExecute=false,WorkingDirectory=install!};
                         restart.ArgumentList.Add("--avalonia-update-ready"); restart.ArgumentList.Add(Path.Combine(stage,"ready"));
                         using var previous=Process.Start(restart);
                         if(previous is not null) File.WriteAllText(Path.Combine(stage,"started-process.json"),JsonSerializer.Serialize(new { previous.Id, Started=previous.StartTime.ToUniversalTime().Ticks }));
@@ -353,7 +400,9 @@ internal static partial class AvaloniaAppUpdater
 
     internal static void Apply(string stage, string install, UpdateJob job, Action<ProcessStartInfo> launch)
     {
-        if (!UpdateExecutables.Contains(job.Executable) || !UpdateExecutables.Contains(job.PreviousExecutable) || job.Files.Length is < 1 or > 5 ||
+        var appImage = IsAppImageName(job.Executable) && job.PreviousExecutable == job.Executable;
+        if ((!appImage && (!UpdateExecutables.Contains(job.Executable) || !UpdateExecutables.Contains(job.PreviousExecutable))) ||
+            (appImage && (job.Files.Length != 1 || job.Remove is { Length: > 0 })) || job.Files.Length is < 1 or > 5 ||
             !job.Files.Any(f => f.Name == job.Executable) || job.Files.Select(f=>f.Name).Distinct(StringComparer.OrdinalIgnoreCase).Count()!=job.Files.Length)
             throw new InvalidDataException("Invalid update file list.");
         var rollback = job.Remove != null;
@@ -382,6 +431,15 @@ internal static partial class AvaloniaAppUpdater
             CheckFile(target);
             if (Hash(target) != file.Sha256) throw new InvalidDataException("Installed file changed since update.");
         }
+        if (appImage)
+        {
+            var image = Path.Combine(install, job.Executable);
+            CheckFile(image);
+            if (job.PreviousSha256 == null || !Hash(image).Equals(job.PreviousSha256, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException("The installed AppImage changed since the update was prepared.");
+            ValidateAppImage(image, RuntimeAppImageRid());
+            ValidateAppImage(Path.Combine(stage, "payload", job.Executable), RuntimeAppImageRid());
+        }
         var backup = Path.Combine(stage,"backup"); Directory.CreateDirectory(backup); CheckDirectory(backup);
         var changed = new List<(string Name,bool Existed)>();
         try
@@ -397,7 +455,8 @@ internal static partial class AvaloniaAppUpdater
                 var target = Path.Combine(install,file.Name); var existed = File.Exists(target);
                 if(existed) File.Copy(target,Path.Combine(backup,file.Name));
                 changed.Add((file.Name,existed));
-                File.Copy(Path.Combine(stage,"payload",file.Name),target,true);
+                if (appImage) ReplaceAppImage(Path.Combine(stage, "payload", file.Name), target);
+                else File.Copy(Path.Combine(stage,"payload",file.Name),target,true);
                 if(file.Name==job.Executable||file.Name.EndsWith(".sh",StringComparison.Ordinal))MakeExecutable(target);
             }
             foreach (var file in removals)
@@ -418,7 +477,8 @@ internal static partial class AvaloniaAppUpdater
             foreach(var file in changed.AsEnumerable().Reverse())
             {
                 var target=Path.Combine(install,file.Name);
-                if(file.Existed) File.Copy(Path.Combine(backup,file.Name),target,true); else File.Delete(target);
+                if (appImage && file.Existed) ReplaceAppImage(Path.Combine(backup, file.Name), target);
+                else if(file.Existed) File.Copy(Path.Combine(backup,file.Name),target,true); else File.Delete(target);
             }
             throw;
         }

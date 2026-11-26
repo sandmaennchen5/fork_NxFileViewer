@@ -6,9 +6,46 @@ on:
   pull_request:
     branches: [ master ]
 
+# Edit these targets here or in Publish.ps1 > GitHub workflows.
+env:
+  BUILD_TARGETS: |
+    Windows zip with-net
+    Windows zip without-net
+    Linux zip with-net
+    Linux zip without-net
+    Linux appimage with-net
+    Linux appimage without-net
+    macOS zip with-net
+    macOS zip without-net
+    macOS app with-net
+    macOS app without-net
+
 jobs:
+  targets:
+    name: Select build targets
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.select.outputs.matrix }}
+      nativeMatrix: ${{ steps.select.outputs.nativeMatrix }}
+      buildZip: ${{ steps.select.outputs.buildZip }}
+      buildNative: ${{ steps.select.outputs.buildNative }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: select
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          . ./tools/Publish-WorkflowTargets.ps1
+          $matrix = Get-WorkflowPublishMatrix $env:BUILD_TARGETS
+          $native = @($matrix.include | Where-Object native)
+          "matrix=$(ConvertTo-Json -InputObject $matrix -Depth 5 -Compress)" >> $env:GITHUB_OUTPUT
+          "nativeMatrix=$(ConvertTo-Json -InputObject @{ include=$native } -Depth 5 -Compress)" >> $env:GITHUB_OUTPUT
+          "buildZip=$([bool]@($matrix.include | Where-Object { $_.zipVariants.Count }).Count)" >> $env:GITHUB_OUTPUT
+          "buildNative=$([bool]$native.Count)" >> $env:GITHUB_OUTPUT
+
   build:
-    name: Build WPF and Avalonia (all platforms)
+    name: Build Avalonia ZIPs and test
+    needs: targets
     runs-on: windows-latest
 
     steps:
@@ -24,168 +61,34 @@ jobs:
         shell: powershell
         run: ./.github/scripts/Test-DefaultSettingsValidation.ps1
 
-      - name: Test Avalonia updater
+      - name: Test Viewer and LogViewer
         shell: pwsh
         working-directory: src
-        run: dotnet run --project NxFileViewer.Test/NxFileViewer.Test.csproj -c Release -- -class '*AvaloniaUpdaterTest'
+        run: dotnet run --project NxFileViewer.Test/NxFileViewer.Test.csproj -c Release
 
-      - name: Publish
+      - name: Publish selected ZIP packages
+        if: needs.targets.outputs.buildZip == 'True'
         shell: pwsh
-        run: ./Publish.ps1 -GitHub
-
-      - name: Upload application x64
-        uses: actions/upload-artifact@v7
-        with:
-          path: |
-            Publish/NxFileViewerFork.WPF_v*_win-x64-without-net.zip
-            !Publish/NxFileViewerFork.WPF_v*_win-x64-with-net.zip
-          archive: false
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Upload application x64 with .NET
-        uses: actions/upload-artifact@v7
-        with:
-          path: |
-            Publish/NxFileViewerFork.WPF_v*_win-x64-with-net.zip
-          archive: false
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Upload application x86
-        uses: actions/upload-artifact@v7
-        with:
-          path: |
-            Publish/NxFileViewerFork.WPF_v*_win-x86-without-net.zip
-            !Publish/NxFileViewerFork.WPF_v*_win-x86-with-net.zip
-          archive: false
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Upload application x86 with .NET
-        uses: actions/upload-artifact@v7
-        with:
-          path: |
-            Publish/NxFileViewerFork.WPF_v*_win-x86-with-net.zip
-          archive: false
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Upload application ARM64
-        uses: actions/upload-artifact@v7
-        with:
-          path: |
-            Publish/NxFileViewerFork.WPF_v*_win-arm64-without-net.zip
-            !Publish/NxFileViewerFork.WPF_v*_win-arm64-with-net.zip
-          archive: false
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Upload application ARM64 with .NET
-        uses: actions/upload-artifact@v7
-        with:
-          path: |
-            Publish/NxFileViewerFork.WPF_v*_win-arm64-with-net.zip
-          archive: false
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Upload LogViewer ARM64
-        uses: actions/upload-artifact@v7
-        with:
-          path: |
-            Publish/NxFileViewerFork.WPF.LogViewer_v*_win-arm64-without-net.zip
-            !Publish/NxFileViewerFork.WPF.LogViewer_v*_win-arm64-with-net.zip
-          archive: false
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Upload LogViewer ARM64 with .NET
-        uses: actions/upload-artifact@v7
-        with:
-          path: |
-            Publish/NxFileViewerFork.WPF.LogViewer_v*_win-arm64-with-net.zip
-          archive: false
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Upload legacy transition x64
-        uses: actions/upload-artifact@v7
-        with:
-          path: |
-            Publish/NxFileViewer_v*_x64.zip
-            !Publish/NxFileViewer_v*_self-contained_x64.zip
-          archive: false
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Upload legacy transition x64 with .NET
-        uses: actions/upload-artifact@v7
-        with:
-          path: |
-            Publish/NxFileViewer_v*_self-contained_x64.zip
-          archive: false
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Upload legacy transition x86
-        uses: actions/upload-artifact@v7
-        with:
-          path: |
-            Publish/NxFileViewer_v*_x86.zip
-            !Publish/NxFileViewer_v*_self-contained_x86.zip
-          archive: false
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Upload legacy transition x86 with .NET
-        uses: actions/upload-artifact@v7
-        with:
-          path: |
-            Publish/NxFileViewer_v*_self-contained_x86.zip
-          archive: false
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Upload LogViewer x64
-        uses: actions/upload-artifact@v7
-        with:
-          path: |
-            Publish/NxFileViewerFork.WPF.LogViewer_v*_win-x64-without-net.zip
-            !Publish/NxFileViewerFork.WPF.LogViewer_v*_win-x64-with-net.zip
-          archive: false
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Upload LogViewer x64 with .NET
-        uses: actions/upload-artifact@v7
-        with:
-          path: |
-            Publish/NxFileViewerFork.WPF.LogViewer_v*_win-x64-with-net.zip
-          archive: false
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Upload LogViewer x86
-        uses: actions/upload-artifact@v7
-        with:
-          path: |
-            Publish/NxFileViewerFork.WPF.LogViewer_v*_win-x86-without-net.zip
-            !Publish/NxFileViewerFork.WPF.LogViewer_v*_win-x86-with-net.zip
-          archive: false
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Upload LogViewer x86 with .NET
-        uses: actions/upload-artifact@v7
-        with:
-          path: |
-            Publish/NxFileViewerFork.WPF.LogViewer_v*_win-x86-with-net.zip
-          archive: false
-          if-no-files-found: error
-          retention-days: 7
+        env:
+          BUILD_MATRIX: ${{ needs.targets.outputs.matrix }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $outputs = [ordered]@{}
+          foreach ($platform in ($env:BUILD_MATRIX | ConvertFrom-Json).include) {
+              if (!$platform.zipVariants.Count) { continue }
+              foreach ($rid in $platform.runtimes) {
+                  $outputs[$rid] = [pscustomobject]@{
+                      WithDotNet = if ('with-net' -in $platform.zipVariants) { 'Zip' } else { 'Off' }
+                      WithoutDotNet = if ('without-net' -in $platform.zipVariants) { 'Zip' } else { 'Off' }
+                  }
+              }
+          }
+          $runtimes = @($outputs.Keys)
+          ./tools/Publish-Applications.ps1 -Framework Avalonia -RuntimeIdentifiers $runtimes -FormatTargets $runtimes -TargetOutputs ([pscustomobject]$outputs) -OutputDirectory Publish -NoCopy
+          ./Publish.ps1 -OutputDirectory Publish -Extras UpdateManifest
 
       - name: Upload firmware hashes ZIP
+        if: needs.targets.outputs.buildZip == 'True'
         uses: actions/upload-artifact@v7
         with:
           path: |
@@ -195,6 +98,7 @@ jobs:
           retention-days: 7
 
       - name: Upload update release manifest
+        if: needs.targets.outputs.buildZip == 'True'
         uses: actions/upload-artifact@v7
         with:
           path: |
@@ -204,29 +108,25 @@ jobs:
           retention-days: 7
 
       - name: Upload Avalonia packages (Windows, Linux, macOS)
+        if: needs.targets.outputs.buildZip == 'True'
         uses: actions/upload-artifact@v7
         with:
           name: avalonia-packages
           path: |
             Publish/NxFileViewerFork_v*_*-net.zip
             Publish/NxFileViewerFork.LogViewer_v*_*-net.zip
-            Publish/*.avalonia.json
+            Publish/*.viewer.json
           archive: true
           if-no-files-found: error
           retention-days: 7
 
   native:
-    name: Build Avalonia native packages (${{ matrix.package }})
+    name: Build Avalonia native packages (${{ matrix.native }})
+    needs: targets
+    if: needs.targets.outputs.buildNative == 'True'
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-            package: AppImage
-            runtimes: '["linux-x64", "linux-arm64"]'
-          - os: macos-latest
-            package: App
-            runtimes: '["osx-x64", "osx-arm64"]'
+      matrix: ${{ fromJSON(needs.targets.outputs.nativeMatrix) }}
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -239,40 +139,37 @@ jobs:
           global-json-file: src/global.json
 
       - name: Install appimagetool
-        if: matrix.package == 'AppImage'
+        if: matrix.native == 'AppImage'
         shell: bash
-        run: |
-          tool_dir="$RUNNER_TEMP/appimage-tools"
-          mkdir -p "$tool_dir"
-          curl --fail --location --retry 3 \
-            https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage \
-            --output "$tool_dir/appimagetool"
-          echo "ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0  $tool_dir/appimagetool" | sha256sum --check
-          chmod +x "$tool_dir/appimagetool"
-          echo "$tool_dir" >> "$GITHUB_PATH"
+        run: bash ./.github/scripts/Install-AppImageTool.sh
 
       - name: Package Avalonia Viewer and LogViewer
         shell: pwsh
         env:
-          PACKAGE_FORMAT: ${{ matrix.package }}
-          PACKAGE_RUNTIMES: ${{ matrix.runtimes }}
+          PACKAGE_FORMAT: ${{ matrix.native }}
+          PACKAGE_RUNTIMES: ${{ toJSON(matrix.runtimes) }}
+          PACKAGE_VARIANTS: ${{ toJSON(matrix.nativeVariants) }}
         run: |
           $runtimes = @($env:PACKAGE_RUNTIMES | ConvertFrom-Json)
+          $variants = @($env:PACKAGE_VARIANTS | ConvertFrom-Json | ForEach-Object { $_ -eq 'with-net' })
           $formats = @($runtimes | ForEach-Object { "$_-$($env:PACKAGE_FORMAT.ToLowerInvariant())" })
-          ./tools/Publish-Applications.ps1 -Framework Avalonia -Applications Viewer,LogViewer -RuntimeIdentifiers $runtimes -RuntimeVariants @($true) -NativePackage $env:PACKAGE_FORMAT -FormatTargets $formats -ExecutableOnly -SkipFirmwareHashes -NoCopy -OutputDirectory Publish-Native
+          ./tools/Publish-Applications.ps1 -Framework Avalonia -Applications Viewer,LogViewer -RuntimeIdentifiers $runtimes -RuntimeVariants $variants -NativePackage $env:PACKAGE_FORMAT -FormatTargets $formats -ExecutableOnly -SkipFirmwareHashes -NoCopy -OutputDirectory Publish-Native -IncludeDmg:($env:PACKAGE_FORMAT -eq 'App')
           $extension = if ($env:PACKAGE_FORMAT -eq 'AppImage') { '*.AppImage' } else { '*.app.zip' }
-          if (@(Get-ChildItem -LiteralPath Publish-Native -File -Filter $extension).Count -ne ($runtimes.Count * 2)) {
+          if (@(Get-ChildItem -LiteralPath Publish-Native -File -Filter $extension).Count -ne ($runtimes.Count * $variants.Count * 2)) {
             throw "Expected a ${extension} package for each app and architecture."
+          }
+          if ($env:PACKAGE_FORMAT -eq 'App' -and @(Get-ChildItem -LiteralPath Publish-Native -File -Filter '*.dmg').Count -ne ($runtimes.Count * $variants.Count * 2)) {
+            throw 'Expected a direct DMG for each macOS app and architecture.'
           }
 
       - name: Archive AppImages with executable permissions
-        if: matrix.package == 'AppImage'
+        if: matrix.native == 'AppImage'
         shell: bash
         working-directory: Publish-Native
         run: tar -czf avalonia-appimages.tar.gz -- *.AppImage
 
       - name: Upload AppImages
-        if: matrix.package == 'AppImage'
+        if: matrix.native == 'AppImage'
         uses: actions/upload-artifact@v7
         with:
           path: Publish-Native/avalonia-appimages.tar.gz
@@ -281,11 +178,13 @@ jobs:
           retention-days: 7
 
       - name: Upload macOS apps
-        if: matrix.package == 'App'
+        if: matrix.native == 'App'
         uses: actions/upload-artifact@v7
         with:
           name: avalonia-macos-apps
-          path: Publish-Native/*.app.zip
+          path: |
+            Publish-Native/*.app.zip
+            Publish-Native/*.dmg
           compression-level: 0
           if-no-files-found: error
           retention-days: 7

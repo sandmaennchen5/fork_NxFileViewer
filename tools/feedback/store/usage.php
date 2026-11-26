@@ -26,9 +26,21 @@ function usageSchema(PDO $db): void {
     $db->exec(databaseSql($db,
         'CREATE TABLE IF NOT EXISTS usage_report_modes (internal_id TEXT PRIMARY KEY,report_type TEXT NOT NULL,system_reports_enabled INTEGER NULL,standard_last_seen INTEGER NULL,system_last_seen INTEGER NULL)',
         'CREATE TABLE IF NOT EXISTS usage_report_modes (internal_id CHAR(64) CHARACTER SET ascii COLLATE ascii_bin PRIMARY KEY,report_type VARCHAR(16) NOT NULL,system_reports_enabled TINYINT NULL,standard_last_seen BIGINT NULL,system_last_seen BIGINT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin'));
+    $db->exec(databaseSql($db,
+        'CREATE TABLE IF NOT EXISTS usage_program_delivery (internal_id TEXT PRIMARY KEY, program_delivery TEXT NOT NULL)',
+        'CREATE TABLE IF NOT EXISTS usage_program_delivery (internal_id CHAR(64) CHARACTER SET ascii COLLATE ascii_bin PRIMARY KEY, program_delivery VARCHAR(16) NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin'));
     $s=$db->prepare(databaseSql($db,'INSERT OR IGNORE INTO usage_history_state VALUES (1,?)','INSERT IGNORE INTO usage_history_state VALUES (1,?)'));
     $s->execute([gmdate('Y-m-d')]);
 }
+function usageRecordProgramDelivery(PDO $db, string $internal, string $delivery): void {
+    $s = $db->prepare(databaseSql($db,
+        'INSERT INTO usage_program_delivery (internal_id, program_delivery) VALUES (?, ?)
+        ON CONFLICT(internal_id) DO UPDATE SET program_delivery=excluded.program_delivery',
+        'INSERT INTO usage_program_delivery (internal_id, program_delivery) VALUES (?, ?)
+        ON DUPLICATE KEY UPDATE program_delivery=VALUES(program_delivery)'));
+    $s->execute([$internal, $delivery]);
+}
+
 function usageRecordDay(PDO $db, string $internal, array $values, int $now): void {
     $s = $db->prepare(databaseSql($db, 'INSERT INTO usage_daily VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(internal_id, day) DO UPDATE SET version=excluded.version, platform=excluded.platform,
@@ -53,4 +65,7 @@ function usageRecordMode(PDO $db,string $internal,string $type,?bool $enabled,in
 function usageModeLabel(?string $type,?int $enabled): string {
     $kind=match($type){'standard'=>webT('Standardreport'),'system'=>webT('Systembericht'),default=>webT('Älterer Bericht')};
     return $kind.' · '.($enabled===null?webT('Einstellung unbekannt'):($enabled?webT('Systemberichte aktiviert (7 Tage)'):webT('Nur Standardreport')));
+}
+function usageProgramDeliveryLabel(?string $delivery): string {
+    return in_array($delivery, ['exe', 'bin', 'appimage', 'app'], true) ? $delivery : webT('Unbekannt');
 }

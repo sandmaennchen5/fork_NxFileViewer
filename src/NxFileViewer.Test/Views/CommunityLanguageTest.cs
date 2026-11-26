@@ -1,34 +1,33 @@
 using System.Globalization;
-using Emignatik.NxFileViewer.Localization;
+using System.Threading.Tasks;
+using NxFileViewer.Avalonia;
 using Xunit;
 
 namespace Emignatik.NxFileViewer.Test.Views;
 
-[Collection("Workspace UI")]
+[Collection("Avalonia desktop")]
 public sealed class CommunityLanguageTest
 {
     [Theory]
-    [InlineData("de-DE", "en-US", false)]
-    [InlineData("en-US", "de-DE", true)]
-    public void SelectedLanguageOverridesWindowsLanguage(string systemLanguage, string appLanguage, bool expectedGerman)
-    {
-        var manager = LocalizationManager.Instance;
-        var previous = manager.Current;
-        var previousCulture = CultureInfo.CurrentUICulture;
-        try
+    [InlineData("de-DE", "en", "Polls")]
+    [InlineData("en-US", "de", "Umfragen")]
+    public Task SelectedLanguageOverridesWindowsLanguage(string systemLanguage, string appLanguage, string expected) =>
+        AvaloniaWorkspace.RunAsync(() =>
         {
-            CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo(systemLanguage);
-            manager.Current = manager.AvailableLocalizations.FindByCultureName(appLanguage)!;
-            var type = typeof(LocalizationManager).Assembly.GetType("Emignatik.NxFileViewer.Localization.CommunityLanguage")!;
-            Assert.Equal(expectedGerman, (bool)type.GetProperty("IsGerman")!.GetValue(null)!);
-
-            manager.Current = manager.AvailableLocalizations.FindByCultureName(expectedGerman ? "en-US" : "de-DE")!;
-            Assert.Equal(!expectedGerman, (bool)type.GetProperty("IsGerman")!.GetValue(null)!);
-        }
-        finally
-        {
-            manager.Current = previous;
-            CultureInfo.CurrentUICulture = previousCulture;
-        }
-    }
+            var previous = CultureInfo.CurrentUICulture;
+            try
+            {
+                CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo(systemLanguage);
+                (ViewerPreferences.Load() with { Language = appLanguage }).Save();
+                var main = new MainWindow();
+                try
+                {
+                    var polls = main.CreatePollsWindow();
+                    try { Assert.Equal(expected, polls.Title); }
+                    finally { polls.Close(); }
+                }
+                finally { main.Close(); }
+            }
+            finally { CultureInfo.CurrentUICulture = previous; }
+        }, TestContext.Current.CancellationToken);
 }

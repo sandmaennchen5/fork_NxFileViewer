@@ -22,8 +22,6 @@ public partial class MainWindow
         var german = _text.CultureName.StartsWith("de", System.StringComparison.OrdinalIgnoreCase);
         HomePollButton.Content = german ? "Umfragen ansehen" : "View polls";
         HomeReportLabel.Text = german ? "Fehler melden" : "Report an issue";
-        LinuxShortcutButton.IsVisible = System.OperatingSystem.IsLinux();
-        LinuxShortcutButton.Content = _text.CultureName.StartsWith("de") ? "Linux-Starter erstellen" : "Create Linux launcher";
         var assembly = typeof(MainWindow).Assembly;
         var version = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0]
             ?? assembly.GetName().Version?.ToString();
@@ -60,32 +58,6 @@ public partial class MainWindow
         UpdateLabel();
     }
 
-    private async void InstallLinuxShortcut(object? sender, RoutedEventArgs e)
-    {
-        var script = Path.Combine(System.AppContext.BaseDirectory,"install-shortcut.sh");
-        if (!System.OperatingSystem.IsLinux() || !File.Exists(script))
-        {
-            LinuxShortcutStatus.Text = _text.CultureName.StartsWith("de") ? "Bitte das vollständige Linux-ZIP inklusive Starter entpacken." : "Extract the complete Linux ZIP including its launcher scripts.";
-            return;
-        }
-        LinuxShortcutButton.IsEnabled = false;
-        try
-        {
-            var start = new ProcessStartInfo("sh") { UseShellExecute=false,RedirectStandardOutput=true,RedirectStandardError=true,WorkingDirectory=System.AppContext.BaseDirectory };
-            start.ArgumentList.Add(script);
-            using var process = Process.Start(start) ?? throw new System.IO.IOException("Could not start launcher installation.");
-            var output = process.StandardOutput.ReadToEndAsync(); var error = process.StandardError.ReadToEndAsync();
-            await process.WaitForExitAsync();
-            LinuxShortcutStatus.Text = process.ExitCode == 0
-                ? (_text.CultureName.StartsWith("de") ? "Starter im Anwendungsmenü erstellt. Auf dem Desktop gegebenenfalls einmal „Starten erlauben“ wählen." : "Launcher created in the application menu. Your desktop may require Allow Launching once.")
-                : await error;
-            await output;
-        }
-        catch (System.Exception error) when (error is System.IO.IOException or System.ComponentModel.Win32Exception)
-        { LinuxShortcutStatus.Text = error.Message; }
-        finally { LinuxShortcutButton.IsEnabled = true; }
-    }
-
     private async System.Threading.Tasks.Task ConfirmSystemReport()
     {
         var settings = _preferences.SharedSettings;
@@ -110,9 +82,15 @@ public partial class MainWindow
         _editedSharedSettings.SupportIdEndpoint = _preferences.SharedSettings.SupportIdEndpoint;
         try { _preferences.Save(); } catch (System.Exception ex) when (ex is IOException or System.UnauthorizedAccessException) { SettingsStatus.Text = ex.Message; }
     }
+    internal PollsWindow CreatePollsWindow() =>
+        new(_text.CultureName.StartsWith("de", System.StringComparison.OrdinalIgnoreCase), _preferences.SharedSettings.PollEndpoint)
+        {
+            RequestedThemeVariant = ActualThemeVariant
+        };
+
     private async void OpenPolls(object? sender, RoutedEventArgs e)
     {
-        var dialog = new PollsWindow(_text.CultureName.StartsWith("de", System.StringComparison.OrdinalIgnoreCase), _preferences.SharedSettings.PollEndpoint) { RequestedThemeVariant = ActualThemeVariant };
+        var dialog = CreatePollsWindow();
         await dialog.ShowDialog(this);
         if (_closed) return;
         if (dialog.OpenPollCount is { } count)

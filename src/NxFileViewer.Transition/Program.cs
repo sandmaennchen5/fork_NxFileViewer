@@ -9,8 +9,11 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Windows;
-using System.Windows.Controls;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Media;
+using Avalonia.Themes.Fluent;
 using Emignatik.NxFileViewer.Services.Updates;
 
 namespace NxFileViewer.Transition;
@@ -18,9 +21,23 @@ namespace NxFileViewer.Transition;
 public static class Program
 {
     [STAThread]
-    public static void Main()
+    public static void Main(string[] args) => AppBuilder.Configure<TransitionApp>()
+        .UsePlatformDetect().StartWithClassicDesktopLifetime(args);
+}
+
+internal sealed class TransitionApp : Application
+{
+    public override void Initialize() => Styles.Add(new FluentTheme());
+
+    public override void OnFrameworkInitializationCompleted()
     {
-        var app = new Application();
+        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+            desktop.MainWindow = CreateWindow();
+        base.OnFrameworkInitializationCompleted();
+    }
+
+    private static Window CreateWindow()
+    {
         var text = new TextBlock { Text = "NxFileViewer wird auf NxFileViewer Fork umgestellt … / Upgrading to NxFileViewer Fork …", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(20) };
         var retry = new Button { Content = "Erneut versuchen / Retry", Margin = new Thickness(20), IsEnabled = false };
         var panel = new StackPanel(); panel.Children.Add(text); panel.Children.Add(retry);
@@ -42,7 +59,7 @@ public static class Program
                 using var client = new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
                 client.DefaultRequestHeaders.UserAgent.ParseAdd("NxFileViewerFork-Transition/1.0");
                 text.Text = "Lade das neue Programmpaket … / Downloading the new application package …";
-                var release = await TransitionRelease.ResolveAsync(client, architecture, bundled, CancellationToken.None, TransitionRelease.IncludePrereleases(root));
+                var release = await TransitionRelease.ResolveAsync(client, architecture, bundled, CancellationToken.None, TransitionRelease.IncludePrereleases(root), Assembly.GetExecutingAssembly().GetName().Version);
                 var prepared = await new ViewerUpdateService(client).PrepareAsync(release, root, CancellationToken.None);
                 if (prepared.EntryPoint.Equals("NxFileViewer.exe", StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("Transition must install the renamed application.");
                 text.Text = "Übernehme Daten und installiere NxFileViewer Fork … / Migrating data and installing NxFileViewer Fork …";
@@ -72,7 +89,7 @@ public static class Program
                     }
                     await Task.Delay(100);
                 }
-                busy = false; app.Shutdown();
+                busy = false; window.Close();
             }
             catch (Exception ex)
             {
@@ -81,7 +98,7 @@ public static class Program
             }
         }
         retry.Click += async (_, _) => await Run();
-        window.ContentRendered += async (_, _) => await Run();
-        app.Run(window);
+        window.Opened += async (_, _) => await Run();
+        return window;
     }
 }

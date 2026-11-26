@@ -1,28 +1,34 @@
-using System;
-using Emignatik.NxFileViewer.Services.Updates;
+using System.Threading.Tasks;
+using Avalonia.Controls;
+using Emignatik.NxFileViewer.Test.Views;
+using NxFileViewer.Avalonia;
 using Xunit;
 
 namespace Emignatik.NxFileViewer.Test.Services;
 
+[Collection("Avalonia desktop")]
 public sealed class UpdateAvailabilitySummaryTest
 {
-    [Fact]
-    public void HomeSummaryIncludesOnlyAvailableComponents()
-    {
-        var summary = UpdateAvailabilitySummary.Format(null, new[]
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public Task HomeDistinguishesViewerInstallActionFromAddOnNotice(bool viewer, bool addOn) =>
+        AvaloniaWorkspace.RunAsync(() =>
         {
-            new ComponentUpdateResult("NSZ", "current", false),
-            new ComponentUpdateResult("NxNandManager", "failed", false),
-            new ComponentUpdateResult("Title DB US.en", "available", true),
-            new ComponentUpdateResult("Hashes", "available", true)
-        });
-        Assert.Equal("Title DB US.en: available" + Environment.NewLine + "Hashes: available", summary);
-    }
-
-    [Fact]
-    public void HomeSummaryIsEmptyWithoutUpdatesAndNamesViewerWhenAvailable()
-    {
-        Assert.Empty(UpdateAvailabilitySummary.Format(null, Array.Empty<ComponentUpdateResult>()));
-        Assert.StartsWith("NxFileViewer:", UpdateAvailabilitySummary.Format("5.0", Array.Empty<ComponentUpdateResult>()));
-    }
+            var window = new MainWindow();
+            try
+            {
+                window.SetHomeApplicationUpdate(viewer, "4.2.0 available", null, "Install");
+                window.FindControl<TextBlock>("UpdateFirmwareAvailable")!.Classes.Set("update-available", addOn);
+                window.RefreshHomeUpdateNotice();
+                Assert.Equal(viewer || addOn, window.FindControl<Control>("HomeUpdatePanel")!.IsVisible);
+                Assert.Equal(viewer || addOn, window.FindControl<Button>("HomeUpdatesButton")!.Classes.Contains("update-available"));
+                Assert.Equal(viewer, window.FindControl<Button>("HomeInstallUpdate")!.IsVisible);
+                Assert.Equal(addOn, window.FindControl<TextBlock>("HomeExtraUpdateText")!.IsVisible);
+                if (viewer) Assert.Contains("NxFileViewer: 4.2.0", window.FindControl<TextBlock>("HomeUpdateText")!.Text);
+            }
+            finally { window.Close(); }
+        }, TestContext.Current.CancellationToken);
 }

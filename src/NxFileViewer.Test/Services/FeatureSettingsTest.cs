@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using Emignatik.NxFileViewer.Services.Nand;
 using Emignatik.NxFileViewer.Services.Nsz;
 using Emignatik.NxFileViewer.Settings;
-using Emignatik.NxFileViewer.Tools;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
@@ -31,7 +30,7 @@ public sealed class FeatureSettingsTest
     {
         var settings = new AppSettings();
         settings.InitializeFeatures();
-        new ShallowCopier().Copy<IAppSettings>(new AppSettings { EnablePackageOperations = enabled }, settings);
+        settings.EnablePackageOperations = enabled;
         settings.InitializeFeatures();
         Assert.False(settings.PackageOperationsActive);
         var json = JsonSerializer.Serialize(settings);
@@ -43,33 +42,6 @@ public sealed class FeatureSettingsTest
         Assert.Equal(enabled, restarted.PackageOperationsActive);
     }
 
-    [Fact]
-    public void DisabledPackageCommandsCannotRunEvenWithConfiguredEngine()
-    {
-        var engine = System.IO.Path.GetTempFileName();
-        try
-        {
-            var settings = new AppSettings { RustPackageExecutablePath = engine };
-            settings.InitializeFeatures();
-            var background = new Emignatik.NxFileViewer.Services.BackgroundTask.MainBackgroundTaskRunnerService();
-            var actions = new Emignatik.NxFileViewer.Services.PackageOperations.PackageActions(settings, background, null!, null!, null!);
-            Assert.False(actions.IsEnabled);
-            foreach (var command in new[] { actions.MergeNspCommand, actions.MergeXciCommand, actions.ConvertNspCommand, actions.ConvertXciCommand, actions.SplitCommand })
-            {
-                Assert.False(command.CanExecute(null));
-                command.Execute(null); // Must return before accessing services or opening dialogs.
-            }
-            settings.EnablePackageOperations = true;
-            Assert.False(actions.MergeNspCommand.CanExecute(null));
-            var restarted = JsonSerializer.Deserialize<AppSettings>(JsonSerializer.Serialize(settings))!;
-            restarted.InitializeFeatures();
-            var enabledActions = new Emignatik.NxFileViewer.Services.PackageOperations.PackageActions(restarted, background, null!, null!, null!);
-            Assert.True(enabledActions.IsEnabled);
-            foreach (var command in new[] { enabledActions.MergeNspCommand, enabledActions.MergeXciCommand, enabledActions.ConvertNspCommand, enabledActions.ConvertXciCommand, enabledActions.SplitCommand })
-                Assert.True(command.CanExecute(null));
-        }
-        finally { System.IO.File.Delete(engine); }
-    }
     [Fact]
     public void OldSettingsKeepFeaturesEnabled()
     {
@@ -87,8 +59,8 @@ public sealed class FeatureSettingsTest
     {
         var settings = new AppSettings();
         settings.InitializeFeatures();
-        var draft = new AppSettings { EnablePlugins = plugins, EnableMtp = mtp };
-        new ShallowCopier().Copy<IAppSettings>(draft, settings);
+        settings.EnablePlugins = plugins;
+        settings.EnableMtp = mtp;
         settings.InitializeFeatures();
         Assert.True(settings.PluginsActive);
         Assert.True(settings.MtpActive);
@@ -114,8 +86,10 @@ public sealed class FeatureSettingsTest
     {
         var settings = new AppSettings();
         settings.InitializeFeatures();
-        var draft = new AppSettings { EnableNszPlugin = nsz, EnableNandPlugin = nand, EnableMtp = mtp, EnableFirmwareCheck = firmware };
-        new ShallowCopier().Copy<IAppSettings>(draft, settings);
+        settings.EnableNszPlugin = nsz;
+        settings.EnableNandPlugin = nand;
+        settings.EnableMtp = mtp;
+        settings.EnableFirmwareCheck = firmware;
         Assert.True(settings.NszPluginActive);
         Assert.True(settings.NandPluginActive);
         Assert.True(settings.MtpActive);
@@ -187,21 +161,6 @@ public sealed class FeatureSettingsTest
         Assert.True(restarted.NandPluginActive);
     }
 
-    [Fact]
-    public void DisabledNandCannotReadNativePartitionsOrInvokeExternalTools()
-    {
-        var settings = new AppSettings { EnableNand = false, EnableNandPlugin = true };
-        settings.InitializeFeatures();
-        var nand = new NandCliPlugin(settings);
-        Assert.False(nand.IsNandEnabled);
-        Assert.False(nand.IsEnabled);
-        Assert.Throws<InvalidOperationException>(() => nand.ExplorerPartitions("missing.bin", CancellationToken.None));
-        Assert.Throws<InvalidOperationException>(() => nand.ListExplorer("missing.bin", null!, "/", CancellationToken.None));
-        Assert.Throws<InvalidOperationException>(() => nand.ExportExplorer("missing.bin", null!, null!, "unused.bin", CancellationToken.None));
-        Assert.Throws<InvalidOperationException>(() => nand.ReadInformation("missing.bin", null!, CancellationToken.None));
-        var manager = new NandPluginManager(settings);
-        Assert.Throws<InvalidOperationException>(() => manager.Prepare(null!, CancellationToken.None));
-    }
 
     [Fact]
     public async Task DisabledPluginsCannotPrepareDownloadOrRollback()

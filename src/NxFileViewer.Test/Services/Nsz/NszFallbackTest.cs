@@ -2,84 +2,66 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
-using Emignatik.NxFileViewer.Settings;
-using Emignatik.NxFileViewer.Services.Nsz;
-using Emignatik.NxFileViewer.Services.Integrity;
-using Emignatik.NxFileViewer.Services.BackgroundTask;
-using Emignatik.NxFileViewer.Models.Overview;
+using NxFileViewer.Avalonia;
 using Xunit;
+
 namespace Emignatik.NxFileViewer.Test.Services.Nsz;
-public sealed class NszFallbackTest
+
+public sealed class NszFallbackTest : IDisposable
 {
-    private sealed class Reporter : IProgressReporter { public void SetMode(bool b) { } public void SetText(string s) { } public void SetPercentage(double p) { } }
-    private sealed class Engine(string fault, CancellationTokenSource? cancel) : INszEnginePlugin
+    private readonly DirectoryInfo _root = Directory.CreateTempSubdirectory("nx-nsz-fallback-");
+
+    [Theory]
+    [InlineData(2, false, "process")]
+    [InlineData(3, true, "missing")]
+    [InlineData(2, false, "invalid")]
+    public void BackupUsesCleanStagingAndOnlyMovesValidatedOutput(int mode, bool primaryNsz, string failure)
     {
-        public readonly List<bool> Calls = new();
-        public void Convert(string s, string d, NszOperation o, IProgressReporter p, CancellationToken t) => throw new Exception("Explicit engine required.");
-        public void ConvertUsingEngine(bool rust, string source, string output, NszOperation operation, IProgressReporter p, CancellationToken token)
+        var output = _root.CreateSubdirectory("output").FullName;
+        var source = Path.Combine(_root.FullName, "game.nsp");
+        File.WriteAllText(source, "source");
+        var calls = new List<bool>();
+        var messages = new List<string>();
+        MainWindow.RunCompressionAttempts(mode, output, (useNsz, stage) =>
         {
-            Calls.Add(rust);
-            if (Calls.Count == 1 || fault == "both")
+            Assert.Empty(Directory.GetFiles(stage));
+            calls.Add(useNsz);
+            if (calls.Count == 1)
             {
-                File.WriteAllText(Path.Combine(output, "partial.tmp"), "partial");
-                if (fault == "cancel") { cancel!.Cancel(); throw new OperationCanceledException(token); }
-                if (fault is "process" or "both") throw new IOException("engine failed");
-                if (fault == "missing") return;
+                if (failure == "process") { File.WriteAllText(Path.Combine(stage, "partial"), "incomplete"); throw new IOException("engine failed"); }
+                if (failure == "missing") return;
             }
-            Assert.False(Calls.Count > 1 && File.Exists(Path.Combine(output, "partial.tmp")));
-            File.WriteAllText(Path.Combine(output, Path.GetFileNameWithoutExtension(source) + ".nsz"), "converted");
-        }
-    }
-    private sealed class Verifier(string source, bool invalid) : IConversionVerifier
-    {
-        private int _outputs;
-        public BatchIntegrityResult Verify(string path, IProgressReporter p, CancellationToken t)
+            File.WriteAllText(Path.Combine(stage, "game.nsz"), calls.Count == 1 ? "bad" : "validated");
+        }, stage =>
         {
-            var result = path == source || !invalid || ++_outputs > 1 ? NcasIntegrity.Original : NcasIntegrity.Corrupted;
-            return new(path, "NSP", "", "", "", result, null);
-        }
+            if (File.ReadAllText(Path.Combine(stage, "game.nsz")) != "validated")
+                throw new InvalidDataException("Content differs");
+        }, _ => { }, (_, report) => messages.Add(report), TestContext.Current.CancellationToken);
+
+        Assert.Equal(new[] { primaryNsz, !primaryNsz }, calls);
+        Assert.Single(messages);
+        Assert.Equal("validated", File.ReadAllText(Path.Combine(output, "game.nsz")));
+        Assert.Equal("source", File.ReadAllText(source));
+        Assert.Single(_root.GetDirectories());
     }
-    [Theory]
-    [InlineData(NszCompressionEngine.RustWithNszBackup, "process")]
-    [InlineData(NszCompressionEngine.NszWithRustBackup, "missing")]
-    [InlineData(NszCompressionEngine.RustWithNszBackup, "invalid")]
-    public void BackupUsesFreshWorkspaceAndOnlyPublishesVerifiedOutput(NszCompressionEngine mode, string fault)
+
+    [Fact]
+    public void CancellationNeverStartsBackupOrMovesAnOutput()
     {
-        var root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(root);
-        try
-        {
-            var source = Path.Combine(root, "game.nsp"); File.WriteAllText(source, "original");
-            var engine = new Engine(fault, null);
-            var service = new PackageConversionService(engine, new Verifier(source, fault == "invalid"), settings: new AppSettings { NszCompressionEngine = mode });
-            var result = service.Convert(source, Path.Combine(root, "output"), NszOperation.Compress, new Reporter(), TestContext.Current.CancellationToken);
-            Assert.Equal(new[] { mode.PrimaryRust(), !mode.PrimaryRust() }, engine.Calls);
-            Assert.Equal("converted", File.ReadAllText(result.OutputPath));
-            Assert.Equal("original", File.ReadAllText(source));
-            Assert.Empty(Directory.GetDirectories(Path.Combine(root, "output")));
-        } finally { Directory.Delete(root, true); }
+        var output = _root.CreateSubdirectory("output").FullName;
+        using var cancel = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        var calls = 0;
+        Assert.ThrowsAny<OperationCanceledException>(() =>
+            MainWindow.RunCompressionAttempts(2, output, (_, stage) =>
+            {
+                calls++;
+                File.WriteAllText(Path.Combine(stage, "game.nsz"), "partial");
+                cancel.Cancel();
+            }, null, _ => { }, (_, _) => Assert.Fail("Cancellation started a backup."), cancel.Token));
+        Assert.Equal(1, calls);
+        Assert.Empty(Directory.GetFiles(output));
+        Assert.Single(_root.GetDirectories());
     }
-    [Theory]
-    [InlineData("cancel")]
-    [InlineData("both")]
-    public void CancellationAndDoubleFailurePreserveOriginalAndExistingDestination(string fault)
-    {
-        var root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(root);
-        try
-        {
-            var source = Path.Combine(root, "game.nsp"); File.WriteAllText(source, "original");
-            var output = Path.Combine(root, "output"); Directory.CreateDirectory(output);
-            var old = Path.Combine(output, "game.nsz"); File.WriteAllText(old, "previous output");
-            using var cancel = new CancellationTokenSource();
-            var engine = new Engine(fault, cancel);
-            var service = new PackageConversionService(engine, new Verifier(source, false), settings: new AppSettings { NszCompressionEngine = NszCompressionEngine.RustWithNszBackup });
-            if (fault == "cancel")
-                Assert.ThrowsAny<OperationCanceledException>(() => service.Convert(source, output, NszOperation.Compress, new Reporter(), cancel.Token, _ => OutputConflictResolution.Replace, true));
-            else Assert.Throws<AggregateException>(() => service.Convert(source, output, NszOperation.Compress, new Reporter(), cancel.Token, _ => OutputConflictResolution.Replace, true));
-            Assert.Equal(fault == "cancel" ? 1 : 2, engine.Calls.Count);
-            Assert.Equal("original", File.ReadAllText(source)); Assert.Equal("previous output", File.ReadAllText(old));
-            Assert.Empty(Directory.GetDirectories(output));
-        } finally { Directory.Delete(root, true); }
-    }
+
+    public void Dispose() => _root.Delete(recursive: true);
 }

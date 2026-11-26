@@ -29,6 +29,9 @@ public partial class MainWindow
         public bool ShowStatus => !string.Equals(Installed, Status, StringComparison.Ordinal);
     }
     private static string CurrentUpdateRuntime => (OperatingSystem.IsWindows() ? "win-" : OperatingSystem.IsLinux() ? "linux-" : OperatingSystem.IsMacOS() ? "osx-" : throw new PlatformNotSupportedException()) + RuntimeInformation.ProcessArchitecture.ToString().ToLowerInvariant();
+    private static string ApplicationInstallDirectory =>
+        (AvaloniaAppUpdater.GetRunningAppImage() ?? AvaloniaAppUpdater.GetRunningMacBundle()) is { } package
+            ? Path.GetDirectoryName(package)! : AppContext.BaseDirectory;
     private static bool CanSwitchUpdateToX64 => OperatingSystem.IsWindows() &&
         RuntimeInformation.ProcessArchitecture == Architecture.X86 && RuntimeInformation.OSArchitecture == Architecture.X64;
     private CancellationTokenSource? _updateCancellation;
@@ -39,7 +42,7 @@ public partial class MainWindow
     private readonly HashSet<string> _availablePluginUpdates = new();
     private bool _applicationUpdateAvailable;
 
-    private void RefreshHomeUpdateNotice()
+    internal void RefreshHomeUpdateNotice()
     {
         var extras = _availablePluginUpdates.Count > 0 ||
             UpdateTitleDbAvailable.Classes.Contains("update-available") ||
@@ -53,7 +56,8 @@ public partial class MainWindow
         HomeUpdatesButton.Classes.Set("update-available", HomeUpdatePanel.IsVisible);
     }
 
-    private async Task CheckDataUpdatesAsync(GitHubUpdateRequests requests, bool automatic, CancellationToken token)
+    internal async Task CheckDataUpdatesAsync(GitHubUpdateRequests requests, bool automatic, CancellationToken token,
+        RepositoryMirrors? firmwareMirrors = null)
     {
         async Task Check(TextBlock label, Func<Task<bool>> check)
         {
@@ -83,13 +87,21 @@ public partial class MainWindow
         });
         var firmwareCheck = Check(UpdateFirmwareAvailable, async () =>
         {
-            var mirrors = new RepositoryMirrors(requests: requests, automatic: automatic);
+            var mirrors = firmwareMirrors ?? new RepositoryMirrors(requests: requests, automatic: automatic);
             var entries = await mirrors.FirmwareListingAsync(ExternalSources.Current.FirmwareHashes, token);
             var folder = ApplicationDataPaths.FirmwareHashes(ViewerDataDirectory.Root);
             return entries.Any(entry => !RepositoryMirrors.MatchesGitBlob(Path.Combine(folder, entry.Name), entry.Sha));
         });
         await Task.WhenAll(titleCheck, firmwareCheck);
         if (!_closed) RefreshHomeUpdateNotice();
+    }
+
+    internal void SetHomeApplicationUpdate(bool available, string status, object? offer, string installText)
+    {
+        _applicationUpdateAvailable = available;
+        HomeUpdateText.Text = "NxFileViewer: " + status;
+        HomeInstallUpdate.DataContext = offer;
+        HomeInstallUpdate.Content = installText;
     }
 
     private static JsonDocument ReadUpdateConfiguration(string resource)
@@ -119,6 +131,7 @@ public partial class MainWindow
             .InformationalVersion.Split('+')[0];
         SetUpdateHeading(ApplicationUpdateHeading, ApplicationUpdateName, InstalledUpdateLabel(version));
         ApplicationUpdateActions.Children.Add(CreateReleaseButton(ApplicationUpdateRepository()));
+        RefreshDataMigration();
         UpdateStatus.Text = _text.Status_Ready;
         _ = RefreshApplicationBackupsAsync();
     }
@@ -128,8 +141,8 @@ public partial class MainWindow
         try
         {
             var state = await Task.Run(() => (
-                HasRollback: Environment.ProcessPath is { } current && AvaloniaAppUpdater.FindRollback(current) != null,
-                HasBackups: AvaloniaAppUpdater.CompletedStages(AppContext.BaseDirectory).Length > 0));
+                HasRollback: (AvaloniaAppUpdater.GetRunningAppImage() ?? Environment.ProcessPath) is { } current && AvaloniaAppUpdater.FindRollback(current) != null,
+                HasBackups: AvaloniaAppUpdater.CompletedStages(ApplicationInstallDirectory).Length > 0));
             if (_closed) return;
             ApplicationRollback.IsEnabled = state.HasRollback;
             ApplicationCleanup.IsEnabled = state.HasBackups;
@@ -152,13 +165,13 @@ public partial class MainWindow
         ApplicationCleanup.IsEnabled = false;
         try
         {
-            var stages = await Task.Run(() => AvaloniaAppUpdater.CompletedStages(AppContext.BaseDirectory));
+            var stages = await Task.Run(() => AvaloniaAppUpdater.CompletedStages(ApplicationInstallDirectory));
             if (_closed || stages.Length == 0) return;
             if (!await ConfirmPluginCleanupAsync(_text.Update_Cleanup,
                 string.Format(_text.Update_CleanupConfirm, string.Join(Environment.NewLine, stages.Select(Path.GetFileName))),
                 _text.Update_Cleanup) || _closed || _updateCancellation != null) return;
             using var workspaceJob = LockWorkspace(SettingsTab);
-            await Task.Run(() => AvaloniaAppUpdater.CleanCompletedStages(AppContext.BaseDirectory, stages));
+            await Task.Run(() => AvaloniaAppUpdater.CleanCompletedStages(ApplicationInstallDirectory, stages));
             if (!_closed) UpdateStatus.Text = _text.Status_Ready;
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException)
@@ -240,6 +253,10 @@ public partial class MainWindow
         }
     }
 
+    internal static bool IsExplorerRegisteredForViewer(string? registeredExecutable, string? currentExecutable) =>
+        !string.IsNullOrWhiteSpace(registeredExecutable) &&
+        string.Equals(registeredExecutable, currentExecutable, StringComparison.OrdinalIgnoreCase);
+
     private void RefreshUpdateExplorerSummary()
     {
         if (!OperatingSystem.IsWindows()) return;
@@ -247,8 +264,7 @@ public partial class MainWindow
         {
             using var user = Emignatik.NxFileViewer.Services.FileAssociations.ExplorerRegistration.UserRegistry();
             using var config = user.OpenSubKey(Emignatik.NxFileViewer.Services.FileAssociations.ExplorerRegistration.ConfigurationKey);
-            var active = config?.GetValue("Executable") is string executable &&
-                string.Equals(executable, Environment.ProcessPath, StringComparison.OrdinalIgnoreCase);
+            var active = IsExplorerRegisteredForViewer(config?.GetValue("Executable") as string, Environment.ProcessPath);
             UpdateExplorerSummary.IsVisible = active;
             UpdateExplorerSummary.Text = _text.CultureName.StartsWith("de", StringComparison.OrdinalIgnoreCase)
                 ? "Explorer-Kontextmenü - für Avalonia registriert"
@@ -311,7 +327,7 @@ public partial class MainWindow
                             (_preferences.IncludePreReleases || !item.GetProperty("prerelease").GetBoolean()))
                         .OrderByDescending(item => AvaloniaAppUpdater.ParseVersion(item.GetProperty("tag_name").GetString() ?? "")).ToArray();
                     var release = candidates.FirstOrDefault(item => !component.IsApplication ||
-                        AvaloniaAppUpdater.SelectRelease(item, component.Repository, CurrentUpdateRuntime, ViewerDistribution.IsSelfContained) != null);
+                        SelectApplicationRelease(item, component.Repository) != null);
                     if (component.IsApplication && CanSwitchUpdateToX64)
                         x64Release = AvaloniaAppUpdater.SelectX64SwitchRelease(candidates, component.Repository, installed, ViewerDistribution.IsSelfContained);
                     if (release.ValueKind == JsonValueKind.Undefined)
@@ -328,7 +344,7 @@ public partial class MainWindow
                             newer ? string.Format(_text.Update_Available, latest) : _text.Update_Current;
                         row = new UpdateRow(installed, status)
                         {
-                            ApplicationRelease = component.IsApplication && newer ? AvaloniaAppUpdater.SelectRelease(release, component.Repository, CurrentUpdateRuntime, ViewerDistribution.IsSelfContained) : null,
+                            ApplicationRelease = component.IsApplication && newer ? SelectApplicationRelease(release, component.Repository) : null,
                             Available = newer && installed != _text.Component_NotInstalled,
                             InstallText = _text.Update_Install
                         };
@@ -348,10 +364,7 @@ public partial class MainWindow
                     ApplicationSwitchToX64.Tag = x64Release;
                     ApplicationSwitchToX64.IsVisible = x64Release != null;
                     SetUpdateMessage(ApplicationUpdateMessage, statusMessage, row.Available);
-                    _applicationUpdateAvailable = row.CanInstall;
-                    HomeUpdateText.Text = "NxFileViewer: " + row.Status;
-                    HomeInstallUpdate.DataContext = row;
-                    HomeInstallUpdate.Content = row.InstallText;
+                    SetHomeApplicationUpdate(row.CanInstall, row.Status, row, row.InstallText);
                 }
                 else
                 {
@@ -388,6 +401,10 @@ public partial class MainWindow
         }
     }
 
+    private static AvaloniaRelease? SelectApplicationRelease(JsonElement release, string repository) =>
+        AvaloniaAppUpdater.SelectRelease(release, repository, CurrentUpdateRuntime, ViewerDistribution.IsSelfContained,
+            ViewerDataDirectory.IsAppImage, AvaloniaAppUpdater.GetRunningMacBundle() != null);
+
     private async void InstallApplicationUpdate(object? sender, RoutedEventArgs e)
     {
         if (_updateCancellation != null || sender is not Button button) return;
@@ -397,13 +414,6 @@ public partial class MainWindow
         if ((!rollback && release == null) || (switchToX64 && !CanSwitchUpdateToX64)) return;
         Workspace.SelectedItem = SettingsTab;
         SettingsPages.SelectedItem = UpdatesTab;
-        if (ViewerDataDirectory.IsAppImage)
-        {
-            UpdateStatus.Text = _text.CultureName.StartsWith("de", StringComparison.OrdinalIgnoreCase)
-                ? "AppImage-Updates sind über GitHub Releases verfügbar. Lade dort das neue AppImage herunter."
-                : "AppImage updates are available via GitHub Releases. Download the new AppImage there.";
-            return;
-        }
         if (_batchCancellation != null || _extractionCancellation != null || _fileFirmwareCancellation != null || _mtpCancellation != null ||
             _nandCancellation != null || _contentReads > 0 || _renameBatchCancellation != null || _fileVerificationCancellation != null)
         {
@@ -427,22 +437,29 @@ public partial class MainWindow
         using var workspaceJob = LockWorkspace(SettingsTab);
         try
         {
-            var executable = Environment.ProcessPath ?? throw new IOException("Executable path unavailable.");
+            var worker = Environment.ProcessPath ?? throw new IOException("Executable path unavailable.");
+            var image = AvaloniaAppUpdater.GetRunningAppImage();
+            var bundle = AvaloniaAppUpdater.GetRunningMacBundle();
+            if (ViewerDataDirectory.IsAppImage && image == null) throw new IOException("The original AppImage path is unavailable.");
+            var executable = image ?? worker;
             string job;
             if (rollback)
             {
                 UpdateStatus.Text = _text.Nsz_Rollback;
-                job = await Task.Run(() => AvaloniaAppUpdater.PrepareRollback(executable), cancellation.Token);
+                job = await Task.Run(() => AvaloniaAppUpdater.PrepareRollback(executable, workerExecutable: image == null ? null : worker), cancellation.Token);
             }
             else
             {
                 UpdateStatus.Text = _text.Update_Downloading;
                 using var client = new HttpClient { Timeout = TimeSpan.FromMinutes(15) };
                 client.DefaultRequestHeaders.UserAgent.ParseAdd("NxFileViewerFork-Avalonia-Updater/1.0");
-                var stage = await AvaloniaAppUpdater.DownloadAsync(client, release!, AppContext.BaseDirectory,
-                    switchToX64 ? "win-x64" : CurrentUpdateRuntime, ViewerDistribution.IsSelfContained, cancellation.Token);
+                var stage = await AvaloniaAppUpdater.DownloadAsync(client, release!, ApplicationInstallDirectory,
+                    switchToX64 ? "win-x64" : CurrentUpdateRuntime, ViewerDistribution.IsSelfContained,
+                    cancellation.Token, image == null ? null : Path.GetFileName(image), macBundle: bundle != null);
                 cancellation.Token.ThrowIfCancellationRequested();
-                job = AvaloniaAppUpdater.CreateJob(stage, executable);
+                job = bundle != null
+                    ? await Task.Run(() => AvaloniaAppUpdater.CreateMacBundleJob(stage, bundle, worker, CurrentUpdateRuntime), cancellation.Token)
+                    : AvaloniaAppUpdater.CreateJob(stage, executable, workerExecutable: image == null ? null : worker);
             }
             cancellation.Token.ThrowIfCancellationRequested();
             UpdateStatus.Text = _text.Update_Installing;
@@ -450,7 +467,7 @@ public partial class MainWindow
             if (global::Avalonia.Application.Current?.ApplicationLifetime is global::Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop) desktop.Shutdown();
         }
         catch (OperationCanceledException) { UpdateStatus.Text = _text.Update_Cancelled; }
-        catch (Exception error) when (error is HttpRequestException or IOException or InvalidDataException or UnauthorizedAccessException or JsonException or InvalidOperationException or System.ComponentModel.Win32Exception)
+        catch (Exception error) when (error is HttpRequestException or IOException or InvalidDataException or UnauthorizedAccessException or JsonException or System.Xml.XmlException or InvalidOperationException or System.ComponentModel.Win32Exception)
         { UpdateStatus.Text = error.Message; }
         finally
         {

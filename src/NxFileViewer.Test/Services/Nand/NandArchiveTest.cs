@@ -1,18 +1,11 @@
 using System;
 using System.IO;
 using System.IO.Compression;
-using System.Linq;
 using System.Text;
 using System.Threading;
 using Emignatik.NxFileViewer.FileLoading;
-using Emignatik.NxFileViewer.Models.Overview;
-using Emignatik.NxFileViewer.Models.TreeItems.Impl;
-using Emignatik.NxFileViewer.Services.BackgroundTask;
-using Emignatik.NxFileViewer.Services.BackgroundTask.RunnableImpl;
 using Emignatik.NxFileViewer.Services.Integrity;
 using Emignatik.NxFileViewer.Services.Nand;
-using Emignatik.NxFileViewer.Settings;
-using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace Emignatik.NxFileViewer.Test.Services.Nand;
@@ -55,26 +48,20 @@ public sealed class NandArchiveTest : IDisposable
         Assert.True(NandDetection.Detect(Path.Combine(_root, "BOOT1"), TestContext.Current.CancellationToken)!.NameOnly);
     }
     [Fact]
-    public void LooseBatchGroupsSplitDumpsAndNeverCallsNcaVerification()
+    public void ChangingContinuationInvalidatesSplitDumpFingerprint()
     {
         var first = Path.Combine(_root, "rawnand.bin.00");
         File.WriteAllBytes(first, Gpt());
         File.WriteAllBytes(Path.Combine(_root, "rawnand.bin.01"), new byte[512]);
         File.WriteAllBytes(Path.Combine(_root, "random.bin"), new byte[512]);
-        var fingerprint = BatchHistoryStore.Fingerprint(first);
-        var rows = Batch().Setup(_root, false, verifyIntegrity: true).Run(new Progress(), TestContext.Current.CancellationToken);
-        var row = Assert.Single(rows);
-        Assert.True(row.IsNand);
-        Assert.Equal("NAND", row.FileType);
-        Assert.Equal(NcasIntegrity.Unchecked, row.Integrity);
-        Assert.Null(row.Error);
+        var fingerprint = BatchSourceFingerprint.Read(first);
         File.AppendAllText(Path.Combine(_root, "rawnand.bin.01"), "changed");
-        Assert.NotEqual(fingerprint, BatchHistoryStore.Fingerprint(first));
+        Assert.NotEqual(fingerprint, BatchSourceFingerprint.Read(first));
     }
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void ZipAndSolid7zListLoadAndBatchRecognizeNandAndKeepSplitSiblings(bool sevenZip)
+    public void ZipAndSolid7zRecognizeNandAndKeepSplitSiblings(bool sevenZip)
     {
         var archive = CreateArchive(sevenZip);
         var entries = PackageZip.GetEntries(archive, includeNca: false, token: TestContext.Current.CancellationToken);
@@ -84,19 +71,14 @@ public sealed class NandArchiveTest : IDisposable
         Assert.Contains("dump/rawnand.bin.00", entries);
         Assert.DoesNotContain("dump/rawnand.bin.01", entries);
         string physical;
-        using (var file = Loader().Load(PackageZip.MemberPath(archive, "dump/rawnand.bin.00"), TestContext.Current.CancellationToken))
+        using (var file = PackageZip.Extract(archive, "dump/rawnand.bin.00",
+            TestContext.Current.CancellationToken, Path.Combine(_root, "extracted")))
         {
-            Assert.IsType<NandFileItem>(file.RootItem);
-            Assert.Equal(2, file.NandResult!.Parts);
-            physical = file.NandPhysicalPath!;
+            physical = file.FilePath;
+            Assert.Equal(2, NandDetection.Detect(physical, TestContext.Current.CancellationToken)!.Parts);
             Assert.True(File.Exists(Path.Combine(Path.GetDirectoryName(physical)!, "rawnand.bin.01")));
-            Assert.Equal(3, file.ArchiveEntries.Count);
-            Assert.Equal(3, PackageZip.GetEntries(archive, includeNca: false, token: TestContext.Current.CancellationToken).Count);
         }
         Assert.False(File.Exists(physical));
-        var rows = Batch().Setup(archive, false, verifyIntegrity: true).Run(new Progress(), TestContext.Current.CancellationToken);
-        Assert.Equal(3, rows.Count);
-        Assert.All(rows, row => { Assert.True(row.IsNand); Assert.Null(row.Error); Assert.Equal(NcasIntegrity.Unchecked, row.Integrity); Assert.Contains(sevenZip ? "7Z" : "ZIP", row.FileType); });
     }
     [Fact]
     public void MixedZipSkipsUnrecognizedBinAndKeepsGameAndNandEntries()
@@ -109,8 +91,6 @@ public sealed class NandArchiveTest : IDisposable
             using (var entry = zip.CreateEntry("game.nsp").Open()) entry.Write(Encoding.ASCII.GetBytes("PFS0"));
         }
         Assert.Equal(new[] { "backup.bin", "game.nsp" }, PackageZip.GetEntries(archive, includeNca: false, token: TestContext.Current.CancellationToken));
-        using var first = Loader().Load(archive, TestContext.Current.CancellationToken);
-        Assert.NotNull(first.NandResult);
     }
     [Fact]
     public void ArchiveExtractionRejectsUnsafeNandNamesAndCancellation()
@@ -136,23 +116,6 @@ public sealed class NandArchiveTest : IDisposable
         foreach (var name in new[] { "dump/rawnand.bin.01", "dump/BOOT0", "dump/BOOT1" })
         { using var entry = zip.CreateEntry(name).Open(); entry.Write(new byte[512]); }
         return archive;
-    }
-    private static IFileLoader Loader() => (IFileLoader)Activator.CreateInstance(
-        typeof(IFileLoader).Assembly.GetType("Emignatik.NxFileViewer.FileLoading.FileLoader")!,
-        NullLoggerFactory.Instance, new PackageTypeAnalyzer(NullLoggerFactory.Instance), new DummyItems(), new FileOverviewLoader(NullLoggerFactory.Instance), null)!;
-    private static VerifyDirectoryIntegrityRunnable Batch() => new(Loader(), null!, new AppSettings(), NullLogger<VerifyDirectoryIntegrityRunnable>.Instance);
-    private sealed class DummyItems : IFileItemLoader
-    {
-        public event MissingKeyExceptionHandler? MissingKey { add { } remove { } }
-        public NspItem LoadNsp(string path) => throw new InvalidOperationException();
-        public XciItem LoadXci(string path) => throw new InvalidOperationException();
-        public StandaloneNcaFileItem LoadNca(string path) => throw new InvalidOperationException();
-    }
-    private sealed class Progress : IProgressReporter
-    {
-        public void SetText(string text) { }
-        public void SetMode(bool value) { }
-        public void SetPercentage(double value) { }
     }
     public void Dispose() => Directory.Delete(_root, true);
 }

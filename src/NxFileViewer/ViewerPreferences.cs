@@ -27,7 +27,7 @@ internal sealed record ViewerPreferences(string Language = "", string Theme = ""
     public string LogMinimumLevel { get; init; } = "INFO";
     public int LogFileRetention { get; init; } = DefaultSettings.Get<int>("Settings", "LogFileRetentionCount");
     public bool CheckUpdatesOnStart { get; init; } = DefaultSettings.Get<bool>("Settings", "CheckViewerUpdatesOnStartup");
-    public bool IncludePreReleases { get; init; } = true;
+    public bool IncludePreReleases { get; init; }
     public int CompressionEngine { get; init; }
     public string? NszCliPath { get; init; }
     public int CompressionLevel { get; init; } = 18;
@@ -62,10 +62,11 @@ internal sealed record ViewerPreferences(string Language = "", string Theme = ""
         var root = ViewerDataDirectory.Root;
         var sharedPath = File.Exists(FilePath) ? FilePath : Path.Combine(AppContext.BaseDirectory, FileName);
         using var sharedDocument = File.Exists(sharedPath) ? JsonDocument.Parse(File.ReadAllText(sharedPath)) : null;
-        if (sharedDocument?.RootElement.TryGetProperty(AppPreferencesKey, out var appPreferences) == true)
+        if (sharedDocument?.RootElement is { ValueKind: JsonValueKind.Object } sharedRoot &&
+            sharedRoot.TryGetProperty(AppPreferencesKey, out var appPreferences))
         {
-            var shared = ReadSharedSettings(sharedDocument.RootElement);
-            return (appPreferences.Deserialize<ViewerPreferences>() ?? FromShared(shared)) with { SharedSettings = shared };
+            var shared = ReadSharedSettings(sharedRoot);
+            return ReadPreferences(appPreferences, shared);
         }
 
         foreach (var name in new[] { "NxFileViewer.settings.json", "NxFileViewerFork.Avalonia.settings.json" })
@@ -77,8 +78,7 @@ internal sealed record ViewerPreferences(string Language = "", string Theme = ""
             var legacy = legacyDocument.RootElement;
             if (legacy.TryGetProperty(nameof(SharedSettings), out var legacyShared))
             {
-                var app = legacy.Deserialize<ViewerPreferences>() ?? new();
-                return app with { SharedSettings = ReadSharedSettings(legacyShared), RequiresFormatMigration = true };
+                return ReadPreferences(legacy, ReadSharedSettings(legacyShared)) with { RequiresFormatMigration = true };
             }
 
             if (legacy.TryGetProperty(nameof(AppSettings.AppLanguage), out _) ||
@@ -98,6 +98,18 @@ internal sealed record ViewerPreferences(string Language = "", string Theme = ""
 
         return sharedDocument == null ? FromShared(new AppSettings()) :
             FromShared(ReadSharedSettings(sharedDocument.RootElement)) with { RequiresFormatMigration = true };
+    }
+
+    private static ViewerPreferences ReadPreferences(JsonElement saved, AppSettings shared)
+    {
+        var preferences = saved.Deserialize<ViewerPreferences>() ?? FromShared(shared);
+        return preferences with
+        {
+            SharedSettings = shared,
+            IncludePreReleases = saved.ValueKind == JsonValueKind.Object &&
+                saved.TryGetProperty(nameof(IncludePreReleases), out _)
+                ? preferences.IncludePreReleases : shared.IncludeViewerPrereleases
+        };
     }
 
     private static AppSettings ReadSharedSettings(JsonElement saved)
@@ -128,7 +140,7 @@ internal sealed record ViewerPreferences(string Language = "", string Theme = ""
         ExportVisibleColumnsOnly = settings.BatchExportVisibleColumnsOnly,
         LogFileRetention = settings.LogFileRetentionCount,
         CheckUpdatesOnStart = settings.CheckViewerUpdatesOnStartup,
-        IncludePreReleases = true,
+        IncludePreReleases = settings.IncludeViewerPrereleases,
         CompressionEngine = settings.NszCompressionEngine switch { NszCompressionEngine.Rust => 0, NszCompressionEngine.Nsz => 1, NszCompressionEngine.RustWithNszBackup => 2, _ => 3 },
         CompressionLevel = settings.NszCompressionLevel,
         CompressionMode = (int)settings.NszCompressionMode,

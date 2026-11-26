@@ -6,7 +6,7 @@
 ![ReleaseOS](https://img.shields.io/badge/OS-Windows-success)
 ![ReleaseArchitecture](https://img.shields.io/badge/Architecture-x86%20%7C%20x64-blue)
 ![Release.NET 10](https://img.shields.io/badge/.NET-10-512BD4?style=flat-square&logo=dotnet)
-![ReleaseUI](https://img.shields.io/badge/UI-WPF-512BD4)
+![ReleaseUI](https://img.shields.io/badge/UI-Avalonia-512BD4)
 ![ReleaseDesktop App](https://img.shields.io/badge/Application-Desktop-orange)
 ##
 ![PreRelease](https://img.shields.io/github/v/release/sandmaennchen5/fork_NxFileViewer?include_prereleases)
@@ -23,12 +23,12 @@ Browse, verify and manage Nintendo Switch packages in a Windows desktop applicat
 
 ## Get started
 
-1. Download and extract the **x64**, **x86** or **Windows ARM64** WPF viewer ZIP matching your system.
+1. Download and extract the **x64**, **x86** or **Windows ARM64** viewer ZIP matching your system.
 2. Choose **self-contained** to include .NET, or install [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) for the standard ZIP.
 3. Start `NxFileViewerFork.exe` from a writable folder and configure your keys under **Settings → Keys**.
 4. Open a file, drop files/folders into Batch, or use the optional Explorer menu.
 
-Firmware references and Explorer setup packages are separate downloads. The standalone LogViewer remains available through local builds and Build artifacts. See [installation and updates](docs/Application-updates.md).
+Firmware references and Explorer setup packages are separate downloads. See the [installation guide for Windows, Linux and macOS](docs/Installation.md) for available package types and data locations.
 
 The application version is **4.1.1**. See the [combined 4.1.1 release notes](CHANGELOG.md#411---2026-11-23).
 
@@ -41,7 +41,7 @@ For users who use or want to use Linux or MacOS, the first beta is available.
 It would be great if anyone could test it and diligently report any bugs.
 Since there might still be a few here.
 
-Currently, I’m rebuilding everything in Avalonia and primarily testing it on Windows in order to then remove the WPF UI.
+The Viewer and LogViewer use Avalonia. Migration packages support upgrading older WPF installations.
 
 [BETA](https://github.com/sandmaennchen5/fork_NxFileViewer/releases#release-4.1.2-beta1)
 

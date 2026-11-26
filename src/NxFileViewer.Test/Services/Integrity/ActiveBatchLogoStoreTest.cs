@@ -1,9 +1,7 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
-using Emignatik.NxFileViewer.Models.Overview;
 using Emignatik.NxFileViewer.Services.Integrity;
 using Xunit;
 
@@ -14,10 +12,9 @@ public sealed class ActiveBatchLogoStoreTest : IDisposable
     private readonly string _root = Path.Combine(Path.GetTempPath(), "ActiveBatchLogos-" + Guid.NewGuid().ToString("N"));
 
     [Fact]
-    public void ActiveLogosStayVisibleWhileSavedHistoryContainsNoImages()
+    public void ActiveLogosRemainReadableAndAreRemovedOnDispose()
     {
         Directory.CreateDirectory(_root);
-        var history = new BatchHistoryStore(Path.Combine(_root, "history.json"));
         var id = Guid.NewGuid();
         string archive;
         BatchIconReference icon;
@@ -28,15 +25,7 @@ public sealed class ActiveBatchLogoStoreTest : IDisposable
             Assert.Equal(icon, active.StageIcon(id, new byte[] { 1, 2, 3 }));
             Assert.Equal(new byte[] { 1, 2, 3 }, active.ReadIcon(icon));
             active.Flush();
-            var result = new BatchIntegrityResult("unavailable.nsp", "NSP", "NSP", "Cdn", "None", NcasIntegrity.Unchecked, null)
-            {
-                Titles = new[] { new BatchTitleSummary("German", "Titel", "Verlag") { Icon = icon } }
-            };
-            history.Save(new BatchHistoryEntry(id, DateTime.UtcNow, _root, false, false, false, false, "Completed",
-                new[] { result }, new Dictionary<string, string>()), includeLogos: false);
             Assert.Equal(new byte[] { 1, 2, 3 }, active.ReadIcon(icon));
-            Assert.Null(Assert.Single(history.Load()).Results[0].Titles[0].Icon);
-            Assert.Null(history.ReadIcon(icon));
             Assert.Equal(_root, Path.GetDirectoryName(archive));
             using (var zip = ZipFile.OpenRead(archive))
             {
@@ -46,11 +35,9 @@ public sealed class ActiveBatchLogoStoreTest : IDisposable
             active.StageIcon(id, new byte[] { 4, 5 });
             active.Flush();
             using (var zip = ZipFile.OpenRead(archive)) Assert.Equal(2, zip.Entries.Count);
-            Assert.Single(history.Load()); // The active archive is not listed as a saved scan.
         }
         Assert.False(File.Exists(archive));
-        Assert.Single(history.Load());
-        Assert.Single(Directory.GetFiles(_root, "*.zip"));
+        Assert.Empty(Directory.GetFiles(_root, "*.zip"));
     }
 
     [Fact]

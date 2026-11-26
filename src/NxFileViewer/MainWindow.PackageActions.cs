@@ -13,7 +13,7 @@ using Emignatik.NxFileViewer.Settings;
 namespace NxFileViewer.Avalonia;
 public partial class MainWindow
 {
-    private delegate void PackageProgress(string message, double? fraction = null);
+    internal delegate void PackageProgress(string message, double? fraction = null);
 
     private async void RunOpenedPackageAction(object? sender, RoutedEventArgs e)
     {
@@ -32,6 +32,9 @@ public partial class MainWindow
         await RunPackageActionAsync(action, rows.Select(row => row.Path).ToArray(),
             rows.FirstOrDefault()?.DisplayPath.Split(" :: ")[0], (sender as Button)?.Content?.ToString());
     }
+
+    internal static string[][] GroupBatchPackageInputs(string action, string[] paths) =>
+        action == "Merge" ? [paths] : paths.Select(path => new[] { path }).ToArray();
 
     private async Task RunPackageActionAsync(string action, string[] paths, string? firstDisplayPath, string? title, string? targetType = null, TabItem? workspace = null)
     {
@@ -78,7 +81,7 @@ public partial class MainWindow
         RefreshFilePackageActions();
         var keys = Path.GetFullPath(_keysPath!);
         var label = (title ?? action).TrimEnd('.', '…');
-        var groups = action == "Merge" ? new[] { paths } : paths.Select(path => new[] { path }).ToArray();
+        var groups = GroupBatchPackageInputs(action, paths);
         string? verifiedOutput = null;
         var logPlugin = "PACKAGE";
         try
@@ -169,7 +172,7 @@ public partial class MainWindow
         if (package.Type == "XCI") XciPartitionIntegrity.Verify(path, token);
         return package;
     }
-    private string RunPackageJob(string action, string[] sources, string destination, string executable, string kronos, string keys, ViewerPreferences preferences, PackageProgress progress, CancellationToken token, string? targetType, SinglePackageOutput? singleOutput, Action<string> selectLogPlugin)
+    internal string RunPackageJob(string action, string[] sources, string destination, string executable, string kronos, string keys, ViewerPreferences preferences, PackageProgress progress, CancellationToken token, string? targetType, SinglePackageOutput? singleOutput, Action<string> selectLogPlugin)
     {
         var job = Path.Combine(Path.GetFullPath(destination), ".nxfv-package-" + Guid.NewGuid().ToString("N"));
         var output = Path.Combine(job, "output"); Directory.CreateDirectory(output);
@@ -195,13 +198,8 @@ public partial class MainWindow
                 token.ThrowIfCancellationRequested(); locks.Add(new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.Read));
                 var package = Verify(source, _text.Nsz_PhaseSource, before.Count + 1, sources.Length);
                 before.Add(package);
-                foreach (var title in package.Titles)
-                    if (!titleIds.Add(title.TitleId) || !expectedTitles.Add(title.TitleId + ":" + title.Version.Version)) throw new InvalidDataException("Duplicate title/version: " + title.TitleId);
-                foreach (var entry in PackageFile.ContentDigests(source, !compression, token))
-                {
-                    if (expectedContents.TryGetValue(entry.Key, out var previous) && previous != entry.Value) throw new InvalidDataException("Conflicting contents: " + entry.Key);
-                    expectedContents[entry.Key] = entry.Value;
-                }
+                AddPackageInputIdentity(package, () => PackageFile.ContentDigests(source, !compression, token),
+                    titleIds, expectedTitles, expectedContents);
                 var input = source;
                 if (!compression && package.Type is "NSZ" or "XCZ")
                 {
@@ -215,8 +213,7 @@ public partial class MainWindow
 
             if (compression)
             {
-                ConvertWithRust(sources.Single(), output, executable, keys, action == "Compress" ? NszOperation.Compress : NszOperation.Decompress, preferences, progress, token, selectLogPlugin);
-                ValidateOutputs(output);
+                ConvertWithRust(sources.Single(), output, executable, keys, action == "Compress" ? NszOperation.Compress : NszOperation.Decompress, preferences, progress, token, selectLogPlugin, ValidateOutputs);
             }
             else
             {
@@ -248,16 +245,8 @@ public partial class MainWindow
                 if (!expectedTitles.SetEquals(actualTitles) || expectedContents.Count != actualContents.Count || expectedContents.Any(entry => !actualContents.TryGetValue(entry.Key, out var hash) || hash != entry.Value))
                     throw new InvalidDataException("The output does not preserve the source contents and title versions.");
             }
-            token.ThrowIfCancellationRequested();
-            if (singleOutput != null)
-            {
-                progress(_text.Nsz_PhasePublish);
-                File.Move(Directory.GetFiles(output).Single(), singleOutput.Path, overwrite: singleOutput.Replace);
-                return singleOutput.Path;
-            }
-            var published = Path.Combine(Path.GetFullPath(destination), "NxFileViewer-" + action + "-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") + "-" + Guid.NewGuid().ToString("N")[..8]);
             progress(_text.Nsz_PhasePublish);
-            Directory.Move(output, published); return published;
+            return PublishPackageOutput(output, destination, action, singleOutput, token);
         }
         finally
         {
@@ -265,50 +254,114 @@ public partial class MainWindow
             try { if (Directory.Exists(job)) Directory.Delete(job, true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
         }
     }
-    private void ConvertWithRust(string source, string output, string executable, string keys, NszOperation operation, ViewerPreferences preferences, PackageProgress progress, CancellationToken token, Action<string> selectLogPlugin)
+    internal static void AddPackageInputIdentity(PackageFile package, Func<IReadOnlyDictionary<string, string>> readContents,
+        HashSet<string> titleIds, HashSet<string> expectedTitles, Dictionary<string, string> expectedContents)
     {
-        var primaryNsz = preferences.CompressionEngine is 1 or 3;
-        var attempts = preferences.CompressionEngine is 2 or 3 ? new[] { primaryNsz, !primaryNsz } : new[] { primaryNsz };
+        foreach (var title in package.Titles)
+        {
+            if (!titleIds.Add(title.TitleId))
+                throw new InvalidDataException("Duplicate title/version: " + title.TitleId);
+            expectedTitles.Add(title.TitleId + ":" + title.Version.Version);
+        }
+        foreach (var (name, digest) in readContents())
+        {
+            if (expectedContents.TryGetValue(name, out var previous) && previous != digest)
+                throw new InvalidDataException("Conflicting contents: " + name);
+            expectedContents[name] = digest;
+        }
+    }
+
+    internal static string PublishPackageOutput(string output, string destination, string action,
+        SinglePackageOutput? singleOutput, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        if (singleOutput != null)
+        {
+            File.Move(Directory.GetFiles(output).Single(), singleOutput.Path, overwrite: singleOutput.Replace);
+            return singleOutput.Path;
+        }
+
+        var published = Path.Combine(Path.GetFullPath(destination),
+            "NxFileViewer-" + action + "-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") + "-" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.Move(output, published);
+        return published;
+    }
+
+    private void ConvertWithRust(string source, string output, string executable, string keys, NszOperation operation,
+        ViewerPreferences preferences, PackageProgress progress, CancellationToken token, Action<string> selectLogPlugin,
+        Action<string>? validateOutput = null)
+    {
+        RunCompressionAttempts(preferences.CompressionEngine, output, RunStage, validateOutput, selectLogPlugin,
+            (plugin, fallback) =>
+            {
+                progress(fallback);
+                QueuePluginLog("WARN", plugin, fallback);
+            }, token);
+
+        void RunStage(bool useNsz, string attempt)
+        {
+            var plugin = useNsz ? "NSZ" : "PACKAGE";
+            var engine = useNsz ? preferences.NszCliPath : executable;
+            if (string.IsNullOrWhiteSpace(engine) || !File.Exists(engine))
+                throw new FileNotFoundException("Compression engine not installed.", engine);
+
+            using (var alias = new NszInputAlias(source, attempt, keys, token))
+            {
+                var args = useNsz
+                    ? NszCommandArguments.BuildArguments(alias.SourceArgument, ".", alias.KeysArgument, operation,
+                        preferences.CompressionLevel, (NszCompressionMode)preferences.CompressionMode,
+                        preferences.CompressionBlockSize, useRelativePaths: true)
+                    : NszCommandArguments.BuildRustArguments(alias.SourceArgument, ".", alias.KeysArgument,
+                        preferences.CompressionLevel, operation);
+                var phase = $"{(useNsz ? "nicoboss/nsz" : "nscb_rust")} · {Path.GetFileName(source)}";
+                progress(phase);
+                QueuePluginLog("INFO", plugin, phase);
+                NszProcess.Run(Path.GetFullPath(engine), args, attempt, token,
+                    update => progress($"{phase} · {update.Details}", update.Fraction),
+                    onDiagnostic: line => QueuePluginLog("DEBUG", plugin, line));
+                alias.RestoreOutputName(operation);
+            }
+            if (Path.GetExtension(source).ToLowerInvariant() is ".xci" or ".xcz")
+            {
+                var extension = operation == NszOperation.Compress ? ".xcz" : ".xci";
+                var target = Path.Combine(attempt, Path.GetFileNameWithoutExtension(source) + extension);
+                progress($"{_text.Nsz_PhaseLayout} · {Path.GetFileName(source)}");
+                XciPartitionIntegrity.PreserveStagedPrefix(source, target, token);
+                if (operation == NszOperation.Decompress)
+                {
+                    XciPartitionIntegrity.CorrectStagedLayout(source, target, token);
+                    XciPartitionIntegrity.NormalizeStagedGamecardHeader(target, token);
+                }
+            }
+        }
+    }
+
+    internal static void RunCompressionAttempts(int engineSelection, string output, Action<bool, string> runStage,
+        Action<string>? validateOutput, Action<string> selectLogPlugin, Action<string, string> reportFallback, CancellationToken token)
+    {
+        var primaryNsz = engineSelection is 1 or 3;
+        var attempts = engineSelection is 2 or 3 ? new[] { primaryNsz, !primaryNsz } : new[] { primaryNsz };
         for (var index = 0; index < attempts.Length; index++)
         {
+            token.ThrowIfCancellationRequested();
             var plugin = attempts[index] ? "NSZ" : "PACKAGE";
             selectLogPlugin(plugin);
-            token.ThrowIfCancellationRequested();
             var attempt = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(output))!, ".nxfv-engine-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(attempt);
             try
             {
-                var engine = attempts[index] ? preferences.NszCliPath : executable;
-                if (string.IsNullOrWhiteSpace(engine) || !File.Exists(engine)) throw new FileNotFoundException("Compression engine not installed.", engine);
-                {
-                    using var alias = new NszInputAlias(source, attempt, keys, token);
-                    var args = attempts[index] ? NszCommandArguments.BuildArguments(alias.SourceArgument, ".", alias.KeysArgument, operation, preferences.CompressionLevel, (NszCompressionMode)preferences.CompressionMode, preferences.CompressionBlockSize, true) : NszCommandArguments.BuildRustArguments(alias.SourceArgument, ".", alias.KeysArgument, preferences.CompressionLevel, operation);
-                    var phase = $"{(attempts[index] ? "nicoboss/nsz" : "nscb_rust")} · {Path.GetFileName(source)}";
-                    progress(phase);
-                    QueuePluginLog("INFO", plugin, phase);
-                    NszProcess.Run(Path.GetFullPath(engine), args, attempt, token,
-                        update => progress($"{phase} · {update.Details}", update.Fraction),
-                        onDiagnostic: line => QueuePluginLog("DEBUG", plugin, line));
-                    alias.RestoreOutputName(operation);
-                }
-                if (Path.GetExtension(source).ToLowerInvariant() is ".xci" or ".xcz")
-                {
-                    var target = Path.Combine(attempt, Path.GetFileNameWithoutExtension(source) + (operation == NszOperation.Compress ? ".xcz" : ".xci"));
-                    progress($"{_text.Nsz_PhaseLayout} · {Path.GetFileName(source)}");
-                    XciPartitionIntegrity.PreserveStagedPrefix(source, target, token);
-                    if (operation == NszOperation.Decompress) { XciPartitionIntegrity.CorrectStagedLayout(source, target, token); XciPartitionIntegrity.NormalizeStagedGamecardHeader(target, token); }
-                }
+                runStage(attempts[index], attempt);
                 var files = Directory.GetFiles(attempt);
                 if (files.Length != 1) throw new InvalidDataException("Unexpected compression output count.");
+                validateOutput?.Invoke(attempt);
                 token.ThrowIfCancellationRequested();
                 File.Move(files[0], Path.Combine(output, Path.GetFileName(files[0])), false);
                 return;
             }
-            catch (Exception ex) when (index + 1 < attempts.Length && !token.IsCancellationRequested && ex is IOException or System.ComponentModel.Win32Exception)
+            catch (Exception error) when (index + 1 < attempts.Length && !token.IsCancellationRequested &&
+                error is IOException or InvalidDataException or System.ComponentModel.Win32Exception)
             {
-                var fallback = ex.Message + " · Backup: " + (attempts[index + 1] ? "nicoboss/nsz" : "nscb_rust");
-                progress(fallback);
-                QueuePluginLog("WARN", plugin, fallback);
+                reportFallback(plugin, error.Message + " · Backup: " + (attempts[index + 1] ? "nicoboss/nsz" : "nscb_rust"));
             }
             finally { if (Directory.Exists(attempt)) Directory.Delete(attempt, true); }
         }

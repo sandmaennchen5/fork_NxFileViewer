@@ -12,7 +12,7 @@ try {
     $path=Join-Path $root 'publish.ps1.conf'
     $config=New-PublishConfiguration
     Assert-PublishConfiguration $config
-    $config.Applications=@('WpfViewer','AvaloniaLogViewer');$config.RuntimeIdentifiers=@('win-arm64','linux-x64')
+    $config.Applications=@('AvaloniaViewer','AvaloniaLogViewer');$config.RuntimeIdentifiers=@('win-arm64','linux-x64')
     $config.WithDotNet=$false;$config.WithoutDotNet=$true;$config.CopyExecutables=$false
     Save-PublishConfiguration $config $path
     $loaded=Read-PublishConfiguration $path
@@ -26,7 +26,7 @@ try {
     $missing=$false;try{Read-PublishConfiguration $path 'Does not exist' | Out-Null}catch{$missing=$true}
     if(!$missing){throw 'Missing profile was accepted.'}
     $legacy=Join-Path $root 'legacy.conf'
-    [IO.File]::WriteAllText($legacy,($config | ConvertTo-Json -Depth 6))
+    [IO.File]::WriteAllText($legacy,(($config | ConvertTo-Json -Depth 6).Replace('"AvaloniaViewer"','"WpfViewer"')))
     $legacyConfig=Read-PublishConfiguration $legacy
     if($legacyConfig.Applications.Count -ne 2){throw 'Legacy flat configuration did not load.'}
     Save-PublishConfiguration $legacyConfig $legacy 'Windows'
@@ -60,12 +60,12 @@ try {
     $defaultResult=& $startCallback
     if($defaultResult.OutputDirectory -ne 'callback-output' -or (Read-PublishProfileStore $callbackPath).ActiveProfile -ne '77'){throw 'Explicit start profile was not retained after saving another profile.'}
     if((Read-PublishConfiguration $callbackPath 'Another profile').OutputDirectory -ne 'another-profile-output'){throw 'Explicit profile selection no longer overrides the start profile.'}
-    foreach($change in @('UnknownApp','NoRuntimeVariant','WpfWithoutWindows','CopyMissingVariant','UnknownProperty')) {
+    foreach($change in @('UnknownApp','NoRuntimeVariant','RetiredApp','CopyMissingVariant','UnknownProperty')) {
         $bad=New-PublishConfiguration
         switch($change){
             UnknownApp {$bad.Applications=@('not-an-app')}
             NoRuntimeVariant {$bad.WithDotNet=$false;$bad.WithoutDotNet=$false}
-            WpfWithoutWindows {$bad.RuntimeIdentifiers=@('linux-x64')}
+            RetiredApp {$bad.Applications=@('WpfViewer')}
             CopyMissingVariant {$bad.CopyExecutables=$true;$bad.RuntimeIdentifiers=@('win-arm64')}
             UnknownProperty {$bad|Add-Member -NotePropertyName Command -NotePropertyValue 'not allowed'}
         }
@@ -80,7 +80,7 @@ try {
         $preset = Read-PublishConfiguration (Join-Path $root 'new-install.conf') $name
         if (($preset.Applications -join ',') -ne 'AvaloniaViewer,AvaloniaLogViewer' -or
             ($preset.RuntimeIdentifiers -join ',') -ne 'win-x64,win-x86,win-arm64,linux-x64,linux-arm64,osx-x64,osx-arm64' -or
-            ($preset.Extras -join ',') -ne 'Explorer,WpfMigration' -or $preset.OutputDirectory -ne "Publish/$name" -or
+            ($preset.Extras -join ',') -ne 'Explorer,UpdateCompatibility' -or $preset.OutputDirectory -ne "Publish/$name" -or
             !$preset.WithDotNet -or !$preset.WithoutDotNet -or !$preset.CreateZipArchives -or !$preset.FirmwareHashes -or
             $preset.ExplorerOutputFormat -ne 'Zip' -or $preset.CopyExecutables) {
             throw "$name preset does not match the GitHub release packages."
@@ -96,19 +96,9 @@ $PSBoundParameters | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Pa
     New-Item -ItemType Directory -Path (Join-Path $root 'tools') | Out-Null
     [IO.File]::WriteAllText((Join-Path $root 'tools/Publish-Applications.ps1'),$stub)
     Invoke-PublishConfiguration $loaded $root '4.1.1-beta5'
-    $wpf=Get-Content (Join-Path $root 'tools/backend-Wpf.json') -Raw | ConvertFrom-Json
     $avalonia=Get-Content (Join-Path $root 'tools/backend-Avalonia.json') -Raw | ConvertFrom-Json
-    if(@($wpf.RuntimeIdentifiers).Count -ne 1 -or $wpf.RuntimeIdentifiers[0] -ne 'win-arm64' -or $wpf.Applications[0] -ne 'Viewer'){throw 'WPF target selection failed.'}
-    if(@($avalonia.RuntimeIdentifiers).Count -ne 2 -or $avalonia.Applications[0] -ne 'LogViewer' -or !$avalonia.SkipFirmwareHashes.IsPresent){throw 'Avalonia or firmware dispatch failed.'}
-    if(!$wpf.NoCopy.IsPresent -or !$wpf.AllTargets.IsPresent -or $wpf.RuntimeVariants[0] -ne $false){throw 'Explicit config overrides were lost.'}
-    $releaseStub="param(`$OutputDirectory,[switch]`$ReleasePackages,[switch]`$SkipAvalonia,`$Version)`n`$PSBoundParameters | ConvertTo-Json | Set-Content -LiteralPath (Join-Path `$PSScriptRoot 'release-call.json')"
-    [IO.File]::WriteAllText((Join-Path $root 'Publish.ps1'),$releaseStub)
-    $release=New-PublishConfiguration
-    $release.Applications=@('WpfViewer','WpfLogViewer')
-    $release.IncludeReleaseExtras=$true
-    Invoke-PublishConfiguration $release $root '4.1.1-beta5'
-    $call=Get-Content (Join-Path $root 'release-call.json') -Raw | ConvertFrom-Json
-    if(!$call.ReleasePackages.IsPresent -or !$call.SkipAvalonia.IsPresent){throw 'Release extras did not use the existing release builder.'}
+    if(@($avalonia.RuntimeIdentifiers).Count -ne 2 -or ($avalonia.Applications -join ',') -ne 'Viewer,LogViewer'){throw 'Avalonia target selection failed.'}
+    if(!$avalonia.NoCopy.IsPresent -or !$avalonia.AllTargets.IsPresent -or $avalonia.RuntimeVariants[0] -ne $false){throw 'Explicit config overrides were lost.'}
     Write-Host 'Publish configuration passed: defaults, JSON round trip, invalid settings, application/OS/runtime dispatch, no-copy override.'
 }
 finally {
