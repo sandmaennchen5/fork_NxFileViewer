@@ -88,7 +88,6 @@ jobs:
         shell: bash
         run: |
           sh -n tools/linux/start.sh.in
-          sh -n tools/linux/install-shortcut.sh.in
       - name: Build Avalonia packages
         if: matrix.zipVariants[0] != null
         shell: pwsh
