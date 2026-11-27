@@ -13,9 +13,9 @@ updates:
     # Keep the framework-aligned packages on .NET 10, including patch updates.
     ignore:
       - dependency-name: "Microsoft.Extensions.Logging.Abstractions"
-        versions: ["[11.0.0-0,)"]
+        update-types: ["version-update:semver-major"]
       - dependency-name: "System.Security.Cryptography.Pkcs"
-        versions: ["[11.0.0-0,)"]
+        update-types: ["version-update:semver-major"]
     groups:
       per-package:
         group-by: "dependency-name"
