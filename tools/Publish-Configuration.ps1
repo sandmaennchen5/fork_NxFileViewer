@@ -137,9 +137,9 @@ function Assert-PublishConfiguration($Config) {
         }
     }
     if ($Config.PSObject.Properties['Extras']) {
-        if ($Config.Extras -isnot [array] -or $Config.Extras.Count -gt 5) { throw 'Invalid release extras selection.' }
+        if ($Config.Extras -isnot [array] -or $Config.Extras.Count -gt 8) { throw 'Invalid release extras selection.' }
         foreach ($extra in $Config.Extras) {
-            if ($extra -notin @('Explorer','Updater','UpdateManifest','AvaloniaZipMetadata','UpdateCompatibility')) { throw "Unknown release extra: $extra" }
+            if ($extra -notin @('Explorer','Updater','UpdateManifest','AvaloniaZipMetadata','UpdateCompatibility','CompatibilityWin40','CompatibilityWpf41','CompatibilityAvaloniaBeta1')) { throw "Unknown release extra: $extra" }
         }
     }
     if ($Config.PSObject.Properties['Versions']) {
@@ -152,7 +152,7 @@ function Assert-PublishConfiguration($Config) {
     }
     if ($Config.Applications -isnot [array] -or (!$Config.Applications.Count -and !$Config.Extras.Count) -or $Config.Applications.Count -gt 4) { throw 'Select at least one application.' }
     foreach ($app in $Config.Applications) { if ($app -notin $defaults.Applications) { throw "Unknown application: $app" } }
-    $allowedTargets = $defaults.RuntimeIdentifiers + @(Get-PublishFormatTargets)
+    $allowedTargets = $defaults.RuntimeIdentifiers + @('linux-arm') + @(Get-PublishFormatTargets)
     if ($Config.RuntimeIdentifiers -isnot [array] -or $Config.RuntimeIdentifiers.Count -gt $allowedTargets.Count) { throw 'Select at least one publish target.' }
     foreach ($target in $Config.RuntimeIdentifiers) { if ($target -notin $allowedTargets) { throw "Unknown publish target: $target" } }
 
@@ -180,7 +180,7 @@ function Assert-PublishConfiguration($Config) {
     foreach ($name in @('OutputDirectory','CopyDirectory','CopyRuntimeIdentifier')) {
         if ($Config.$name -isnot [string] -or [string]::IsNullOrWhiteSpace($Config.$name) -or $Config.$name.Length -gt 2048 -or $Config.$name -match '[\x00-\x1f]') { throw "Invalid $name." }
     }
-    if ($Config.CopyRuntimeIdentifier -notin $defaults.RuntimeIdentifiers) { throw 'Invalid copy runtime.' }
+    if ($Config.CopyRuntimeIdentifier -notin ($defaults.RuntimeIdentifiers + 'linux-arm')) { throw 'Invalid copy runtime.' }
     if ($Config.CopyExecutables -and $Config.Applications.Count) {
         $copyVariant = if ($Config.CopyWithDotNet) { 'WithDotNet' } else { 'WithoutDotNet' }
         $copyTargets = @($selectedTargets | Where-Object { $null -eq $matrix -or $matrix.$_.$copyVariant -ne 'Off' })
@@ -339,7 +339,7 @@ function Invoke-PublishConfiguration($Config,[string]$RepositoryRoot,[string]$Ve
                 Where-Object { $_ -like 'win-*' } | ForEach-Object { ($_ -split '-')[1] } | Select-Object -Unique)
         }
         if ($versions.Explorer) { $extraOptions.ExplorerPackageVersion = $versions.Explorer }
-        $metadataExtras = @(foreach ($extra in @('UpdateManifest','AvaloniaZipMetadata','UpdateCompatibility')) {
+        $metadataExtras = @(foreach ($extra in @('UpdateManifest','AvaloniaZipMetadata','UpdateCompatibility','CompatibilityWin40','CompatibilityWpf41','CompatibilityAvaloniaBeta1')) {
             if ($extra -in $Config.Extras -or ($extra -eq 'UpdateManifest' -and 'Updater' -in $Config.Extras)) { $extra }
         })
         foreach ($extra in @('Explorer','Metadata')) {
@@ -493,10 +493,14 @@ function Show-PublishWorkflowDialog($Owner, [string]$RepositoryRoot) {
     $dialog = New-Object System.Windows.Forms.Form
     $dialog.Text = 'GitHub-Workflows bearbeiten'
     $dialog.StartPosition = 'CenterParent'
-    $dialog.ClientSize = New-Object System.Drawing.Size(575, 375)
+    $dialog.ClientSize = New-Object System.Drawing.Size(595, 540)
     $dialog.FormBorderStyle = 'FixedDialog'
     $dialog.MaximizeBox = $false
     $dialog.MinimizeBox = $false
+    $table = New-Object System.Windows.Forms.Panel
+    $table.SetBounds(0,0,590,487)
+    $table.AutoScroll = $true
+    $dialog.Controls.Add($table)
     $fields = @{}
     $initial = @{}
     $x = 300
@@ -505,13 +509,13 @@ function Show-PublishWorkflowDialog($Owner, [string]$RepositoryRoot) {
             $path = $paths[$key]
             $selection = (Get-WorkflowTargetBlock $sources[$path] $key).Value
             $null = Get-WorkflowPublishMatrix $selection
-            $enabled = @($selection -split '\r?\n' | ForEach-Object { (($_ -replace '#.*$').Trim()) -replace '\s+', ' ' })
+            $enabled = @(Get-WorkflowPublishSelection $selection)
             $initial[$key] = @($targets | Where-Object { $_ -in $enabled })
             $header = New-Object System.Windows.Forms.Label
             $header.Text = $columns[$key]
             $header.TextAlign = 'MiddleCenter'
             $header.SetBounds($x, 12, 85, 24)
-            $dialog.Controls.Add($header)
+            $table.Controls.Add($header)
             $fields[$key] = @{}
             for ($i=0; $i -lt $targets.Count; $i++) {
                 $target = $targets[$i]
@@ -519,28 +523,35 @@ function Show-PublishWorkflowDialog($Owner, [string]$RepositoryRoot) {
                 $check.SetBounds(($x+34), (40+26*$i), 23, 24)
                 $check.AccessibleName = "$($columns[$key]): $target"
                 $check.Checked = $target -in $enabled
-                $dialog.Controls.Add($check)
+                $table.Controls.Add($check)
                 $fields[$key][$target] = $check
             }
             $x += 85
         }
         for ($i=0; $i -lt $targets.Count; $i++) {
-            $target = $targets[$i] -replace ' without-net$', ' / ohne .NET' -replace ' with-net$', ' / mit .NET'
+            $target = $targets[$i] -creplace ' without-net$', ' / ohne .NET' -creplace ' with-net$', ' / mit .NET'
+            $target = $target -creplace ' arch ', ' / Architektur: ' -creplace ' app /', ' / App (ZIP) /' -creplace ' dmg /', ' / DMG /' -creplace ' appimage /', ' / AppImage /' -creplace ' zip /', ' / Programm-ZIP /'
+            $target = switch ($target) {
+                'compatibility win40' { '4.0.0-beta.1 bis 4.0.x / Windows-Hilfsupdater' }
+                'compatibility wpf41' { '4.1.0-beta1 bis 4.1.2-beta1 / WPF-ZIPs' }
+                'compatibility avalonia-beta1' { '4.1.2-beta1 / Avalonia-ZIPs' }
+                default { $target }
+            }
             $label = New-Object System.Windows.Forms.Label
             $label.Text = $target
             $label.SetBounds(15, (43+26*$i), 275, 24)
-            $dialog.Controls.Add($label)
+            $table.Controls.Add($label)
         }
         $save = New-Object System.Windows.Forms.Button
         $save.Text = 'YAML speichern'
         $save.DialogResult = 'OK'
-        $save.SetBounds(285, 322, 130, 32)
+        $save.SetBounds(285, 494, 130, 32)
         $dialog.Controls.Add($save)
         $dialog.AcceptButton = $save
         $cancel = New-Object System.Windows.Forms.Button
         $cancel.Text = 'Abbrechen'
         $cancel.DialogResult = 'Cancel'
-        $cancel.SetBounds(425, 322, 130, 32)
+        $cancel.SetBounds(425, 494, 130, 32)
         $dialog.Controls.Add($cancel)
         $dialog.CancelButton = $cancel
         while ($dialog.ShowDialog($Owner) -eq 'OK') {
@@ -556,6 +567,7 @@ function Show-PublishWorkflowDialog($Owner, [string]$RepositoryRoot) {
                     $path = $paths[$key]
                     if (!$updates.ContainsKey($path)) { $updates[$path] = [IO.File]::ReadAllText($path) }
                     $updates[$path] = Set-WorkflowTargetBlock $updates[$path] $key $selected[$key]
+                    $null = Get-WorkflowPublishMatrix (Get-WorkflowTargetBlock $updates[$path] $key).Value
                 }
                 foreach ($path in $updates.Keys) { [IO.File]::WriteAllText($path, $updates[$path]) }
                 return $true
@@ -602,12 +614,13 @@ function Show-PublishConfigurationMenu($Config,[string]$ConfigPath,[string]$Prof
     $matrixRows = [ordered]@{}
     $outputModes = [ordered]@{ Off='Aus'; Zip='ZIP'; Folder='Ordner'; Both='ZIP + Ordner' }
     $rowTop = 94
-    $matrixTargets = @((New-PublishConfiguration).RuntimeIdentifiers) + @(Get-PublishFormatTargets | Where-Object { $_ -notlike '*-exe' })
+    $matrixTargets = @((New-PublishConfiguration).RuntimeIdentifiers) + @('linux-arm') + @(Get-PublishFormatTargets | Where-Object { $_ -notlike '*-exe' })
     foreach ($target in $matrixTargets) {
         $label = switch -Wildcard ($target) {
             'win-*' { "$target-exe" }
             '*-appimage' { $target }
             '*-dmg' { $target }
+            'linux-arm' { 'linux-arm-bin (ARM32)' }
             default { "$target-bin" }
         }
         Add-Label $label 304 ($rowTop+2) 120
@@ -667,7 +680,9 @@ function Show-PublishConfigurationMenu($Config,[string]$ConfigPath,[string]$Prof
     & $loadExtraPackageFormats $Config
     $extraItems = [ordered]@{
         'Updatemanifest' = 'Updatemanifest'
-        'Kompatibilitaets-Updates + Manifest' = 'UpdateCompatibility'
+        '4.0.0-beta.1 bis 4.0.x: Windows-Hilfsupdater' = 'CompatibilityWin40'
+        '4.1.0-beta1 bis 4.1.2-beta1: WPF-ZIPs' = 'CompatibilityWpf41'
+        '4.1.2-beta1: Avalonia-ZIPs' = 'CompatibilityAvaloniaBeta1'
         'Avalonia-JSON je ZIP' = 'AvaloniaZipMetadata'
         'Firmware-Hash-ZIP' = $null
     }
@@ -675,7 +690,8 @@ function Show-PublishConfigurationMenu($Config,[string]$ConfigPath,[string]$Prof
         param($Value)
         foreach ($item in $extraItems.Keys) {
             if ($null -eq $extraItems[$item]) { [bool]$Value.FirmwareHashes }
-            elseif ($extraItems[$item] -in @('AvaloniaZipMetadata','UpdateCompatibility')) { $extraItems[$item] -in $Value.Extras }
+            elseif ($extraItems[$item] -like 'Compatibility*') { $extraItems[$item] -in $Value.Extras -or 'UpdateCompatibility' -in $Value.Extras }
+            elseif ($extraItems[$item] -eq 'AvaloniaZipMetadata') { 'AvaloniaZipMetadata' -in $Value.Extras }
             else { $Value.IncludeReleaseExtras -or $extraItems[$item] -in $Value.Extras -or ($item -eq 'Updatemanifest' -and 'Updater' -in $Value.Extras) }
         }
     }.GetNewClosure()
@@ -700,7 +716,7 @@ function Show-PublishConfigurationMenu($Config,[string]$ConfigPath,[string]$Prof
     Add-Label 'Variante fuer den Testordner' 496 ($foldersTop+54) 180
     $copyRid=New-Object System.Windows.Forms.ComboBox
     $copyRid.DropDownStyle='DropDownList';$copyRid.SetBounds(680,($foldersTop+50),132,26)
-    foreach($item in (New-PublishConfiguration).RuntimeIdentifiers){[void]$copyRid.Items.Add($item)}
+    foreach($item in ((New-PublishConfiguration).RuntimeIdentifiers + 'linux-arm')){[void]$copyRid.Items.Add($item)}
     $copyRid.SelectedItem=$Config.CopyRuntimeIdentifier;$form.Controls.Add($copyRid)
     $copyNet=Add-Check 'Mit .NET' 828 ($foldersTop+50) $Config.CopyWithDotNet
     $copyNet.Width = 160

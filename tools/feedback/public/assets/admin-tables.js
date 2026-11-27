@@ -17,10 +17,11 @@
       while (cell.firstChild) button.append(cell.firstChild);
       const arrow = document.createElement('span');
       arrow.setAttribute('aria-hidden', 'true');
-      arrow.textContent = ' ↕';
+      const initialOrder = cell.getAttribute('aria-sort') || 'none';
+      arrow.textContent = initialOrder === 'descending' ? ' ▼' : initialOrder === 'ascending' ? ' ▲' : ' ↕';
       button.append(arrow);
       cell.append(button);
-      cell.setAttribute('aria-sort', 'none');
+      cell.setAttribute('aria-sort', initialOrder);
       button.addEventListener('click', () => {
         const descending = cell.getAttribute('aria-sort') === 'ascending';
         Array.from(header.cells).forEach(other => {

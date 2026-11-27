@@ -36,7 +36,7 @@ param(
     [switch]$AvaloniaLogViewer,
     [switch]$AppImage,
     [switch]$Dmg,
-    [ValidateSet('win-x64', 'win-x86', 'win-arm64', 'linux-x64', 'linux-arm64', 'osx-x64', 'osx-arm64')]
+    [ValidateSet('win-x64', 'win-x86', 'win-arm64', 'linux-x64', 'linux-arm64', 'linux-arm', 'osx-x64', 'osx-arm64')]
     [string[]]$AvaloniaRuntimeIdentifiers = @(),
     [switch]$WithDotNet,
     [switch]$WithoutDotNet,
@@ -46,7 +46,7 @@ param(
     [switch]$Avalonia,
     [switch]$All,
     [switch]$ReleasePackages,
-    [ValidateSet('Explorer','Updater','UpdateManifest','AvaloniaZipMetadata','UpdateCompatibility')][string[]]$Extras=@(),
+    [ValidateSet('Explorer','Updater','UpdateManifest','AvaloniaZipMetadata','UpdateCompatibility','CompatibilityWin40','CompatibilityWpf41','CompatibilityAvaloniaBeta1')][string[]]$Extras=@(),
     [ValidateSet('Zip','Folder','Both')][string]$ExplorerOutputFormat='Zip',
     [ValidateSet('x64','x86','arm64')][string[]]$ExtraWindowsArchitectures=@('x64','x86','arm64'),
     [ValidateSet('Avalonia')][string[]]$UpdateFrameworks=@('Avalonia'),
@@ -340,7 +340,7 @@ Danach NxFileViewer Fork normal starten und unter Einstellungen > Programm das m
 }
 
 
-function New-CompatibilityUpdatePackages($AvaloniaPackages) {
+function New-CompatibilityUpdatePackages($AvaloniaPackages, [bool]$Win40, [bool]$Wpf41, [bool]$AvaloniaBeta1) {
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     $windows = @(foreach ($package in $AvaloniaPackages) {
         if ($package.AssetName -notmatch '^NxFileViewerFork_v(?<version>[^_]+)_(?<rid>(?:win|linux|osx)-(?:x64|x86|arm64))-(?<runtime>with|without)-net\.zip$') { continue }
@@ -353,7 +353,7 @@ function New-CompatibilityUpdatePackages($AvaloniaPackages) {
         $suffix = if ($isWindowsPackage) { $architecture } else { $rid }
         $source = Join-Path $OutDirRoot $package.AssetName
         $alias = "NxFileViewerFork_Avalonia_v${version}${variant}_$suffix.zip"
-        if (!(Test-Path -LiteralPath (Join-Path $OutDirRoot $alias) -PathType Leaf)) {
+        if ($AvaloniaBeta1 -and !(Test-Path -LiteralPath (Join-Path $OutDirRoot $alias) -PathType Leaf)) {
             $stagedZip = Join-Path $StagingRoot $alias
             Copy-Item -LiteralPath $source -Destination $stagedZip
             $archive = [IO.Compression.ZipFile]::Open($stagedZip,[IO.Compression.ZipArchiveMode]::Update)
@@ -375,15 +375,15 @@ function New-CompatibilityUpdatePackages($AvaloniaPackages) {
             } finally { $archive.Dispose() }
             Move-Item -LiteralPath $stagedZip -Destination (Join-Path $OutDirRoot $alias)
         }
-        if ($isWindowsPackage -and $version -eq $AppVersion) {
+        if ($isWindowsPackage -and $version -eq $AppVersion -and ($Wpf41 -or ($Win40 -and !$AppVersion.Contains('-') -and $architecture -in @('x64','x86')))) {
             $legacyZip = Join-Path $OutDirRoot "NxFileViewerFork_v${version}${variant}_$architecture.zip"
-            if (!(Test-Path -LiteralPath $legacyZip -PathType Leaf)) {
+            if ($Wpf41 -and !(Test-Path -LiteralPath $legacyZip -PathType Leaf)) {
                 Copy-Item -LiteralPath $source -Destination $legacyZip
             }
             [pscustomobject]@{ Architecture=$architecture; SelfContained=$withRuntime; AssetName=$package.AssetName; Sha256=$package.Sha256 }
         }
     })
-    if (!$AppVersion.Contains('-')) {
+    if ($Win40 -and !$AppVersion.Contains('-')) {
         foreach ($group in ($windows | Where-Object Architecture -in @('x64','x86') | Group-Object Architecture)) {
             $architecture = $group.Name
             $paths = @(foreach ($package in $group.Group) {
@@ -447,7 +447,11 @@ Push-Location -LiteralPath (Join-Path $PSScriptRoot 'src')
 try {
     if ($Extras.Count) {
         . (Join-Path $PSScriptRoot 'tools/Publish-Configuration.ps1')
-        $writeCompatibility = 'UpdateCompatibility' -in $Extras
+        $allCompatibility = 'UpdateCompatibility' -in $Extras
+        $compatibilityWin40 = $allCompatibility -or 'CompatibilityWin40' -in $Extras
+        $compatibilityWpf41 = $allCompatibility -or 'CompatibilityWpf41' -in $Extras
+        $compatibilityAvaloniaBeta1 = $allCompatibility -or 'CompatibilityAvaloniaBeta1' -in $Extras
+        $writeCompatibility = $compatibilityWin40 -or $compatibilityWpf41 -or $compatibilityAvaloniaBeta1
         $writeUpdateManifest = $writeCompatibility -or 'UpdateManifest' -in $Extras -or 'Updater' -in $Extras
         $explorerArchitectures = @($ExtraWindowsArchitectures | Where-Object { $_ -in @('x64','arm64') } | Select-Object -Unique)
         if ('Explorer' -in $Extras) {
@@ -467,7 +471,7 @@ try {
                         (Select-Xml -LiteralPath (Join-Path $PSScriptRoot (Get-ViewerProjectPath $project)) -XPath '/Project/PropertyGroup/Version').Node.InnerText
                     }
                     if ($appVersion -notmatch '^\d+\.\d+\.\d+(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$') { throw "Invalid Avalonia version: $appVersion" }
-                    $pattern = '^' + [regex]::Escape("${avaloniaName}_v${appVersion}") + '_(?:win|linux|osx)-(?:x64|x86|arm64)-(?:with|without)-net\.zip$'
+                    $pattern = '^' + [regex]::Escape("${avaloniaName}_v${appVersion}") + '_(?:win|linux|osx)-(?:x64|x86|arm64|arm)-(?:with|without)-net\.zip$'
                     foreach ($zip in Get-ChildItem -LiteralPath $OutDirRoot -File -Filter '*.zip' | Where-Object Name -match $pattern) {
                         $marker = if ($writeAvaloniaZipMetadata) {
                             Write-Host "Update metadata: $($zip.FullName).viewer.json"
@@ -484,7 +488,7 @@ try {
                 $_.Extension -in @('.AppImage', '.dmg') -or $_.Name -like '*.app.zip'
             })
             if ($writeUpdateManifest -and ($AvaloniaReleasePackages.Count -or $nativeUpdateAssets.Count)) {
-                $compatibility = @(if ($writeCompatibility) { New-CompatibilityUpdatePackages $AvaloniaReleasePackages })
+                $compatibility = @(if ($writeCompatibility) { New-CompatibilityUpdatePackages $AvaloniaReleasePackages $compatibilityWin40 $compatibilityWpf41 $compatibilityAvaloniaBeta1 })
                 Write-ReleaseDescriptor -IncludeExplorer -AvaloniaPackages $AvaloniaReleasePackages -CompatibilityWindowsPackages $compatibility
                 Write-Host "Update manifest: $(Join-Path $OutDirRoot 'nxfileviewer-update.json')"
                 $found = $true

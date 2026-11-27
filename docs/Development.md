@@ -118,6 +118,47 @@ and release/CI modes retain their own selection rules.
 
 GitHub Build runs Publish.ps1 -GitHub and publishes Avalonia Viewer and LogViewer artifacts, firmware hashes, update metadata and legacy transition packages. The separate Release workflow builds Avalonia packages for tags and can generate migration aliases for existing WPF installations.
 
+## Publish locally on Linux and macOS
+
+Install PowerShell 7 (`pwsh`) and the .NET 10 SDK. Open a terminal in the
+repository root, enter `pwsh`, then run the commands for your platform below.
+These commands use the headless publisher and write to `Publish/` by default.
+Use `-OutputDirectory <path>` to change the output directory.
+
+### Linux
+
+```powershell
+# ZIP with the Linux executable
+./Publish.ps1 -NoGui -AvaloniaViewer -AvaloniaRuntimeIdentifiers linux-x64 -WithDotNet
+
+# AppImage and its ZIP, built on Linux with appimagetool on PATH
+./Publish.ps1 -NoGui -AvaloniaViewer -AvaloniaRuntimeIdentifiers linux-x64 -WithDotNet -AppImage
+```
+
+Use `linux-arm64` for ARM64. AppImage packaging requires `appimagetool` on the
+Linux build host. The repository's CI installs it with
+[`Install-AppImageTool.sh`](../.github/scripts/Install-AppImageTool.sh).
+
+### macOS
+
+```powershell
+# DMG containing the app bundle, built on macOS
+./Publish.ps1 -NoGui -AvaloniaViewer -AvaloniaRuntimeIdentifiers osx-arm64 -WithDotNet -Dmg
+
+# ZIP containing the app bundle, built on macOS
+./tools/Publish-Applications.ps1 -Framework Avalonia -Applications Viewer -RuntimeIdentifiers osx-arm64 -RuntimeVariants $true -NativePackage App -ExecutableOnly -SkipFirmwareHashes -NoCopy
+```
+
+Use `osx-x64` for Intel Macs. The native packager uses macOS tools including
+`hdiutil` for the DMG, `ditto` for the app ZIP and `iconutil` for the app icon.
+The `-Dmg` command creates a direct DMG alongside the regular executable ZIP
+and the legacy DMG ZIP. Distribute the direct `.dmg` for installing the app bundle.
+
+Use `-WithoutDotNet` with `Publish.ps1` to build a package that uses the
+installed runtime. Use `-AvaloniaLogViewer` for the LogViewer or
+`-Applications LogViewer` with the app ZIP command. For installing the resulting
+packages, see the [installation guide](Installation.md).
+
 ## Named selection profiles
 
 `publish.ps1.conf` can contain multiple named profiles. The GUI profile selector

@@ -61,11 +61,11 @@ without the normal user-initiated installation and confirmation.
 
 Push a tag such as `4.1.2` or `v4.1.2` for a stable release. A tag such as `4.1.2-beta3` selects the pre-release channel. The tagged commit supplies both the workflow and its package selections.
 
-Edit `RELEASE_TARGETS` and `PRERELEASE_TARGETS` in `.github/workflows/release.yml`, or open **Publish.ps1 → GitHub-Workflows…**. The lists control the platform, ZIP or native format, and .NET variant independently. The tag sets the viewer version. Explorer keeps its separately configured version. The notes come from the matching section of the tagged `CHANGELOG.md`.
+Edit `RELEASE_TARGETS` and `PRERELEASE_TARGETS` in `.github/workflows/release.yml`, or open **Publish.ps1 → GitHub-Workflows…**. The lists control the architectures, package formats, and .NET variants independently. For example, `macOS arch osx-arm64` enables Apple Silicon, `macOS dmg with-net` selects a DMG, and `macOS app with-net` selects a separate App ZIP. Each compatibility entry can be disabled separately with `##`: `compatibility win40` builds the stable-release Windows helper for 4.0.0-beta.1 through 4.0.x, `compatibility wpf41` adds the legacy ZIP names for Windows WPF 4.1.0-beta1 through 4.1.2-beta1, and `compatibility avalonia-beta1` adds the old Avalonia ZIP layout for 4.1.2-beta1. The Windows helper still needs matching Windows entries in the manifest even when the WPF ZIP aliases are disabled. The standard update manifest is still generated for portable ZIPs. The tag sets the viewer version. Explorer keeps its separately configured version. The notes come from the matching section of the tagged `CHANGELOG.md`.
 
 Stable releases wait for the selected platform builds. A pre-release can publish successful packages first. Re-running an unsuccessful job can add its packages to the same tag and refresh the manifests. GitHub re-runs use the original workflow from the tagged commit.
 
-For local compatibility packages, select **Kompatibilitaets-Updates + Manifest** in Publish or run the following after building the portable ZIPs:
+For local compatibility packages, select the relevant compatibility options in Publish or run the following after building the portable ZIPs:
 
 ```powershell
 ./Publish.ps1 -Version 4.1.2 -OutputDirectory Publish -Extras UpdateCompatibility

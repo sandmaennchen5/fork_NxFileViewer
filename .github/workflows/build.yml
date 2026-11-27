@@ -7,16 +7,29 @@ on:
 # Edit these targets here or in Publish.ps1 > GitHub workflows.
 env:
   BUILD_TARGETS: |
+    Windows arch win-x64
+    Windows arch win-x86
+    Windows arch win-arm64
     Windows zip with-net
     Windows zip without-net
+    Linux arch linux-x64
+    Linux arch linux-arm64
+    ## Linux arch linux-arm
     Linux zip with-net
     Linux zip without-net
     Linux appimage with-net
     Linux appimage without-net
+    macOS arch osx-x64
+    macOS arch osx-arm64
     macOS zip with-net
     macOS zip without-net
     macOS app with-net
     macOS app without-net
+    macOS dmg with-net
+    macOS dmg without-net
+    compatibility win40
+    compatibility wpf41
+    compatibility avalonia-beta1
 
 jobs:
   targets:
@@ -89,37 +102,34 @@ jobs:
       - name: Build Explorer packages
         if: matrix.platform == 'Windows'
         shell: pwsh
-        run: ./Publish.ps1 -OutputDirectory Publish-Platform -Extras Explorer
+        env:
+          BUILD_RUNTIMES: ${{ toJSON(matrix.runtimes) }}
+        run: |
+          $architectures = @($env:BUILD_RUNTIMES | ConvertFrom-Json | Where-Object { $_ -in 'win-x64','win-arm64' } | ForEach-Object { $_.Substring(4) })
+          if ($architectures.Count) {
+              ./Publish.ps1 -OutputDirectory Publish-Platform -Extras Explorer -ExtraWindowsArchitectures $architectures
+          }
 
       - name: Install appimagetool
-        if: matrix.native == 'AppImage'
+        if: matrix.appImage
         shell: bash
         run: bash ./.github/scripts/Install-AppImageTool.sh
 
       - name: Build native Viewer and LogViewer packages
-        if: matrix.native != ''
+        if: matrix.nativePackages[0] != null
         shell: pwsh
         env:
-          PACKAGE_FORMAT: ${{ matrix.native }}
-          BUILD_RUNTIMES: ${{ toJSON(matrix.runtimes) }}
-          BUILD_VARIANTS: ${{ toJSON(matrix.nativeVariants) }}
-        run: |
-          $runtimes = @($env:BUILD_RUNTIMES | ConvertFrom-Json)
-          $variants = @($env:BUILD_VARIANTS | ConvertFrom-Json | ForEach-Object { $_ -eq 'with-net' })
-          $formats = @($runtimes | ForEach-Object { "$_-$($env:PACKAGE_FORMAT.ToLowerInvariant())" })
-          ./tools/Publish-Applications.ps1 -Framework Avalonia -Applications Viewer,LogViewer -RuntimeIdentifiers $runtimes -RuntimeVariants $variants -NativePackage $env:PACKAGE_FORMAT -FormatTargets $formats -ExecutableOnly -SkipFirmwareHashes -NoCopy -OutputDirectory Publish-Platform -IncludeDmg:($env:PACKAGE_FORMAT -eq 'App') -IncludeAppImageZip:($env:PACKAGE_FORMAT -eq 'AppImage')
-          $expected = $runtimes.Count * $variants.Count * 2
-          $extensions = if ($env:PACKAGE_FORMAT -eq 'AppImage') { '*.AppImage','*.AppImage.zip' } else { '*.app.zip','*.dmg' }
-          foreach ($extension in $extensions) {
-              if (@(Get-ChildItem -LiteralPath Publish-Platform -File -Filter $extension).Count -ne $expected) {
-                  throw "Expected $expected packages matching $extension."
-              }
-          }
+          NATIVE_PACKAGES: ${{ toJSON(matrix.nativePackages) }}
+        run: ./tools/Publish-WorkflowNativePackages.ps1 -PackagesJson $env:NATIVE_PACKAGES -OutputDirectory Publish-Platform
 
       - name: Generate update manifests
         if: matrix.zipVariants[0] != null
         shell: pwsh
-        run: ./Publish.ps1 -OutputDirectory Publish-Platform -Extras UpdateCompatibility
+        env:
+          BUILD_COMPATIBILITY: ${{ toJSON(matrix.compatibilityExtras) }}
+        run: |
+          $extra = @('UpdateManifest') + @($env:BUILD_COMPATIBILITY | ConvertFrom-Json)
+          ./Publish.ps1 -OutputDirectory Publish-Platform -Extras $extra
 
       - name: Create platform archive
         id: archive

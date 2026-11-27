@@ -269,6 +269,19 @@ public sealed class AvaloniaUpdaterTest : IDisposable
             Assert.True(File.Exists(Path.Combine(stage, "payload", "NxFileViewerFork.Avalonia")));
         }
     }
+    [Fact]
+    public void ValidatesArm32LinuxExecutableWithoutAcceptingItForArm64()
+    {
+        var bytes = Elf();
+        bytes[4] = 1;
+        bytes[18] = 40;
+        var executable = Path.Combine(_root, "NxFileViewerFork");
+        File.WriteAllBytes(executable, bytes);
+
+        AvaloniaAppUpdater.ValidateNativeExecutable(executable, "linux-arm");
+        Assert.Throws<InvalidDataException>(() => AvaloniaAppUpdater.ValidateNativeExecutable(executable, "linux-arm64"));
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

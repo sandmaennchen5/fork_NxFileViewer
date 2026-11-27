@@ -3,7 +3,7 @@
 param(
     [Parameter(Mandatory=$true)][ValidateSet('Avalonia')][string]$Framework,
     [string]$OutputDirectory='Publish', [string]$Version,
-    [ValidateSet('win-x64','win-x86','win-arm64','linux-x64','linux-arm64','osx-x64','osx-arm64')][string[]]$RuntimeIdentifiers=@(),
+    [ValidateSet('win-x64','win-x86','win-arm64','linux-x64','linux-arm64','linux-arm','osx-x64','osx-arm64')][string[]]$RuntimeIdentifiers=@(),
     [ValidateSet('Viewer','LogViewer')][string[]]$Applications=@('Viewer','LogViewer'),
     [bool[]]$RuntimeVariants=@($false,$true),
     [switch]$ExecutableOnly, [string]$CopyTo, [string]$CopyRuntime='win-x64',
@@ -43,13 +43,13 @@ if ($NativePackage) {
         $nativeRids = @('osx-x64','osx-arm64')
     }
     if (!$RuntimeIdentifiers.Count) { $RuntimeIdentifiers = $nativeRids }
-    $nativeRidsToBuild = if ($nativeFormatTargets.Count -and !$NativePackage) { $nativeFormatTargets -replace '-(appimage|dmg|app)$' } else { $RuntimeIdentifiers }
+    $nativeRidsToBuild = if ($nativeFormatTargets.Count) { $nativeFormatTargets -replace '-(appimage|dmg|app)$' } else { $RuntimeIdentifiers }
     foreach ($rid in $nativeRidsToBuild) {
         if ($rid -notin $nativeRids) { throw "$NativePackage packaging does not support $rid." }
     }
 }
 if(!$RuntimeIdentifiers.Count){$RuntimeIdentifiers=$defaultRids}
-foreach($rid in $RuntimeIdentifiers){if($rid -notin $defaultRids){throw "Unsupported $Framework target: $rid"}}
+foreach($rid in $RuntimeIdentifiers){if($rid -notin ($defaultRids + 'linux-arm')){throw "Unsupported $Framework target: $rid"}}
 
 $targets = @(foreach ($rid in ($RuntimeIdentifiers | Select-Object -Unique)) {
     foreach ($variant in ($RuntimeVariants | Select-Object -Unique)) {

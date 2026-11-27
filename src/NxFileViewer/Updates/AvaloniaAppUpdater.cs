@@ -305,7 +305,15 @@ internal static partial class AvaloniaAppUpdater
             if (rid.StartsWith("linux-", StringComparison.Ordinal))
             {
                 var machine = System.Buffers.Binary.BinaryPrimitives.ReadUInt16LittleEndian(header.AsSpan(18));
-                if (header[0] != 0x7f || header[1] != 'E' || header[2] != 'L' || header[3] != 'F' || header[4] != 2 || header[5] != 1 || machine != (rid == "linux-arm64" ? 183 : 62))
+                var (elfClass, expectedMachine) = rid switch
+                {
+                    "linux-arm" => (1, 40),
+                    "linux-arm64" => (2, 183),
+                    "linux-x64" => (2, 62),
+                    _ => throw new InvalidDataException("Unsupported Linux update architecture.")
+                };
+                if (header[0] != 0x7f || header[1] != 'E' || header[2] != 'L' || header[3] != 'F' ||
+                    header[4] != elfClass || header[5] != 1 || machine != expectedMachine)
                     throw new InvalidDataException("Wrong Linux update architecture.");
             }
             else

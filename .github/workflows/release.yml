@@ -9,27 +9,53 @@ on:
 # Each line selects one platform, file format and .NET variant. Use ## to disable it.
 env:
   RELEASE_TARGETS: |
+    Windows arch win-x64
+    Windows arch win-x86
+    Windows arch win-arm64
     Windows zip with-net
     Windows zip without-net
+    ## Linux arch linux-x64
+    ## Linux arch linux-arm64
+    ## Linux arch linux-arm
     ## Linux zip with-net
     ## Linux zip without-net
     ## Linux appimage with-net
     ## Linux appimage without-net
+    ## macOS arch osx-x64
+    ## macOS arch osx-arm64
     ## macOS zip with-net
     ## macOS zip without-net
     ## macOS app with-net
     ## macOS app without-net
+    ## macOS dmg with-net
+    ## macOS dmg without-net
+    compatibility win40
+    compatibility wpf41
+    compatibility avalonia-beta1
   PRERELEASE_TARGETS: |
+    Windows arch win-x64
+    Windows arch win-x86
+    Windows arch win-arm64
     Windows zip with-net
     Windows zip without-net
+    Linux arch linux-x64
+    Linux arch linux-arm64
+    ## Linux arch linux-arm
     Linux zip with-net
-    ## Linux zip without-net
+    Linux zip without-net
     Linux appimage with-net
-    ## Linux appimage without-net
+    Linux appimage without-net
+    macOS arch osx-x64
+    macOS arch osx-arm64
     macOS zip with-net
-    ## macOS zip without-net
+    macOS zip without-net
     macOS app with-net
-    ## macOS app without-net
+    macOS app without-net
+    macOS dmg with-net
+    macOS dmg without-net
+    compatibility win40
+    compatibility wpf41
+    compatibility avalonia-beta1
 
 permissions:
   contents: read
@@ -112,30 +138,20 @@ jobs:
           retention-days: 30
 
       - name: Install appimagetool
-        if: matrix.native == 'AppImage'
+        if: matrix.appImage
         shell: bash
         run: bash ./.github/scripts/Install-AppImageTool.sh
 
       - name: Build native Avalonia packages
-        if: matrix.native != ''
+        if: matrix.nativePackages[0] != null
         shell: pwsh
         env:
           RELEASE_VERSION: ${{ needs.validate.outputs.version }}
-          RELEASE_RUNTIMES: ${{ toJSON(matrix.runtimes) }}
-          NATIVE_FORMAT: ${{ matrix.native }}
-          RELEASE_VARIANTS: ${{ toJSON(matrix.nativeVariants) }}
-        run: |
-          $runtimes = @($env:RELEASE_RUNTIMES | ConvertFrom-Json)
-          $variants = @($env:RELEASE_VARIANTS | ConvertFrom-Json | ForEach-Object { $_ -eq 'with-net' })
-          $formats = @($runtimes | ForEach-Object { "$_-$($env:NATIVE_FORMAT.ToLowerInvariant())" })
-          ./tools/Publish-Applications.ps1 -Framework Avalonia -Applications Viewer -Version $env:RELEASE_VERSION -OutputDirectory Publish-Native -RuntimeIdentifiers $runtimes -RuntimeVariants $variants -NativePackage $env:NATIVE_FORMAT -FormatTargets $formats -ExecutableOnly -SkipFirmwareHashes -NoCopy -IncludeDmg:($env:NATIVE_FORMAT -eq 'App') -IncludeAppImageZip:($env:NATIVE_FORMAT -eq 'AppImage')
-          $extension = if ($env:NATIVE_FORMAT -eq 'AppImage') { '*.AppImage' } else { '*.app.zip' }
-          if (@(Get-ChildItem -LiteralPath Publish-Native -File -Filter $extension).Count -ne ($runtimes.Count * $variants.Count)) {
-              throw "Expected one $($env:NATIVE_FORMAT) package per runtime and .NET variant."
-          }
+          NATIVE_PACKAGES: ${{ toJSON(matrix.nativePackages) }}
+        run: ./tools/Publish-WorkflowNativePackages.ps1 -PackagesJson $env:NATIVE_PACKAGES -Applications Viewer -Version $env:RELEASE_VERSION -OutputDirectory Publish-Native
 
       - name: Upload native Avalonia packages
-        if: matrix.native != ''
+        if: matrix.nativePackages[0] != null
         uses: actions/upload-artifact@v7
         with:
           name: release-avalonia-${{ matrix.platform }}-native
@@ -226,19 +242,20 @@ jobs:
           }
 
           $version = [regex]::Escape($env:RELEASE_VERSION)
-          $hasWindows = $false
+          $explorerArchitectures = @()
+          $groups = ($env:RELEASE_MATRIX | ConvertFrom-Json).include
           $hasUpdateZips = $false
           $platformCount = 0
-          foreach ($group in ($env:RELEASE_MATRIX | ConvertFrom-Json).include) {
-              $nativeExpected = @(foreach ($rid in $group.runtimes) {
-                  foreach ($variant in $group.nativeVariants) {
-                      $suffix = "v$($env:RELEASE_VERSION)_$rid-$variant"
-                      if ($group.native -eq 'AppImage') {
-                          "NxFileViewerFork_$suffix.AppImage"
-                          "NxFileViewerFork_$suffix.AppImage.zip"
-                      } else {
-                          "NxFileViewerFork_$suffix.app.zip"
-                          "NxFileViewerFork_$suffix.dmg"
+          foreach ($group in $groups) {
+              $nativeExpected = @(foreach ($package in $group.nativePackages) {
+                  foreach ($rid in $package.runtimes) {
+                      foreach ($variant in $package.variants) {
+                          $name = "NxFileViewerFork_v$($env:RELEASE_VERSION)_$rid-$variant"
+                          switch ($package.format) {
+                              AppImage { "$name.AppImage"; "$name.AppImage.zip" }
+                              App { "$name.app.zip" }
+                              Dmg { "$name.dmg" }
+                          }
                       }
                   }
               })
@@ -270,19 +287,21 @@ jobs:
               $platformCount++
               $hasUpdateZips = $true
               if ($group.platform -eq 'Windows') {
-                  $hasWindows = $true
+                  $explorerArchitectures = @($group.runtimes | Where-Object { $_ -in @('win-x64','win-arm64') } | ForEach-Object { $_.Substring(4) })
               }
           }
           if (!$platformCount) { throw 'No platform completed successfully.' }
 
-          if ($hasWindows) {
+          if ($explorerArchitectures.Count) {
               $explorer = @(Get-ChildItem -LiteralPath Publish-Release -Filter 'NxFileViewerFork.Explo?er_*.zip' -File)
-              if (!($explorer.Name -like '*_win-x64.zip') -or !($explorer.Name -like '*_win-arm64.zip')) {
-                  ./Publish.ps1 -Version $env:RELEASE_VERSION -OutputDirectory Publish-Release -Extras Explorer
+              $missing = @($explorerArchitectures | Where-Object { !($explorer.Name -like "*_win-$_.zip") })
+              if ($missing.Count) {
+                  ./Publish.ps1 -Version $env:RELEASE_VERSION -OutputDirectory Publish-Release -Extras Explorer -ExtraWindowsArchitectures $missing
               }
           }
           if ($hasUpdateZips) {
-              ./Publish.ps1 -Version $env:RELEASE_VERSION -OutputDirectory Publish-Release -Extras UpdateCompatibility
+              $extra = @('UpdateManifest') + @($groups[0].compatibilityExtras)
+              ./Publish.ps1 -Version $env:RELEASE_VERSION -OutputDirectory Publish-Release -Extras $extra
               $descriptor = Get-Content -LiteralPath Publish-Release/nxfileviewer-update.json -Raw | ConvertFrom-Json
               $index = Get-Content -LiteralPath Publish-Release/nxfileviewer-packages.json -Raw | ConvertFrom-Json
               $avalonia = @(Get-ChildItem -LiteralPath Publish-Release -File | Where-Object Name -Match "^NxFileViewerFork_v${version}_(?:win|linux|osx)-.*-net\.zip$")
