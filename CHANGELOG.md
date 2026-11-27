@@ -8,6 +8,17 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+### Added
+
+- Add optional Linux ARM32 (`linux-arm`) publishing and updater validation for executable ZIPs. ARM32 remains disabled in the default release matrix.
+- Document how to run the headless publisher on Linux and macOS and how to build executable ZIPs, AppImages, DMGs and app-bundle ZIPs.
+
+### Changed
+
+- Configure GitHub build and release architectures, package formats and .NET variants independently in the workflow settings and the Publish dialog. The prerelease matrix now includes packages without bundled .NET for Linux and macOS, plus direct macOS DMGs.
+- Let release builds select the Windows 4.0 transition updater, the legacy WPF ZIPs and the initial Avalonia ZIP layout independently.
+- Use .NET SDK 10.0.404, Microsoft.Extensions.Logging.Abstractions 10.0.15 and ZstdSharp.Port 0.9.1. Keep Dependabot package updates for Logging.Abstractions and Pkcs on 10.x and skip SDK major upgrades.
+
 ## [4.1.2-beta4] - 2026-11-26
 
 ### Added
